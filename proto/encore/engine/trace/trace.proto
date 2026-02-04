@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-option go_package = "encr.dev/proto/encore/engine/trace";
+package encore.engine.trace;
 
 import "google/protobuf/timestamp.proto";
 
-package encore.engine.trace;
+option go_package = "encr.dev/proto/encore/engine/trace";
 
 message TraceID {
   uint64 high = 1;

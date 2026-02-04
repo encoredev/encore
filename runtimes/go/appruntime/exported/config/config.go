@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"encore.dev/appruntime/exported/scrub"
 	"go.encore.dev/platform-sdk/pkg/auth"
 )
 
@@ -318,12 +319,14 @@ type PubsubSubscriptionGCPData struct {
 
 type StaticPubsubTopic struct {
 	Subscriptions map[string]*StaticPubsubSubscription
+	ScrubPaths    []scrub.Path
 }
 
 type StaticPubsubSubscription struct {
-	Service  string // the service that subscription is in
-	SvcNum   uint16 // the service number the subscription is in
-	TraceIdx uint32 // The trace Idx of the subscription
+	Service    string // the service that subscription is in
+	SvcNum     uint16 // the service number the subscription is in
+	TraceIdx   uint32 // The trace Idx of the subscription
+	ScrubPaths []scrub.Path
 }
 
 type SQLServer struct {

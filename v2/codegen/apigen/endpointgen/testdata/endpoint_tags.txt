@@ -96,8 +96,12 @@ var EncoreInternal_api_APIDesc_Tagged = &__api.Desc[*EncoreInternal_TaggedReq, E
 	ReqUserPayload: func(reqData *EncoreInternal_TaggedReq) any {
 		return nil
 	},
-	Service:           "code",
-	ServiceMiddleware: []*__api.Middleware{},
-	SvcNum:            1,
-	Tags:              []string{"bar", "foo"},
+	ScrubRequestHeaders:  nil,
+	ScrubRequestPaths:    nil,
+	ScrubResponseHeaders: nil,
+	ScrubResponsePaths:   nil,
+	Service:              "code",
+	ServiceMiddleware:    []*__api.Middleware{},
+	SvcNum:               1,
+	Tags:                 []string{"bar", "foo"},
 }

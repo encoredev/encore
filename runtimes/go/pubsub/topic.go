@@ -25,7 +25,8 @@ import (
 // See NewTopic for more information on how to declare a Topic.
 type Topic[T any] struct {
 	mgr            *Manager
-	staticCfg      TopicConfig         // The config as defined in the applications source code
+	appCfg         TopicConfig // The config as defined in the applications source code
+	staticCfg      *config.StaticPubsubTopic
 	runtimeCfg     *config.PubsubTopic // The config for this running instance of the application
 	topic          types.TopicImplementation
 	publishLimiter limiter.Limiter
@@ -34,7 +35,7 @@ type Topic[T any] struct {
 func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 	if mgr.static.Testing {
 		return &Topic[T]{
-			staticCfg:      cfg,
+			appCfg:         cfg,
 			mgr:            mgr,
 			runtimeCfg:     &config.PubsubTopic{EncoreName: name},
 			topic:          test.NewTopic[T](mgr.ts, name),
@@ -43,12 +44,13 @@ func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 	}
 
 	// Look up the topic configuration
-	topic, ok := mgr.runtime.PubsubTopics[name]
-	if !ok {
+	topic, hasRuntimeCfg := mgr.runtime.PubsubTopics[name]
+	staticCfg, hasStaticCfg := mgr.static.PubsubTopics[name]
+	if !hasRuntimeCfg || !hasStaticCfg {
 		// If we don't have a topic configuration for this topic, it means that the topic was not registered for this instance
 		// thus we should default to the noop implementation.
 		return &Topic[T]{
-			staticCfg:      cfg,
+			appCfg:         cfg,
 			mgr:            mgr,
 			runtimeCfg:     &config.PubsubTopic{EncoreName: name},
 			topic:          &noop.Topic{},
@@ -64,7 +66,8 @@ func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 		if p.Matches(provider) {
 			impl := p.NewTopic(provider, cfg, topic)
 			return &Topic[T]{
-				staticCfg:      cfg,
+				appCfg:         cfg,
+				staticCfg:      staticCfg,
 				mgr:            mgr,
 				runtimeCfg:     topic,
 				topic:          impl,
@@ -93,7 +96,7 @@ type TopicMeta struct {
 func (t *Topic[T]) Meta() TopicMeta {
 	return TopicMeta{
 		Name:   t.runtimeCfg.EncoreName,
-		Config: t.staticCfg,
+		Config: t.appCfg,
 	}
 }
 
@@ -126,15 +129,15 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 
 	// Add the ordering attribute if it is set
 	var orderingKey string
-	if t.staticCfg.OrderingAttribute != "" {
-		value, found := attrs[t.staticCfg.OrderingAttribute]
+	if t.appCfg.OrderingAttribute != "" {
+		value, found := attrs[t.appCfg.OrderingAttribute]
 		if !found {
 			// This is checked statically, so this should never happen
-			return "", errs.B().Code(errs.InvalidArgument).Msgf("ordering attribute %s not found in message for topic %s", t.staticCfg.OrderingAttribute, t.runtimeCfg.EncoreName).Err()
+			return "", errs.B().Code(errs.InvalidArgument).Msgf("ordering attribute %s not found in message for topic %s", t.appCfg.OrderingAttribute, t.runtimeCfg.EncoreName).Err()
 		}
 
 		if value == "" {
-			return "", errs.B().Code(errs.InvalidArgument).Msgf("ordering attribute %s cannot be an empty string for topic %s", t.staticCfg.OrderingAttribute, t.runtimeCfg.EncoreName).Err()
+			return "", errs.B().Code(errs.InvalidArgument).Msgf("ordering attribute %s cannot be an empty string for topic %s", t.appCfg.OrderingAttribute, t.runtimeCfg.EncoreName).Err()
 		}
 
 		orderingKey = value
@@ -168,7 +171,10 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 				SpanID:  curr.Req.SpanID,
 				Goid:    curr.Goctr,
 			},
-			Topic:   t.runtimeCfg.EncoreName,
+			Desc: &model.PubSubTopicDesc{
+				Topic:      t.runtimeCfg.EncoreName,
+				ScrubPaths: t.staticCfg.ScrubPaths,
+			},
 			Message: data,
 			Stack:   stack.Build(1),
 		})

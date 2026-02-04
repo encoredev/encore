@@ -1,57 +1,57 @@
 syntax = "proto3";
 
-option go_package = "encr.dev/proto/encore/daemon";
+package encore.daemon;
 
 import "google/protobuf/empty.proto";
 
-package encore.daemon;
+option go_package = "encr.dev/proto/encore/daemon";
 
 service Daemon {
   // Run runs the application.
-  rpc Run (RunRequest) returns (stream CommandMessage);
+  rpc Run(RunRequest) returns (stream CommandMessage);
   // Test runs tests.
-  rpc Test (TestRequest) returns (stream CommandMessage);
+  rpc Test(TestRequest) returns (stream CommandMessage);
   // TestSpec returns the specification for how to run tests.
-  rpc TestSpec (TestSpecRequest) returns (TestSpecResponse);
+  rpc TestSpec(TestSpecRequest) returns (TestSpecResponse);
   // ExecScript executes a one-off script.
-  rpc ExecScript (ExecScriptRequest) returns (stream CommandMessage);
+  rpc ExecScript(ExecScriptRequest) returns (stream CommandMessage);
   // Check checks the app for compilation errors.
-  rpc Check (CheckRequest) returns (stream CommandMessage);
+  rpc Check(CheckRequest) returns (stream CommandMessage);
   // Export exports the app in various formats.
-  rpc Export (ExportRequest) returns (stream CommandMessage);
+  rpc Export(ExportRequest) returns (stream CommandMessage);
 
   // DBConnect starts the database and returns the DSN for connecting to it.
-  rpc DBConnect (DBConnectRequest) returns (DBConnectResponse);
+  rpc DBConnect(DBConnectRequest) returns (DBConnectResponse);
   // DBProxy starts a local database proxy for connecting to remote databases
   // on the encore.dev platform.
-  rpc DBProxy (DBProxyRequest) returns (stream CommandMessage);
+  rpc DBProxy(DBProxyRequest) returns (stream CommandMessage);
   // DBReset resets the given databases, recreating them from scratch.
-  rpc DBReset (DBResetRequest) returns (stream CommandMessage);
+  rpc DBReset(DBResetRequest) returns (stream CommandMessage);
 
   // GenClient generates a client based on the app's API.
-  rpc GenClient (GenClientRequest) returns (GenClientResponse);
+  rpc GenClient(GenClientRequest) returns (GenClientResponse);
   // GenWrappers generates user-facing wrapper code.
-  rpc GenWrappers (GenWrappersRequest) returns (GenWrappersResponse);
+  rpc GenWrappers(GenWrappersRequest) returns (GenWrappersResponse);
   // SecretsRefresh tells the daemon to refresh the local development secrets
   // for the given application.
-  rpc SecretsRefresh (SecretsRefreshRequest) returns (SecretsRefreshResponse);
+  rpc SecretsRefresh(SecretsRefreshRequest) returns (SecretsRefreshResponse);
   // Version reports the daemon version.
-  rpc Version (google.protobuf.Empty) returns (VersionResponse);
+  rpc Version(google.protobuf.Empty) returns (VersionResponse);
 
   // CreateNamespace creates a new infra namespace.
-  rpc CreateNamespace (CreateNamespaceRequest) returns (Namespace);
+  rpc CreateNamespace(CreateNamespaceRequest) returns (Namespace);
   // SwitchNamespace switches the active infra namespace.
-  rpc SwitchNamespace (SwitchNamespaceRequest) returns (Namespace);
+  rpc SwitchNamespace(SwitchNamespaceRequest) returns (Namespace);
   // ListNamespaces lists all namespaces for the given app.
-  rpc ListNamespaces (ListNamespacesRequest) returns (ListNamespacesResponse);
+  rpc ListNamespaces(ListNamespacesRequest) returns (ListNamespacesResponse);
   // DeleteNamespace deletes an infra namespace.
-  rpc DeleteNamespace (DeleteNamespaceRequest) returns (google.protobuf.Empty);
+  rpc DeleteNamespace(DeleteNamespaceRequest) returns (google.protobuf.Empty);
 
   rpc DumpMeta(DumpMetaRequest) returns (DumpMetaResponse);
   // Telemetry enables or disables telemetry.
   rpc Telemetry(TelemetryConfig) returns (google.protobuf.Empty);
   // InitTutorial sets the tutorial flag of the app
-  rpc CreateApp(CreateAppRequest)  returns (CreateAppResponse);
+  rpc CreateApp(CreateAppRequest) returns (CreateAppResponse);
 }
 
 message CommandMessage {
@@ -118,6 +118,9 @@ message RunRequest {
 
   // Log level override.
   optional string log_level = 12;
+
+  // scrub_sensitive_data, if true, scrubs sensitive data from local traces.
+  bool scrub_sensitive_data = 13;
 
   enum BrowserMode {
     BROWSER_AUTO = 0;
@@ -352,8 +355,7 @@ message GenWrappersRequest {
   string app_root = 1;
 }
 
-message GenWrappersResponse {
-}
+message GenWrappersResponse {}
 
 message SecretsRefreshRequest {
   string app_root = 1;
@@ -361,8 +363,7 @@ message SecretsRefreshRequest {
   string value = 3;
 }
 
-message SecretsRefreshResponse {
-}
+message SecretsRefreshResponse {}
 
 message VersionResponse {
   string version = 1;
@@ -432,8 +433,6 @@ message DumpMetaRequest {
 message DumpMetaResponse {
   bytes meta = 1;
 }
-
-
 
 // The following messages are used for sqlc plugin integration.
 message SQLCPlugin {

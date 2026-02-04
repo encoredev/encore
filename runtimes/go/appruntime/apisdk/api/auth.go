@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 
+	"encore.dev/appruntime/exported/scrub"
 	jsoniter "github.com/json-iterator/go"
 
 	"encore.dev/appruntime/exported/model"
@@ -25,6 +26,8 @@ type AuthHandlerDesc[Params any] struct {
 
 	DecodeAuth  func(*http.Request) (Params, error)
 	AuthHandler func(context.Context, Params) (model.AuthInfo, error)
+
+	ScrubRequestPaths []scrub.Path
 
 	rpcDescOnce   sync.Once
 	cachedRPCDesc *model.RPCDesc
@@ -170,6 +173,8 @@ func (d *AuthHandlerDesc[Params]) rpcDesc() *model.RPCDesc {
 			Endpoint:    d.Endpoint,
 			AuthHandler: true,
 			Raw:         false,
+
+			ScrubRequestPaths: d.ScrubRequestPaths,
 
 			// TODO would be nice to support these for auth handlers in the future.
 			RequestType:  nil,

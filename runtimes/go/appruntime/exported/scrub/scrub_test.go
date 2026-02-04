@@ -241,6 +241,31 @@ func TestJSON(t *testing.T) {
 			wantOutput: `{"One":["\"one\""]}}`,
 		},
 		{
+			name:  "nested_partial_scrub",
+			input: `{"paypay": "bar", "Nested": {"Foo": "baz", "Bar": 1}, "NS": {"Sensitive": "hi", "Bar": 2}, "NotSensitive": false}`,
+			paths: []Path{
+				{{Kind: ObjectField, FieldName: `"Header"`, CaseSensitive: false}},
+				{{Kind: ObjectField, FieldName: `"Payload"`, CaseSensitive: false}},
+				{{Kind: ObjectField, FieldName: `"Nested"`, CaseSensitive: false}},
+				{{Kind: ObjectField, FieldName: `"NS"`, CaseSensitive: false}, {Kind: ObjectField, FieldName: `"Sensitive"`, CaseSensitive: false}},
+			},
+			wantOutput: `{"paypay": "bar", "Nested": "[sensitive]", "NS": {"Sensitive": "[sensitive]", "Bar": 2}, "NotSensitive": false}`,
+		},
+		{
+			name:  "debug",
+			input: "{\n  \"Header\": \"foo\",\n  \"Payload\": \"bar\",\n  \"Nested\": {\n    \"Foo\": \"baz\",\n    \"Bar\": 1\n  },\n  \"NS\": {\n    \"Sensitive\": \"hi\",\n    \"Bar\": 2\n  },\n  \"NotSensitive\": false\n}",
+			paths: []Path{
+				{{Kind: ObjectField, FieldName: `"Header"`, CaseSensitive: false}},
+				{{Kind: ObjectField, FieldName: `"Payload"`, CaseSensitive: false}},
+				{{Kind: ObjectField, FieldName: `"Nested"`, CaseSensitive: false}},
+				{
+					{Kind: ObjectField, FieldName: `"NS"`, CaseSensitive: false},
+					{Kind: ObjectField, FieldName: `"Sensitive"`, CaseSensitive: false},
+				},
+			},
+			wantOutput: "{\n  \"Header\": \"[sensitive]\",\n  \"Payload\": \"[sensitive]\",\n  \"Nested\": \"[sensitive]\",\n  \"NS\": {\n    \"Sensitive\": \"[sensitive]\",\n    \"Bar\": 2\n  },\n  \"NotSensitive\": false\n}",
+		},
+		{
 			name:  "multiple_array_nested_obj",
 			input: `{"one": [{"two": {"three": "ABC"}}, {"two": {"three": "DEF"}}]}`,
 			paths: []Path{

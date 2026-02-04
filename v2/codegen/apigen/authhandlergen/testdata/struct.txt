@@ -22,6 +22,7 @@ import (
 	"context"
 	__api "encore.dev/appruntime/apisdk/api"
 	__model "encore.dev/appruntime/exported/model"
+	scrub "encore.dev/appruntime/exported/scrub"
 	__etype "encore.dev/appruntime/shared/etype"
 	errs "encore.dev/beta/errs"
 	"net/http"
@@ -62,11 +63,12 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[*My
 		}
 		return params, nil
 	},
-	DefLoc:      uint32(0x0),
-	Endpoint:    "AuthHandler",
-	HasAuthData: false,
-	Service:     "code",
-	SvcNum:      1,
+	DefLoc:            uint32(0x0),
+	Endpoint:          "AuthHandler",
+	HasAuthData:       false,
+	ScrubRequestPaths: []scrub.Path{[]scrub.PathEntry{{Kind: scrub.ObjectField, FieldName: "\"ClientID\"", CaseSensitive: false}}, []scrub.PathEntry{{Kind: scrub.ObjectField, FieldName: "\"APIKey\"", CaseSensitive: false}}, []scrub.PathEntry{{Kind: scrub.ObjectField, FieldName: "\"SessionToken\"", CaseSensitive: false}}, []scrub.PathEntry{{Kind: scrub.ObjectField, FieldName: "\"OtherCookie\"", CaseSensitive: false}}, []scrub.PathEntry{{Kind: scrub.ObjectField, FieldName: "\"IntCookie\"", CaseSensitive: false}}},
+	Service:           "code",
+	SvcNum:            1,
 }
 
 func init() {

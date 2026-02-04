@@ -1,30 +1,30 @@
 syntax = "proto3";
 
-option go_package = "encr.dev/proto/encore/parser/meta/v1";
-
 package encore.parser.meta.v1;
 
 import "encore/parser/schema/v1/schema.proto";
 
+option go_package = "encr.dev/proto/encore/parser/meta/v1";
+
 // Data is the metadata associated with an app version.
 message Data {
-  string                  module_path         = 1; // app module path
-  string                  app_revision        = 2; // app revision (always the VCS revision reference)
-  bool                    uncommitted_changes = 8; // true if there where changes made on-top of the VCS revision
-  repeated schema.v1.Decl decls               = 3;
-  repeated Package        pkgs                = 4;
-  repeated Service        svcs                = 5;
-  optional AuthHandler    auth_handler        = 6; // the auth handler or nil
-  repeated CronJob        cron_jobs           = 7;
-  repeated PubSubTopic    pubsub_topics       = 9; // All the pub sub topics declared in the application
-  repeated Middleware     middleware          = 10;
-  repeated CacheCluster   cache_clusters      = 11;
-  repeated string         experiments         = 12;
-  repeated Metric         metrics             = 13;
-  repeated SQLDatabase    sql_databases       = 14;
-  repeated Gateway        gateways            = 15;
-  Lang                    language            = 16;
-  repeated Bucket         buckets             = 17;
+  string module_path = 1; // app module path
+  string app_revision = 2; // app revision (always the VCS revision reference)
+  bool uncommitted_changes = 8; // true if there where changes made on-top of the VCS revision
+  repeated schema.v1.Decl decls = 3;
+  repeated Package pkgs = 4;
+  repeated Service svcs = 5;
+  optional AuthHandler auth_handler = 6; // the auth handler or nil
+  repeated CronJob cron_jobs = 7;
+  repeated PubSubTopic pubsub_topics = 9; // All the pub sub topics declared in the application
+  repeated Middleware middleware = 10;
+  repeated CacheCluster cache_clusters = 11;
+  repeated string experiments = 12;
+  repeated Metric metrics = 13;
+  repeated SQLDatabase sql_databases = 14;
+  repeated Gateway gateways = 15;
+  Lang language = 16;
+  repeated Bucket buckets = 17;
 }
 
 // Lang describes the language an application is written in.
@@ -38,29 +38,29 @@ enum Lang {
 // It is never an unqualified name, even in circumstances
 // where a package may refer to its own objects.
 message QualifiedName {
-  string pkg  = 1; // "rel/path/to/pkg"
+  string pkg = 1; // "rel/path/to/pkg"
   string name = 2; // ObjectName
 }
 
 message Package {
-  string                 rel_path     = 1; // import path relative to app root ("." for the app root itself)
-  string                 name         = 2; // package name as declared in Go files
-  string                 doc          = 3; // associated documentation
-  string                 service_name = 4; // service name this package is a part of, if any
-  repeated string        secrets      = 5; // secrets required by this package
-  repeated QualifiedName rpc_calls    = 6; // RPCs called by the package
-  repeated TraceNode     trace_nodes  = 7;
+  string rel_path = 1; // import path relative to app root ("." for the app root itself)
+  string name = 2; // package name as declared in Go files
+  string doc = 3; // associated documentation
+  string service_name = 4; // service name this package is a part of, if any
+  repeated string secrets = 5; // secrets required by this package
+  repeated QualifiedName rpc_calls = 6; // RPCs called by the package
+  repeated TraceNode trace_nodes = 7;
 }
 
 message Service {
-  string               name       = 1;
-  string               rel_path   = 2; // import path relative to app root for the root package in the service
-  repeated RPC         rpcs       = 3;
+  string name = 1;
+  string rel_path = 2; // import path relative to app root for the root package in the service
+  repeated RPC rpcs = 3;
   repeated DBMigration migrations = 4;
-  repeated string      databases  = 5; // databases this service connects to
-  bool                 has_config = 6; // true if the service has uses config
-  repeated BucketUsage buckets    = 7; // buckets this service uses
-  repeated string      metrics    = 8; // metrics this service uses
+  repeated string databases = 5; // databases this service connects to
+  bool has_config = 6; // true if the service has uses config
+  repeated BucketUsage buckets = 7; // buckets this service uses
+  repeated string metrics = 8; // metrics this service uses
 }
 
 message BucketUsage {
@@ -106,8 +106,8 @@ message BucketUsage {
 message Selector {
   enum Type {
     UNKNOWN = 0;
-    ALL     = 1;
-    TAG     = 2;
+    ALL = 1;
+    TAG = 2;
     // NOTE: If more types are added, update the (selector.Selector).ToProto method.
   }
 
@@ -116,17 +116,17 @@ message Selector {
 }
 
 message RPC {
-  string                   name            = 1; // name of the RPC endpoint
-  optional string          doc             = 2; // associated documentation
-  string                   service_name    = 3; // the service the RPC belongs to.
-  AccessType               access_type     = 4; // how can the RPC be accessed?
-  optional schema.v1.Type  request_schema  = 5; // request schema, or nil
-  optional schema.v1.Type  response_schema = 6; // response schema, or nil
-  Protocol                 proto           = 7;
-  schema.v1.Loc            loc             = 8;
-  Path                     path            = 9;
-  repeated string          http_methods    = 10;
-  repeated Selector        tags            = 11;
+  string name = 1; // name of the RPC endpoint
+  optional string doc = 2; // associated documentation
+  string service_name = 3; // the service the RPC belongs to.
+  AccessType access_type = 4; // how can the RPC be accessed?
+  optional schema.v1.Type request_schema = 5; // request schema, or nil
+  optional schema.v1.Type response_schema = 6; // response schema, or nil
+  Protocol proto = 7;
+  schema.v1.Loc loc = 8;
+  Path path = 9;
+  repeated string http_methods = 10;
+  repeated Selector tags = 11;
 
   // sensitive reports whether the whole payload is sensitive.
   // If true, none of the request/response payload will be traced.
@@ -145,7 +145,7 @@ message RPC {
   // If the endpoint is streaming
   bool streaming_request = 16;
   bool streaming_response = 17;
-  optional schema.v1.Type  handshake_schema = 18; // handshake schema, or nil
+  optional schema.v1.Type handshake_schema = 18; // handshake schema, or nil
 
   // If the endpoint serves static assets.
   optional StaticAssets static_assets = 19;
@@ -183,23 +183,23 @@ message RPC {
 }
 
 message AuthHandler {
-  string                  name      = 1;
-  string                  doc       = 2;
-  string                  pkg_path  = 3; // package (service) import path
-  string                  pkg_name  = 4; // package (service) name
-  schema.v1.Loc           loc       = 5;
+  string name = 1;
+  string doc = 2;
+  string pkg_path = 3; // package (service) import path
+  string pkg_name = 4; // package (service) name
+  schema.v1.Loc loc = 5;
   optional schema.v1.Type auth_data = 6; // custom auth data, or nil
-  optional schema.v1.Type params    = 7; // builtin string or named type
-  string service_name               = 8;
+  optional schema.v1.Type params = 7; // builtin string or named type
+  string service_name = 8;
 }
 
 message Middleware {
-  QualifiedName     name         = 1;
-  string            doc          = 2;
-  schema.v1.Loc     loc          = 3;
-  bool              global       = 4;
-  optional string   service_name = 5; // nil if global
-  repeated Selector target       = 6;
+  QualifiedName name = 1;
+  string doc = 2;
+  schema.v1.Loc loc = 3;
+  bool global = 4;
+  optional string service_name = 5; // nil if global
+  repeated Selector target = 6;
 }
 
 message TraceNode {
@@ -214,16 +214,16 @@ message TraceNode {
   int32 src_col_end = 9;
 
   oneof context {
-    RPCDefNode           rpc_def           = 10;
-    RPCCallNode          rpc_call          = 11;
-    StaticCallNode       static_call       = 12;
-    AuthHandlerDefNode   auth_handler_def  = 13;
-    PubSubTopicDefNode   pubsub_topic_def  = 14;
-    PubSubPublishNode    pubsub_publish    = 15;
+    RPCDefNode rpc_def = 10;
+    RPCCallNode rpc_call = 11;
+    StaticCallNode static_call = 12;
+    AuthHandlerDefNode auth_handler_def = 13;
+    PubSubTopicDefNode pubsub_topic_def = 14;
+    PubSubPublishNode pubsub_publish = 15;
     PubSubSubscriberNode pubsub_subscriber = 16;
-    ServiceInitNode      service_init      = 17;
-    MiddlewareDefNode    middleware_def    = 18;
-    CacheKeyspaceDefNode cache_keyspace    = 19;
+    ServiceInitNode service_init = 17;
+    MiddlewareDefNode middleware_def = 18;
+    CacheKeyspaceDefNode cache_keyspace = 19;
   }
 }
 
@@ -258,39 +258,39 @@ message AuthHandlerDefNode {
 
 message PubSubTopicDefNode {
   string topic_name = 1;
-  string context    = 2;
+  string context = 2;
 }
 
 message PubSubPublishNode {
   string topic_name = 1;
-  string context    = 2;
+  string context = 2;
 }
 
 message PubSubSubscriberNode {
-  string topic_name      = 1;
+  string topic_name = 1;
   string subscriber_name = 2;
-  string service_name    = 3;
-  string context         = 4;
+  string service_name = 3;
+  string context = 4;
 }
 
 message ServiceInitNode {
-  string service_name    = 1;
+  string service_name = 1;
   string setup_func_name = 2;
-  string context         = 3;
+  string context = 3;
 }
 
 message MiddlewareDefNode {
-  string pkg_rel_path      = 1;
-  string name              = 2;
-  string context           = 3;
+  string pkg_rel_path = 1;
+  string name = 2;
+  string context = 3;
   repeated Selector target = 4;
 }
 
 message CacheKeyspaceDefNode {
   string pkg_rel_path = 1;
-  string var_name     = 2;
+  string var_name = 2;
   string cluster_name = 3;
-  string context      = 4;
+  string context = 4;
 }
 
 message Path {
@@ -342,7 +342,7 @@ message Gateway {
 
   message Explicit {
     // The service name this gateway belongs to.
-    string service_name               = 1;
+    string service_name = 1;
     optional AuthHandler auth_handler = 2;
   }
 }
@@ -366,36 +366,36 @@ message SQLDatabase {
 }
 
 message DBMigration {
-  string filename    = 1; // filename
-  uint64 number      = 2; // migration number
+  string filename = 1; // filename
+  uint64 number = 2; // migration number
   string description = 3; // descriptive name
 }
 
 message Bucket {
-  string name         = 1;
+  string name = 1;
   optional string doc = 2;
-  bool versioned      = 3;
-  bool public         = 4;
+  bool versioned = 3;
+  bool public = 4;
 }
 
 message PubSubTopic {
-  string                name               = 1; // The pub sub topic name (unique per application)
-  optional string       doc                = 2; // The documentation for the topic
-  schema.v1.Type        message_type       = 3; // The type of the message
-  DeliveryGuarantee     delivery_guarantee = 4; // The delivery guarantee for the topic
-  string                ordering_key       = 5; // The field used to group messages; if empty, the topic is not ordered
-  repeated Publisher    publishers         = 6; // The publishers for this topic
-  repeated Subscription subscriptions      = 7; // The subscriptions to the topic
+  string name = 1; // The pub sub topic name (unique per application)
+  optional string doc = 2; // The documentation for the topic
+  schema.v1.Type message_type = 3; // The type of the message
+  DeliveryGuarantee delivery_guarantee = 4; // The delivery guarantee for the topic
+  string ordering_key = 5; // The field used to group messages; if empty, the topic is not ordered
+  repeated Publisher publishers = 6; // The publishers for this topic
+  repeated Subscription subscriptions = 7; // The subscriptions to the topic
 
   message Publisher {
     string service_name = 1; // The service the publisher is in
   }
 
   message Subscription {
-    string name              = 1; // The unique name of the subscription for this topic
-    string service_name      = 2; // The service that the subscriber is in
-    int64  ack_deadline      = 3; // How long has a consumer got to process and ack a message in nanoseconds
-    int64  message_retention = 4; // How long is an undelivered message kept in nanoseconds
+    string name = 1; // The unique name of the subscription for this topic
+    string service_name = 2; // The service that the subscriber is in
+    int64 ack_deadline = 3; // How long has a consumer got to process and ack a message in nanoseconds
+    int64 message_retention = 4; // How long is an undelivered message kept in nanoseconds
     RetryPolicy retry_policy = 5; // The retry policy for the subscription
 
     // How many messages each instance can process concurrently.
@@ -411,32 +411,32 @@ message PubSubTopic {
 
   enum DeliveryGuarantee {
     AT_LEAST_ONCE = 0; // All messages will be delivered to each subscription at least once
-    EXACTLY_ONCE  = 1; // All messages will be delivered to each subscription exactly once
+    EXACTLY_ONCE = 1; // All messages will be delivered to each subscription exactly once
   }
 }
 
 message CacheCluster {
-  string            name            = 1; // The pub sub topic name (unique per application)
-  string            doc             = 2; // The documentation for the topic
-  repeated Keyspace keyspaces       = 3; // The publishers for this topic
-  string            eviction_policy = 4; // redis eviction policy
+  string name = 1; // The pub sub topic name (unique per application)
+  string doc = 2; // The documentation for the topic
+  repeated Keyspace keyspaces = 3; // The publishers for this topic
+  string eviction_policy = 4; // redis eviction policy
 
   message Keyspace {
-    schema.v1.Type key_type     = 1;
-    schema.v1.Type value_type   = 2;
-    string         service      = 3;
-    string         doc          = 4;
-    Path           path_pattern = 5;
+    schema.v1.Type key_type = 1;
+    schema.v1.Type value_type = 2;
+    string service = 3;
+    string doc = 4;
+    Path path_pattern = 5;
   }
 }
 
 message Metric {
-  string            name         = 1; // the name of the metric
-  schema.v1.Builtin value_type   = 2;
-  string            doc          = 3; // the doc string
-  MetricKind        kind         = 4;
-  optional string   service_name = 5; // the service the metric is exclusive to, if any.
-  repeated Label    labels       = 6;
+  string name = 1; // the name of the metric
+  schema.v1.Builtin value_type = 2;
+  string doc = 3; // the doc string
+  MetricKind kind = 4;
+  optional string service_name = 5; // the service the metric is exclusive to, if any.
+  repeated Label labels = 6;
 
   enum MetricKind {
     COUNTER = 0;
@@ -445,8 +445,8 @@ message Metric {
   }
 
   message Label {
-    string key             = 1;
+    string key = 1;
     schema.v1.Builtin type = 2;
-    string doc             = 3;
+    string doc = 3;
   }
 }

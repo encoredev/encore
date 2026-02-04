@@ -86,23 +86,17 @@ func (s *scanner) scan() scanItem {
 func (s *scanner) scanOne() (it scanItem, preContext, postContext byte) {
 	for {
 		c := s.readToken()
-		postContext = s.peekToken()
 		switch c {
 		case '"':
 			it = s.scanString()
-			return
 		case '{':
 			it = scanItem{from: s.pos - 1, to: s.pos, tok: objectBegin}
-			return
 		case '}':
 			it = scanItem{from: s.pos - 1, to: s.pos, tok: objectEnd}
-			return
 		case '[':
 			it = scanItem{from: s.pos - 1, to: s.pos, tok: arrayBegin}
-			return
 		case ']':
 			it = scanItem{from: s.pos - 1, to: s.pos, tok: arrayEnd}
-			return
 		case ':', ',':
 			preContext = c
 			continue
@@ -110,8 +104,9 @@ func (s *scanner) scanOne() (it scanItem, preContext, postContext byte) {
 			return
 		default:
 			it = s.scanLiteral()
-			return
 		}
+		postContext = s.peekToken()
+		return
 	}
 }
 

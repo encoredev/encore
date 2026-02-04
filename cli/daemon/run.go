@@ -138,17 +138,18 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	}
 
 	runInstance, err := s.mgr.Start(ctx, run.StartParams{
-		App:        app,
-		NS:         ns,
-		WorkingDir: req.WorkingDir,
-		Listener:   ln,
-		ListenAddr: displayListenAddr,
-		Watch:      req.Watch,
-		Environ:    req.Environ,
-		OpsTracker: ops,
-		Browser:    browser,
-		Debug:      run.DebugModeFromProto(req.DebugMode),
-		LogLevel:   option.FromPointer(req.LogLevel),
+		App:                app,
+		NS:                 ns,
+		WorkingDir:         req.WorkingDir,
+		Listener:           ln,
+		ListenAddr:         displayListenAddr,
+		Watch:              req.Watch,
+		Environ:            req.Environ,
+		OpsTracker:         ops,
+		Browser:            browser,
+		Debug:              run.DebugModeFromProto(req.DebugMode),
+		LogLevel:           option.FromPointer(req.LogLevel),
+		ScrubSensitiveData: req.ScrubSensitiveData,
 	})
 	if err != nil {
 		s.mu.Unlock()

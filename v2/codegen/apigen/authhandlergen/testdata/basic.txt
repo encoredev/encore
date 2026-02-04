@@ -36,11 +36,12 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[str
 		}
 		return "", errs.B().Code(errs.Unauthenticated).Msg("invalid auth param").Err()
 	},
-	DefLoc:      uint32(0x0),
-	Endpoint:    "AuthHandler",
-	HasAuthData: false,
-	Service:     "basic",
-	SvcNum:      1,
+	DefLoc:            uint32(0x0),
+	Endpoint:          "AuthHandler",
+	HasAuthData:       false,
+	ScrubRequestPaths: nil,
+	Service:           "basic",
+	SvcNum:            1,
 }
 
 func init() {

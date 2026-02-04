@@ -97,8 +97,8 @@ func (s *Server) metaFromAPICall(call *model.APICall) (meta CallMeta, err error)
 		} else if call.Source.MsgData != nil && call.Source.MsgData.MessageID != "" {
 			// If we're processing a PubSub message, let's update the caller
 			caller = PubSubCaller{
-				Topic:        call.Source.MsgData.Topic,
-				Subscription: call.Source.MsgData.Subscription,
+				Topic:        call.Source.MsgData.Desc.Topic,
+				Subscription: call.Source.MsgData.Desc.Subscription,
 				MessageID:    call.Source.MsgData.MessageID,
 			}
 		}

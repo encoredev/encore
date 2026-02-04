@@ -10,6 +10,7 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
+	"encr.dev/v2/codegen/apigen/typescrub"
 	"encr.dev/v2/internals/resourcepaths"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/middleware"
@@ -72,6 +73,13 @@ func genAPIDesc(
 		gen.Errs.Addf(ep.Decl.AST.Pos(), "unhandled access type %v", ep.Access)
 	}
 
+	var scrubMode typescrub.ParseMode
+	if gen.Build.DisableSensitiveScrubbing {
+		scrubMode |= typescrub.DisableScrubbing
+	}
+	reqScrub := gen.TypeScrubber.Compute(ep.Request, scrubMode)
+	respScrub := gen.TypeScrubber.Compute(ep.Response, scrubMode)
+
 	pos := ep.Decl.AST.Pos()
 	desc := f.VarDecl("APIDesc", ep.Name)
 	desc.Value(Op("&").Add(apiQ("Desc")).Types(
@@ -106,6 +114,11 @@ func genAPIDesc(
 
 		Id("ServiceMiddleware"):   serviceMiddleware(ep, fw, svcMiddleware),
 		Id("GlobalMiddlewareIDs"): globalMiddleware(appDesc, ep),
+
+		Id("ScrubRequestPaths"):    typescrub.PathsToJen(reqScrub.Payload),
+		Id("ScrubRequestHeaders"):  typescrub.HeadersToJen(reqScrub.Headers),
+		Id("ScrubResponsePaths"):   typescrub.PathsToJen(respScrub.Payload),
+		Id("ScrubResponseHeaders"): typescrub.HeadersToJen(respScrub.Headers),
 	}))
 
 	handler.desc = desc

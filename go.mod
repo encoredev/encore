@@ -23,7 +23,6 @@ require (
 	github.com/evanw/esbuild v0.19.8
 	github.com/fatih/color v1.15.0
 	github.com/fatih/structtag v1.2.0
-	github.com/fmstephe/unsafeutil v1.0.0
 	github.com/frankban/quicktest v1.14.6
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/getkin/kin-openapi v0.115.0
@@ -98,6 +97,7 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.16.3 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
+	github.com/fmstephe/unsafeutil v1.0.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect

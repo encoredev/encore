@@ -11,9 +11,9 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
+	"encore.dev/appruntime/exported/scrub"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/pkg/builder"
-	"encr.dev/pkg/scrub"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/v2builder"
 )

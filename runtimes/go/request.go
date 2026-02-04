@@ -201,12 +201,12 @@ func (mgr *Manager) CurrentRequest() *Request {
 
 	case model.PubSubMessage:
 		result.Type = PubSubMessage
-		result.Service = req.MsgData.Service
+		result.Service = req.MsgData.Desc.Service
 		result.Payload = req.MsgData.DecodedPayload
 		result.Message = &MessageData{
-			Service:         req.MsgData.Service,
-			Topic:           req.MsgData.Topic,
-			Subscription:    req.MsgData.Subscription,
+			Service:         req.MsgData.Desc.Service,
+			Topic:           req.MsgData.Desc.Topic,
+			Subscription:    req.MsgData.Desc.Subscription,
 			ID:              req.MsgData.MessageID,
 			Published:       req.MsgData.Published,
 			DeliveryAttempt: req.MsgData.Attempt,

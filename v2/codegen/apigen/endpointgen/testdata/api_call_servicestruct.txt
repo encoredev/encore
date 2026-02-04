@@ -119,10 +119,14 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
 		return nil
 	},
-	Service:           "svca",
-	ServiceMiddleware: []*__api.Middleware{},
-	SvcNum:            1,
-	Tags:              nil,
+	ScrubRequestHeaders:  nil,
+	ScrubRequestPaths:    nil,
+	ScrubResponseHeaders: nil,
+	ScrubResponsePaths:   nil,
+	Service:              "svca",
+	ServiceMiddleware:    []*__api.Middleware{},
+	SvcNum:               1,
+	Tags:                 nil,
 }
 -- want:svca/encore_internal__apicalls.go --
 package svca

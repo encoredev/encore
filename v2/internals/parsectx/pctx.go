@@ -142,6 +142,10 @@ type BuildInfo struct {
 	// MainPkg is the existing main package to use, if any.
 	// If None a main package is generated.
 	MainPkg option.Option[paths.Pkg]
+
+	// DisableSensitiveScrubbing, if true, disables scrubbing of sensitive fields.
+	// Used for local development.
+	DisableSensitiveScrubbing bool
 }
 
 // Trace traces the execution of a function.
