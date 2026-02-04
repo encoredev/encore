@@ -1,5 +1,6 @@
 mod error;
 mod manager;
+pub mod memcluster;
 mod noop;
 mod pool;
 

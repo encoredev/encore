@@ -15,6 +15,18 @@ pub enum Error {
     #[error("key already exists")]
     KeyExists,
 
+    /// Key does not exist (used for operations that require existing key).
+    #[error("no such key")]
+    NoSuchKey,
+
+    /// Type mismatch error (e.g., trying to use list operations on a string).
+    #[error("type mismatch: {0}")]
+    TypeMismatch(String),
+
+    /// Invalid value error (e.g., value is not a valid integer).
+    #[error("invalid value: {0}")]
+    InvalidValue(String),
+
     /// Cache cluster is not configured for this service.
     #[error("cache: this service is not configured to use this cache cluster")]
     NotConfigured,
@@ -55,7 +67,7 @@ pub enum OpResult {
 impl From<&Error> for OpResult {
     fn from(err: &Error) -> Self {
         match err {
-            Error::KeyNotFound => OpResult::NoSuchKey,
+            Error::KeyNotFound | Error::NoSuchKey => OpResult::NoSuchKey,
             Error::KeyExists => OpResult::Conflict,
             _ => OpResult::Err,
         }

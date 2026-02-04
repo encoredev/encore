@@ -4,6 +4,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use bb8_redis::redis;
 
+use crate::cache::memcluster::MemoryCluster;
 use crate::cache::noop::NoopCluster;
 use crate::cache::pool::Pool;
 use crate::encore::runtime::v1 as pb;
@@ -16,6 +17,8 @@ pub struct Manager {
     clusters: Arc<HashMap<EncoreName, Arc<ClusterImpl>>>,
     #[allow(dead_code)]
     tracer: Tracer,
+    /// Memory cluster for Encore Cloud fallback.
+    memory_cluster: Option<Arc<MemoryCluster>>,
 }
 
 /// Configuration for creating a Manager.
@@ -24,6 +27,7 @@ pub struct ManagerConfig<'a> {
     pub creds: &'a pb::infrastructure::Credentials,
     pub secrets: &'a secrets::Manager,
     pub tracer: Tracer,
+    pub cloud: pb::environment::Cloud,
 }
 
 impl ManagerConfig<'_> {
@@ -32,20 +36,44 @@ impl ManagerConfig<'_> {
             clusters_from_cfg(self.clusters, self.creds, self.secrets, self.tracer.clone())
                 .context("failed to parse Redis clusters")?;
 
+        // Create memory cluster for Encore Cloud fallback
+        let memory_cluster = if self.cloud == pb::environment::Cloud::Encore {
+            log::debug!("cache: running in Encore Cloud, enabling in-memory cache fallback");
+            Some(Arc::new(MemoryCluster::new(self.tracer.clone())))
+        } else {
+            None
+        };
+
         Ok(Manager {
             clusters: Arc::new(clusters),
             tracer: self.tracer,
+            memory_cluster,
         })
     }
 }
 
 impl Manager {
     /// Returns a cluster by name.
-    /// If the cluster is not configured, returns a NoopCluster that errors on all operations.
+    /// If the cluster is not configured and running in Encore Cloud,
+    /// returns an in-memory cache cluster. Otherwise, returns a NoopCluster
+    /// that errors on all operations.
     pub fn cluster(&self, name: &EncoreName) -> Arc<dyn Cluster> {
         match self.clusters.get(name) {
             Some(cluster) => cluster.clone(),
-            None => Arc::new(NoopCluster::new(name.clone())),
+            None => {
+                // If we're running in Encore Cloud, use the in-memory cluster fallback.
+                // This matches the Go runtime behavior where miniredis is used
+                // when a cluster isn't explicitly configured.
+                if let Some(mem_cluster) = &self.memory_cluster {
+                    log::debug!(
+                        "cache: using in-memory fallback for unconfigured cluster {}",
+                        name
+                    );
+                    mem_cluster.clone()
+                } else {
+                    Arc::new(NoopCluster::new(name.clone()))
+                }
+            }
         }
     }
 }

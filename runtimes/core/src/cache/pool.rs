@@ -1,19 +1,31 @@
 use std::num::NonZeroUsize;
+use std::sync::Arc;
 
 use bb8::{ErrorSink, Pool as Bb8Pool, RunError};
 use bb8_redis::redis::{self as redis, AsyncCommands, RedisResult};
 use bb8_redis::RedisConnectionManager;
 
 use crate::cache::error::{Error, Result};
+use crate::cache::memcluster::MemoryStore;
 use crate::model::{Request, TraceEventId};
 use crate::trace::protocol::{CacheCallEndData, CacheCallStartData, CacheOpResult};
 use crate::trace::Tracer;
 
+/// Backend type for the pool.
+enum Backend {
+    /// Real Redis connection pool.
+    Redis {
+        pool: Bb8Pool<RedisConnectionManager>,
+        key_prefix: Option<String>,
+    },
+    /// In-memory store (used in Encore Cloud).
+    Memory(Arc<MemoryStore>),
+}
+
 /// A connection pool to a Redis cache cluster.
-/// Uses bb8 for connection pooling with configurable min/max connections.
+/// Can use either a real Redis connection or an in-memory store.
 pub struct Pool {
-    pool: Bb8Pool<RedisConnectionManager>,
-    key_prefix: Option<String>,
+    backend: Backend,
     tracer: Tracer,
 }
 
@@ -58,25 +70,48 @@ impl Pool {
         let pool = pool.build_unchecked(mgr);
 
         Ok(Self {
-            pool,
-            key_prefix,
+            backend: Backend::Redis { pool, key_prefix },
             tracer,
         })
     }
 
-    /// Gets a connection from the pool.
-    async fn conn(&self) -> Result<bb8::PooledConnection<'_, RedisConnectionManager>> {
-        self.pool.get().await.map_err(|e| match e {
-            RunError::User(err) => Error::Redis(err),
-            RunError::TimedOut => Error::Pool("connection pool timeout".to_string()),
-        })
+    /// Creates a pool backed by an in-memory store.
+    pub(crate) fn in_memory(store: Arc<MemoryStore>, tracer: Tracer) -> Self {
+        Self {
+            backend: Backend::Memory(store),
+            tracer,
+        }
     }
 
-    /// Returns a prefixed key if a key prefix is configured.
+    /// Gets a connection from the pool (Redis backend only).
+    async fn conn(&self) -> Result<bb8::PooledConnection<'_, RedisConnectionManager>> {
+        match &self.backend {
+            Backend::Redis { pool, .. } => pool.get().await.map_err(|e| match e {
+                RunError::User(err) => Error::Redis(err),
+                RunError::TimedOut => Error::Pool("connection pool timeout".to_string()),
+            }),
+            Backend::Memory(_) => Err(Error::Pool(
+                "in-memory backend does not use connections".to_string(),
+            )),
+        }
+    }
+
+    /// Returns a prefixed key if a key prefix is configured (Redis backend).
     fn prefixed_key(&self, key: &str) -> String {
-        match &self.key_prefix {
-            Some(prefix) => format!("{}{}", prefix, key),
-            None => key.to_string(),
+        match &self.backend {
+            Backend::Redis { key_prefix, .. } => match key_prefix {
+                Some(prefix) => format!("{}{}", prefix, key),
+                None => key.to_string(),
+            },
+            Backend::Memory(_) => key.to_string(),
+        }
+    }
+
+    /// Gets the memory store if using in-memory backend.
+    fn memory_store(&self) -> Option<&Arc<MemoryStore>> {
+        match &self.backend {
+            Backend::Memory(store) => Some(store),
+            Backend::Redis { .. } => None,
         }
     }
 
@@ -86,6 +121,16 @@ impl Pool {
     pub async fn get(&self, key: &str, source: Option<&Request>) -> Result<Option<Vec<u8>>> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("get", false, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.get(&key);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let mut conn = self.conn().await?;
         let result: RedisResult<Option<Vec<u8>>> = (*conn).get(&key).await;
@@ -112,6 +157,16 @@ impl Pool {
     ) -> Result<()> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("set", true, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.set(&key, value, ttl_ms);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let mut conn = self.conn().await?;
         let result: RedisResult<()> = if let Some(ms) = ttl_ms {
@@ -142,6 +197,23 @@ impl Pool {
     ) -> Result<bool> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("setnx", true, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.set_if_not_exists(&key, value, ttl_ms);
+            match &result {
+                Ok(set) => {
+                    let op_result = if *set {
+                        CacheOpResult::Ok
+                    } else {
+                        CacheOpResult::Conflict
+                    };
+                    self.trace_end(trace, source, op_result, None);
+                }
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<bool> = {
             let mut conn = self.conn().await?;
@@ -181,6 +253,23 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("replace", true, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.replace(&key, value, ttl_ms);
+            match &result {
+                Ok(replaced) => {
+                    let op_result = if *replaced {
+                        CacheOpResult::Ok
+                    } else {
+                        CacheOpResult::NoSuchKey
+                    };
+                    self.trace_end(trace, source, op_result, None);
+                }
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<Option<()>> = {
             let mut conn = self.conn().await?;
             let mut cmd = redis::cmd("SET");
@@ -218,6 +307,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("getset", true, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.get_and_set(&key, value, ttl_ms);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<Option<Vec<u8>>> = {
             let mut conn = self.conn().await?;
             let mut cmd = redis::cmd("SET");
@@ -249,6 +348,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("getdel", true, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.get_and_delete(&key);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let mut conn = self.conn().await?;
         let result: RedisResult<Option<Vec<u8>>> =
             redis::cmd("GETDEL").arg(&key).query_async(&mut *conn).await;
@@ -270,6 +379,16 @@ impl Pool {
         let prefixed: Vec<String> = keys.iter().map(|k| self.prefixed_key(k)).collect();
         let key_refs: Vec<&str> = prefixed.iter().map(|s| s.as_str()).collect();
         let trace = self.trace_start("del", true, &key_refs, source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.delete(&key_refs);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let mut conn = self.conn().await?;
         let result: RedisResult<u64> = (*conn).del(&prefixed).await;
@@ -296,6 +415,16 @@ impl Pool {
         let key_refs: Vec<&str> = prefixed.iter().map(|s| s.as_str()).collect();
         let trace = self.trace_start("mget", false, &key_refs, source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.mget(&key_refs);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let mut conn = self.conn().await?;
         let result: RedisResult<Vec<Option<Vec<u8>>>> = (*conn).mget(&prefixed).await;
 
@@ -317,6 +446,16 @@ impl Pool {
     pub async fn append(&self, key: &str, value: &[u8], source: Option<&Request>) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("append", true, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.append(&key, value);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let mut conn = self.conn().await?;
         let result: RedisResult<i64> = (*conn).append(&key, value).await;
@@ -343,6 +482,16 @@ impl Pool {
     ) -> Result<Vec<u8>> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("getrange", false, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.get_range(&key, start, end);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<Vec<u8>> = self
             .conn()
@@ -373,6 +522,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("setrange", true, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.set_range(&key, offset, value);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<i64> = self
             .conn()
             .await?
@@ -396,6 +555,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("strlen", false, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.strlen(&key);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<i64> = self.conn().await?.strlen(&key).await;
 
         match result {
@@ -416,6 +585,16 @@ impl Pool {
     pub async fn incr_by(&self, key: &str, delta: i64, source: Option<&Request>) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("incrby", true, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.incr_by(&key, delta);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<i64> = self.conn().await?.incr(&key, delta).await;
 
@@ -440,6 +619,16 @@ impl Pool {
     ) -> Result<f64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("incrbyfloat", true, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.incr_by_float(&key, delta);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<f64> = self.conn().await?.incr(&key, delta).await;
 
@@ -467,6 +656,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("lpush", true, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.lpush(&key, values);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<i64> = self.conn().await?.lpush(&key, values).await;
 
         match result {
@@ -491,6 +690,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("rpush", true, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.rpush(&key, values);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<i64> = self.conn().await?.rpush(&key, values).await;
 
         match result {
@@ -514,6 +723,16 @@ impl Pool {
     ) -> Result<Vec<Vec<u8>>> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("lpop", true, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.lpop(&key, count);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<Vec<Vec<u8>>> = match count.and_then(NonZeroUsize::new) {
             Some(n) => self.conn().await?.lpop(&key, Some(n)).await,
@@ -546,6 +765,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("rpop", true, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.rpop(&key, count);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<Vec<Vec<u8>>> = match count.and_then(NonZeroUsize::new) {
             Some(n) => self.conn().await?.rpop(&key, Some(n)).await,
             None => {
@@ -577,6 +806,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("lindex", false, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.lindex(&key, index);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<Option<Vec<u8>>> =
             self.conn().await?.lindex(&key, index as isize).await;
 
@@ -603,6 +842,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("lset", true, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.lset(&key, index, value);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<()> = self.conn().await?.lset(&key, index as isize, value).await;
 
         match result {
@@ -627,6 +876,16 @@ impl Pool {
     ) -> Result<Vec<Vec<u8>>> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("lrange", false, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.lrange(&key, start, stop);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<Vec<Vec<u8>>> = self
             .conn()
@@ -657,6 +916,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("ltrim", true, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.ltrim(&key, start, stop);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<()> = self
             .conn()
             .await?
@@ -685,6 +954,16 @@ impl Pool {
     ) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("linsert", true, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.linsert_before(&key, pivot, value);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let mut conn = self.conn().await?;
         let result: RedisResult<i64> = redis::cmd("LINSERT")
@@ -717,6 +996,16 @@ impl Pool {
     ) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("linsert", true, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.linsert_after(&key, pivot, value);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let mut conn = self.conn().await?;
         let result: RedisResult<i64> = redis::cmd("LINSERT")
@@ -753,6 +1042,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("lrem", true, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.lrem(&key, count, value);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<i64> = self.conn().await?.lrem(&key, count as isize, value).await;
 
         match result {
@@ -780,6 +1079,16 @@ impl Pool {
         let dst_key = self.prefixed_key(dst);
         let trace = self.trace_start("lmove", true, &[&src_key, &dst_key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.lmove(&src_key, &dst_key, src_dir, dst_dir);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let mut conn = self.conn().await?;
         let result: RedisResult<Option<Vec<u8>>> = redis::cmd("LMOVE")
             .arg(&src_key)
@@ -805,6 +1114,16 @@ impl Pool {
     pub async fn llen(&self, key: &str, source: Option<&Request>) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("llen", false, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.llen(&key);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<i64> = self.conn().await?.llen(&key).await;
 
@@ -832,6 +1151,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("sadd", true, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.sadd(&key, members);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<i64> = self.conn().await?.sadd(&key, members).await;
 
         match result {
@@ -855,6 +1184,16 @@ impl Pool {
     ) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("srem", true, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.srem(&key, members);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<i64> = self.conn().await?.srem(&key, members).await;
 
@@ -880,6 +1219,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("sismember", false, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.sismember(&key, member);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<bool> = self.conn().await?.sismember(&key, member).await;
 
         match result {
@@ -903,6 +1252,16 @@ impl Pool {
     ) -> Result<Vec<Vec<u8>>> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("spop", true, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.spop(&key, count);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let mut conn = self.conn().await?;
         let result: RedisResult<Vec<Vec<u8>>> = match count {
@@ -942,6 +1301,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("srandmember", false, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.srandmember(&key, count);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let mut conn = self.conn().await?;
         let result: RedisResult<Vec<Vec<u8>>> = redis::cmd("SRANDMEMBER")
             .arg(&key)
@@ -966,6 +1335,16 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("smembers", false, &[&key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.smembers(&key);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<Vec<Vec<u8>>> = self.conn().await?.smembers(&key).await;
 
         match result {
@@ -984,6 +1363,16 @@ impl Pool {
     pub async fn scard(&self, key: &str, source: Option<&Request>) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("scard", false, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.scard(&key);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<i64> = self.conn().await?.scard(&key).await;
 
@@ -1004,6 +1393,16 @@ impl Pool {
         let prefixed: Vec<String> = keys.iter().map(|k| self.prefixed_key(k)).collect();
         let key_refs: Vec<&str> = prefixed.iter().map(|s| s.as_str()).collect();
         let trace = self.trace_start("sdiff", false, &key_refs, source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.sdiff(&key_refs);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<Vec<Vec<u8>>> = self.conn().await?.sdiff(&prefixed).await;
 
@@ -1029,8 +1428,19 @@ impl Pool {
         let dest_key = self.prefixed_key(dest);
         let prefixed: Vec<String> = keys.iter().map(|k| self.prefixed_key(k)).collect();
         let mut all_keys: Vec<&str> = vec![dest_key.as_str()];
-        all_keys.extend(prefixed.iter().map(|s| s.as_str()));
+        let key_refs: Vec<&str> = prefixed.iter().map(|s| s.as_str()).collect();
+        all_keys.extend(key_refs.iter().copied());
         let trace = self.trace_start("sdiffstore", true, &all_keys, source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.sdiffstore(&dest_key, &key_refs);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<i64> = self.conn().await?.sdiffstore(&dest_key, &prefixed).await;
 
@@ -1051,6 +1461,16 @@ impl Pool {
         let prefixed: Vec<String> = keys.iter().map(|k| self.prefixed_key(k)).collect();
         let key_refs: Vec<&str> = prefixed.iter().map(|s| s.as_str()).collect();
         let trace = self.trace_start("sinter", false, &key_refs, source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.sinter(&key_refs);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<Vec<Vec<u8>>> = self.conn().await?.sinter(&prefixed).await;
 
@@ -1076,8 +1496,19 @@ impl Pool {
         let dest_key = self.prefixed_key(dest);
         let prefixed: Vec<String> = keys.iter().map(|k| self.prefixed_key(k)).collect();
         let mut all_keys: Vec<&str> = vec![dest_key.as_str()];
-        all_keys.extend(prefixed.iter().map(|s| s.as_str()));
+        let key_refs: Vec<&str> = prefixed.iter().map(|s| s.as_str()).collect();
+        all_keys.extend(key_refs.iter().copied());
         let trace = self.trace_start("sinterstore", true, &all_keys, source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.sinterstore(&dest_key, &key_refs);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<i64> = self.conn().await?.sinterstore(&dest_key, &prefixed).await;
 
@@ -1098,6 +1529,16 @@ impl Pool {
         let prefixed: Vec<String> = keys.iter().map(|k| self.prefixed_key(k)).collect();
         let key_refs: Vec<&str> = prefixed.iter().map(|s| s.as_str()).collect();
         let trace = self.trace_start("sunion", false, &key_refs, source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.sunion(&key_refs);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<Vec<Vec<u8>>> = self.conn().await?.sunion(&prefixed).await;
 
@@ -1123,8 +1564,19 @@ impl Pool {
         let dest_key = self.prefixed_key(dest);
         let prefixed: Vec<String> = keys.iter().map(|k| self.prefixed_key(k)).collect();
         let mut all_keys: Vec<&str> = vec![dest_key.as_str()];
-        all_keys.extend(prefixed.iter().map(|s| s.as_str()));
+        let key_refs: Vec<&str> = prefixed.iter().map(|s| s.as_str()).collect();
+        all_keys.extend(key_refs.iter().copied());
         let trace = self.trace_start("sunionstore", true, &all_keys, source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.sunionstore(&dest_key, &key_refs);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let result: RedisResult<i64> = self.conn().await?.sunionstore(&dest_key, &prefixed).await;
 
@@ -1152,6 +1604,16 @@ impl Pool {
         let dst_key = self.prefixed_key(dst);
         let trace = self.trace_start("smove", true, &[&src_key, &dst_key], source);
 
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.smove(&src_key, &dst_key, member);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
+
         let result: RedisResult<bool> = self.conn().await?.smove(&src_key, &dst_key, member).await;
 
         match result {
@@ -1172,6 +1634,16 @@ impl Pool {
     pub async fn pexpire(&self, key: &str, ttl_ms: u64, source: Option<&Request>) -> Result<bool> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("pexpire", true, &[&key], source);
+
+        // Use in-memory backend if available
+        if let Some(store) = self.memory_store() {
+            let result = store.pexpire(&key, ttl_ms);
+            match &result {
+                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+                Err(_) => self.trace_end_err(trace, source),
+            }
+            return result;
+        }
 
         let mut conn = self.conn().await?;
         let result: RedisResult<bool> = redis::cmd("PEXPIRE")
@@ -1224,6 +1696,18 @@ impl Pool {
             result,
             error: err,
         });
+    }
+
+    /// Trace end helper for in-memory errors (no Redis error available).
+    fn trace_end_err(&self, start_id: Option<TraceEventId>, source: Option<&Request>) {
+        let Some(source) = source else { return };
+        self.tracer
+            .cache_call_end(CacheCallEndData::<redis::RedisError> {
+                start_id,
+                source,
+                result: CacheOpResult::Err,
+                error: None,
+            });
     }
 }
 
