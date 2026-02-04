@@ -7,6 +7,9 @@ import (
 	"slices"
 	"strings"
 
+	"encr.dev/internal/conf"
+	"encr.dev/internal/urlutil"
+
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -41,7 +44,7 @@ func printTelemetryStatus() {
 		spacing := strings.Repeat(" ", maxKeyLen-len(item[0]))
 		fmt.Printf("%s: %s%s\n", item[0], spacing, item[1])
 	}
-	fmt.Println(aurora.Sprintf("\nLearn more: %s", aurora.Underline("https://encore.dev/docs/telemetry")))
+	fmt.Println(aurora.Sprintf("\nLearn more: %s", aurora.Underline(urlutil.JoinURL(conf.DocsBaseURL(), "/docs/telemetry"))))
 }
 
 func updateTelemetry(ctx context.Context) {

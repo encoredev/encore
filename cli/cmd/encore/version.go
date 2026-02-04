@@ -7,10 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"encr.dev/internal/urlutil"
+
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/spf13/cobra"
 
 	"encr.dev/cli/internal/update"
+	"encr.dev/internal/conf"
 	"encr.dev/internal/version"
 )
 
@@ -66,7 +69,7 @@ var versionUpdateCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		if version.Version == "" || strings.HasPrefix(version.Version, "devel") {
-			fatal("cannot update development build, first install Encore from https://encore.dev/docs/install")
+			fatal("cannot update development build, first install Encore from %s", urlutil.JoinURL(conf.DocsBaseURL(), "/docs/install"))
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

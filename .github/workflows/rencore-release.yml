@@ -1,0 +1,256 @@
+name: Rencore Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., "v1.0.0", "v1.0.0-beta.1")'
+        type: string
+        required: true
+      platform_api_url:
+        description: 'Platform API URL'
+        type: string
+        required: false
+        default: 'https://api.stagecraft.ing'
+      webdash_url:
+        description: 'Web Dashboard URL'
+        type: string
+        required: false
+        default: 'https://app.stagecraft.ing'
+      devdash_url:
+        description: 'Dev Dashboard URL'
+        type: string
+        required: false
+        default: 'https://devdash.stagecraft.ing'
+      docs_url:
+        description: 'Documentation URL'
+        type: string
+        required: false
+        default: 'https://docs.stagecraft.ing'
+
+jobs:
+  build:
+    name: "Build Rencore ${{ matrix.goos }}_${{ matrix.goarch }}"
+    strategy:
+      matrix:
+        include:
+          - builder: ubuntu-24.04
+            goos: linux
+            goarch: amd64
+          - builder: ubuntu-24.04
+            goos: linux
+            goarch: arm64
+          - builder: macos-13
+            goos: darwin
+            goarch: amd64
+          - builder: macos-13
+            goos: darwin
+            goarch: arm64
+
+    runs-on: ${{ matrix.builder }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for version detection
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          check-latest: true
+          cache: true
+
+      - name: Verify upstream ref
+        run: |
+          echo "📍 Pinned to upstream commit: $(cat upstream.ref)"
+          echo "📍 Current HEAD: $(git rev-parse HEAD)"
+
+      - name: Apply patches
+        run: |
+          echo "🔧 Applying Rencore patches..."
+          ./scripts/apply_patches.sh
+
+      - name: Build Rencore
+        env:
+          RENCORE_VERSION: ${{ github.event.inputs.version }}
+          RENCORE_PLATFORM_API_URL: ${{ github.event.inputs.platform_api_url }}
+          RENCORE_WEBDASH_URL: ${{ github.event.inputs.webdash_url }}
+          RENCORE_DEVDASH_URL: ${{ github.event.inputs.devdash_url }}
+          RENCORE_DOCS_URL: ${{ github.event.inputs.docs_url }}
+        run: |
+          echo "🏗️ Building for ${{ matrix.goos }}/${{ matrix.goarch }}..."
+
+          # Use the official Encore build process with custom ldflags
+          cd "$GITHUB_WORKSPACE"
+
+          # Create output directory
+          mkdir -p dist/${{ matrix.goos }}_${{ matrix.goarch }}
+
+          # Build with custom ldflags baked in
+          go run ./pkg/encorebuild/cmd/make-release/ \
+            -dst "$GITHUB_WORKSPACE/dist" \
+            -v "${{ github.event.inputs.version }}" \
+            -only "${{ matrix.goos }}-${{ matrix.goarch }}" \
+            -publish-npm=false
+
+      - name: Verify build output
+        run: |
+          echo "📦 Build artifacts:"
+          ls -lh dist/artifacts/ || echo "No artifacts found"
+
+      - name: Compute SHA256
+        id: sha256
+        run: |
+          cd dist/artifacts
+          tarball="encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz"
+          if [ -f "$tarball" ]; then
+            sha256sum "$tarball" > "$tarball.sha256"
+            sha256_value=$(cat "$tarball.sha256" | cut -d' ' -f1)
+            echo "sha256=$sha256_value" >> $GITHUB_OUTPUT
+            echo "✅ SHA256: $sha256_value"
+          else
+            echo "❌ Tarball not found: $tarball"
+            exit 1
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rencore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}
+          path: |
+            dist/artifacts/encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz
+            dist/artifacts/encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz.sha256
+          retention-days: 90
+
+  create-release:
+    name: "Create GitHub Release"
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: rencore-${{ github.event.inputs.version }}-*
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts -name "*.tar.gz" -exec cp {} release-assets/ \;
+          find artifacts -name "*.sha256" -exec cp {} release-assets/ \;
+          echo "📦 Release assets:"
+          ls -lh release-assets/
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat > release-notes.md << 'EOF'
+          # Rencore ${{ github.event.inputs.version }}
+
+          Custom Encore CLI build for self-hosted platform.
+
+          ## Configuration
+
+          - **Platform API:** ${{ github.event.inputs.platform_api_url }}
+          - **Web Dashboard:** ${{ github.event.inputs.webdash_url }}
+          - **Dev Dashboard:** ${{ github.event.inputs.devdash_url }}
+          - **Documentation:** ${{ github.event.inputs.docs_url }}
+
+          ## Installation
+
+          ### macOS (Apple Silicon)
+          ```bash
+          curl -Lo encore.tar.gz https://github.com/stagecraft-ing/encore/releases/download/${{ github.event.inputs.version }}/encore-${{ github.event.inputs.version }}-darwin_arm64.tar.gz
+          tar -xzf encore.tar.gz
+          sudo mv encore /usr/local/bin/
+          ```
+
+          ### macOS (Intel)
+          ```bash
+          curl -Lo encore.tar.gz https://github.com/stagecraft-ing/encore/releases/download/${{ github.event.inputs.version }}/encore-${{ github.event.inputs.version }}-darwin_amd64.tar.gz
+          tar -xzf encore.tar.gz
+          sudo mv encore /usr/local/bin/
+          ```
+
+          ### Linux (x86_64)
+          ```bash
+          curl -Lo encore.tar.gz https://github.com/stagecraft-ing/encore/releases/download/${{ github.event.inputs.version }}/encore-${{ github.event.inputs.version }}-linux_amd64.tar.gz
+          tar -xzf encore.tar.gz
+          sudo mv encore /usr/local/bin/
+          ```
+
+          ### Linux (ARM64)
+          ```bash
+          curl -Lo encore.tar.gz https://github.com/stagecraft-ing/encore/releases/download/${{ github.event.inputs.version }}/encore-${{ github.event.inputs.version }}-linux_arm64.tar.gz
+          tar -xzf encore.tar.gz
+          sudo mv encore /usr/local/bin/
+          ```
+
+          ### Homebrew (Recommended for macOS)
+          ```bash
+          brew tap stagecraft-ing/tap
+          brew install rencore
+
+          # Switch to Rencore
+          brew unlink encore || true
+          brew link --overwrite rencore
+          ```
+
+          ## Upstream
+
+          Based on [encoredev/encore@$(cat upstream.ref | cut -c1-7)](https://github.com/encoredev/encore/commit/$(cat upstream.ref))
+
+          ## Patches Applied
+
+          $(ls -1 patches/*.patch | while read p; do echo "- $(basename $p)"; done)
+          EOF
+
+          cat release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Rencore ${{ github.event.inputs.version }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: ${{ contains(github.event.inputs.version, '-') }}
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Homebrew formula update
+        if: success()
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: stagecraft-ing/homebrew-tap
+          event-type: update-formula
+          client-payload: |
+            {
+              "version": "${{ github.event.inputs.version }}",
+              "darwin_amd64_url": "https://github.com/stagecraft-ing/encore/releases/download/${{ github.event.inputs.version }}/encore-${{ github.event.inputs.version }}-darwin_amd64.tar.gz",
+              "darwin_arm64_url": "https://github.com/stagecraft-ing/encore/releases/download/${{ github.event.inputs.version }}/encore-${{ github.event.inputs.version }}-darwin_arm64.tar.gz",
+              "linux_amd64_url": "https://github.com/stagecraft-ing/encore/releases/download/${{ github.event.inputs.version }}/encore-${{ github.event.inputs.version }}-linux_amd64.tar.gz",
+              "linux_arm64_url": "https://github.com/stagecraft-ing/encore/releases/download/${{ github.event.inputs.version }}/encore-${{ github.event.inputs.version }}-linux_arm64.tar.gz"
+            }
+
+  notify:
+    name: "Notify Release Complete"
+    needs: create-release
+    runs-on: ubuntu-24.04
+    if: success()
+
+    steps:
+      - name: Release successful
+        run: |
+          echo "🎉 Rencore ${{ github.event.inputs.version }} released successfully!"
+          echo "📦 Download: https://github.com/stagecraft-ing/encore/releases/tag/${{ github.event.inputs.version }}"

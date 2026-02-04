@@ -136,7 +136,7 @@ func configureForAppEnv(ctx context.Context, appID string, envName string) error
 				"args":               []string{"kubernetes", "exec-credentials"},
 				"command":            "encore",
 				"env":                nil,
-				"installHint":        "Install encore for use with kubectl, see https://encore.dev",
+				"installHint":        fmt.Sprintf("Install encore for use with kubectl, see %s", conf.DocsBaseURL()),
 				"interactiveMode":    "Never",
 				"provideClusterInfo": false,
 			},

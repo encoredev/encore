@@ -15,11 +15,12 @@ import (
 
 var authKey string
 
+var authCmd = &cobra.Command{
+	Use:   "auth",
+	Short: "Commands to authenticate with Encore",
+}
+
 func init() {
-	authCmd := &cobra.Command{
-		Use:   "auth",
-		Short: "Commands to authenticate with Encore",
-	}
 
 	signupCmd := &cobra.Command{
 		Use:   "signup",

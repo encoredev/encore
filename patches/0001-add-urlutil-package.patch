@@ -1,0 +1,54 @@
+diff --git a/internal/urlutil/join.go b/internal/urlutil/join.go
+new file mode 100644
+index 00000000..e60e7c8b
+--- /dev/null
++++ b/internal/urlutil/join.go
+@@ -0,0 +1,17 @@
++package urlutil
++
++import "strings"
++
++// JoinURL joins a base URL and a relative path, ensuring exactly one slash.
++// It guards against accidental full URLs in relPath.
++func JoinURL(base, relPath string) string {
++	// Guard: If relPath is actually a full URL, return it as-is to prevent mangling.
++	if strings.HasPrefix(relPath, "http://") || strings.HasPrefix(relPath, "https://") {
++		return relPath
++	}
++	// If base is empty, return cleaned relative path to avoid leading slash being interpreted as root
++	if strings.TrimSpace(base) == "" {
++		return strings.TrimLeft(relPath, "/")
++	}
++	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(relPath, "/")
++}
+diff --git a/internal/urlutil/join_test.go b/internal/urlutil/join_test.go
+new file mode 100644
+index 00000000..bc6e7bd8
+--- /dev/null
++++ b/internal/urlutil/join_test.go
+@@ -0,0 +1,25 @@
++package urlutil
++
++import "testing"
++
++func TestJoinURL(t *testing.T) {
++	cases := []struct {
++		base string
++		path string
++		want string
++	}{
++		{"https://a.com", "x", "https://a.com/x"},
++		{"https://a.com/", "x", "https://a.com/x"},
++		{"https://a.com", "/x", "https://a.com/x"},
++		{"https://a.com/", "/x", "https://a.com/x"},
++		{"https://a.com", "https://b.com/y", "https://b.com/y"}, // Guard check
++		{"", "/x", "x"},                         // Empty base check
++		{"   ", "/x", "x"},                      // Whitespace base check
++		{"https://a.com", "", "https://a.com/"}, // Empty path
++	}
++	for _, c := range cases {
++		if got := JoinURL(c.base, c.path); got != c.want {
++			t.Errorf("JoinURL(%q,%q)=%q want %q", c.base, c.path, got, c.want)
++		}
++	}
++}

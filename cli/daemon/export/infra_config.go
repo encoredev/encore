@@ -7,6 +7,9 @@ import (
 	"slices"
 	"strings"
 
+	"encr.dev/internal/conf"
+	"encr.dev/internal/urlutil"
+
 	"github.com/cockroachdb/errors"
 	"github.com/logrusorgru/aurora"
 	"github.com/tailscale/hujson"
@@ -20,7 +23,7 @@ import (
 )
 
 var (
-	LEARN_MORE = aurora.Italic("Learn More: https://encore.dev/docs/how-to/self-host").String()
+	LEARN_MORE = aurora.Italic("Learn More: " + urlutil.JoinURL(conf.DocsBaseURL(), "/docs/how-to/self-host")).String()
 )
 
 // defaultInfraConfigPath is the path in the image where the environment configuration is mounted.

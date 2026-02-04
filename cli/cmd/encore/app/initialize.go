@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"encr.dev/internal/urlutil"
+
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -148,7 +150,7 @@ func initializeApp(name string) error {
 		return nil
 	}
 	_, _ = fmt.Fprintf(os.Stdout, "- App ID:          %s\n", cyan.Sprint(appSlug))
-	_, _ = fmt.Fprintf(os.Stdout, "- Cloud Dashboard: %s\n\n", cyan.Sprintf("https://app.encore.cloud/%s", appSlug))
+	_, _ = fmt.Fprintf(os.Stdout, "- Cloud Dashboard: %s\n\n", cyan.Sprint(urlutil.JoinURL(conf.WebDashBaseURL(), appSlug)))
 
 	return nil
 }

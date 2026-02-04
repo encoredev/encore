@@ -28,6 +28,8 @@ var ErrNotLoggedIn = errors.New("not logged in: run 'encore auth login' first")
 var (
 	defaultPlatformURL     = "https://api.encore.cloud"
 	defaultDevDashURL      = "https://devdash.encore.dev"
+	defaultWebDashURL      = "https://app.encore.cloud"
+	defaultDocsURL         = "https://encore.dev"
 	defaultConfigDirectory = "encore"
 )
 
@@ -43,6 +45,24 @@ var APIBaseURL = (func() string {
 var WSBaseURL = (func() string {
 	return strings.Replace(APIBaseURL, "http", "ws", -1) // "https" becomes "wss"
 })()
+
+// WebDashBaseURL returns the base URL for the Web Dashboard.
+func WebDashBaseURL() string {
+	u := os.Getenv("ENCORE_WEBDASH_URL")
+	if u == "" {
+		u = defaultWebDashURL
+	}
+	return strings.TrimRight(u, "/")
+}
+
+// DocsBaseURL returns the base URL for documentation.
+func DocsBaseURL() string {
+	u := os.Getenv("ENCORE_DOCS_URL")
+	if u == "" {
+		u = defaultDocsURL
+	}
+	return strings.TrimRight(u, "/")
+}
 
 // DevDashURL is the base URL to retrieve the dev dashboard code from.
 var DevDashURL = (func() string {

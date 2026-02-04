@@ -1,0 +1,106 @@
+diff --git a/cli/cmd/encore/app/create.go b/cli/cmd/encore/app/create.go
+index bc52313b..c3319595 100644
+--- a/cli/cmd/encore/app/create.go
++++ b/cli/cmd/encore/app/create.go
+@@ -12,6 +12,8 @@ import (
+ 	"strings"
+ 	"time"
+ 
++	"encr.dev/internal/urlutil"
++
+ 	"github.com/briandowns/spinner"
+ 	"github.com/cockroachdb/errors"
+ 	"github.com/fatih/color"
+@@ -341,7 +343,7 @@ func createApp(ctx context.Context, name, template string, lang cmdutil.Language
+ 	fmt.Println()
+ 	if app != nil {
+ 		fmt.Printf("App ID:   %s\n", cyanf(app.Slug))
+-		fmt.Printf("Web URL:  %s%s", cyanf("https://app.encore.cloud/"+app.Slug), cmdutil.Newline)
++		fmt.Printf("Web URL:  %s%s", cyanf(urlutil.JoinURL(conf.WebDashBaseURL(), app.Slug)), cmdutil.Newline)
+ 	}
+ 	fmt.Printf("App Root: %s\n", cyanf(appRoot))
+ 	llm_rules.PrintLLMRulesInfo(llmRules)
+diff --git a/cli/cmd/encore/app/initialize.go b/cli/cmd/encore/app/initialize.go
+index 7a008c48..1fb574e1 100644
+--- a/cli/cmd/encore/app/initialize.go
++++ b/cli/cmd/encore/app/initialize.go
+@@ -7,6 +7,8 @@ import (
+ 	"strings"
+ 	"time"
+ 
++	"encr.dev/internal/urlutil"
++
+ 	"github.com/briandowns/spinner"
+ 	"github.com/fatih/color"
+ 	"github.com/spf13/cobra"
+@@ -148,7 +150,7 @@ func initializeApp(name string) error {
+ 		return nil
+ 	}
+ 	_, _ = fmt.Fprintf(os.Stdout, "- App ID:          %s\n", cyan.Sprint(appSlug))
+-	_, _ = fmt.Fprintf(os.Stdout, "- Cloud Dashboard: %s\n\n", cyan.Sprintf("https://app.encore.cloud/%s", appSlug))
++	_, _ = fmt.Fprintf(os.Stdout, "- Cloud Dashboard: %s\n\n", cyan.Sprint(urlutil.JoinURL(conf.WebDashBaseURL(), appSlug)))
+ 
+ 	return nil
+ }
+diff --git a/cli/cmd/encore/deploy.go b/cli/cmd/encore/deploy.go
+index 02db0315..750c28d9 100644
+--- a/cli/cmd/encore/deploy.go
++++ b/cli/cmd/encore/deploy.go
+@@ -6,6 +6,9 @@ import (
+ 	"fmt"
+ 	"strings"
+ 
++	"encr.dev/internal/conf"
++	"encr.dev/internal/urlutil"
++
+ 	"github.com/cockroachdb/errors"
+ 	"github.com/logrusorgru/aurora/v3"
+ 	"github.com/spf13/cobra"
+@@ -75,7 +78,8 @@ var deployAppCmd = &cobra.Command{
+ 		if err != nil {
+ 			cmdutil.Fatalf("failed to deploy: %v", err)
+ 		}
+-		url := fmt.Sprintf("https://app.encore.cloud/%s/deploys/%s/%s", appSlug, rollout.EnvName, strings.TrimPrefix(rollout.ID, "roll_"))
++		rel := fmt.Sprintf("/%s/deploys/%s/%s", appSlug, rollout.EnvName, strings.TrimPrefix(rollout.ID, "roll_"))
++		url := urlutil.JoinURL(conf.WebDashBaseURL(), rel)
+ 		switch format.Value {
+ 		case "text":
+ 			fmt.Println(aurora.Sprintf("\n%s %s\n", aurora.Bold("Started Deploy:"), url))
+diff --git a/internal/conf/conf.go b/internal/conf/conf.go
+index 247c7e88..f3273c51 100644
+--- a/internal/conf/conf.go
++++ b/internal/conf/conf.go
+@@ -28,6 +28,8 @@ var ErrNotLoggedIn = errors.New("not logged in: run 'encore auth login' first")
+ var (
+ 	defaultPlatformURL     = "https://api.encore.cloud"
+ 	defaultDevDashURL      = "https://devdash.encore.dev"
++	defaultWebDashURL      = "https://app.encore.cloud"
++	defaultDocsURL         = "https://encore.dev"
+ 	defaultConfigDirectory = "encore"
+ )
+ 
+@@ -44,6 +46,24 @@ var WSBaseURL = (func() string {
+ 	return strings.Replace(APIBaseURL, "http", "ws", -1) // "https" becomes "wss"
+ })()
+ 
++// WebDashBaseURL returns the base URL for the Web Dashboard.
++func WebDashBaseURL() string {
++	u := os.Getenv("ENCORE_WEBDASH_URL")
++	if u == "" {
++		u = defaultWebDashURL
++	}
++	return strings.TrimRight(u, "/")
++}
++
++// DocsBaseURL returns the base URL for documentation.
++func DocsBaseURL() string {
++	u := os.Getenv("ENCORE_DOCS_URL")
++	if u == "" {
++		u = defaultDocsURL
++	}
++	return strings.TrimRight(u, "/")
++}
++
+ // DevDashURL is the base URL to retrieve the dev dashboard code from.
+ var DevDashURL = (func() string {
+ 	if u := os.Getenv("ENCORE_DEVDASH_URL"); u != "" {

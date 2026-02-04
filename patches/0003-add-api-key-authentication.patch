@@ -1,0 +1,120 @@
+diff --git a/cli/cmd/encore/auth/apikey.go b/cli/cmd/encore/auth/apikey.go
+new file mode 100644
+index 00000000..b7ef6312
+--- /dev/null
++++ b/cli/cmd/encore/auth/apikey.go
+@@ -0,0 +1,52 @@
++package auth
++
++import (
++	"fmt"
++	"os"
++
++	"github.com/spf13/cobra"
++
++	"encr.dev/cli/cmd/encore/cmdutil"
++	"encr.dev/cli/internal/login"
++	"encr.dev/internal/conf"
++)
++
++var loginApiKeyCmd = &cobra.Command{
++	Use:   "login-apikey --auth-key=<KEY>",
++	Short: "Log in to Encore using an API Key",
++	Run: func(cmd *cobra.Command, args []string) {
++		if authKey == "" {
++			// If not provided via flag, try reading from stdin if piped, or fail
++			stat, _ := os.Stdin.Stat()
++			if (stat.Mode() & os.ModeCharDevice) == 0 {
++				// piped
++				_, _ = fmt.Fscan(os.Stdin, &authKey)
++			}
++		}
++
++		if authKey == "" {
++			cmdutil.Fatal("auth key must be provided via --auth-key or stdin")
++		}
++
++		if err := doLoginWithAuthKey(authKey); err != nil {
++			cmdutil.Fatal(err)
++		}
++	},
++}
++
++func init() {
++	loginApiKeyCmd.Flags().StringVarP(&authKey, "auth-key", "k", "", "Auth Key to use for login")
++	authCmd.AddCommand(loginApiKeyCmd)
++}
++
++func doLoginWithAuthKey(key string) error {
++	cfg, err := login.WithAuthKey(key)
++	if err != nil {
++		return err
++	}
++	if err := conf.Write(cfg); err != nil {
++		return fmt.Errorf("write credentials: %v", err)
++	}
++	fmt.Fprintln(os.Stdout, "Successfully logged in!")
++	return nil
++}
+diff --git a/internal/conf/conf_custom_test.go b/internal/conf/conf_custom_test.go
+new file mode 100644
+index 00000000..8aededa4
+--- /dev/null
++++ b/internal/conf/conf_custom_test.go
+@@ -0,0 +1,56 @@
++package conf
++
++import (
++	"os"
++	"testing"
++)
++
++func TestWebDashBaseURL(t *testing.T) {
++	tests := []struct {
++		name string
++		env  string
++		want string
++	}{
++		{"default", "", defaultWebDashURL},
++		{"custom", "https://custom.com", "https://custom.com"},
++		{"custom_trailing", "https://custom.com/", "https://custom.com"},
++	}
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			if tt.env != "" {
++				t.Setenv("ENCORE_WEBDASH_URL", tt.env)
++			} else {
++				// Ensure env is cleared if running in dirty env
++				// On parallel tests this might be an issue but t.Setenv handles it
++				os.Unsetenv("ENCORE_WEBDASH_URL")
++			}
++			if got := WebDashBaseURL(); got != tt.want {
++				t.Errorf("WebDashBaseURL() = %v, want %v", got, tt.want)
++			}
++		})
++	}
++}
++
++func TestDocsBaseURL(t *testing.T) {
++	tests := []struct {
++		name string
++		env  string
++		want string
++	}{
++		{"default", "", defaultDocsURL},
++		{"custom", "https://docs.custom.com", "https://docs.custom.com"},
++		{"custom_trailing", "https://docs.custom.com/", "https://docs.custom.com"},
++	}
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			if tt.env != "" {
++				t.Setenv("ENCORE_DOCS_URL", tt.env)
++			} else {
++				os.Unsetenv("ENCORE_DOCS_URL")
++			}
++			if got := DocsBaseURL(); got != tt.want {
++				t.Errorf("DocsBaseURL() = %v, want %v", got, tt.want)
++			}
++		})
++	}
++}

@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"encr.dev/internal/conf"
+	"encr.dev/internal/urlutil"
+
 	"github.com/cockroachdb/errors"
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/spf13/cobra"
@@ -75,7 +78,8 @@ var deployAppCmd = &cobra.Command{
 		if err != nil {
 			cmdutil.Fatalf("failed to deploy: %v", err)
 		}
-		url := fmt.Sprintf("https://app.encore.cloud/%s/deploys/%s/%s", appSlug, rollout.EnvName, strings.TrimPrefix(rollout.ID, "roll_"))
+		rel := fmt.Sprintf("/%s/deploys/%s/%s", appSlug, rollout.EnvName, strings.TrimPrefix(rollout.ID, "roll_"))
+		url := urlutil.JoinURL(conf.WebDashBaseURL(), rel)
 		switch format.Value {
 		case "text":
 			fmt.Println(aurora.Sprintf("\n%s %s\n", aurora.Bold("Started Deploy:"), url))

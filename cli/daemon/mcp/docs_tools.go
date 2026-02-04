@@ -5,9 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
+
+	"encr.dev/internal/conf"
+	"encr.dev/internal/urlutil"
 
 	"github.com/algolia/algoliasearch-client-go/v3/algolia/opt"
 	"github.com/algolia/algoliasearch-client-go/v3/algolia/search"
@@ -91,8 +95,14 @@ func (m *Manager) searchDocs(ctx context.Context, request mcp.CallToolRequest) (
 func performAlgoliaSearch(ctx context.Context, query string, page, hitsPerPage int, facetFilters []string) (map[string]interface{}, error) {
 	// Initialize Algolia client with configurable app ID and API key
 	// In a production environment, these should be loaded from configuration
-	appID := "R7DAHI8GEL"
-	apiKey := "85bf0533142cccdbbc6b9deb92b19fdf"
+	appID := os.Getenv("ENCORE_DOCS_SEARCH_APP_ID")
+	if appID == "" {
+		appID = "R7DAHI8GEL"
+	}
+	apiKey := os.Getenv("ENCORE_DOCS_SEARCH_API_KEY")
+	if apiKey == "" {
+		apiKey = "85bf0533142cccdbbc6b9deb92b19fdf"
+	}
 
 	client := search.NewClient(appID, apiKey)
 	index := client.InitIndex("encore_docs")
@@ -168,7 +178,7 @@ func (m *Manager) getDocs(ctx context.Context, request mcp.CallToolRequest) (*mc
 			path = "/" + path
 		}
 
-		url := "https://encore.dev" + path
+		url := urlutil.JoinURL(conf.DocsBaseURL(), path)
 		content, err := fetchDocContent(ctx, url)
 		if err != nil {
 			docs[path] = map[string]interface{}{
@@ -187,7 +197,7 @@ func (m *Manager) getDocs(ctx context.Context, request mcp.CallToolRequest) (*mc
 	result["docs"] = docs
 	result["summary"] = map[string]interface{}{
 		"total":        len(docPaths),
-		"base_url":     "https://encore.dev",
+		"base_url":     conf.DocsBaseURL(),
 		"requested_at": time.Now().UTC().Format(time.RFC3339),
 	}
 

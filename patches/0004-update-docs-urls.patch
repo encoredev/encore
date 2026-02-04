@@ -1,0 +1,184 @@
+diff --git a/cli/cmd/encore/auth/auth.go b/cli/cmd/encore/auth/auth.go
+index f4d06fd3..77516cfe 100644
+--- a/cli/cmd/encore/auth/auth.go
++++ b/cli/cmd/encore/auth/auth.go
+@@ -15,11 +15,12 @@ import (
+ 
+ var authKey string
+ 
++var authCmd = &cobra.Command{
++	Use:   "auth",
++	Short: "Commands to authenticate with Encore",
++}
++
+ func init() {
+-	authCmd := &cobra.Command{
+-		Use:   "auth",
+-		Short: "Commands to authenticate with Encore",
+-	}
+ 
+ 	signupCmd := &cobra.Command{
+ 		Use:   "signup",
+diff --git a/cli/cmd/encore/k8s/config.go b/cli/cmd/encore/k8s/config.go
+index a5b08341..571bbeec 100644
+--- a/cli/cmd/encore/k8s/config.go
++++ b/cli/cmd/encore/k8s/config.go
+@@ -136,7 +136,7 @@ func configureForAppEnv(ctx context.Context, appID string, envName string) error
+ 				"args":               []string{"kubernetes", "exec-credentials"},
+ 				"command":            "encore",
+ 				"env":                nil,
+-				"installHint":        "Install encore for use with kubectl, see https://encore.dev",
++				"installHint":        fmt.Sprintf("Install encore for use with kubectl, see %s", conf.DocsBaseURL()),
+ 				"interactiveMode":    "Never",
+ 				"provideClusterInfo": false,
+ 			},
+diff --git a/cli/cmd/encore/telemetry.go b/cli/cmd/encore/telemetry.go
+index f5ae0814..4414ba74 100644
+--- a/cli/cmd/encore/telemetry.go
++++ b/cli/cmd/encore/telemetry.go
+@@ -7,6 +7,9 @@ import (
+ 	"slices"
+ 	"strings"
+ 
++	"encr.dev/internal/conf"
++	"encr.dev/internal/urlutil"
++
+ 	"github.com/logrusorgru/aurora/v3"
+ 	"github.com/rs/zerolog/log"
+ 	"github.com/spf13/cobra"
+@@ -41,7 +44,7 @@ func printTelemetryStatus() {
+ 		spacing := strings.Repeat(" ", maxKeyLen-len(item[0]))
+ 		fmt.Printf("%s: %s%s\n", item[0], spacing, item[1])
+ 	}
+-	fmt.Println(aurora.Sprintf("\nLearn more: %s", aurora.Underline("https://encore.dev/docs/telemetry")))
++	fmt.Println(aurora.Sprintf("\nLearn more: %s", aurora.Underline(urlutil.JoinURL(conf.DocsBaseURL(), "/docs/telemetry"))))
+ }
+ 
+ func updateTelemetry(ctx context.Context) {
+diff --git a/cli/cmd/encore/version.go b/cli/cmd/encore/version.go
+index d7cbf1d4..7805c6ba 100644
+--- a/cli/cmd/encore/version.go
++++ b/cli/cmd/encore/version.go
+@@ -7,10 +7,13 @@ import (
+ 	"strings"
+ 	"time"
+ 
++	"encr.dev/internal/urlutil"
++
+ 	"github.com/logrusorgru/aurora/v3"
+ 	"github.com/spf13/cobra"
+ 
+ 	"encr.dev/cli/internal/update"
++	"encr.dev/internal/conf"
+ 	"encr.dev/internal/version"
+ )
+ 
+@@ -66,7 +69,7 @@ var versionUpdateCmd = &cobra.Command{
+ 	DisableFlagsInUseLine: true,
+ 	Run: func(cmd *cobra.Command, args []string) {
+ 		if version.Version == "" || strings.HasPrefix(version.Version, "devel") {
+-			fatal("cannot update development build, first install Encore from https://encore.dev/docs/install")
++			fatal("cannot update development build, first install Encore from %s", urlutil.JoinURL(conf.DocsBaseURL(), "/docs/install"))
+ 		}
+ 
+ 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+diff --git a/cli/daemon/export/infra_config.go b/cli/daemon/export/infra_config.go
+index 238adc39..3dfd1695 100644
+--- a/cli/daemon/export/infra_config.go
++++ b/cli/daemon/export/infra_config.go
+@@ -7,6 +7,9 @@ import (
+ 	"slices"
+ 	"strings"
+ 
++	"encr.dev/internal/conf"
++	"encr.dev/internal/urlutil"
++
+ 	"github.com/cockroachdb/errors"
+ 	"github.com/logrusorgru/aurora"
+ 	"github.com/tailscale/hujson"
+@@ -20,7 +23,7 @@ import (
+ )
+ 
+ var (
+-	LEARN_MORE = aurora.Italic("Learn More: https://encore.dev/docs/how-to/self-host").String()
++	LEARN_MORE = aurora.Italic("Learn More: " + urlutil.JoinURL(conf.DocsBaseURL(), "/docs/how-to/self-host")).String()
+ )
+ 
+ // defaultInfraConfigPath is the path in the image where the environment configuration is mounted.
+diff --git a/cli/daemon/mcp/docs_tools.go b/cli/daemon/mcp/docs_tools.go
+index 857a90eb..833ce8d0 100644
+--- a/cli/daemon/mcp/docs_tools.go
++++ b/cli/daemon/mcp/docs_tools.go
+@@ -5,10 +5,14 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"net/http"
++	"os"
+ 	"regexp"
+ 	"strings"
+ 	"time"
+ 
++	"encr.dev/internal/conf"
++	"encr.dev/internal/urlutil"
++
+ 	"github.com/algolia/algoliasearch-client-go/v3/algolia/opt"
+ 	"github.com/algolia/algoliasearch-client-go/v3/algolia/search"
+ 	"github.com/mark3labs/mcp-go/mcp"
+@@ -91,8 +95,14 @@ func (m *Manager) searchDocs(ctx context.Context, request mcp.CallToolRequest) (
+ func performAlgoliaSearch(ctx context.Context, query string, page, hitsPerPage int, facetFilters []string) (map[string]interface{}, error) {
+ 	// Initialize Algolia client with configurable app ID and API key
+ 	// In a production environment, these should be loaded from configuration
+-	appID := "R7DAHI8GEL"
+-	apiKey := "85bf0533142cccdbbc6b9deb92b19fdf"
++	appID := os.Getenv("ENCORE_DOCS_SEARCH_APP_ID")
++	if appID == "" {
++		appID = "R7DAHI8GEL"
++	}
++	apiKey := os.Getenv("ENCORE_DOCS_SEARCH_API_KEY")
++	if apiKey == "" {
++		apiKey = "85bf0533142cccdbbc6b9deb92b19fdf"
++	}
+ 
+ 	client := search.NewClient(appID, apiKey)
+ 	index := client.InitIndex("encore_docs")
+@@ -168,7 +178,7 @@ func (m *Manager) getDocs(ctx context.Context, request mcp.CallToolRequest) (*mc
+ 			path = "/" + path
+ 		}
+ 
+-		url := "https://encore.dev" + path
++		url := urlutil.JoinURL(conf.DocsBaseURL(), path)
+ 		content, err := fetchDocContent(ctx, url)
+ 		if err != nil {
+ 			docs[path] = map[string]interface{}{
+@@ -187,7 +197,7 @@ func (m *Manager) getDocs(ctx context.Context, request mcp.CallToolRequest) (*mc
+ 	result["docs"] = docs
+ 	result["summary"] = map[string]interface{}{
+ 		"total":        len(docPaths),
+-		"base_url":     "https://encore.dev",
++		"base_url":     conf.DocsBaseURL(),
+ 		"requested_at": time.Now().UTC().Format(time.RFC3339),
+ 	}
+ 
+diff --git a/cli/daemon/run/proc_groups.go b/cli/daemon/run/proc_groups.go
+index 2ed5627d..b99f8b4f 100644
+--- a/cli/daemon/run/proc_groups.go
++++ b/cli/daemon/run/proc_groups.go
+@@ -16,6 +16,9 @@ import (
+ 	"sync/atomic"
+ 	"time"
+ 
++	"encr.dev/internal/conf"
++	"encr.dev/internal/urlutil"
++
+ 	"github.com/cenkalti/backoff/v4"
+ 	"github.com/cockroachdb/errors"
+ 	"github.com/rs/zerolog"
+@@ -362,7 +365,7 @@ func (pg *ProcGroup) Warnings() (rtn []warning) {
+ 	if missing := pg.ConfigGen.MissingSecrets(); len(missing) > 0 {
+ 		rtn = append(rtn, warning{
+ 			Title: "secrets not defined: " + strings.Join(missing, ", "),
+-			Help:  "undefined secrets are left empty for local development only.\nsee https://encore.dev/docs/primitives/secrets for more information",
++			Help:  "undefined secrets are left empty for local development only.\nsee " + urlutil.JoinURL(conf.DocsBaseURL(), "/docs/primitives/secrets") + " for more information",
+ 		})
+ 	}
+ 
