@@ -8,6 +8,7 @@ import (
 
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app/legacymeta"
+	"encr.dev/v2/codegen/apigen/typescrub"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/codegen/rewrite"
 	"encr.dev/v2/internals/overlay"
@@ -20,6 +21,7 @@ type Generator struct {
 
 	Util             *genutil.Helper
 	TraceNodes       *legacymeta.TraceNodes
+	TypeScrubber     *typescrub.Computer
 	rewrites         map[*pkginfo.File]*rewrite.Rewriter
 	files            map[fileKey]*File
 	addedAppInit     map[paths.Pkg]bool
@@ -31,6 +33,7 @@ func New(c *parsectx.Context, traceNodes *legacymeta.TraceNodes) *Generator {
 		Context:          c,
 		Util:             genutil.NewHelper(c.Errs),
 		TraceNodes:       traceNodes,
+		TypeScrubber:     typescrub.NewComputer(c.Log),
 		rewrites:         make(map[*pkginfo.File]*rewrite.Rewriter),
 		files:            make(map[fileKey]*File),
 		addedAppInit:     make(map[paths.Pkg]bool),

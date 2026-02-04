@@ -103,10 +103,14 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*EncoreInternal_BarReq, EncoreI
 	ReqUserPayload: func(reqData *EncoreInternal_BarReq) any {
 		return nil
 	},
-	Service:           "bar",
-	ServiceMiddleware: []*__api.Middleware{},
-	SvcNum:            1,
-	Tags:              nil,
+	ScrubRequestHeaders:  nil,
+	ScrubRequestPaths:    nil,
+	ScrubResponseHeaders: nil,
+	ScrubResponsePaths:   nil,
+	Service:              "bar",
+	ServiceMiddleware:    []*__api.Middleware{},
+	SvcNum:               1,
+	Tags:                 nil,
 }
 -- want:encore_internal/main/main.go --
 package main
@@ -211,10 +215,14 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
 		return nil
 	},
-	Service:           "foo",
-	ServiceMiddleware: []*__api.Middleware{},
-	SvcNum:            2,
-	Tags:              nil,
+	ScrubRequestHeaders:  nil,
+	ScrubRequestPaths:    nil,
+	ScrubResponseHeaders: nil,
+	ScrubResponsePaths:   nil,
+	Service:              "foo",
+	ServiceMiddleware:    []*__api.Middleware{},
+	SvcNum:               2,
+	Tags:                 nil,
 }
 -- want:synthetic/static_config.go --
 package synthetic

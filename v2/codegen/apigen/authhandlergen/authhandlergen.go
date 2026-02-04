@@ -7,6 +7,7 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen/apigenutil"
+	"encr.dev/v2/codegen/apigen/typescrub"
 	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/apis/api/apienc"
 	"encr.dev/v2/parser/apis/authhandler"
@@ -25,6 +26,12 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, ah *authhandler.AuthHandler,
 		svcNum = svc.Num
 	}
 
+	scrubMode := typescrub.AuthHandler
+	if gen.Build.DisableSensitiveScrubbing {
+		scrubMode |= typescrub.DisableScrubbing
+	}
+	reqScrub := gen.TypeScrubber.Compute(ah.Param, scrubMode)
+
 	desc.Value(Op("&").Add(apiQ("AuthHandlerDesc")).Types(
 		gu.Type(ah.Param),
 	).Values(Dict{
@@ -32,10 +39,11 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, ah *authhandler.AuthHandler,
 		Id("SvcNum"):  Lit(svcNum),
 		Id("DefLoc"):  Lit(gen.TraceNodes.AuthHandler()),
 
-		Id("Endpoint"):    Lit(ah.Name),
-		Id("HasAuthData"): Lit(ah.AuthData.Present()),
-		Id("DecodeAuth"):  renderDecodeAuth(gen, f, ah, enc),
-		Id("AuthHandler"): renderAuthHandler(gen, ah, svcStruct),
+		Id("Endpoint"):          Lit(ah.Name),
+		Id("HasAuthData"):       Lit(ah.AuthData.Present()),
+		Id("DecodeAuth"):        renderDecodeAuth(gen, f, ah, enc),
+		Id("AuthHandler"):       renderAuthHandler(gen, ah, svcStruct),
+		Id("ScrubRequestPaths"): typescrub.PathsToJen(reqScrub.Payload),
 	}))
 
 	f.Add(Func().Id("init").Params().Block(

@@ -16,6 +16,7 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
+	"encr.dev/v2/codegen/apigen/typescrub"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apienc"
@@ -78,6 +79,13 @@ func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) map[string]*config.
 
 	for _, topic := range topics {
 		subs := make(map[string]*config.StaticPubsubSubscription)
+
+		var scrubMode typescrub.ParseMode
+		if gen.Build.DisableSensitiveScrubbing {
+			scrubMode |= typescrub.DisableScrubbing
+		}
+		scrubDesc := gen.TypeScrubber.Compute(topic.MessageType.ToType(), scrubMode)
+
 		for _, b := range appDesc.Parse.PkgDeclBinds(topic) {
 			qn := b.QualifiedName()
 			for _, sub := range subsByTopic[qn] {
@@ -85,9 +93,10 @@ func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) map[string]*config.
 				if svc, ok := appDesc.ServiceForPath(sub.File.Pkg.FSPath); ok {
 
 					subs[sub.Name] = &config.StaticPubsubSubscription{
-						Service:  svc.Name,
-						SvcNum:   uint16(svc.Num),
-						TraceIdx: gen.TraceNodes.Sub(sub),
+						Service:    svc.Name,
+						SvcNum:     uint16(svc.Num),
+						TraceIdx:   gen.TraceNodes.Sub(sub),
+						ScrubPaths: scrubDesc.Payload,
 					}
 				}
 			}
@@ -95,6 +104,7 @@ func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) map[string]*config.
 
 		result[topic.Name] = &config.StaticPubsubTopic{
 			Subscriptions: subs,
+			ScrubPaths:    scrubDesc.Payload,
 		}
 	}
 

@@ -229,13 +229,15 @@ func TestParse(t *testing.T) {
 					Traced:       true,
 					DefLoc:       defLoc,
 					MsgData: &model.PubSubMsgData{
-						Service:      "service",
-						Topic:        "topic",
-						Subscription: "subscription",
-						MessageID:    "message-id",
-						Attempt:      3,
-						Published:    now,
-						Payload:      []byte("payload"),
+						Desc: &model.PubSubSubscriptionDesc{
+							Service:      "service",
+							Topic:        "topic",
+							Subscription: "subscription",
+						},
+						MessageID: "message-id",
+						Attempt:   3,
+						Published: now,
+						Payload:   []byte("payload"),
 					},
 				}, goid)
 			},
@@ -270,9 +272,11 @@ func TestParse(t *testing.T) {
 					EventParams: ep,
 					Req: &model.Request{
 						MsgData: &model.PubSubMsgData{
-							Service:      "service",
-							Topic:        "topic",
-							Subscription: "subscription",
+							Desc: &model.PubSubSubscriptionDesc{
+								Service:      "service",
+								Topic:        "topic",
+								Subscription: "subscription",
+							},
 						},
 					},
 					Resp: &model.Response{Err: err},
@@ -446,9 +450,11 @@ func TestParse(t *testing.T) {
 			Emit: func(l *trace2.Log) {
 				l.PubsubPublishStart(trace2.PubsubPublishStartParams{
 					EventParams: ep,
-					Topic:       "topic",
-					Message:     []byte("message"),
-					Stack:       stack.Stack{},
+					Desc: &model.PubSubTopicDesc{
+						Topic: "topic",
+					},
+					Message: []byte("message"),
+					Stack:   stack.Stack{},
 				})
 			},
 			Want: &tracepb2.TraceEvent{

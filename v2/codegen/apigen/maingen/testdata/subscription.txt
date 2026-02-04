@@ -62,9 +62,11 @@ This is a synthetic file describing the generated static config:
 				"subscription": {
 					"Service": "code",
 					"SvcNum": 1,
-					"TraceIdx": 0
+					"TraceIdx": 0,
+					"ScrubPaths": null
 				}
-			}
+			},
+			"ScrubPaths": null
 		}
 	},
 	"Testing": false,

@@ -93,6 +93,15 @@ var tests = []scannerTest{
 			raw("null"),
 		},
 	},
+	{
+		name: "whitespace_positions",
+		src:  "{\n  \"a\": {\n    \"b\": 1\n  }\n}",
+		want: []tokDesc{
+			objStart, k(str("a")),
+			objStart, k(str("b")), raw("1"), objEnd,
+			objEnd,
+		},
+	},
 }
 
 func FuzzScanner(f *testing.F) {

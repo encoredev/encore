@@ -134,8 +134,12 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
 		return reqData.Payload
 	},
-	Service:           "code",
-	ServiceMiddleware: []*__api.Middleware{},
-	SvcNum:            1,
-	Tags:              nil,
+	ScrubRequestHeaders:  nil,
+	ScrubRequestPaths:    nil,
+	ScrubResponseHeaders: nil,
+	ScrubResponsePaths:   nil,
+	Service:              "code",
+	ServiceMiddleware:    []*__api.Middleware{},
+	SvcNum:               1,
+	Tags:                 nil,
 }

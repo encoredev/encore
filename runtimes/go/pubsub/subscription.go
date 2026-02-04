@@ -188,9 +188,12 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 			ExtCorrelationID: extCorrelationID,
 			Start:            time.Now(),
 			MsgData: &model.PubSubMsgData{
-				Service:        staticCfg.Service,
-				Topic:          topic.runtimeCfg.EncoreName,
-				Subscription:   subscription.EncoreName,
+				Desc: &model.PubSubSubscriptionDesc{
+					Service:      staticCfg.Service,
+					Topic:        topic.runtimeCfg.EncoreName,
+					Subscription: subscription.EncoreName,
+					ScrubPaths:   staticCfg.ScrubPaths,
+				},
 				MessageID:      msgID,
 				Attempt:        deliveryAttempt,
 				Published:      publishTime,

@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"sync"
 
+	"encore.dev/appruntime/exported/scrub"
 	jsoniter "github.com/json-iterator/go"
 
 	encore "encore.dev"
@@ -109,6 +110,11 @@ type Desc[Req, Resp any] struct {
 	// ServiceMiddleware is the ordered list of middleware to invoke before
 	// calling the API handler.
 	ServiceMiddleware []*Middleware
+
+	ScrubRequestPaths    []scrub.Path
+	ScrubRequestHeaders  map[string]bool
+	ScrubResponsePaths   []scrub.Path
+	ScrubResponseHeaders map[string]bool
 
 	rpcDescOnce   sync.Once
 	cachedRPCDesc *model.RPCDesc
@@ -910,6 +916,11 @@ func (d *Desc[Req, Resp]) rpcDesc() *model.RPCDesc {
 			Tags:         d.Tags,
 			Exposed:      d.Access == Public || d.Access == RequiresAuth,
 			AuthRequired: d.Access == RequiresAuth,
+
+			ScrubRequestPaths:    d.ScrubRequestPaths,
+			ScrubResponsePaths:   d.ScrubResponsePaths,
+			ScrubRequestHeaders:  d.ScrubRequestHeaders,
+			ScrubResponseHeaders: d.ScrubResponseHeaders,
 		}
 
 		if !isVoid[Resp]() {

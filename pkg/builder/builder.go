@@ -63,6 +63,10 @@ type BuildInfo struct {
 
 	// Logger allows a custom logger to be used by the various phases of the builder.
 	Logger option.Option[zerolog.Logger]
+
+	// DisableSensitiveScrubbing, if true, disables scrubbing of sensitive fields.
+	// Used for local development.
+	DisableSensitiveScrubbing bool
 }
 
 func (b *BuildInfo) IsCrossBuild() bool {

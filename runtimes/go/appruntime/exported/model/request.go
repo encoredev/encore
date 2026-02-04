@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"encore.dev/appruntime/exported/scrub"
 	"github.com/rs/zerolog"
 )
 
@@ -34,6 +35,11 @@ type RPCDesc struct {
 
 	Exposed      bool // True if the endpoint is exposed (access level "public" or "auth")
 	AuthRequired bool // True if the endpoint requires authentication ("auth")
+
+	ScrubRequestPaths    []scrub.Path
+	ScrubRequestHeaders  map[string]bool
+	ScrubResponsePaths   []scrub.Path
+	ScrubResponseHeaders map[string]bool
 }
 
 type PathParams []PathParam
@@ -79,7 +85,7 @@ func (req *Request) Service() string {
 	case RPCCall, AuthHandler:
 		return req.RPCData.Desc.Service
 	case PubSubMessage:
-		return req.MsgData.Service
+		return req.MsgData.Desc.Service
 	default:
 		if req.Test != nil {
 			return req.Test.Service
@@ -126,10 +132,21 @@ type RPCData struct {
 	Mocked bool
 }
 
+type PubSubTopicDesc struct {
+	Topic      string
+	ScrubPaths []scrub.Path
+}
+
+type PubSubSubscriptionDesc struct {
+	Service      string
+	Topic        string
+	Subscription string
+	ScrubPaths   []scrub.Path
+}
+
 type PubSubMsgData struct {
-	Service        string
-	Topic          string
-	Subscription   string
+	Desc *PubSubSubscriptionDesc
+
 	MessageID      string
 	Published      time.Time
 	Attempt        int

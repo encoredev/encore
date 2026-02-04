@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/scrub"
 	"encore.dev/appruntime/exported/stack"
 	"encore.dev/beta/errs"
 )
@@ -124,9 +125,11 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 		tb.String(req.ExtCorrelationID)
 
 		if desc.Raw {
-			l.logHeaders(&tb, data.RequestHeaders)
+			l.logHeaders(&tb, data.RequestHeaders, desc.ScrubRequestHeaders)
 		} else {
-			tb.ByteString(data.NonRawPayload)
+			// Scrub the payload according to the RPC description.
+			scrubbed := scrub.JSON(data.NonRawPayload, desc.ScrubRequestPaths, []byte(`"[REDACTED]"`))
+			tb.ByteString(scrubbed)
 		}
 
 	case model.AuthHandler:
@@ -134,17 +137,22 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 		desc := data.Desc
 		tb.String(desc.Service)
 		tb.String(desc.Endpoint)
-		tb.ByteString(data.NonRawPayload)
+
+		scrubbed := scrub.JSON(data.NonRawPayload, desc.ScrubRequestPaths, []byte(`"[REDACTED]"`))
+		tb.ByteString(scrubbed)
 
 	case model.PubSubMessage:
 		data := req.MsgData
-		tb.String(data.Service)
-		tb.String(data.Topic)
-		tb.String(data.Subscription)
+		desc := data.Desc
+		tb.String(desc.Service)
+		tb.String(desc.Topic)
+		tb.String(desc.Subscription)
 		tb.String(data.MessageID)
 		tb.Uint32(uint32(data.Attempt))
 		tb.Time(data.Published)
-		tb.ByteString(data.Payload)
+
+		scrubbed := scrub.JSON(data.Payload, desc.ScrubPaths, []byte(`"[REDACTED]"`))
+		tb.ByteString(scrubbed)
 	}
 
 	l.Add(RequestStart, tb.Buf())
@@ -171,15 +179,19 @@ func (l *Log) FinishRequest(req *model.Request, resp *model.Response) {
 		isRaw := req.RPCData.Desc.Raw
 		tb.Bool(isRaw)
 		if isRaw {
-			l.logHeaders(&tb, resp.RawResponseHeaders)
+			l.logHeaders(&tb, resp.RawResponseHeaders, req.RPCData.Desc.ScrubResponseHeaders)
 		} else {
-			tb.ByteString(resp.Payload)
+			scrubbed := scrub.JSON(resp.Payload, req.RPCData.Desc.ScrubResponsePaths, []byte(`"[REDACTED]"`))
+			tb.ByteString(scrubbed)
 		}
 	case model.AuthHandler:
 		tb.String(string(resp.AuthUID))
-		tb.ByteString(resp.Payload)
+
+		scrubbed := scrub.JSON(resp.Payload, req.RPCData.Desc.ScrubResponsePaths, []byte(`"[REDACTED]"`))
+		tb.ByteString(scrubbed)
 	case model.PubSubMessage:
-		tb.ByteString(resp.Payload)
+		scrubbed := scrub.JSON(resp.Payload, req.MsgData.Desc.ScrubPaths, []byte(`"[REDACTED]"`))
+		tb.ByteString(scrubbed)
 	}
 
 	l.Add(RequestEnd, tb.Buf())
@@ -517,14 +529,18 @@ func (l *Log) BodyStream(p BodyStreamParams) {
 	l.Add(BodyStream, tb.Buf())
 }
 
-func (l *Log) logHeaders(tb *Buffer, headers http.Header) {
+func (l *Log) logHeaders(tb *Buffer, headers http.Header, scrubHeaders map[string]bool) {
 	tb.UVarint(uint64(len(headers)))
 	for k, v := range headers {
+		tb.String(k)
+
 		firstVal := ""
-		if len(v) > 0 {
+		if scrubHeaders[k] {
+			firstVal = "[REDACTED]"
+		} else if len(v) > 0 {
 			firstVal = v[0]
 		}
-		tb.String(k)
+
 		tb.String(firstVal)
 	}
 }

@@ -646,9 +646,11 @@ type RunRequest struct {
 	// debug_mode specifies the debug mode to use.
 	DebugMode RunRequest_DebugMode `protobuf:"varint,11,opt,name=debug_mode,json=debugMode,proto3,enum=encore.daemon.RunRequest_DebugMode" json:"debug_mode,omitempty"`
 	// Log level override.
-	LogLevel      *string `protobuf:"bytes,12,opt,name=log_level,json=logLevel,proto3,oneof" json:"log_level,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	LogLevel *string `protobuf:"bytes,12,opt,name=log_level,json=logLevel,proto3,oneof" json:"log_level,omitempty"`
+	// scrub_sensitive_data, if true, scrubs sensitive data from local traces.
+	ScrubSensitiveData bool `protobuf:"varint,13,opt,name=scrub_sensitive_data,json=scrubSensitiveData,proto3" json:"scrub_sensitive_data,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *RunRequest) Reset() {
@@ -749,6 +751,13 @@ func (x *RunRequest) GetLogLevel() string {
 		return *x.LogLevel
 	}
 	return ""
+}
+
+func (x *RunRequest) GetScrubSensitiveData() bool {
+	if x != nil {
+		return x.ScrubSensitiveData
+	}
+	return false
 }
 
 type TestRequest struct {
@@ -3781,7 +3790,7 @@ const file_encore_daemon_daemon_proto_rawDesc = "" +
 	"\btemplate\x18\x02 \x01(\tR\btemplate\x12\x1a\n" +
 	"\btutorial\x18\x03 \x01(\bR\btutorial\"*\n" +
 	"\x11CreateAppResponse\x12\x15\n" +
-	"\x06app_id\x18\x01 \x01(\tR\x05appId\"\xbf\x04\n" +
+	"\x06app_id\x18\x01 \x01(\tR\x05appId\"\xf1\x04\n" +
 	"\n" +
 	"RunRequest\x12\x19\n" +
 	"\bapp_root\x18\x01 \x01(\tR\aappRoot\x12\x1f\n" +
@@ -3798,7 +3807,8 @@ const file_encore_daemon_daemon_proto_rawDesc = "" +
 	" \x01(\x0e2%.encore.daemon.RunRequest.BrowserModeR\abrowser\x12B\n" +
 	"\n" +
 	"debug_mode\x18\v \x01(\x0e2#.encore.daemon.RunRequest.DebugModeR\tdebugMode\x12 \n" +
-	"\tlog_level\x18\f \x01(\tH\x02R\blogLevel\x88\x01\x01\"F\n" +
+	"\tlog_level\x18\f \x01(\tH\x02R\blogLevel\x88\x01\x01\x120\n" +
+	"\x14scrub_sensitive_data\x18\r \x01(\bR\x12scrubSensitiveData\"F\n" +
 	"\vBrowserMode\x12\x10\n" +
 	"\fBROWSER_AUTO\x10\x00\x12\x11\n" +
 	"\rBROWSER_NEVER\x10\x01\x12\x12\n" +

@@ -7,7 +7,7 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"encr.dev/pkg/scrub"
+	"encore.dev/appruntime/exported/scrub"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )

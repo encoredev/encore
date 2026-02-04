@@ -115,10 +115,14 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
 		return nil
 	},
-	Service:           "code",
-	ServiceMiddleware: []*__api.Middleware{},
-	SvcNum:            1,
-	Tags:              nil,
+	ScrubRequestHeaders:  nil,
+	ScrubRequestPaths:    nil,
+	ScrubResponseHeaders: nil,
+	ScrubResponsePaths:   nil,
+	Service:              "code",
+	ServiceMiddleware:    []*__api.Middleware{},
+	SvcNum:               1,
+	Tags:                 nil,
 }
 -- want:encore_internal__authhandler.go --
 package code
@@ -149,11 +153,12 @@ var EncoreInternal_authhandler_AuthDesc_AuthHandler = &__api.AuthHandlerDesc[str
 		}
 		return "", errs.B().Code(errs.Unauthenticated).Msg("invalid auth param").Err()
 	},
-	DefLoc:      uint32(0x0),
-	Endpoint:    "AuthHandler",
-	HasAuthData: true,
-	Service:     "code",
-	SvcNum:      1,
+	DefLoc:            uint32(0x0),
+	Endpoint:          "AuthHandler",
+	HasAuthData:       true,
+	ScrubRequestPaths: nil,
+	Service:           "code",
+	SvcNum:            1,
 }
 
 func init() {
