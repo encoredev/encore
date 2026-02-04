@@ -79,7 +79,7 @@ openssl = { version = "0.10.57", features = ["vendored"] }
 bb8 = "0.9"
 bb8-postgres = "0.9"
 bb8-redis = "0.26"
-redis = { version = "1.0", features = ["tokio-comp", "connection-manager"] }
+redis = { version = "1.0", features = ["tokio-rustls-comp", "tls-rustls-insecure", "connection-manager"] }
 tokio-native-tls = "0.3"
 uuid = "1.7.0"
 openssl-probe = "0.1.5"

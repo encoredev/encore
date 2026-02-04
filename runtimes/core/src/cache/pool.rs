@@ -56,12 +56,19 @@ impl Pool {
         min_conns: u32,
         max_conns: u32,
     ) -> anyhow::Result<Self> {
-        let mgr = RedisConnectionManager::new(client.get_connection_info().clone())?;
+        let conn_info = client.get_connection_info().clone();
+        log::debug!(
+            "cache pool: creating connection manager - addr: {:?}",
+            conn_info.addr()
+        );
+
+        let mgr = RedisConnectionManager::new(conn_info)?;
 
         let cluster_name = key_prefix.clone().unwrap_or_else(|| "default".to_string());
         let mut pool = Bb8Pool::builder()
             .error_sink(Box::new(RedisErrorSink { cluster_name }))
-            .max_size(if max_conns > 0 { max_conns } else { 30 });
+            .max_size(if max_conns > 0 { max_conns } else { 30 })
+            .connection_timeout(std::time::Duration::from_secs(10));
 
         if min_conns > 0 {
             pool = pool.min_idle(Some(min_conns));

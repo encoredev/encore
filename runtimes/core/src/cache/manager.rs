@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use bb8_redis::redis;
+use redis::{ConnectionAddr, IntoConnectionInfo, RedisConnectionInfo, TlsCertificates};
 
 use crate::cache::memcluster::MemoryCluster;
 use crate::cache::noop::NoopCluster;
@@ -186,9 +187,14 @@ fn clusters_from_cfg(
                 )
             })?;
 
-            // Build connection URL
-            let conn_url = build_connection_url(server, db, role, secrets)?;
-            let client = redis::Client::open(conn_url).context("failed to create Redis client")?;
+            // Build connection info and client
+            log::debug!(
+                "cache: connecting to Redis {} at {} (TLS: {})",
+                db.encore_name,
+                server.host,
+                server.tls_config.is_some()
+            );
+            let client = build_redis_client(server, db, role, secrets)?;
 
             let name: EncoreName = db.encore_name.clone().into();
             log::debug!("cache: configured Redis database {}", db.encore_name);
@@ -210,38 +216,59 @@ fn clusters_from_cfg(
     Ok(result)
 }
 
-/// Builds a Redis connection URL from configuration.
-fn build_connection_url(
+/// Builds a Redis client with proper TLS configuration.
+fn build_redis_client(
     server: &pb::RedisServer,
     db: &pb::RedisDatabase,
     role: &pb::RedisRole,
     secrets: &secrets::Manager,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<redis::Client> {
     use pb::redis_role::Auth;
 
     // Parse host and port
     let (host, port) = if server.host.starts_with('/') {
-        // Unix socket
-        return build_unix_socket_url(&server.host, db.database_idx, role, secrets);
+        // Unix socket - use URL-based connection
+        let url = build_unix_socket_url(&server.host, db.database_idx, role, secrets)?;
+        return redis::Client::open(url).context("failed to create Redis client");
     } else if let Some((h, p)) = server.host.split_once(':') {
         (h.to_string(), p.parse::<u16>().context("invalid port")?)
     } else {
         (server.host.clone(), 6379)
     };
 
-    // Determine if TLS is enabled
-    let use_tls = server.tls_config.is_some();
-    let scheme = if use_tls { "rediss" } else { "redis" };
-
-    // Build auth portion
-    let auth = match &role.auth {
+    // Build authentication info
+    log::debug!(
+        "cache: role auth type for {}: {:?}",
+        db.encore_name,
+        role.auth.as_ref().map(|a| match a {
+            Auth::AuthString(_) => "AuthString",
+            Auth::Acl(_) => "Acl",
+        })
+    );
+    let (username, password) = match &role.auth {
         Some(Auth::AuthString(secret_data)) => {
+            // Log the secret source type for debugging
+            use crate::encore::runtime::v1::secret_data::Source;
+            log::debug!(
+                "cache: AuthString secret source: {:?}",
+                secret_data.source.as_ref().map(|s| match s {
+                    Source::Embedded(data) => format!("Embedded({} bytes)", data.len()),
+                    Source::Env(name) => format!("Env({})", name),
+                })
+            );
             let password = secrets.load(secret_data.clone());
             let password = password
                 .get()
                 .context("failed to resolve Redis auth string")?;
-            let password_str = std::str::from_utf8(password).context("invalid auth string")?;
-            format!(":{password_str}@")
+            let password_str =
+                std::str::from_utf8(password).context("invalid auth string")?;
+            // Trim whitespace/newlines that might be in the secret
+            let password_str = password_str.trim().to_string();
+            log::debug!(
+                "cache: AuthString password length: {} chars",
+                password_str.len()
+            );
+            (None, Some(password_str))
         }
         Some(Auth::Acl(acl)) => {
             let password = acl
@@ -249,17 +276,94 @@ fn build_connection_url(
                 .as_ref()
                 .context("ACL auth requires password")?;
             let password = secrets.load(password.clone());
-            let password = password.get().context("failed to resolve Redis password")?;
+            let password = password
+                .get()
+                .context("failed to resolve Redis password")?;
             let password_str = std::str::from_utf8(password).context("invalid password")?;
-            format!("{}:{password_str}@", acl.username)
+            let password_str = password_str.trim().to_string();
+            // If username is empty, treat it as password-only auth (like AuthString)
+            let username = if acl.username.is_empty() {
+                log::debug!(
+                    "cache: ACL auth for {} has empty username, using password-only auth",
+                    db.encore_name
+                );
+                None
+            } else {
+                Some(acl.username.clone())
+            };
+            (username, Some(password_str))
         }
-        None => String::new(),
+        None => (None, None),
     };
 
-    Ok(format!(
-        "{scheme}://{auth}{host}:{port}/{db_idx}",
-        db_idx = db.database_idx
-    ))
+    // Build connection address based on TLS config
+    let mut addr = if let Some(tls_config) = &server.tls_config {
+        // TLS enabled - check for insecure mode
+        let insecure = tls_config.disable_ca_validation;
+        ConnectionAddr::TcpTls {
+            host,
+            port,
+            insecure,
+            tls_params: None, // TLS params will be set via build_with_tls
+        }
+    } else {
+        // No TLS
+        ConnectionAddr::Tcp(host, port)
+    };
+
+    // Handle hostname verification separately from CA validation
+    if let Some(tls_config) = &server.tls_config {
+        if tls_config.disable_tls_hostname_verification {
+            addr.set_danger_accept_invalid_hostnames(true);
+        }
+    }
+
+    // Build Redis connection info (auth, db, etc.)
+    log::debug!(
+        "cache: auth config for {}: username={}, has_password={}",
+        db.encore_name,
+        username.as_deref().unwrap_or("<none>"),
+        password.is_some()
+    );
+    let mut redis_info = RedisConnectionInfo::default().set_db(db.database_idx as i64);
+    if let Some(user) = username {
+        redis_info = redis_info.set_username(user);
+    }
+    if let Some(pass) = password {
+        redis_info = redis_info.set_password(pass);
+    }
+
+    // Build connection info using builder pattern
+    let conn_info = addr
+        .into_connection_info()
+        .context("failed to create connection info")?
+        .set_redis_settings(redis_info);
+
+    // Create client with or without TLS certificates
+    if let Some(tls_config) = &server.tls_config {
+        // Build TLS certificates config
+        let root_cert = tls_config
+            .server_ca_cert
+            .as_ref()
+            .map(|cert| cert.as_bytes().to_vec());
+
+        let tls_certs = TlsCertificates {
+            client_tls: None, // No client cert support yet
+            root_cert,
+        };
+
+        log::debug!(
+            "cache: using TLS with custom CA: {}, disable_ca_validation: {}, disable_hostname_verification: {}",
+            tls_certs.root_cert.is_some(),
+            tls_config.disable_ca_validation,
+            tls_config.disable_tls_hostname_verification
+        );
+
+        redis::Client::build_with_tls(conn_info, tls_certs)
+            .context("failed to create Redis client with TLS")
+    } else {
+        redis::Client::open(conn_info).context("failed to create Redis client")
+    }
 }
 
 /// Builds a Unix socket connection URL.
