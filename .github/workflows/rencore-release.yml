@@ -6,27 +6,32 @@ on:
       version:
         description: 'Version to build (e.g., "v1.0.0", "v1.0.0-beta.1")'
         type: string
-        required: true
+        required: false
+        default: 'v1.54.0'
       platform_api_url:
         description: 'Platform API URL'
         type: string
         required: false
-        default: 'https://api.stagecraft.ing'
+        default: 'https://api.encore.dev'
+#        default: 'https://api.stagecraft.ing'
       webdash_url:
         description: 'Web Dashboard URL'
         type: string
         required: false
-        default: 'https://app.stagecraft.ing'
+        default: 'https://app.encore.dev'
+#        default: 'https://app.stagecraft.ing'
       devdash_url:
         description: 'Dev Dashboard URL'
         type: string
         required: false
-        default: 'https://devdash.stagecraft.ing'
+        default: 'https://devdash.encore.dev'
+#        default: 'https://devdash.stagecraft.ing'
       docs_url:
         description: 'Documentation URL'
         type: string
         required: false
-        default: 'https://docs.stagecraft.ing'
+        default: 'https://encore.dev/docs'
+#        default: 'https://docs.stagecraft.ing'
 
 jobs:
   build:

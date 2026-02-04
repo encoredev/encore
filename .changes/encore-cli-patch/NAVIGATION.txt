@@ -1,0 +1,108 @@
+┌─────────────────────────────────────────────────────────────────┐
+│                    RENCORE DOCUMENTATION MAP                    │
+│                                                                 │
+│  Use this guide to navigate the documentation efficiently      │
+└─────────────────────────────────────────────────────────────────┘
+
+START HERE
+    │
+    ├── NEW USER? ─────────────────────────► QUICKSTART.md
+    │                                        (5-minute guide)
+    │
+    ├── DEPLOYING? ────────────────────────► DEPLOYMENT_CHECKLIST.md
+    │                                        (step-by-step)
+    │
+    ├── NEED REFERENCE? ───────────────────► RENCORE.md
+    │                                        (complete docs)
+    │
+    ├── CREATING RELEASE? ─────────────────► RELEASES.md
+    │                                        (release process)
+    │
+    ├── SETTING UP HOMEBREW? ──────────────► HOMEBREW_TAP_README.md
+    │                                        (tap setup)
+    │
+    └── WANT TECHNICAL OVERVIEW? ──────────► IMPLEMENTATION_SUMMARY.md
+                                             (what was built)
+
+DEVELOPER PATH
+    │
+    ├── UNDERSTANDING IMPLEMENTATION ──────► .changes/encore-cli-patch/README.md
+    │                                        (developer hub)
+    │                                        │
+    │                                        ├──► CURRENT_STATUS.md
+    │                                        │    (current state)
+    │                                        │
+    │                                        └──► MIGRATION_GUIDE.md
+    │                                             (approach evolution)
+    │
+    ├── MAKING CHANGES ────────────────────► patches/
+    │                                        (modify patches)
+    │                                        │
+    │                                        └──► scripts/apply_patches.sh
+    │                                             (test changes)
+    │
+    └── UNDERSTANDING HISTORY ─────────────► .changes/encore-cli-patch/
+                                             (historical docs)
+
+REFERENCE MATERIALS
+    │
+    ├── ORIGINAL RESEARCH ─────────────────► .changes/encore-cli-patch/code-changes-for-self-hosted-platform.md
+    │
+    └── FUTURE FEATURES ───────────────────► .changes/encore-cli-patch/Encore CLI Local HTTPS Flag
+                                             Feasibility & Implementation
+                                             Plan.md
+
+QUICK LINKS BY ROLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+END USER                    DEVELOPER                    MAINTAINER
+├── QUICKSTART.md          ├── .changes/.../README.md   ├── CURRENT_STATUS.md
+├── RENCORE.md             ├── CURRENT_STATUS.md        ├── RELEASES.md
+└── Installation           ├── MIGRATION_GUIDE.md       ├── patches/
+                           ├── patches/                  └── upstream.ref
+                           └── RENCORE.md
+
+COMMON WORKFLOWS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Installing Rencore
+   QUICKSTART.md → Installation section → Done
+
+2. Deploying First Release
+   DEPLOYMENT_CHECKLIST.md → Follow steps → RELEASES.md (reference)
+
+3. Understanding How It Works
+   RENCORE.md → .changes/.../CURRENT_STATUS.md → patches/
+
+4. Contributing Code
+   .changes/.../MIGRATION_GUIDE.md → CURRENT_STATUS.md → Make changes
+
+5. Updating Upstream
+   CURRENT_STATUS.md (Maintenance) → Update upstream.ref → Regenerate patches
+
+6. Creating Release
+   RELEASES.md → GitHub Actions → Wait for automation
+
+SEARCH TIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Looking for...               Check...
+├── Installation            QUICKSTART.md
+├── Configuration           RENCORE.md (Configuration section)
+├── Environment variables   CURRENT_STATUS.md (Features section)
+├── Patch details          CURRENT_STATUS.md (Patches Applied)
+├── Release process        RELEASES.md
+├── Homebrew setup         HOMEBREW_TAP_README.md
+├── Troubleshooting        QUICKSTART.md (Troubleshooting)
+├── API key auth           CURRENT_STATUS.md (Features > #2)
+├── Build process          RENCORE.md (Development)
+├── Upstream sync          CURRENT_STATUS.md (Maintenance)
+├── Historical context     MIGRATION_GUIDE.md
+└── What changed           MIGRATION_GUIDE.md (Key Differences)
+
+NEED HELP?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Issues:      https://github.com/stagecraft-ing/encore/issues
+Discussions: https://github.com/stagecraft-ing/encore/discussions
+Start:       .changes/encore-cli-patch/README.md

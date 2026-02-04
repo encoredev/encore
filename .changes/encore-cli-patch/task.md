@@ -1,0 +1,27 @@
+# Tasks
+
+- [x] Inventory and Research <!-- id: 0 -->
+    - [x] Locate hardcoded URLs (`app.encore.cloud` etc) <!-- id: 1 -->
+    - [x] Verify file paths for CLI commands and config <!-- id: 2 -->
+    - [x] Identify `conf.go` location <!-- id: 3 -->
+- [x] Draft Implementation Plan <!-- id: 4 -->
+    - [x] Scope and Non-Goals <!-- id: 5 -->
+    - [x] Repository Touch Points <!-- id: 6 -->
+    - [x] Plan of Record <!-- id: 7 -->
+    - [x] Concrete Patches <!-- id: 8 -->
+    - [x] Env Vars and Config Contract <!-- id: 9 -->
+    - [x] Refine Plan (Getters, Auth, Tests) <!-- id: 14 -->
+- [x] Phase 0: Inventory & Prep <!-- id: 15 -->
+    - [x] Check Repo State/Vendor <!-- id: 16 -->
+    - [x] Inventory URLs <!-- id: 17 -->
+    - [x] Cycle/Dep Check <!-- id: 18 -->
+- [x] Phase 1: Config & Utils <!-- id: 19 -->
+    - [x] Create `internal/urlutil/join.go` <!-- id: 20 -->
+    - [x] Create `internal/urlutil/join_test.go` <!-- id: 21 -->
+    - [x] Update `internal/conf/conf.go` <!-- id: 22 -->
+    - [x] Verify Deps/Cycles <!-- id: 23 -->
+- [x] Phase 2: Deploy & CLI URLs <!-- id: 24 -->
+- [x] Phase 3: Docs URLs <!-- id: 25 -->
+- [x] Phase 4: Auth Customization <!-- id: 26 -->
+- [x] Phase 5: Verification & Tests <!-- id: 27 -->
+- [x] Phase 6: Maintenance & Documentation <!-- id: 28 -->
