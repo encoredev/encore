@@ -357,6 +357,115 @@ impl CacheCluster {
         self.pool()?.llen(&key, source).await.map_err(to_error)
     }
 
+    /// Trim a list to the specified range.
+    #[napi]
+    pub async fn ltrim(
+        &self,
+        key: String,
+        start: i32,
+        stop: i32,
+        source: Option<&Request>,
+    ) -> napi::Result<()> {
+        let source = source.map(|s| s.inner.as_ref());
+        self.pool()?
+            .ltrim(&key, start as i64, stop as i64, source)
+            .await
+            .map_err(to_error)
+    }
+
+    /// Set element at index in list.
+    #[napi]
+    pub async fn lset(
+        &self,
+        key: String,
+        index: i32,
+        value: Buffer,
+        source: Option<&Request>,
+    ) -> napi::Result<()> {
+        let source = source.map(|s| s.inner.as_ref());
+        self.pool()?
+            .lset(&key, index as i64, &value, source)
+            .await
+            .map_err(to_error)
+    }
+
+    /// Insert value before pivot in list.
+    #[napi]
+    pub async fn linsert_before(
+        &self,
+        key: String,
+        pivot: Buffer,
+        value: Buffer,
+        source: Option<&Request>,
+    ) -> napi::Result<i64> {
+        let source = source.map(|s| s.inner.as_ref());
+        self.pool()?
+            .linsert_before(&key, &pivot, &value, source)
+            .await
+            .map_err(to_error)
+    }
+
+    /// Insert value after pivot in list.
+    #[napi]
+    pub async fn linsert_after(
+        &self,
+        key: String,
+        pivot: Buffer,
+        value: Buffer,
+        source: Option<&Request>,
+    ) -> napi::Result<i64> {
+        let source = source.map(|s| s.inner.as_ref());
+        self.pool()?
+            .linsert_after(&key, &pivot, &value, source)
+            .await
+            .map_err(to_error)
+    }
+
+    /// Remove elements from list.
+    #[napi]
+    pub async fn lrem(
+        &self,
+        key: String,
+        count: i32,
+        value: Buffer,
+        source: Option<&Request>,
+    ) -> napi::Result<i64> {
+        let source = source.map(|s| s.inner.as_ref());
+        self.pool()?
+            .lrem(&key, count as i64, &value, source)
+            .await
+            .map_err(to_error)
+    }
+
+    /// Move element between lists atomically.
+    #[napi]
+    pub async fn lmove(
+        &self,
+        src: String,
+        dst: String,
+        src_dir: String,
+        dst_dir: String,
+        source: Option<&Request>,
+    ) -> napi::Result<Option<Buffer>> {
+        let source = source.map(|s| s.inner.as_ref());
+        let src_dir = match src_dir.as_str() {
+            "left" => cache::ListDirection::Left,
+            "right" => cache::ListDirection::Right,
+            _ => return Err(Error::new(Status::InvalidArg, "invalid source direction")),
+        };
+        let dst_dir = match dst_dir.as_str() {
+            "left" => cache::ListDirection::Left,
+            "right" => cache::ListDirection::Right,
+            _ => return Err(Error::new(Status::InvalidArg, "invalid destination direction")),
+        };
+        let result = self
+            .pool()?
+            .lmove(&src, &dst, src_dir, dst_dir, source)
+            .await
+            .map_err(to_error)?;
+        Ok(result.map(|v| v.into()))
+    }
+
     // ==================== Set Operations ====================
 
     /// Add members to a set.
@@ -427,6 +536,156 @@ impl CacheCluster {
     pub async fn scard(&self, key: String, source: Option<&Request>) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?.scard(&key, source).await.map_err(to_error)
+    }
+
+    /// Pop random members from a set.
+    #[napi]
+    pub async fn spop(
+        &self,
+        key: String,
+        count: Option<u32>,
+        source: Option<&Request>,
+    ) -> napi::Result<Vec<Buffer>> {
+        let source = source.map(|s| s.inner.as_ref());
+        let result = self
+            .pool()?
+            .spop(&key, count.map(|c| c as usize), source)
+            .await
+            .map_err(to_error)?;
+        Ok(result.into_iter().map(|v| v.into()).collect())
+    }
+
+    /// Get random members from a set (without removing).
+    /// Positive count returns distinct elements, negative count may return duplicates.
+    #[napi]
+    pub async fn srandmember(
+        &self,
+        key: String,
+        count: i32,
+        source: Option<&Request>,
+    ) -> napi::Result<Vec<Buffer>> {
+        let source = source.map(|s| s.inner.as_ref());
+        let result = self
+            .pool()?
+            .srandmember(&key, count as i64, source)
+            .await
+            .map_err(to_error)?;
+        Ok(result.into_iter().map(|v| v.into()).collect())
+    }
+
+    /// Get the difference between sets.
+    #[napi]
+    pub async fn sdiff(
+        &self,
+        keys: Vec<String>,
+        source: Option<&Request>,
+    ) -> napi::Result<Vec<Buffer>> {
+        let source = source.map(|s| s.inner.as_ref());
+        let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
+        let result = self
+            .pool()?
+            .sdiff(&key_refs, source)
+            .await
+            .map_err(to_error)?;
+        Ok(result.into_iter().map(|v| v.into()).collect())
+    }
+
+    /// Store the difference between sets.
+    #[napi]
+    pub async fn sdiffstore(
+        &self,
+        destination: String,
+        keys: Vec<String>,
+        source: Option<&Request>,
+    ) -> napi::Result<i64> {
+        let source = source.map(|s| s.inner.as_ref());
+        let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
+        self.pool()?
+            .sdiffstore(&destination, &key_refs, source)
+            .await
+            .map_err(to_error)
+    }
+
+    /// Get the intersection of sets.
+    #[napi]
+    pub async fn sinter(
+        &self,
+        keys: Vec<String>,
+        source: Option<&Request>,
+    ) -> napi::Result<Vec<Buffer>> {
+        let source = source.map(|s| s.inner.as_ref());
+        let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
+        let result = self
+            .pool()?
+            .sinter(&key_refs, source)
+            .await
+            .map_err(to_error)?;
+        Ok(result.into_iter().map(|v| v.into()).collect())
+    }
+
+    /// Store the intersection of sets.
+    #[napi]
+    pub async fn sinterstore(
+        &self,
+        destination: String,
+        keys: Vec<String>,
+        source: Option<&Request>,
+    ) -> napi::Result<i64> {
+        let source = source.map(|s| s.inner.as_ref());
+        let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
+        self.pool()?
+            .sinterstore(&destination, &key_refs, source)
+            .await
+            .map_err(to_error)
+    }
+
+    /// Get the union of sets.
+    #[napi]
+    pub async fn sunion(
+        &self,
+        keys: Vec<String>,
+        source: Option<&Request>,
+    ) -> napi::Result<Vec<Buffer>> {
+        let source = source.map(|s| s.inner.as_ref());
+        let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
+        let result = self
+            .pool()?
+            .sunion(&key_refs, source)
+            .await
+            .map_err(to_error)?;
+        Ok(result.into_iter().map(|v| v.into()).collect())
+    }
+
+    /// Store the union of sets.
+    #[napi]
+    pub async fn sunionstore(
+        &self,
+        destination: String,
+        keys: Vec<String>,
+        source: Option<&Request>,
+    ) -> napi::Result<i64> {
+        let source = source.map(|s| s.inner.as_ref());
+        let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
+        self.pool()?
+            .sunionstore(&destination, &key_refs, source)
+            .await
+            .map_err(to_error)
+    }
+
+    /// Move member from one set to another.
+    #[napi]
+    pub async fn smove(
+        &self,
+        src: String,
+        dst: String,
+        member: Buffer,
+        source: Option<&Request>,
+    ) -> napi::Result<bool> {
+        let source = source.map(|s| s.inner.as_ref());
+        self.pool()?
+            .smove(&src, &dst, &member, source)
+            .await
+            .map_err(to_error)
     }
 
     // ==================== Expiry Operations ====================

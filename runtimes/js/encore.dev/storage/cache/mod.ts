@@ -10,6 +10,7 @@ export { StringKeyspace, IntKeyspace, FloatKeyspace, StructKeyspace } from "./ba
 
 // List keyspace
 export { ListKeyspace } from "./list";
+export type { ListPosition } from "./list";
 
 // Set keyspace
 export { SetKeyspace } from "./set";
