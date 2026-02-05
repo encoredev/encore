@@ -10,6 +10,7 @@ use anyhow::Context;
 use axum::async_trait;
 use bytes::{BufMut, Bytes, BytesMut};
 use http::uri::Scheme;
+use http::HeaderValue;
 use hyper::header;
 use pingora::http::{RequestHeader, ResponseHeader};
 use pingora::protocols::http::error_resp;
@@ -52,6 +53,7 @@ pub struct GatewayCtx {
     upstream_base_path: String,
     upstream_host: Option<String>,
     upstream_require_auth: bool,
+    trace_id: Option<model::TraceId>,
 }
 
 impl GatewayCtx {
@@ -271,6 +273,7 @@ impl ProxyHttp for Gateway {
             upstream_host: host,
             upstream_service_name: target.service_name.clone(),
             upstream_require_auth: target.requires_auth,
+            trace_id: None,
         });
 
         Ok(Box::new(peer))
@@ -285,10 +288,14 @@ impl ProxyHttp for Gateway {
     where
         Self::CTX: Send + Sync,
     {
-        if ctx.is_some() {
+        if let Some(gateway_ctx) = ctx.as_ref() {
             self.inner
                 .cors_config
                 .apply(session.req_header(), upstream_response)?;
+
+            if let Some(trace_id) = gateway_ctx.trace_id {
+                maybe_add_trace_id_header(upstream_response, trace_id);
+            }
         }
 
         Ok(())
@@ -303,7 +310,7 @@ impl ProxyHttp for Gateway {
     where
         Self::CTX: Send + Sync,
     {
-        if let Some(gateway_ctx) = ctx.as_ref() {
+        if let Some(gateway_ctx) = ctx.as_mut() {
             let new_uri = gateway_ctx
                 .prepend_base_path(&upstream_request.uri)
                 .or_err(
@@ -375,6 +382,7 @@ impl ProxyHttp for Gateway {
                 ErrorType::InternalError,
                 "couldn't parse CallMeta from request",
             )?;
+            gateway_ctx.trace_id = Some(call_meta.trace_id);
             if call_meta.parent_span_id.is_none() {
                 call_meta.parent_span_id = Some(model::SpanId::generate());
             }
@@ -429,7 +437,7 @@ impl ProxyHttp for Gateway {
         Ok(())
     }
 
-    async fn fail_to_proxy(&self, session: &mut Session, e: &Error, _ctx: &mut Self::CTX) -> u16
+    async fn fail_to_proxy(&self, session: &mut Session, e: &Error, ctx: &mut Self::CTX) -> u16
     where
         Self::CTX: Send + Sync,
     {
@@ -479,6 +487,11 @@ impl ProxyHttp for Gateway {
         {
             log::error!("failed setting cors header in error response: {e}");
         }
+        if let Some(gateway_ctx) = ctx.as_ref() {
+            if let Some(trace_id) = gateway_ctx.trace_id {
+                maybe_add_trace_id_header(&mut resp, trace_id);
+            }
+        }
         session.set_keepalive(None);
         session
             .write_response_header(Box::new(resp), false)
@@ -498,6 +511,17 @@ impl ProxyHttp for Gateway {
 
 fn as_api_error(err: &pingora::Error) -> Option<&api::Error> {
     err.root_cause().downcast_ref::<api::Error>()
+}
+
+fn maybe_add_trace_id_header(resp: &mut ResponseHeader, trace_id: model::TraceId) {
+    if resp.headers.contains_key("x-encore-trace-id") {
+        return;
+    }
+
+    let value = trace_id.serialize_encore();
+    if let Ok(val) = HeaderValue::from_str(value.as_str()) {
+        let _ = resp.insert_header("x-encore-trace-id", val);
+    }
 }
 
 fn api_error_response(err: &api::Error) -> (ResponseHeader, bytes::Bytes) {
@@ -533,4 +557,39 @@ struct SharedGatewayData {
     name: EncoreName,
     auth: Option<auth::Authenticator>,
     tracer: trace::Tracer,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn maybe_add_trace_id_header_adds_when_missing() {
+        let mut resp = ResponseHeader::build(200, None).unwrap();
+        let trace_id = model::TraceId([1; 16]);
+
+        maybe_add_trace_id_header(&mut resp, trace_id);
+
+        let val = resp
+            .headers
+            .get("x-encore-trace-id")
+            .expect("header missing");
+        assert_eq!(val.to_str().unwrap(), trace_id.serialize_encore());
+    }
+
+    #[test]
+    fn maybe_add_trace_id_header_keeps_existing() {
+        let mut resp = ResponseHeader::build(200, None).unwrap();
+        resp.insert_header("x-encore-trace-id", HeaderValue::from_static("existing"))
+            .unwrap();
+        let trace_id = model::TraceId([2; 16]);
+
+        maybe_add_trace_id_header(&mut resp, trace_id);
+
+        let val = resp
+            .headers
+            .get("x-encore-trace-id")
+            .expect("header missing");
+        assert_eq!(val.to_str().unwrap(), "existing");
+    }
 }
