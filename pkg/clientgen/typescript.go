@@ -531,7 +531,7 @@ func (ts *typescript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 						dot += "?"
 					}
 					dict[field.WireFormat] = dot +
-						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
+						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", false) + ")"
 				} else {
 					dict[field.WireFormat] = ts.convertBuiltinToString(
 						field.Type.GetBuiltin(),
@@ -653,7 +653,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 						dot += "?"
 					}
 					dict[field.WireFormat] = dot +
-						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
+						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", false) + ")"
 				} else {
 					dict[field.WireFormat] = ts.convertBuiltinToString(
 						field.Type.GetBuiltin(),
@@ -1357,7 +1357,7 @@ class BaseClient {
 							dot += "?"
 						}
 						dict[field.WireFormat] = dot +
-							".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
+							".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", false) + ")"
 					} else {
 						dict[field.WireFormat] = ts.convertBuiltinToString(
 							field.Type.GetBuiltin(),

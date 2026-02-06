@@ -88,6 +88,7 @@ interface Request {
 
   queryFoo?: Query<boolean, "foo">;
   queryBar?: Query<"bar">;
+  queryList?: Query<boolean[], "list">
   headerBaz?: Header<"baz">;
   headerNum?: Header<number, "num">;
   cookieQux?: Cookie<"qux">;
