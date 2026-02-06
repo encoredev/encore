@@ -298,9 +298,23 @@ pub const CACHE_KEYSPACE_PARSER: ResourceParser = ResourceParser {
                 }
             }
 
-            // Resolve the value type (if explicit)
-            let value_type =
-                value_type_ast.map(|vt| pass.type_checker.resolve_type(pass.module.clone(), vt));
+            // Resolve the value type (if explicit from type parameter, or implicit from keyspace type)
+            let value_type = if let Some(vt) = value_type_ast {
+                // Explicit value type from type parameter
+                Some(pass.type_checker.resolve_type(pass.module.clone(), vt))
+            } else {
+                // Implicit value type based on keyspace type
+                use crate::parser::types::{Basic, Type};
+                use litparser::Sp;
+                match spec.keyspace_type {
+                    KeyspaceType::String => Some(Sp::new(r.expr.span(), Type::Basic(Basic::String))),
+                    KeyspaceType::Int | KeyspaceType::Float => {
+                        Some(Sp::new(r.expr.span(), Type::Basic(Basic::Number)))
+                    }
+                    // List, Set, and Struct keyspaces require explicit value type parameter
+                    _ => None,
+                }
+            };
 
             // Validate key pattern
             let key_pattern = &r.config.keyPattern;
