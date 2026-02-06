@@ -24,8 +24,8 @@ use crate::span_err::ErrReporter;
 /// Redis eviction policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EvictionPolicy {
-    #[default]
     NoEviction,
+    #[default]
     AllKeysLRU,
     AllKeysLFU,
     AllKeysRandom,
@@ -161,12 +161,18 @@ pub const CACHE_CLUSTER_PARSER: ResourceParser = ResourceParser {
             for r in iter_references::<Res>(&module, &names) {
                 let r = report_and_continue!(r);
 
-                let eviction_policy = r
-                    .config
-                    .as_ref()
-                    .and_then(|c| c.evictionPolicy.as_ref())
-                    .and_then(|p| p.parse().ok())
-                    .unwrap_or_default();
+                let eviction_policy = match r.config.as_ref().and_then(|c| c.evictionPolicy.as_ref()) {
+                    Some(policy) => {
+                        match policy.parse() {
+                            Ok(p) => p,
+                            Err(_) => {
+                                policy.span().err("invalid eviction policy: must be one of noeviction, allkeys-lru, allkeys-lfu, allkeys-random, volatile-lru, volatile-lfu, volatile-ttl, or volatile-random");
+                                continue;
+                            }
+                        }
+                    }
+                    None => EvictionPolicy::default(),
+                };
 
                 let object = resolve_object_for_bind_name(
                     pass.type_checker,
@@ -276,9 +282,83 @@ pub const CACHE_KEYSPACE_PARSER: ResourceParser = ResourceParser {
                 .type_checker
                 .resolve_type(pass.module.clone(), key_type_ast.unwrap());
 
+            // Validate key type - disallow any/unknown
+            {
+                use crate::parser::types::{Basic, Type};
+                let is_invalid_key_type = match key_type.as_ref() {
+                    Type::Basic(Basic::Any) => Some("'any' is not supported as a cache key type"),
+                    Type::Basic(Basic::Unknown) => {
+                        Some("'unknown' is not supported as a cache key type")
+                    }
+                    _ => None,
+                };
+                if let Some(err_msg) = is_invalid_key_type {
+                    key_type_ast.unwrap().span().err(err_msg);
+                    continue;
+                }
+            }
+
             // Resolve the value type (if explicit)
             let value_type =
                 value_type_ast.map(|vt| pass.type_checker.resolve_type(pass.module.clone(), vt));
+
+            // Validate key pattern
+            let key_pattern = &r.config.keyPattern;
+
+            // Check for reserved prefix
+            if key_pattern.starts_with("__encore") {
+                key_pattern
+                    .span()
+                    .err("the prefix `__encore` is reserved for internal use by Encore");
+                continue;
+            }
+
+            // For basic (non-struct) key types, the parameter must be named `:key`
+            let key_type_is_basic = {
+                use crate::parser::types::Type;
+                matches!(key_type.as_ref(), Type::Basic(_))
+            };
+
+            if key_type_is_basic {
+                // Check that any parameter segment is named "key"
+                let mut has_invalid_param = false;
+                let pattern_str: &str = key_pattern.as_str();
+                for segment in pattern_str.split('/') {
+                    if segment.starts_with(':') {
+                        let param_name = &segment[1..];
+                        if param_name != "key" {
+                            key_pattern.span().err(
+                                "KeyPattern parameter must be named ':key' for basic (non-struct) key types",
+                            );
+                            has_invalid_param = true;
+                            break;
+                        }
+                    }
+                }
+                if has_invalid_param {
+                    continue;
+                }
+            }
+
+            // For StructKeyspace, validate that the value type is an interface/object type
+            if spec.keyspace_type == KeyspaceType::Struct {
+                use crate::parser::types::Type;
+                if let Some(ref vt) = value_type {
+                    let is_valid_struct_value = match vt.as_ref() {
+                        Type::Interface(_) => true,
+                        Type::Class(_) => true,
+                        Type::Named(_) => true, // Named types are resolved later
+                        _ => false,
+                    };
+                    if !is_valid_struct_value {
+                        value_type_ast
+                            .unwrap()
+                            .span()
+                            .err("StructKeyspace value type must be an interface or object type");
+                        continue;
+                    }
+                }
+            }
 
             // Resolve the cluster reference from the stored expression
             let cluster_span = r.cluster_expr.span();
