@@ -352,6 +352,105 @@ pub const CACHE_KEYSPACE_PARSER: ResourceParser = ResourceParser {
                 if has_invalid_param {
                     continue;
                 }
+            } else {
+                // Struct key type validation: validate interface fields match key pattern
+                use crate::parser::types::{Basic, FieldName, Type};
+                use std::collections::HashSet;
+
+                // Extract interface from the key type (may be wrapped in Named)
+                // We need to handle both borrowed and owned interfaces
+                let underlying_type: Option<Type> = match key_type.as_ref() {
+                    Type::Interface(_) => None, // Will use key_type directly
+                    Type::Named(named) => {
+                        // Get the underlying type from the named type
+                        Some(named.underlying(&pass.type_checker.state()))
+                    }
+                    _ => None,
+                };
+
+                let interface_fields = match key_type.as_ref() {
+                    Type::Interface(iface) => Some(&iface.fields),
+                    Type::Named(_) => {
+                        // Use the resolved underlying type
+                        match &underlying_type {
+                            Some(Type::Interface(iface)) => Some(&iface.fields),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                };
+
+                if let Some(fields) = interface_fields {
+                    // Extract parameter names from key pattern
+                    let pattern_str: &str = key_pattern.as_str();
+                    let mut pattern_params: HashSet<&str> = HashSet::new();
+                    for segment in pattern_str.split('/') {
+                        if segment.starts_with(':') {
+                            pattern_params.insert(&segment[1..]);
+                        }
+                    }
+
+                    // Validate each field
+                    let mut field_names: HashSet<String> = HashSet::new();
+                    let mut has_error = false;
+
+                    for field in fields {
+                        let field_name = match &field.name {
+                            FieldName::String(s) => s.clone(),
+                            FieldName::Symbol(_) => {
+                                key_type_ast.unwrap().span().err(
+                                    "cache key type must not contain symbol fields",
+                                );
+                                has_error = true;
+                                continue;
+                            }
+                        };
+
+                        // Check field type is a basic type (string, number, boolean)
+                        let is_valid_field_type = matches!(
+                            &field.typ,
+                            Type::Basic(Basic::String)
+                                | Type::Basic(Basic::Number)
+                                | Type::Basic(Basic::Boolean)
+                                | Type::Basic(Basic::BigInt)
+                        );
+
+                        if !is_valid_field_type {
+                            key_type_ast.unwrap().span().err(&format!(
+                                "cache key field '{}' must be a basic type (string, number, or boolean)",
+                                field_name
+                            ));
+                            has_error = true;
+                            continue;
+                        }
+
+                        // Check field is used in key pattern
+                        if !pattern_params.contains(field_name.as_str()) {
+                            key_type_ast.unwrap().span().err(&format!(
+                                "cache key field '{}' is not used in the keyPattern",
+                                field_name
+                            ));
+                            has_error = true;
+                        }
+
+                        field_names.insert(field_name);
+                    }
+
+                    // Check all pattern params correspond to fields
+                    for param in &pattern_params {
+                        if !field_names.contains(*param) {
+                            key_pattern.span().err(&format!(
+                                "keyPattern parameter '{}' does not exist in the key type",
+                                param
+                            ));
+                            has_error = true;
+                        }
+                    }
+
+                    if has_error {
+                        continue;
+                    }
+                }
             }
 
             // For StructKeyspace, validate that the value type is an interface/object type
