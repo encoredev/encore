@@ -62,8 +62,9 @@ class SvcServiceClient {
         })
 
         const query = makeRecord({
-            bar: params.queryBar,
-            foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            bar:  params.queryBar,
+            foo:  params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            list: params.queryList.map((v) => v === undefined ? undefined : String(v)),
         })
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
@@ -91,8 +92,9 @@ class SvcServiceClient {
         })
 
         const query = makeRecord({
-            bar: params.queryBar,
-            foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            bar:  params.queryBar,
+            foo:  params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            list: params.queryList.map((v) => v === undefined ? undefined : String(v)),
         })
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
@@ -128,8 +130,9 @@ class SvcServiceClient {
         })
 
         const query = makeRecord({
-            bar: params.queryBar,
-            foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            bar:  params.queryBar,
+            foo:  params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            list: params.queryList.map((v) => v === undefined ? undefined : String(v)),
         })
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
