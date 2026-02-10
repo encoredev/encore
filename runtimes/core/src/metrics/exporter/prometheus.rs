@@ -191,7 +191,7 @@ impl Prometheus {
 impl Exporter for Prometheus {
     async fn export(&self, metrics: Vec<CollectedMetric>) {
         if let Err(err) = self.export_metrics(metrics).await {
-            log::error!("Failed to export metrics to Prometheus: {}", err);
+            log::error!("Failed to export metrics to Prometheus: {:#}", err);
         }
     }
 }
