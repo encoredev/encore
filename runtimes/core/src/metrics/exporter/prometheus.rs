@@ -166,6 +166,9 @@ impl Prometheus {
                 value: metric_name,
             });
 
+            // Sort labels lexicographically by name, as required by some Prometheus implementations.
+            labels.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+
             // Convert metric value to float64
             let value = match metric.value {
                 MetricValue::CounterU64(val) => val as f64,
