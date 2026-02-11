@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -36,6 +37,16 @@ import (
 
 type mockReq struct {
 	Body string
+}
+
+func (r *mockReq) Validate() error {
+	if r == nil {
+		return nil
+	}
+	if r.Body == "invalid" {
+		return errors.New("invalid request")
+	}
+	return nil
 }
 
 type mockResp struct {
@@ -327,6 +338,40 @@ func TestDescGeneratesTrace(t *testing.T) {
 				t.Errorf("beginReq mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestDesc_ValidationFailureEmitsTrace(t *testing.T) {
+	model.EnableTestMode(t)
+	klock := clock.NewMock()
+	klock.Set(time.Now())
+
+	server, traceMock, _ := testServer(t, klock, true)
+
+	traceMock.
+		EXPECT().
+		RequestSpanStart(gomock.Any(), gomock.Any()).
+		MaxTimes(1)
+
+	traceMock.
+		EXPECT().
+		RequestSpanEnd(gomock.Any()).
+		MaxTimes(1)
+
+	traceMock.EXPECT().WaitAndClear().AnyTimes()
+	traceMock.EXPECT().WaitUntilDone().AnyTimes()
+	traceMock.EXPECT().MarkDone().MaxTimes(1)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/path/hello", strings.NewReader(`{"Body":"invalid"}`))
+	req.Header.Set("Content-Type", "application/json")
+	ps := api.UnnamedParams{"hello"}
+
+	desc := newMockAPIDesc(api.Public)
+	desc.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("got code %d, want %d", w.Code, http.StatusBadRequest)
 	}
 }
 
