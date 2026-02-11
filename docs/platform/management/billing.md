@@ -7,9 +7,9 @@ lang: platform
 ---
 
 Encore offers a **Free** plan for teams that want a simple development workflow and collaboration features.
-If you want access to all features and want to use Encore's DevOps automation tools for AWS & GCP, there's a paid **Pro** plan available at $49 per member / month.
+If you want access to all features and want to use Encore's DevOps automation tools for AWS & GCP, there's a paid **Pro** plan available.
 
-See the [pricing page](https://encore.dev/pricing) for a feature comparison between each plan and more information.
+See the [pricing page](https://encore.dev/pricing) for a feature comparison between each plan and complete pricing information.
 
 ## When do I need to upgrade to a paid plan?
 
@@ -40,11 +40,7 @@ If you prefer to manage deployment yourself, you can export your application as 
 
 ### What is the price of the paid plan?
 
-The **Pro** plan is $49/month per member. If you use Encore for DevOps automation in your cloud, the price is $99/month per environment on AWS/GCP + $2.5/month per resource in each AWS/GCP environment. _Resources are your app's services, databases, Pub/Sub topics and subscriptions, cron jobs, caches, and secrets, in each environment._
-
-([Learn more](https://encore.dev/pricing))
-
-See the [pricing page](https://encore.dev/pricing) for more details.
+See the [pricing page](https://encore.dev/pricing) for complete pricing information.
 
 If you are a large organization with specific needs, please [email us](mailto:hello@encore.dev) or [book a 1:1](/book) to discuss your needs and get a custom price quote.
 

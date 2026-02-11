@@ -1,21 +1,25 @@
 ---
 seotitle: Encore Cloud Docs
-seodesc: How Encore Cloud Platform helps you reduce DevOps work by 90% by automating infra in your cloud on AWS/GCP.
+seodesc: How Encore Cloud Platform helps you reduce DevOps work by 93% by automating infra in your cloud on AWS/GCP.
 title: Encore Cloud
 subtitle: The easiest way to develop and deploy your application to AWS/GCP
 toc: false
 lang: platform
 ---
 
-Encore Cloud automates DevOps and infrastructure on AWS and GCP — trusted by fast-moving teams to **2x** their development speed and reduce DevOps work by **93%**.
+[Encore Cloud](https://encore.cloud) is a development platform for running production applications in your own AWS or GCP environment.
 
-**If you're new, learn all about how Encore works in the [introduction](/docs/platform/introduction).**
+It automates infrastructure provisioning, deployments, and operations, while providing built-in observability including distributed tracing, metrics, and logs.
+
+Teams using Encore Cloud report **2-3x** faster development speed and **93%** less time spent on DevOps. See more details in [customer stories](https://encore.cloud/customers).
+
+Learn more about how it works in the [introduction](/docs/platform/introduction).
 
 <div className="min-h-72 bg-black p-8 relative overflow-hidden not-prose">
     <div className="w-[75%] lg:w-[85%]">
         <h2 className="text-white lead-medium">Get Started</h2>
         <div className="body-small text-white mt-2">
-            Sign up and take a tour of the Encore Cloud dashboard.
+            Sign up and deploy a test application in minutes.
         </div>
         <a href="/signup">
             <Button className="mt-4" kind="primary" section="black">Sign up</Button>

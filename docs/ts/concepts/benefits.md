@@ -13,6 +13,7 @@ lang: ts
 - **Unified codebase**: One codebase for all environments; local, preview, and cloud.
 - **Cloud-agnostic by default**: Encore.ts provides an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
 - **Evolve infrastructure without code changes**: As requirements evolve, you can change the provisioned infrastructure without needing application code changes. Either using the Open Source [self-hosting tools](/docs/ts/self-host/build) or with the optional [Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully-automates infrastructure management in your own AWS/GCP account.
+- **AI-assisted development**: Encore is built for AI coding assistants. With [Encore-specific rules and MCP integration](/docs/ts/ai-integration), AI understands your architecture and can generate type-safe, pattern-consistent code and introspect your app—services, APIs, databases, and traces.
 
 ## High-performance Rust runtime
 

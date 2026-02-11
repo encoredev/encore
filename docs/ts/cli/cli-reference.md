@@ -232,7 +232,13 @@ Secret management commands
 
 #### Set
 
-Sets a secret value
+Set a secret value for a specific environment:
+
+```shell
+$ encore secret set --env <env-name> <secret-name>
+```
+
+Set a secret value for an environment type:
 
 ```shell
 $ encore secret set --type <types> <secret-name>
