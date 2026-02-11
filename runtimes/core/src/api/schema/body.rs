@@ -29,7 +29,10 @@ impl Body {
             .await
             .map_err(|e| api::Error::invalid_argument("unable to read request body", e))?
             .to_bytes();
+        self.parse_incoming_request_body_bytes(bytes)
+    }
 
+    pub fn parse_incoming_request_body_bytes(&self, bytes: Bytes) -> APIResult<Option<PValues>> {
         let mut jsonde = serde_json::Deserializer::from_slice(&bytes);
         let cfg = DecodeConfig {
             coerce_strings: false,

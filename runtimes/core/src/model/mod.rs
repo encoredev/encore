@@ -1,4 +1,5 @@
 use axum::extract::WebSocketUpgrade;
+use bytes::Bytes;
 use chrono::Utc;
 use indexmap::IndexMap;
 use std::fmt::Debug;
@@ -150,6 +151,9 @@ pub struct Request {
     /// Type-specific data.
     pub data: RequestData,
 
+    /// Captured raw request body for tracing, if any.
+    pub captured_body: Option<Bytes>,
+
     /// Whether this request should be traced.
     /// Determined by sampling rate or inherited from parent.
     pub traced: bool,
@@ -184,6 +188,10 @@ impl Request {
             }
         }
         None
+    }
+
+    pub fn captured_body_bytes(&self) -> Option<Bytes> {
+        self.captured_body.clone()
     }
 }
 

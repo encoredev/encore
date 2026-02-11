@@ -7,7 +7,8 @@ use anyhow::Context;
 use axum::extract::{FromRequestParts, WebSocketUpgrade};
 use axum::http::HeaderValue;
 use axum::response::IntoResponse;
-use bytes::{BufMut, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
+use http::header::CONTENT_TYPE;
 use http::HeaderMap;
 use indexmap::IndexMap;
 use percent_encoding::percent_decode_str;
@@ -410,6 +411,11 @@ pub(super) struct EndpointHandler {
     pub requests_total: counter::Schema<u64>,
 }
 
+struct RequestParseError {
+    err: Error,
+    request: Arc<model::Request>,
+}
+
 #[derive(Debug)]
 pub(super) struct SharedEndpointData {
     pub tracer: trace::Tracer,
@@ -438,7 +444,7 @@ impl EndpointHandler {
     async fn parse_request(
         &self,
         axum_req: axum::extract::Request,
-    ) -> APIResult<Arc<model::Request>> {
+    ) -> Result<Arc<model::Request>, RequestParseError> {
         let method = axum_req.method();
         // Method conversion should never fail since we only register valid methods.
         let api_method = Method::try_from(method.clone()).expect("invalid method");
@@ -476,90 +482,109 @@ impl EndpointHandler {
             Err(_err) => None,
         };
 
-        let meta = CallMeta::parse_with_caller(
+        let capture_raw_body = allow_raw_body_capture(&parts.headers, self.endpoint.sensitive);
+        let raw_body_cap = if self.endpoint.raw {
+            Some(10 * 1024)
+        } else {
+            None
+        };
+        let is_platform_request = platform_seal_of_approval.is_some();
+        let default_traced = self.shared.tracer.should_sample();
+
+        let make_request = |parts, parsed_payload, websocket_upgrade, meta, raw_body| {
+            build_request(
+                &self.endpoint,
+                api_method,
+                parts,
+                stream_direction,
+                parsed_payload,
+                websocket_upgrade,
+                raw_body,
+                is_platform_request,
+                meta,
+                default_traced,
+            )
+        };
+
+        let meta = match CallMeta::parse_with_caller(
             &self.shared.inbound_svc_auth,
             &parts.headers,
             &self.shared.auth_data_schemas,
-        )?;
+        ) {
+            Ok(meta) => meta,
+            Err(err) => {
+                let fallback_meta = CallMeta {
+                    trace_id: model::TraceId::generate(),
+                    caller_trace_id: None,
+                    parent_span_id: None,
+                    this_span_id: None,
+                    parent_event_id: None,
+                    ext_correlation_id: None,
+                    trace_sampled: None,
+                    internal: None,
+                };
+                let request = make_request(parts, None, None, fallback_meta, None);
+                return Err(RequestParseError { err, request });
+            }
+        };
 
         let parsed_payload = if let Some(handshake_schema) = &self.endpoint.handshake {
             match handshake_schema.as_ref() {
                 HandshakeSchema::Request(req_schema) => {
-                    req_schema.extract(&mut parts, body).await?
+                    match req_schema
+                        .extract_with_partial(&mut parts, body, capture_raw_body, raw_body_cap)
+                        .await
+                    {
+                        Ok(payload) => payload,
+                        Err(err) => {
+                            let schema::RequestExtractError {
+                                err,
+                                partial_payload,
+                                captured_body,
+                            } = err;
+                            let request =
+                                make_request(parts, partial_payload, None, meta, captured_body);
+                            return Err(RequestParseError { err, request });
+                        }
+                    }
                 }
                 HandshakeSchema::Path(_) => None,
             }
         } else {
-            req_schema.extract(&mut parts, body).await?
+            match req_schema
+                .extract_with_partial(&mut parts, body, capture_raw_body, raw_body_cap)
+                .await
+            {
+                Ok(payload) => payload,
+                Err(err) => {
+                    let schema::RequestExtractError {
+                        err,
+                        partial_payload,
+                        captured_body,
+                    } = err;
+                    let request = make_request(parts, partial_payload, None, meta, captured_body);
+                    return Err(RequestParseError { err, request });
+                }
+            }
         };
 
         // Extract caller information.
-        let (internal_caller, auth_user_id, auth_data) = match meta.internal {
-            Some(internal) => (Some(internal.caller), internal.auth_uid, internal.auth_data),
-            None => (None, None, None),
-        };
-
-        let trace_id = meta.trace_id;
-        let span_id = meta.this_span_id.unwrap_or_else(model::SpanId::generate);
-        let span = trace_id.with_span(span_id);
-        let parent_span = meta.parent_span_id.map(|sp| trace_id.with_span(sp));
-
-        let traced = meta
-            .trace_sampled
-            .unwrap_or_else(|| self.shared.tracer.should_sample());
-
-        let data = if let Some(direction) = stream_direction {
-            let websocket_upgrade = Mutex::new(Some(
-                WebSocketUpgrade::from_request_parts(&mut parts, &()).await?,
-            ));
-
-            model::RequestData::Stream(model::StreamRequestData {
-                endpoint: self.endpoint.clone(),
-                path: parts.uri.path().to_string(),
-                path_and_query: parts
-                    .uri
-                    .path_and_query()
-                    .map(|q| q.to_string())
-                    .unwrap_or_default(),
-                path_params: parsed_payload.as_ref().and_then(|p| p.path.clone()),
-                req_headers: parts.headers,
-                auth_user_id,
-                auth_data,
-                parsed_payload,
-                websocket_upgrade,
-                direction,
-            })
+        let websocket_upgrade = if stream_direction.is_some() {
+            match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
+                Ok(ws) => Some(ws),
+                Err(err) => {
+                    let request = make_request(parts, parsed_payload, None, meta, None);
+                    return Err(RequestParseError {
+                        err: err.into(),
+                        request,
+                    });
+                }
+            }
         } else {
-            model::RequestData::RPC(model::RPCRequestData {
-                endpoint: self.endpoint.clone(),
-                method: api_method,
-                path: parts.uri.path().to_string(),
-                path_and_query: parts
-                    .uri
-                    .path_and_query()
-                    .map(|q| q.to_string())
-                    .unwrap_or_default(),
-                path_params: parsed_payload.as_ref().and_then(|p| p.path.clone()),
-                req_headers: parts.headers,
-                auth_user_id,
-                auth_data,
-                parsed_payload,
-            })
+            None
         };
 
-        let request = Arc::new(model::Request {
-            span,
-            parent_trace: None,
-            parent_span,
-            caller_event_id: meta.parent_event_id,
-            ext_correlation_id: meta.ext_correlation_id,
-            start: tokio::time::Instant::now(),
-            start_time: std::time::SystemTime::now(),
-            is_platform_request: platform_seal_of_approval.is_some(),
-            internal_caller,
-            data,
-            traced,
-        });
+        let request = make_request(parts, parsed_payload, websocket_upgrade, meta, None);
 
         Ok(request)
     }
@@ -570,13 +595,42 @@ impl EndpointHandler {
     ) -> Pin<Box<dyn Future<Output = axum::http::Response<axum::body::Body>> + Send + 'static>>
     {
         Box::pin(async move {
+            let sensitive = self.endpoint.sensitive;
             let request = match self.parse_request(axum_req).await {
                 Ok(req) => req,
-                Err(err) => return err.to_response(None),
+                Err(err) => {
+                    self.shared
+                        .tracer
+                        .request_span_start(&err.request, sensitive);
+                    emit_captured_body_if_any(&self.shared.tracer, &err.request, sensitive).await;
+
+                    let mut resp = err.err.to_response(None);
+                    if !resp.headers().contains_key("x-encore-trace-id") {
+                        if let Ok(val) =
+                            HeaderValue::from_str(err.request.span.0.serialize_encore().as_str())
+                        {
+                            resp.headers_mut().insert("x-encore-trace-id", val);
+                        }
+                    }
+
+                    let duration = tokio::time::Instant::now().duration_since(err.request.start);
+                    let model_resp = model::Response {
+                        request: err.request.clone(),
+                        duration,
+                        data: model::ResponseData::RPC(model::RPCResponseData {
+                            status_code: resp.status().as_u16(),
+                            resp_payload: None,
+                            error: Some(err.err.clone()),
+                            resp_headers: resp.headers().clone(),
+                        }),
+                    };
+                    self.shared.tracer.request_span_end(&model_resp, sensitive);
+
+                    return resp;
+                }
             };
 
             let internal_caller = request.internal_caller.clone();
-            let sensitive = self.endpoint.sensitive;
 
             // If the endpoint isn't exposed, return a 404.
             if !self.endpoint.exposed && !request.allows_private_endpoint_call() {
@@ -681,6 +735,7 @@ impl EndpointHandler {
             };
 
             {
+                emit_captured_body_if_any(&self.shared.tracer, &request, sensitive).await;
                 let model_resp = model::Response {
                     request: request.clone(),
                     duration,
@@ -748,6 +803,243 @@ impl axum::handler::Handler<(), ()> for EndpointHandler {
     }
 }
 
+async fn emit_captured_body_if_any(
+    tracer: &trace::Tracer,
+    request: &model::Request,
+    redact_details: bool,
+) {
+    if redact_details {
+        return;
+    }
+
+    if let Some(bytes) = request.captured_body_bytes() {
+        if !bytes.is_empty() {
+            tracer.body_stream(request.span, false, false, bytes.as_ref());
+        }
+    }
+}
+
+fn build_request(
+    endpoint: &Arc<Endpoint>,
+    api_method: Method,
+    parts: axum::http::request::Parts,
+    stream_direction: Option<StreamDirection>,
+    parsed_payload: Option<RequestPayload>,
+    websocket_upgrade: Option<WebSocketUpgrade>,
+    captured_body: Option<Bytes>,
+    is_platform_request: bool,
+    meta: CallMeta,
+    default_traced: bool,
+) -> Arc<model::Request> {
+    let (internal_caller, auth_user_id, auth_data) = match meta.internal {
+        Some(internal) => (Some(internal.caller), internal.auth_uid, internal.auth_data),
+        None => (None, None, None),
+    };
+
+    let trace_id = meta.trace_id;
+    let span_id = meta.this_span_id.unwrap_or_else(model::SpanId::generate);
+    let span = trace_id.with_span(span_id);
+    let parent_span = meta.parent_span_id.map(|sp| trace_id.with_span(sp));
+
+    let traced = meta.trace_sampled.unwrap_or(default_traced);
+
+    let path = parts.uri.path().to_string();
+    let path_and_query = parts
+        .uri
+        .path_and_query()
+        .map(|q| q.to_string())
+        .unwrap_or_default();
+
+    let data = if let Some(direction) = stream_direction {
+        model::RequestData::Stream(model::StreamRequestData {
+            endpoint: endpoint.clone(),
+            path,
+            path_and_query,
+            path_params: parsed_payload.as_ref().and_then(|p| p.path.clone()),
+            req_headers: parts.headers,
+            auth_user_id,
+            auth_data,
+            parsed_payload,
+            websocket_upgrade: Mutex::new(websocket_upgrade),
+            direction,
+        })
+    } else {
+        model::RequestData::RPC(model::RPCRequestData {
+            endpoint: endpoint.clone(),
+            method: api_method,
+            path,
+            path_and_query,
+            path_params: parsed_payload.as_ref().and_then(|p| p.path.clone()),
+            req_headers: parts.headers,
+            auth_user_id,
+            auth_data,
+            parsed_payload,
+        })
+    };
+
+    Arc::new(model::Request {
+        span,
+        parent_trace: None,
+        parent_span,
+        caller_event_id: meta.parent_event_id,
+        ext_correlation_id: meta.ext_correlation_id,
+        start: tokio::time::Instant::now(),
+        start_time: std::time::SystemTime::now(),
+        is_platform_request,
+        internal_caller,
+        data,
+        captured_body,
+        traced,
+    })
+}
+
+fn allow_raw_body_capture(headers: &HeaderMap, sensitive: bool) -> bool {
+    if sensitive {
+        return false;
+    }
+
+    let Some(content_type) = headers.get(CONTENT_TYPE) else {
+        return false;
+    };
+    let Ok(content_type) = content_type.to_str() else {
+        return false;
+    };
+    let content_type = content_type
+        .split(';')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+
+    matches!(
+        content_type.as_str(),
+        "application/json"
+            | "text/plain"
+            | "application/x-www-form-urlencoded"
+            | "text/csv"
+            | "text/javascript"
+            | "application/ld+json"
+            | "application/xml"
+            | "text/xml"
+            | "application/atom+xml"
+    )
+}
+
 pub fn path_supports_tsr(path: &str) -> bool {
     path != "/" && !path.ends_with('/') && !path.contains("/*")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::jsonschema;
+    use crate::api::reqauth::platform;
+    use crate::metrics;
+    use crate::trace;
+    use axum::body::Body;
+    use http::header::CONTENT_TYPE;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use tokio::time::{timeout, Duration};
+
+    struct NoopHandler;
+
+    impl BoxedHandler for NoopHandler {
+        fn call(
+            self: Arc<Self>,
+            _req: HandlerRequest,
+        ) -> Pin<Box<dyn Future<Output = ResponseData> + Send + 'static>> {
+            Box::pin(async move {
+                ResponseData::Typed(Ok(HandlerResponseInner {
+                    payload: None,
+                    extra_headers: None,
+                    status: None,
+                }))
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn validation_error_emits_span_and_trace_header() {
+        let req_schema = schema::Request {
+            methods: vec![Method::POST],
+            path: schema::Path::from_segments(vec![schema::Segment::Literal("foo".into())]),
+            header: None,
+            cookie: None,
+            query: None,
+            body: schema::RequestBody::Typed(Some(
+                schema::Body::new(jsonschema::JSONSchema::any()),
+            )),
+            stream: false,
+        };
+
+        let endpoint = Arc::new(Endpoint {
+            name: EndpointName::new("svc", "ep"),
+            path: meta::Path::default(),
+            handshake: None,
+            request: vec![Arc::new(req_schema)],
+            response: Arc::new(schema::Response {
+                header: None,
+                cookie: None,
+                body: None,
+                http_status: None,
+                stream: false,
+            }),
+            raw: false,
+            exposed: true,
+            requires_auth: false,
+            body_limit: None,
+            static_assets: None,
+            tags: Vec::new(),
+            sensitive: false,
+        });
+
+        let (tracer, mut rx) = trace::test_tracer();
+        let shared = Arc::new(SharedEndpointData {
+            tracer,
+            platform_auth: Arc::new(platform::RequestValidator::new_mock()),
+            inbound_svc_auth: Vec::new(),
+            auth_data_schemas: HashMap::new(),
+        });
+
+        let metrics_registry = Arc::new(metrics::Registry::new());
+        let requests_total = metrics::requests_total_counter(&metrics_registry, "svc", "ep");
+
+        let handler = EndpointHandler {
+            endpoint,
+            handler: Arc::new(NoopHandler),
+            shared,
+            requests_total,
+        };
+
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/foo")
+            .header(CONTENT_TYPE, "application/json")
+            .body(Body::from("{bad json"))
+            .unwrap();
+
+        let resp = handler.handle(req).await;
+        assert!(resp.headers().contains_key("x-encore-trace-id"));
+
+        let first = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .expect("missing first span event")
+            .expect("missing first span event");
+        let second = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .expect("missing second span event")
+            .expect("missing second span event");
+        let third = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .expect("missing third span event")
+            .expect("missing third span event");
+
+        assert!(matches!(
+            first,
+            trace::protocol::EventType::RequestSpanStart
+        ));
+        assert!(matches!(second, trace::protocol::EventType::BodyStream));
+        assert!(matches!(third, trace::protocol::EventType::RequestSpanEnd));
+    }
 }

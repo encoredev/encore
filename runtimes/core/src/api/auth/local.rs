@@ -89,6 +89,7 @@ impl AuthHandler for LocalAuthHandler {
                         cookie,
                     },
                 }),
+                captured_body: None,
                 traced,
             });
 

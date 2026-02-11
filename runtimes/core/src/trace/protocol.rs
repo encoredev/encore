@@ -311,6 +311,38 @@ impl Tracer {
     }
 
     #[inline]
+    pub fn body_stream(
+        &self,
+        span: model::SpanKey,
+        is_response: bool,
+        overflowed: bool,
+        data: &[u8],
+    ) {
+        if data.is_empty() {
+            return;
+        }
+
+        let mut eb = BasicEventData {
+            correlation_event_id: None,
+            extra_space: 64 + data.len(),
+        }
+        .into_eb();
+
+        let mut flags = 0u8;
+        if is_response {
+            flags |= 1 << 0;
+        }
+        if overflowed {
+            flags |= 1 << 1;
+        }
+
+        eb.byte(flags);
+        eb.byte_string(data);
+
+        _ = self.send(EventType::BodyStream, span, eb);
+    }
+
+    #[inline]
     pub fn request_span_end(&self, resp: &model::Response, redact_details: bool) {
         let req = resp.request.as_ref();
         if !req.traced {
