@@ -25,4 +25,20 @@ export default new Service("my-service");
 
 That's it! Encore will consider this directory and all its subdirectories as part of the service.
 
+With multiple services, each service lives in its own directory with its own `encore.service.ts`:
+
+```
+/my-app
+├── package.json
+├── encore.app
+│
+├── hello                      // hello service
+│   ├── encore.service.ts
+│   └── hello.ts
+│
+└── world                      // world service
+    ├── encore.service.ts
+    └── world.ts
+```
+
 For more on how to structure your application, see the [app structure guide](/docs/ts/primitives/app-structure).

@@ -6,7 +6,7 @@ subtitle: Build your first Encore.ts app in 5 minutes
 lang: ts
 ---
 
-Follow the steps below or use [Leap](https://leap.new) to get started.
+Follow the steps below or use [Leap](https://leap.new) (our AI builder) to get started.
 
 <TryWithLeap />
 
@@ -20,7 +20,7 @@ Whenever you see a 🥐 it means there's something for you to do.
 
 To develop with Encore, you need the Encore CLI. It provisions your local environment, and runs your local development dashboard complete with tracing and API documentation.
 
-🥐 Install by running the appropriate command for your system:
+🥐 Install Encore by running the appropriate command for your system:
 
 <InstallInstructions />
 
@@ -37,23 +37,18 @@ To develop with Encore, you need the Encore CLI. It provisions your local enviro
 $ encore app create
 ```
 
-🥐 Continue by picking a name for your app and select the Hello World template.
+If this is your first time using Encore, you’ll be prompted to create a free Encore Cloud account.
+This enables Encore to manage things like secrets and fully automate cloud deployments (which you’ll use later in the tutorial).
 
-If this is the first time you're using Encore, you'll be asked if you wish to create a free account.
-This is needed when you want Encore to manage functionality like secrets and handle cloud deployments (which we'll use later on in the tutorial).
+🥐 Select `TypeScript` as your app’s language.
 
-### Optional: Add Encore LLM instructions
+🥐 Choose a starter template. Pick `Hello World` and continue.
 
-To help LLM powered tools like Cursor, Claude Code, and GitHub Copilot understand how to use Encore, you can add pre-made instructions to your app.
+Optional: Install AI instructions to improve how tools like Cursor and Claude Code work with Encore. After selecting your template, choose the AI instructions for the tool you plan to use.
 
-🥐 Download the [ts_llm_instructions.txt](https://github.com/encoredev/encore/blob/main/ts_llm_instructions.txt) file.
+🥐 Pick a name for your app.
 
-**How to use:**
-
-- Cursor: Rename the file to `.cursorrules` and place in your app root.
-- Claude Code: Rename the file to `CLAUDE.md` and place in your app root.
-- GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
-- For other tools, place the file in your app root.
+Encore will now create your app in a folder named after your app.
 
 ### Let's take a look at the code
 

@@ -12,7 +12,7 @@ lang: ts
     <div className="w-[75%] lg:w-[75%]">
         <h2 className="text-white lead-medium">Quick Start Guide</h2>
         <div className="body-small text-white mt-2">
-            Dive right in and build your first Encore.ts application.
+            Build your first Encore.ts application in minutes
         </div>
         <a href="/docs/ts/quick-start">
             <Button className="mt-4" kind="primary" section="black">Get started</Button>
@@ -20,15 +20,15 @@ lang: ts
     </div>
 </div>
 
-Encore.ts is a high-performance API framework that helps you build robust, type-safe applications. It provides a declarative approach to working with essential backend infrastructure like microservices, databases, queues, caches, cron jobs, and storage buckets.
+Encore.ts is an open source backend framework for building type-safe distributed system. It provides a declarative approach to working with essential backend primitives like APIs, microservices, databases, queues, caches, cron jobs, and storage buckets.
 
-The framework comes with a lot of built-in tooling for a smooth developer experience:
+The framework comes with a lot of built-in tooling for a productive end-to-end developer experience:
 
-1. **Local Environment Management**: Automatically sets up and runs your local development environment and all local infrastructure.
-2. **Enhanced Observability**: Comes with tools like a [Local Development Dashboard](/docs/ts/observability/dev-dash) and [tracing](/docs/ts/observability/tracing) for monitoring application behavior.
-3. **Automatic Documentation**: Generates and maintains [up-to-date documentation](/docs/ts/observability/service-catalog) for APIs and services, and created [architecture diagrams](/docs/ts/observability/flow) for your system.
-
-Optional: **DevOps Automation**: Encore provides an optional [Cloud Platform](/use-cases/devops-automation) for automating infrastructure provisioning and DevOps processes on AWS and GCP.
+- **Local Environment Management**: Encore automatically sets up and runs your local development environment and all local infrastructure.
+- **Enhanced Observability**: Encore comes with tools like a [Local Development Dashboard](/docs/ts/observability/dev-dash), [tracing](/docs/ts/observability/tracing), and a database explorer for monitoring application behavior.
+- **Automatic Documentation**: Generates and maintains [up-to-date documentation](/docs/ts/observability/service-catalog) for APIs and services, and created [architecture diagrams](/docs/ts/observability/flow) for your system.
+- **AI Integration:** Encore comes with built-in tools for effective AI assisted development, like [AI instructions](/docs/ts/ai-integration) and an [MCP server](/docs/ts/cli/mcp).
+- **DevOps Automation Platform (Optional)**: [Encore Cloud](https://encore.cloud) is an optional platform for automating infrastructure provisioning and DevOps processes in your cloud on AWS and GCP.
 
 <div className="mt-6 grid grid-cols-2 gap-6 mobile:grid-cols-1 not-prose">
     <a className="block group relative no-brandient" target="_blank" href="https://www.youtube.com/watch?v=vvqTGfoXVsw">
