@@ -218,6 +218,25 @@ impl Reporter {
     }
 }
 
+#[cfg(test)]
+pub(crate) fn test_tracer(
+) -> (
+    Tracer,
+    tokio::sync::mpsc::UnboundedReceiver<crate::trace::protocol::EventType>,
+) {
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let tracer = Tracer::new(tx, None);
+    let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+
+    tokio::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            let _ = event_tx.send(event.typ);
+        }
+    });
+
+    (tracer, event_rx)
+}
+
 /// Represents a trace event that is being streamed.
 #[derive(Debug)]
 struct StreamingTraceEvent {
@@ -311,7 +330,10 @@ mod tests {
         Reporter {
             rx,
             anchor: TimeAnchor::new(),
-            http_client: reqwest::Client::new(),
+            http_client: reqwest::Client::builder()
+                .no_proxy()
+                .build()
+                .expect("failed to build reqwest client for tests"),
             config: ReporterConfig {
                 app_id: "test-app".to_string(),
                 env_id: "test-env".to_string(),

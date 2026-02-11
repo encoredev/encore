@@ -247,6 +247,7 @@ impl SubHandler {
                     payload: msg.data.raw_body.clone(),
                     parsed_payload,
                 }),
+                captured_body: None,
                 traced,
             });
 
