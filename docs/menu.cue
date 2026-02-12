@@ -1032,6 +1032,26 @@
 		},
 		{
 			kind: "section"
+			text: "Resources"
+			items: [{
+				kind: "basic"
+				text: "Better Auth"
+				path: "/ts/develop/integrations/better-auth"
+				file: "ts/develop/integrations/better-auth"
+			}, {
+				kind: "basic"
+				text: "Polar"
+				path: "/ts/develop/integrations/polar"
+				file: "ts/develop/integrations/polar"
+			}, {
+				kind: "basic"
+				text: "Resend"
+				path: "/ts/develop/integrations/resend"
+				file: "ts/develop/integrations/resend"
+			}]
+		},
+		{
+			kind: "section"
 			text: "How to guides"
 			items: [{
 				kind: "basic"

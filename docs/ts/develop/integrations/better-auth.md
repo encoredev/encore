@@ -7,6 +7,14 @@ lang: ts
 
 [Better Auth](https://www.better-auth.com) is a comprehensive TypeScript authentication library that supports email/password, OAuth, two-factor, magic links, and sessions. Combined with Encore's automatic [database provisioning](https://encore.dev/docs/ts/primitives/databases) and [secrets management](https://encore.dev/docs/ts/primitives/secrets), you get production-ready auth without managing any infrastructure.
 
+To get started quickly, create a new app from the example:
+
+```shell
+$ encore app create --example=ts/betterauth
+```
+
+Or follow the steps below to add Better Auth to an existing Encore app.
+
 <Callout type="info">
 
 If you haven't installed Encore yet, see the [installation guide](https://encore.dev/docs/ts/install) first.
