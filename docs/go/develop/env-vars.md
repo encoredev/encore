@@ -67,6 +67,59 @@ Overrides the listen address for the object storage service endpoint.
 export ENCORE_OBJECTSTORAGE_LISTEN_ADDR=localhost:9402
 ```
 
+### ENCORE_NSQ_TCP_ADDRESS
+
+Overrides the TCP bind address for the NSQ daemon used for PubSub message publishing.
+
+**Default:** `127.0.0.1:0` (localhost with auto-assigned port)
+
+**Format:** Network address (e.g., `0.0.0.0:4150` or `127.0.0.1:4150`)
+
+**Example:**
+
+```bash
+# Expose NSQ on all interfaces with a fixed port
+export ENCORE_NSQ_TCP_ADDRESS=0.0.0.0:4150
+encore run
+```
+
+<Callout type="warning">
+
+Setting this to `0.0.0.0` exposes NSQ to all network interfaces, allowing external services to connect. Only use this in development environments.
+
+</Callout>
+
+### ENCORE_NSQ_HTTP_ADDRESS
+
+Overrides the HTTP bind address for the NSQ daemon admin/stats endpoint.
+
+**Default:** `127.0.0.1:0` (localhost with auto-assigned port)
+
+**Format:** Network address (e.g., `0.0.0.0:4151` or `127.0.0.1:4151`)
+
+**Example:**
+
+```bash
+# Expose NSQ HTTP admin interface on all interfaces
+export ENCORE_NSQ_HTTP_ADDRESS=0.0.0.0:4151
+encore run
+```
+
+### ENCORE_NSQ_HTTPS_ADDRESS
+
+Overrides the HTTPS bind address for the NSQ daemon (if HTTPS is enabled).
+
+**Default:** `127.0.0.1:0` (localhost with auto-assigned port)
+
+**Format:** Network address
+
+**Example:**
+
+```bash
+export ENCORE_NSQ_HTTPS_ADDRESS=0.0.0.0:4152
+encore run
+```
+
 ## Advanced Development
 
 These variables are primarily useful for advanced development scenarios, such as contributing to Encore itself or using custom builds.
