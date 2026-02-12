@@ -13,7 +13,7 @@ import (
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -193,7 +193,7 @@ func FormatStack(val any, buf *bytes.Buffer) error {
 
 func ClearTerminalExceptFirstNLines(n int) {
 	// Clear the screen except for the first line.
-	if _, height, err := terminal.GetSize(int(os.Stdout.Fd())); err == nil {
+	if _, height, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
 		count := height - (1 + n)
 		if count > 0 {
 			_, _ = os.Stdout.Write(bytes.Repeat([]byte{'\n'}, count))
