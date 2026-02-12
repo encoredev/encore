@@ -824,25 +824,6 @@
 					file: "ts/develop/orms/sequelize"
 				}]
 			}, {
-				kind: "accordion"
-				text: "Integrations"
-				accordion: [{
-					kind: "basic"
-					text: "Polar"
-					path: "/ts/develop/integrations/polar"
-					file: "ts/develop/integrations/polar"
-				}, {
-					kind: "basic"
-					text: "Better Auth"
-					path: "/ts/develop/integrations/better-auth"
-					file: "ts/develop/integrations/better-auth"
-				}, {
-					kind: "basic"
-					text: "Resend"
-					path: "/ts/develop/integrations/resend"
-					file: "ts/develop/integrations/resend"
-				}]
-			}, {
 				kind: "basic"
 				text: "Metadata"
 				path: "/ts/develop/metadata"
@@ -890,6 +871,30 @@
 					text: "Nx"
 					path: "/ts/develop/monorepo/nx"
 					file: "ts/develop/monorepo/nx"
+				}]
+			}]
+		},
+		{
+			kind: "section"
+			text: "Resources"
+			items: [{
+				kind: "accordion"
+				text: "Integrations"
+				accordion: [{
+					kind: "basic"
+					text: "Better Auth"
+					path: "/ts/develop/integrations/better-auth"
+					file: "ts/develop/integrations/better-auth"
+				}, {
+					kind: "basic"
+					text: "Polar"
+					path: "/ts/develop/integrations/polar"
+					file: "ts/develop/integrations/polar"
+				}, {
+					kind: "basic"
+					text: "Resend"
+					path: "/ts/develop/integrations/resend"
+					file: "ts/develop/integrations/resend"
 				}]
 			}]
 		},
