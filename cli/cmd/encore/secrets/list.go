@@ -117,7 +117,10 @@ var listSecretCmd = &cobra.Command{
 					}
 
 					s := fmt.Sprintf("%s\t%s\t%s\t", g.ID, s.Key, strings.Join(sel, ", "))
-					if g.ArchivedAt != nil {
+					if g.DestroyedAt != nil {
+						s += "(destroyed)\t"
+						_, _ = color.New(color.CrossedOut).Fprintln(w, s)
+					} else if g.ArchivedAt != nil {
 						s += "(archived)\t"
 						_, _ = color.New(color.Concealed).Fprintln(w, s)
 					} else {

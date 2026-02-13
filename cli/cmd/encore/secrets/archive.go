@@ -1,18 +1,17 @@
 package secrets
 
 import (
-	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
-	"encr.dev/cli/internal/platform"
+	"encr.dev/internal/version"
 )
 
 var archiveSecretCmd = &cobra.Command{
+	Deprecated:            "Use the command 'encore secret delete <id>' to delete the secret group.\n",
 	Use:                   "archive <id>",
 	Short:                 "Archives a secret value",
 	DisableFlagsInUseLine: true,
@@ -23,6 +22,7 @@ var archiveSecretCmd = &cobra.Command{
 }
 
 var unarchiveSecretCmd = &cobra.Command{
+	Deprecated:            "use the command 'encore secret delete <id>' to delete the secret group.\n",
 	Use:                   "unarchive <id>",
 	Short:                 "Unarchives a secret value",
 	DisableFlagsInUseLine: true,
@@ -36,21 +36,12 @@ func doArchiveOrUnarchive(groupID string, archive bool) {
 	if !strings.HasPrefix(groupID, "secgrp") {
 		cmdutil.Fatal("the id must begin with 'secgrp_'. Valid ids can be found with 'encore secret list <key>'.")
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err := platform.UpdateSecretGroup(ctx, platform.UpdateSecretGroupParams{
-		ID:       groupID,
-		Archived: &archive,
-	})
-	if err != nil {
-		cmdutil.Fatal(err)
-	}
-	if archive {
-		fmt.Printf("Successfully archived secret group %s.\n", groupID)
+	if version.Compare("1.2.521") < 0 {
+		// older version
+		fmt.Printf("Please update your encore CLI to a newer version")
 	} else {
-		fmt.Printf("Successfully unarchived secret group %s.\n", groupID)
+		// newer version
+		// do nothing since we are providing the deprecated string from the cobra command
 	}
 }
 

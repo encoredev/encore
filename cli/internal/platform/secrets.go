@@ -109,6 +109,7 @@ type UpdateSecretGroupParams struct {
 	// Nil fore ach field here means it's kept unchanged.
 	Selector    []gql.SecretSelector // nil means no changes
 	Archived    *bool
+	Delete      *bool
 	Description *string
 }
 
@@ -135,6 +136,7 @@ mutation UpdateSecretGroup($input: UpdateSecretGroup!) {
 		"etag":        p.Etag,
 		"selector":    selector,
 		"archived":    p.Archived,
+		"delete":      p.Delete,
 		"description": p.Description,
 	}}}
 	if err := graphqlCall(ctx, in, nil, true); err != nil {
