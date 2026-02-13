@@ -292,20 +292,20 @@ If this fails with a database error, it can often be resolved if you restart the
 
 If this does not resolve the issue, here are steps to resolve common errors:
 
-** Error: sqldb: unknown database **
+**Error: sqldb: unknown database**
 
 This error is often caused by a problem with the initial migration file, such as incorrect naming or location.
 
 - Verify that you've [created the migration file](#defining-the-database-schema) correctly, then try `encore run` again.
 
-** Error: could not connect to the database **
+**Error: could not connect to the database**
 
 When you can't connect to the database in your local environment, there's likely an issue with Docker:
 
 - Make sure that you have [Docker](https://docker.com) installed and running, then try `encore run` again.
 - If this fails, restart the Encore daemon by running `encore daemon`, then try `encore run` again.
 
-** Error: Creating PostgreSQL database cluster Failed **
+**Error: Creating PostgreSQL database cluster Failed**
 
 This means Encore was not able to create the database. Often this is due to a problem with Docker.
 
@@ -313,7 +313,7 @@ This means Encore was not able to create the database. Often this is due to a pr
 - Set the correct permissions with `sudo usermod -aG docker $USER` (Learn more in the [Docker documentation](https://docs.docker.com/engine/install/linux-postinstall/))
 - Then log out and log back in so that your group membership is refreshed.
 
-** Error: unable to save docker image **
+**Error: unable to save docker image**
 
 This error is often caused by a problem with Docker.
 
@@ -321,7 +321,7 @@ This error is often caused by a problem with Docker.
 - In Docker, open **Settings > Advanced** and make sure that the setting `Allow the default Docker socket to be used` is checked.
 - If it still fails, restart the Encore daemon by running `encore daemon`, then try `encore run` again.
 
-** Error: unable to add CA to cert pool **
+**Error: unable to add CA to cert pool**
 
 This error is commonly caused by the presence of the file `$HOME/.postgresql/root.crt` on the filesystem.
 When this file is present the PostgreSQL client library will assume the database server has that root certificate,
