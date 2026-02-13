@@ -254,14 +254,18 @@ Where `<types>` defines which environment types the secret value applies to. Use
 
 Entering a secret directly in terminal:
 
-    $ encore secret set --type dev MySecret
-    Enter secret value: ...
-    Successfully created secret value for MySecret.
+```shell
+$ encore secret set --type dev MySecret
+Enter secret value: ...
+Successfully created secret value for MySecret.
+```
 
 Piping a secret from a file:
 
-    $ encore secret set --type dev,local MySecret < my-secret.txt
-    Successfully created secret value for MySecret.
+```shell
+$ encore secret set --type dev,local MySecret < my-secret.txt
+Successfully created secret value for MySecret.
+```
 
 Note that this strips trailing newlines from the secret value.
 
