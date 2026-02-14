@@ -90,6 +90,19 @@
               "type": "string"
             },
             "style": "form"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": true,
+            "in": "query",
+            "name": "list",
+            "schema": {
+              "items": {
+                "type": "boolean"
+              },
+              "type": "array"
+            },
+            "style": "form"
           }
         ],
         "requestBody": {
@@ -165,6 +178,19 @@
             "name": "bar",
             "schema": {
               "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": true,
+            "in": "query",
+            "name": "list",
+            "schema": {
+              "items": {
+                "type": "boolean"
+              },
+              "type": "array"
             },
             "style": "form"
           }
@@ -255,6 +281,19 @@
             "name": "bar",
             "schema": {
               "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": true,
+            "in": "query",
+            "name": "list",
+            "schema": {
+              "items": {
+                "type": "boolean"
+              },
+              "type": "array"
             },
             "style": "form"
           }

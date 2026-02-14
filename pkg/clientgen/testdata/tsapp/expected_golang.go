@@ -101,6 +101,7 @@ type SvcRequest struct {
 	Baz        string  // Baz is better
 	QueryFoo   bool    `encore:"optional" query:"foo,optional"`
 	QueryBar   string  `encore:"optional" query:"bar,optional"`
+	QueryList  []bool  `encore:"optional" query:"list,optional"`
 	HeaderBaz  string  `encore:"optional" header:"baz,optional"`
 	HeaderNum  float64 `encore:"optional" header:"num,optional"`
 	CookieQux  string  `cookie:"qux,optional" encore:"optional"`
@@ -112,6 +113,7 @@ type SvcRequest struct {
 	Baz        string  // Baz is better
 	QueryFoo   bool    `encore:"optional" query:"foo,optional"`
 	QueryBar   string  `encore:"optional" query:"bar,optional"`
+	QueryList  []bool  `encore:"optional" query:"list,optional"`
 	HeaderBaz  string  `encore:"optional" header:"baz,optional"`
 	HeaderNum  float64 `encore:"optional" header:"num,optional"`
 	CookieQux  string  `cookie:"qux,optional" encore:"optional"`
@@ -123,6 +125,7 @@ type SvcRequest struct {
 	Baz        string  // Baz is better
 	QueryFoo   bool    `encore:"optional" query:"foo,optional"`
 	QueryBar   string  `encore:"optional" query:"bar,optional"`
+	QueryList  []bool  `encore:"optional" query:"list,optional"`
 	HeaderBaz  string  `encore:"optional" header:"baz,optional"`
 	HeaderNum  float64 `encore:"optional" header:"num,optional"`
 	CookieQux  string  `cookie:"qux,optional" encore:"optional"`
@@ -165,8 +168,9 @@ func (c *svcClient) CookieDummy(ctx context.Context, params SvcRequest) (resp st
 	}
 
 	queryString := url.Values{
-		"bar": {reqEncoder.FromString(params.queryBar)},
-		"foo": {reqEncoder.FromBool(params.queryFoo)},
+		"bar":  {reqEncoder.FromString(params.queryBar)},
+		"foo":  {reqEncoder.FromBool(params.queryFoo)},
+		"list": reqEncoder.FromBoolList(params.queryList),
 	}
 
 	if reqEncoder.LastError != nil {
@@ -216,8 +220,9 @@ func (c *svcClient) Dummy(ctx context.Context, params SvcRequest) error {
 	}
 
 	queryString := url.Values{
-		"bar": {reqEncoder.FromString(params.queryBar)},
-		"foo": {reqEncoder.FromBool(params.queryFoo)},
+		"bar":  {reqEncoder.FromString(params.queryBar)},
+		"foo":  {reqEncoder.FromBool(params.queryFoo)},
+		"list": reqEncoder.FromBoolList(params.queryList),
 	}
 
 	if reqEncoder.LastError != nil {
@@ -272,8 +277,9 @@ func (c *svcClient) Root(ctx context.Context, params SvcRequest) error {
 	}
 
 	queryString := url.Values{
-		"bar": {reqEncoder.FromString(params.queryBar)},
-		"foo": {reqEncoder.FromBool(params.queryFoo)},
+		"bar":  {reqEncoder.FromString(params.queryBar)},
+		"foo":  {reqEncoder.FromBool(params.queryFoo)},
+		"list": reqEncoder.FromBoolList(params.queryList),
 	}
 
 	if reqEncoder.LastError != nil {
@@ -689,6 +695,14 @@ func (e *serde) FromFloat64(s float64) (v string) {
 func (e *serde) FromBool(s bool) (v string) {
 	e.NonEmptyValues++
 	return strconv.FormatBool(s)
+}
+
+func (e *serde) FromBoolList(s []bool) (v []string) {
+	e.NonEmptyValues++
+	for _, x := range s {
+		v = append(v, e.FromBool(x))
+	}
+	return v
 }
 
 // setErr sets the last error within the object if one is not already set

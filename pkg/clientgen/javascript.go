@@ -330,7 +330,7 @@ func (js *javascript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 			for _, field := range handshakeEnc.QueryParameters {
 				if list := field.Type.GetList(); list != nil {
 					dict[field.WireFormat] = js.Dot("params", field.SrcName) +
-						".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
+						".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", false) + ")"
 				} else {
 					dict[field.WireFormat] = js.convertBuiltinToString(
 						field.Type.GetBuiltin(),
@@ -435,7 +435,7 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 			for _, field := range reqEnc.QueryParameters {
 				if list := field.Type.GetList(); list != nil {
 					dict[field.WireFormat] = js.Dot("params", field.SrcName) +
-						".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
+						".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", false) + ")"
 				} else {
 					dict[field.WireFormat] = js.convertBuiltinToString(
 						field.Type.GetBuiltin(),
@@ -864,7 +864,7 @@ class BaseClient {`)
 				for _, field := range authData.QueryParameters {
 					if list := field.Type.GetList(); list != nil {
 						dict[field.WireFormat] = js.Dot("authData", field.SrcName) +
-							".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
+							".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", false) + ")"
 					} else {
 						dict[field.WireFormat] = js.convertBuiltinToString(
 							field.Type.GetBuiltin(),
