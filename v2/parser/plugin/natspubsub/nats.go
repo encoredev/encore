@@ -204,8 +204,9 @@ func (t *Topic[T]) Subscribe(durable string, cfg SubscriptionConfig[T]) error {
 				Inc()
 			return
 		}
-		// Ack only in JetStream mode
-		msg.Ack()
+		if _, err := msg.Metadata(); err == nil {
+			_ = msg.Ack()
+		}
 	}
 
 	// JetStream (At-Least-Once)
@@ -270,8 +271,9 @@ func NewPartitionedTopic[T any](c *Client, subject string, opts ...Option) *Part
 
 // PublishForUser sends to "<subject>.<userID>".
 func (pt *PartitionedTopic[T]) PublishForUser(ctx context.Context, userID string, evt *T) (string, error) {
-	pt.topic.subject = fmt.Sprintf("%s.%s", pt.topic.subject, userID)
-	return pt.topic.Publish(ctx, evt)
+	topic := *pt.topic
+	topic.subject = fmt.Sprintf("%s.%s", pt.topic.subject, userID)
+	return topic.Publish(ctx, evt)
 }
 
 // BucketedTopic for modulo-N partitions.
@@ -293,12 +295,14 @@ func (bt *BucketedTopic[T]) PublishWithKey(ctx context.Context, key string, evt 
 	h := fnv.New32a()
 	h.Write([]byte(key))
 	idx := int(h.Sum32()) % bt.partitions
-	bt.pt.topic.subject = fmt.Sprintf("%s.%d", bt.pt.topic.subject, idx)
-	return bt.pt.topic.Publish(ctx, evt)
+	topic := *bt.pt.topic
+	topic.subject = fmt.Sprintf("%s.%d", bt.pt.topic.subject, idx)
+	return topic.Publish(ctx, evt)
 }
 
 // SubscribePartition binds to a single partition.
 func (bt *BucketedTopic[T]) SubscribePartition(durable string, partition int, cfg SubscriptionConfig[T]) error {
-	bt.pt.topic.subject = fmt.Sprintf("%s.%d", bt.pt.topic.subject, partition)
-	return bt.pt.topic.Subscribe(durable, cfg)
+	topic := *bt.pt.topic
+	topic.subject = fmt.Sprintf("%s.%d", bt.pt.topic.subject, partition)
+	return topic.Subscribe(durable, cfg)
 }
