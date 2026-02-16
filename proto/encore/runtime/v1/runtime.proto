@@ -121,9 +121,18 @@ message TracingProvider {
 
   message EncoreTracingProvider {
     string trace_endpoint = 1;
+    // Deprecated: Use sampling_config instead.
     // The sampling rate to use for traces, between [0, 1].
     // If unset it defaults to 1 (meaning all requests are traced).
-    optional double sampling_rate = 2;
+    optional double sampling_rate = 2 [deprecated = true];
+
+    // Sampling configuration for global, service, and endpoint levels.
+    // The key format determines the scope:
+    //   "_"                 - global sampling rate
+    //   "service"           - service-level sampling rate
+    //   "service.endpoint"  - endpoint-level sampling rate
+    // Values should be between [0, 1].
+    map<string, double> sampling_config = 3;
   }
 }
 

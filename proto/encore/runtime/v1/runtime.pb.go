@@ -1387,11 +1387,23 @@ func (x *ServiceAuth_EncoreAuth) GetAuthKeys() []*EncoreAuthKey {
 type TracingProvider_EncoreTracingProvider struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TraceEndpoint string                 `protobuf:"bytes,1,opt,name=trace_endpoint,json=traceEndpoint,proto3" json:"trace_endpoint,omitempty"`
+	// Deprecated: Use sampling_config instead.
 	// The sampling rate to use for traces, between [0, 1].
 	// If unset it defaults to 1 (meaning all requests are traced).
-	SamplingRate  *float64 `protobuf:"fixed64,2,opt,name=sampling_rate,json=samplingRate,proto3,oneof" json:"sampling_rate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	//
+	// Deprecated: Marked as deprecated in encore/runtime/v1/runtime.proto.
+	SamplingRate *float64 `protobuf:"fixed64,2,opt,name=sampling_rate,json=samplingRate,proto3,oneof" json:"sampling_rate,omitempty"`
+	// Sampling configuration for global, service, and endpoint levels.
+	// The key format determines the scope:
+	//
+	//	"_"                 - global sampling rate
+	//	"service"           - service-level sampling rate
+	//	"service.endpoint"  - endpoint-level sampling rate
+	//
+	// Values should be between [0, 1].
+	SamplingConfig map[string]float64 `protobuf:"bytes,3,rep,name=sampling_config,json=samplingConfig,proto3" json:"sampling_config,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *TracingProvider_EncoreTracingProvider) Reset() {
@@ -1431,11 +1443,19 @@ func (x *TracingProvider_EncoreTracingProvider) GetTraceEndpoint() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in encore/runtime/v1/runtime.proto.
 func (x *TracingProvider_EncoreTracingProvider) GetSamplingRate() float64 {
 	if x != nil && x.SamplingRate != nil {
 		return *x.SamplingRate
 	}
 	return 0
+}
+
+func (x *TracingProvider_EncoreTracingProvider) GetSamplingConfig() map[string]float64 {
+	if x != nil {
+		return x.SamplingConfig
+	}
+	return nil
 }
 
 type MetricsProvider_GCPCloudMonitoring struct {
@@ -1457,7 +1477,7 @@ type MetricsProvider_GCPCloudMonitoring struct {
 
 func (x *MetricsProvider_GCPCloudMonitoring) Reset() {
 	*x = MetricsProvider_GCPCloudMonitoring{}
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[19]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1469,7 +1489,7 @@ func (x *MetricsProvider_GCPCloudMonitoring) String() string {
 func (*MetricsProvider_GCPCloudMonitoring) ProtoMessage() {}
 
 func (x *MetricsProvider_GCPCloudMonitoring) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[19]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1523,7 +1543,7 @@ type MetricsProvider_AWSCloudWatch struct {
 
 func (x *MetricsProvider_AWSCloudWatch) Reset() {
 	*x = MetricsProvider_AWSCloudWatch{}
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[20]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1535,7 +1555,7 @@ func (x *MetricsProvider_AWSCloudWatch) String() string {
 func (*MetricsProvider_AWSCloudWatch) ProtoMessage() {}
 
 func (x *MetricsProvider_AWSCloudWatch) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[20]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1568,7 +1588,7 @@ type MetricsProvider_PrometheusRemoteWrite struct {
 
 func (x *MetricsProvider_PrometheusRemoteWrite) Reset() {
 	*x = MetricsProvider_PrometheusRemoteWrite{}
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[21]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1580,7 +1600,7 @@ func (x *MetricsProvider_PrometheusRemoteWrite) String() string {
 func (*MetricsProvider_PrometheusRemoteWrite) ProtoMessage() {}
 
 func (x *MetricsProvider_PrometheusRemoteWrite) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[21]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1613,7 +1633,7 @@ type MetricsProvider_Datadog struct {
 
 func (x *MetricsProvider_Datadog) Reset() {
 	*x = MetricsProvider_Datadog{}
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[22]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1625,7 +1645,7 @@ func (x *MetricsProvider_Datadog) String() string {
 func (*MetricsProvider_Datadog) ProtoMessage() {}
 
 func (x *MetricsProvider_Datadog) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[22]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1667,7 +1687,7 @@ type ServiceDiscovery_Location struct {
 
 func (x *ServiceDiscovery_Location) Reset() {
 	*x = ServiceDiscovery_Location{}
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[26]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1679,7 +1699,7 @@ func (x *ServiceDiscovery_Location) String() string {
 func (*ServiceDiscovery_Location) ProtoMessage() {}
 
 func (x *ServiceDiscovery_Location) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[26]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1721,7 +1741,7 @@ type RateLimiter_TokenBucket struct {
 
 func (x *RateLimiter_TokenBucket) Reset() {
 	*x = RateLimiter_TokenBucket{}
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[27]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1733,7 +1753,7 @@ func (x *RateLimiter_TokenBucket) String() string {
 func (*RateLimiter_TokenBucket) ProtoMessage() {}
 
 func (x *RateLimiter_TokenBucket) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[27]
+	mi := &file_encore_runtime_v1_runtime_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1831,14 +1851,18 @@ const file_encore_runtime_v1_runtime_proto_rawDesc = "" +
 	"\n" +
 	"EncoreAuth\x12=\n" +
 	"\tauth_keys\x18\x01 \x03(\v2 .encore.runtime.v1.EncoreAuthKeyR\bauthKeysB\r\n" +
-	"\vauth_method\"\xff\x01\n" +
+	"\vauth_method\"\xbe\x03\n" +
 	"\x0fTracingProvider\x12\x10\n" +
 	"\x03rid\x18\x01 \x01(\tR\x03rid\x12R\n" +
 	"\x06encore\x18\n" +
-	" \x01(\v28.encore.runtime.v1.TracingProvider.EncoreTracingProviderH\x00R\x06encore\x1az\n" +
+	" \x01(\v28.encore.runtime.v1.TracingProvider.EncoreTracingProviderH\x00R\x06encore\x1a\xb8\x02\n" +
 	"\x15EncoreTracingProvider\x12%\n" +
-	"\x0etrace_endpoint\x18\x01 \x01(\tR\rtraceEndpoint\x12(\n" +
-	"\rsampling_rate\x18\x02 \x01(\x01H\x00R\fsamplingRate\x88\x01\x01B\x10\n" +
+	"\x0etrace_endpoint\x18\x01 \x01(\tR\rtraceEndpoint\x12,\n" +
+	"\rsampling_rate\x18\x02 \x01(\x01B\x02\x18\x01H\x00R\fsamplingRate\x88\x01\x01\x12u\n" +
+	"\x0fsampling_config\x18\x03 \x03(\v2L.encore.runtime.v1.TracingProvider.EncoreTracingProvider.SamplingConfigEntryR\x0esamplingConfig\x1aA\n" +
+	"\x13SamplingConfigEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01B\x10\n" +
 	"\x0e_sampling_rateB\n" +
 	"\n" +
 	"\bprovider\"\xf6\t\n" +
@@ -1922,7 +1946,7 @@ func file_encore_runtime_v1_runtime_proto_rawDescGZIP() []byte {
 }
 
 var file_encore_runtime_v1_runtime_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_encore_runtime_v1_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_encore_runtime_v1_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_encore_runtime_v1_runtime_proto_goTypes = []any{
 	(Environment_Type)(0),                         // 0: encore.runtime.v1.Environment.Type
 	(Environment_Cloud)(0),                        // 1: encore.runtime.v1.Environment.Cloud
@@ -1945,28 +1969,29 @@ var file_encore_runtime_v1_runtime_proto_goTypes = []any{
 	(*ServiceAuth_NoopAuth)(nil),                  // 18: encore.runtime.v1.ServiceAuth.NoopAuth
 	(*ServiceAuth_EncoreAuth)(nil),                // 19: encore.runtime.v1.ServiceAuth.EncoreAuth
 	(*TracingProvider_EncoreTracingProvider)(nil), // 20: encore.runtime.v1.TracingProvider.EncoreTracingProvider
-	(*MetricsProvider_GCPCloudMonitoring)(nil),    // 21: encore.runtime.v1.MetricsProvider.GCPCloudMonitoring
-	(*MetricsProvider_AWSCloudWatch)(nil),         // 22: encore.runtime.v1.MetricsProvider.AWSCloudWatch
-	(*MetricsProvider_PrometheusRemoteWrite)(nil), // 23: encore.runtime.v1.MetricsProvider.PrometheusRemoteWrite
-	(*MetricsProvider_Datadog)(nil),               // 24: encore.runtime.v1.MetricsProvider.Datadog
-	nil,                                           // 25: encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.MonitoredResourceLabelsEntry
-	nil,                                           // 26: encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.MetricNamesEntry
-	nil,                                           // 27: encore.runtime.v1.ServiceDiscovery.ServicesEntry
-	(*ServiceDiscovery_Location)(nil),             // 28: encore.runtime.v1.ServiceDiscovery.Location
-	(*RateLimiter_TokenBucket)(nil),               // 29: encore.runtime.v1.RateLimiter.TokenBucket
-	(*Infrastructure)(nil),                        // 30: encore.runtime.v1.Infrastructure
-	(*timestamppb.Timestamp)(nil),                 // 31: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),                   // 32: google.protobuf.Duration
-	(*SecretData)(nil),                            // 33: encore.runtime.v1.SecretData
+	nil, // 21: encore.runtime.v1.TracingProvider.EncoreTracingProvider.SamplingConfigEntry
+	(*MetricsProvider_GCPCloudMonitoring)(nil),    // 22: encore.runtime.v1.MetricsProvider.GCPCloudMonitoring
+	(*MetricsProvider_AWSCloudWatch)(nil),         // 23: encore.runtime.v1.MetricsProvider.AWSCloudWatch
+	(*MetricsProvider_PrometheusRemoteWrite)(nil), // 24: encore.runtime.v1.MetricsProvider.PrometheusRemoteWrite
+	(*MetricsProvider_Datadog)(nil),               // 25: encore.runtime.v1.MetricsProvider.Datadog
+	nil,                                           // 26: encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.MonitoredResourceLabelsEntry
+	nil,                                           // 27: encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.MetricNamesEntry
+	nil,                                           // 28: encore.runtime.v1.ServiceDiscovery.ServicesEntry
+	(*ServiceDiscovery_Location)(nil),             // 29: encore.runtime.v1.ServiceDiscovery.Location
+	(*RateLimiter_TokenBucket)(nil),               // 30: encore.runtime.v1.RateLimiter.TokenBucket
+	(*Infrastructure)(nil),                        // 31: encore.runtime.v1.Infrastructure
+	(*timestamppb.Timestamp)(nil),                 // 32: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),                   // 33: google.protobuf.Duration
+	(*SecretData)(nil),                            // 34: encore.runtime.v1.SecretData
 }
 var file_encore_runtime_v1_runtime_proto_depIdxs = []int32{
 	3,  // 0: encore.runtime.v1.RuntimeConfig.environment:type_name -> encore.runtime.v1.Environment
-	30, // 1: encore.runtime.v1.RuntimeConfig.infra:type_name -> encore.runtime.v1.Infrastructure
+	31, // 1: encore.runtime.v1.RuntimeConfig.infra:type_name -> encore.runtime.v1.Infrastructure
 	4,  // 2: encore.runtime.v1.RuntimeConfig.deployment:type_name -> encore.runtime.v1.Deployment
 	14, // 3: encore.runtime.v1.RuntimeConfig.encore_platform:type_name -> encore.runtime.v1.EncorePlatform
 	0,  // 4: encore.runtime.v1.Environment.env_type:type_name -> encore.runtime.v1.Environment.Type
 	1,  // 5: encore.runtime.v1.Environment.cloud:type_name -> encore.runtime.v1.Environment.Cloud
-	31, // 6: encore.runtime.v1.Deployment.deployed_at:type_name -> google.protobuf.Timestamp
+	32, // 6: encore.runtime.v1.Deployment.deployed_at:type_name -> google.protobuf.Timestamp
 	6,  // 7: encore.runtime.v1.Deployment.hosted_services:type_name -> encore.runtime.v1.HostedService
 	7,  // 8: encore.runtime.v1.Deployment.auth_methods:type_name -> encore.runtime.v1.ServiceAuth
 	5,  // 9: encore.runtime.v1.Deployment.observability:type_name -> encore.runtime.v1.Observability
@@ -1979,33 +2004,34 @@ var file_encore_runtime_v1_runtime_proto_depIdxs = []int32{
 	18, // 16: encore.runtime.v1.ServiceAuth.noop:type_name -> encore.runtime.v1.ServiceAuth.NoopAuth
 	19, // 17: encore.runtime.v1.ServiceAuth.encore_auth:type_name -> encore.runtime.v1.ServiceAuth.EncoreAuth
 	20, // 18: encore.runtime.v1.TracingProvider.encore:type_name -> encore.runtime.v1.TracingProvider.EncoreTracingProvider
-	32, // 19: encore.runtime.v1.MetricsProvider.collection_interval:type_name -> google.protobuf.Duration
-	21, // 20: encore.runtime.v1.MetricsProvider.encore_cloud:type_name -> encore.runtime.v1.MetricsProvider.GCPCloudMonitoring
-	21, // 21: encore.runtime.v1.MetricsProvider.gcp:type_name -> encore.runtime.v1.MetricsProvider.GCPCloudMonitoring
-	22, // 22: encore.runtime.v1.MetricsProvider.aws:type_name -> encore.runtime.v1.MetricsProvider.AWSCloudWatch
-	23, // 23: encore.runtime.v1.MetricsProvider.prom_remote_write:type_name -> encore.runtime.v1.MetricsProvider.PrometheusRemoteWrite
-	24, // 24: encore.runtime.v1.MetricsProvider.datadog:type_name -> encore.runtime.v1.MetricsProvider.Datadog
-	33, // 25: encore.runtime.v1.EncoreAuthKey.data:type_name -> encore.runtime.v1.SecretData
-	27, // 26: encore.runtime.v1.ServiceDiscovery.services:type_name -> encore.runtime.v1.ServiceDiscovery.ServicesEntry
-	32, // 27: encore.runtime.v1.GracefulShutdown.total:type_name -> google.protobuf.Duration
-	32, // 28: encore.runtime.v1.GracefulShutdown.shutdown_hooks:type_name -> google.protobuf.Duration
-	32, // 29: encore.runtime.v1.GracefulShutdown.handlers:type_name -> google.protobuf.Duration
+	33, // 19: encore.runtime.v1.MetricsProvider.collection_interval:type_name -> google.protobuf.Duration
+	22, // 20: encore.runtime.v1.MetricsProvider.encore_cloud:type_name -> encore.runtime.v1.MetricsProvider.GCPCloudMonitoring
+	22, // 21: encore.runtime.v1.MetricsProvider.gcp:type_name -> encore.runtime.v1.MetricsProvider.GCPCloudMonitoring
+	23, // 22: encore.runtime.v1.MetricsProvider.aws:type_name -> encore.runtime.v1.MetricsProvider.AWSCloudWatch
+	24, // 23: encore.runtime.v1.MetricsProvider.prom_remote_write:type_name -> encore.runtime.v1.MetricsProvider.PrometheusRemoteWrite
+	25, // 24: encore.runtime.v1.MetricsProvider.datadog:type_name -> encore.runtime.v1.MetricsProvider.Datadog
+	34, // 25: encore.runtime.v1.EncoreAuthKey.data:type_name -> encore.runtime.v1.SecretData
+	28, // 26: encore.runtime.v1.ServiceDiscovery.services:type_name -> encore.runtime.v1.ServiceDiscovery.ServicesEntry
+	33, // 27: encore.runtime.v1.GracefulShutdown.total:type_name -> google.protobuf.Duration
+	33, // 28: encore.runtime.v1.GracefulShutdown.shutdown_hooks:type_name -> google.protobuf.Duration
+	33, // 29: encore.runtime.v1.GracefulShutdown.handlers:type_name -> google.protobuf.Duration
 	11, // 30: encore.runtime.v1.EncorePlatform.platform_signing_keys:type_name -> encore.runtime.v1.EncoreAuthKey
 	16, // 31: encore.runtime.v1.EncorePlatform.encore_cloud:type_name -> encore.runtime.v1.EncoreCloudProvider
-	29, // 32: encore.runtime.v1.RateLimiter.token_bucket:type_name -> encore.runtime.v1.RateLimiter.TokenBucket
+	30, // 32: encore.runtime.v1.RateLimiter.token_bucket:type_name -> encore.runtime.v1.RateLimiter.TokenBucket
 	11, // 33: encore.runtime.v1.EncoreCloudProvider.auth_keys:type_name -> encore.runtime.v1.EncoreAuthKey
 	11, // 34: encore.runtime.v1.ServiceAuth.EncoreAuth.auth_keys:type_name -> encore.runtime.v1.EncoreAuthKey
-	25, // 35: encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.monitored_resource_labels:type_name -> encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.MonitoredResourceLabelsEntry
-	26, // 36: encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.metric_names:type_name -> encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.MetricNamesEntry
-	33, // 37: encore.runtime.v1.MetricsProvider.PrometheusRemoteWrite.remote_write_url:type_name -> encore.runtime.v1.SecretData
-	33, // 38: encore.runtime.v1.MetricsProvider.Datadog.api_key:type_name -> encore.runtime.v1.SecretData
-	28, // 39: encore.runtime.v1.ServiceDiscovery.ServicesEntry.value:type_name -> encore.runtime.v1.ServiceDiscovery.Location
-	7,  // 40: encore.runtime.v1.ServiceDiscovery.Location.auth_methods:type_name -> encore.runtime.v1.ServiceAuth
-	41, // [41:41] is the sub-list for method output_type
-	41, // [41:41] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	21, // 35: encore.runtime.v1.TracingProvider.EncoreTracingProvider.sampling_config:type_name -> encore.runtime.v1.TracingProvider.EncoreTracingProvider.SamplingConfigEntry
+	26, // 36: encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.monitored_resource_labels:type_name -> encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.MonitoredResourceLabelsEntry
+	27, // 37: encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.metric_names:type_name -> encore.runtime.v1.MetricsProvider.GCPCloudMonitoring.MetricNamesEntry
+	34, // 38: encore.runtime.v1.MetricsProvider.PrometheusRemoteWrite.remote_write_url:type_name -> encore.runtime.v1.SecretData
+	34, // 39: encore.runtime.v1.MetricsProvider.Datadog.api_key:type_name -> encore.runtime.v1.SecretData
+	29, // 40: encore.runtime.v1.ServiceDiscovery.ServicesEntry.value:type_name -> encore.runtime.v1.ServiceDiscovery.Location
+	7,  // 41: encore.runtime.v1.ServiceDiscovery.Location.auth_methods:type_name -> encore.runtime.v1.ServiceAuth
+	42, // [42:42] is the sub-list for method output_type
+	42, // [42:42] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_encore_runtime_v1_runtime_proto_init() }
@@ -2042,7 +2068,7 @@ func file_encore_runtime_v1_runtime_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_encore_runtime_v1_runtime_proto_rawDesc), len(file_encore_runtime_v1_runtime_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   28,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
