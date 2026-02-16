@@ -121,10 +121,40 @@ func (d Directive) GetList(name string) []string {
 	return nil
 }
 
+// ----------------------------------------------------------------------
+// PLUGIN HOOKS
+//
+// DirectiveParser lets you hook custom //encore:<name> handlers.
+type DirectiveParser func(d *Directive, decl *ast.FuncDecl) error
+
+// pluginParsers holds user-registered parsers.
+var pluginParsers = map[string]DirectiveParser{}
+
+// RegisterDirectiveParser registers a custom parser for //encore:<name>.
+func RegisterDirectiveParser(name string, parser DirectiveParser) {
+	name = strings.TrimSpace(name)
+	if name == "" || parser == nil {
+		panic("invalid plugin directive registration")
+	}
+	pluginParsers[name] = parser
+}
+
+// ----------------------------------------------------------------------
+
 // Parse parses the encore:foo directives in cg.
 // It returns the parsed directives, if any, and the
 // remaining doc text after stripping the directive lines.
-func Parse(errs *perr.List, cg *ast.CommentGroup) (dir *Directive, doc string, ok bool) {
+func Parse[T *ast.FuncDecl | *ast.GenDecl](errs *perr.List, decl T) (dir *Directive, doc string, ok bool) {
+	var cg *ast.CommentGroup
+	var funcDecl *ast.FuncDecl
+	switch v := any(decl).(type) {
+	case *ast.FuncDecl:
+		cg = v.Doc
+		funcDecl = v
+	case *ast.GenDecl:
+		cg = v.Doc
+	}
+
 	if cg == nil {
 		return nil, "", true
 	}
@@ -150,7 +180,9 @@ func Parse(errs *perr.List, cg *ast.CommentGroup) (dir *Directive, doc string, o
 		}
 	}
 	if len(dirs) == 1 {
-		doc := cg.Text() // skips directives for us
+		if !runPluginParser(errs, dirs[0], funcDecl) {
+			return nil, "", false
+		}
 		return dirs[0], doc, true
 	} else if len(dirs) > 1 {
 		err := errMultipleDirectives
@@ -201,12 +233,32 @@ func Parse(errs *perr.List, cg *ast.CommentGroup) (dir *Directive, doc string, o
 		return nil, "", false
 	}
 	doc = strings.TrimSpace(strings.Join(docLines, "\n"))
+	if !runPluginParser(errs, dirs[0], funcDecl) {
+		return nil, "", false
+	}
 	return dirs[0], doc, true
+}
+
+func runPluginParser(errs *perr.List, d *Directive, fn *ast.FuncDecl) bool {
+	pp, ok := pluginParsers[d.Name]
+	if !ok || fn == nil {
+		return true
+	}
+	if err := pp(d, fn); err != nil {
+		errs.Add(errRange.New(
+			"Bad Directives",
+			fmt.Sprintf("Plugin parser for //encore:%s failed: %v", d.Name, err),
+		).AtGoNode(d))
+		return false
+	}
+	return true
 }
 
 var (
 	// nameRe is the regexp for validating option names and field names.
 	nameRe = regexp.MustCompile(`^[a-z]+$`)
+	// pubsubSubjectRe allows NATS subject-like option values.
+	pubsubSubjectRe = regexp.MustCompile(`^[A-Za-z0-9._*>-]+$`)
 	// tagRe is the regexp for validating tag values.
 	tagRe = regexp.MustCompile(`^[a-z]([-_a-z0-9]*[a-z0-9])?$`)
 )
@@ -265,7 +317,11 @@ func parseOne(errs *perr.List, pos token.Pos, line string) (d Directive, ok bool
 			}
 			d.Fields = append(d.Fields, f)
 		} else {
-			if !nameRe.MatchString(f.Value) {
+			validOption := nameRe.MatchString(f.Value)
+			if d.Name == "pubsub" && pubsubSubjectRe.MatchString(f.Value) {
+				validOption = true
+			}
+			if !validOption {
 				errs.Add(errInvalidOptionName(f.Value).AtGoNode(f))
 				return Directive{}, false
 			} else if other, found := seen[seenKey]; found {

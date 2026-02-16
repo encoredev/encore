@@ -339,7 +339,7 @@ func updateCode(ctx context.Context, services []Service, app *apps.Instance, ove
 			funcDecl, ok := funcByName[olay.endpoint.Name]
 			if !ok {
 				for _, f := range funcByName {
-					dir, _, _ := directive.Parse(perrs, f.Doc)
+					dir, _, _ := directive.Parse(perrs, f)
 					if dir != nil && dir.Name == "api" {
 						funcDecl = f
 						break

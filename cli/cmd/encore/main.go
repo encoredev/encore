@@ -17,6 +17,9 @@ import (
 	_ "encr.dev/cli/cmd/encore/k8s"
 	_ "encr.dev/cli/cmd/encore/namespace"
 	_ "encr.dev/cli/cmd/encore/secrets"
+
+	// Register directive plugins
+	_ "encr.dev/v2/parser/plugin/natspubsub"
 )
 
 // for backwards compatibility, for now

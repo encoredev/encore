@@ -8,6 +8,7 @@ import (
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/directive"
 	"encr.dev/v2/parser/apis/middleware"
+	"encr.dev/v2/parser/apis/nats"
 	"encr.dev/v2/parser/apis/servicestruct"
 	"encr.dev/v2/parser/resource/resourceparser"
 )
@@ -25,7 +26,7 @@ var Parser = &resourceparser.Parser{
 						continue
 					}
 
-					dir, doc, ok := directive.Parse(p.Errs, decl.Doc)
+					dir, doc, ok := directive.Parse(p.Errs, decl)
 					if !ok {
 						continue
 					} else if dir == nil {
@@ -52,6 +53,20 @@ var Parser = &resourceparser.Parser{
 							// wrapper function that forwards to the service struct
 							// method in that case.
 							p.AddNamedBind(file, ep.Decl.AST.Name, ep)
+						}
+
+					case "pubsub":
+						sub := nats.Parse(nats.ParseData{
+							Errs: p.Errs,
+							File: file,
+							Func: decl,
+							Dir:  dir,
+							Doc:  doc,
+						})
+
+						if sub != nil {
+							p.RegisterResource(sub)
+							p.AddNamedBind(file, decl.Name, sub)
 						}
 
 					case "authhandler":
@@ -98,7 +113,7 @@ var Parser = &resourceparser.Parser{
 						continue
 					}
 
-					dir, doc, ok := directive.Parse(p.Errs, decl.Doc)
+					dir, doc, ok := directive.Parse(p.Errs, decl)
 					if !ok {
 						continue
 					} else if dir == nil {
