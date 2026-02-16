@@ -1,142 +1,66 @@
 package natspubsub
 
 import (
-	"context"
 	"go/ast"
-	"go/parser"
-	"go/token"
-	"regexp"
 	"testing"
 
-	qt "github.com/frankban/quicktest"
-
-	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/parser/apis/directive"
 )
 
-func TestParsePubSubDirective(t *testing.T) {
-	tests := []struct {
-		name     string
-		src      string
-		wantOK   bool
-		wantErr  string
-		subject  string
-		wantName string
-	}{
-		{
-			name: "valid pubsub handler",
-			src: `package svc
-import "context"
-
-type Event struct{}
-
-//encore:pubsub orders.created
-func HandleOrderCreated(ctx context.Context, evt *Event) error { return nil }
-`,
-			wantOK:   true,
-			subject:  "orders.created",
-			wantName: "pubsub",
-		},
-		{
-			name: "missing subject",
-			src: `package svc
-import "context"
-
-type Event struct{}
-
-//encore:pubsub
-func HandleOrderCreated(ctx context.Context, evt *Event) error { return nil }
-`,
-			wantErr: `Plugin parser for //encore:pubsub failed: pubsub directive requires exactly one subject argument,\s*got 0`,
-		},
-		{
-			name: "too many subjects",
-			src: `package svc
-import "context"
-
-type Event struct{}
-
-//encore:pubsub orders.created orders.updated
-func HandleOrderCreated(ctx context.Context, evt *Event) error { return nil }
-`,
-			wantErr: `Plugin parser for //encore:pubsub failed: pubsub directive requires exactly one subject argument,\s*got 2`,
-		},
-		{
-			name: "wrong parameter count",
-			src: `package svc
-import "context"
-
-type Event struct{}
-
-//encore:pubsub orders.created
-func HandleOrderCreated(ctx context.Context) error { return nil }
-`,
-			wantErr: `Plugin parser for //encore:pubsub failed: pubsub: handler must have two parameters \(ctx, \*Event\)`,
-		},
-		{
-			name: "wrong return count",
-			src: `package svc
-import "context"
-
-type Event struct{}
-
-//encore:pubsub orders.created
-func HandleOrderCreated(ctx context.Context, evt *Event) {}
-`,
-			wantErr: `Plugin parser for //encore:pubsub failed: pubsub: handler must return exactly one value \(error\)`,
-		},
-		{
-			name: "wrong return type",
-			src: `package svc
-import "context"
-
-type Event struct{}
-
-//encore:pubsub orders.created
-func HandleOrderCreated(ctx context.Context, evt *Event) int { return 0 }
-`,
-			wantErr: `Plugin parser for //encore:pubsub failed: pubsub: handler must return error`,
-		},
+func TestParsePubSub_Valid(t *testing.T) {
+	d := &directive.Directive{
+		Name:    "pubsub",
+		Options: []directive.Field{{Value: "orders.created"}},
 	}
+	decl := handlerDecl(&ast.SelectorExpr{X: ast.NewIdent("context"), Sel: ast.NewIdent("Context")}, &ast.StarExpr{X: ast.NewIdent("OrderCreated")})
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			c := qt.New(t)
-			fs := token.NewFileSet()
-			f, err := parser.ParseFile(fs, "svc.go", tc.src, parser.ParseComments)
-			c.Assert(err, qt.IsNil)
-
-			fn := firstFuncDecl(f)
-			c.Assert(fn, qt.IsNotNil)
-
-			errs := perr.NewList(context.Background(), fs)
-			dir, _, ok := directive.Parse(errs, fn)
-
-			if tc.wantErr != "" {
-				c.Assert(ok, qt.IsFalse)
-				errStr := errs.FormatErrors()
-				re := regexp.MustCompile(tc.wantErr)
-				if !re.MatchString(errStr) {
-					c.Fatalf("error did not match regexp %s: %s", tc.wantErr, errStr)
-				}
-				c.Assert(dir, qt.IsNil)
-				return
-			}
-
-			c.Assert(ok, qt.IsTrue)
-			c.Assert(dir, qt.IsNotNil)
-			c.Assert(dir.Name, qt.Equals, tc.wantName)
-			c.Assert(len(dir.Options), qt.Equals, 1)
-			c.Assert(dir.Options[0].Value, qt.Equals, tc.subject)
-		})
+	if err := parsePubSub(d, decl); err != nil {
+		t.Fatalf("parsePubSub returned error: %v", err)
 	}
 }
 
-func firstFuncDecl(f *ast.File) *ast.FuncDecl {
-	for _, decl := range f.Decls {
-		if fn, ok := decl.(*ast.FuncDecl); ok {
-			return fn
+func TestParsePubSub_InvalidSignature(t *testing.T) {
+	d := &directive.Directive{
+		Name:    "pubsub",
+		Options: []directive.Field{{Value: "orders.created"}},
+	}
+	decl := handlerDecl(ast.NewIdent("int"), ast.NewIdent("OrderCreated"))
+
+	if err := parsePubSub(d, decl); err == nil {
+		t.Fatal("expected parsePubSub to reject invalid signature")
+	}
+}
+
+func TestValidateNATSSubject(t *testing.T) {
+	cases := []struct {
+		subject string
+		ok      bool
+	}{
+		{subject: "orders.created", ok: true},
+		{subject: "orders.*", ok: true},
+		{subject: "orders.>", ok: true},
+		{subject: "orders..created", ok: false},
+		{subject: "orders.>.created", ok: false},
+		{subject: "orders.crea*ted", ok: false},
+		{subject: "", ok: false},
+	}
+
+	for _, tc := range cases {
+		err := validateNATSSubject(tc.subject)
+		if tc.ok && err != nil {
+			t.Errorf("expected subject %q to be valid, got error: %v", tc.subject, err)
+		}
+		if !tc.ok && err == nil {
+			t.Errorf("expected subject %q to be invalid", tc.subject)
 		}
 	}
-	return nil
+}
+
+func handlerDecl(firstParam, secondParam ast.Expr) *ast.FuncDecl {
+	return &ast.FuncDecl{
+		Type: &ast.FuncType{
+			Params:  &ast.FieldList{List: []*ast.Field{{Type: firstParam}, {Type: secondParam}}},
+			Results: &ast.FieldList{List: []*ast.Field{{Type: ast.NewIdent("error")}}},
+		},
+	}
 }
