@@ -20,7 +20,7 @@ Yes, you're welcome to join the developer community on [Discord](https://encore.
 
 **Can I use Python with Encore?**
 
-Encore currently supports Go and TypeScript. Python support in on the [roadmap](https://encore.dev/roadmap) and will be available around Q1 2025.
+Encore currently supports Go and TypeScript. Python support in on the [roadmap](https://encore.dev/roadmap) and will be available in 2026.
 
 **Can mix TypeScript and Go in one application?**
 
@@ -28,7 +28,7 @@ Support for mixing languages in coming. Currently, if you want to use both TypeS
 
 **Can I use Azure / Digital Ocean?**
 
-Encore Cloud currently supports automating deployments to AWS and GCP. Azure support in on the [roadmap](https://encore.dev/roadmap) and will be available in 2025.
+Encore Cloud currently supports automating deployments to AWS and GCP. Azure support in on the [roadmap](https://encore.dev/roadmap) and will be available in 2026.
 
 If you want to use other cloud providers like Azure or Digital Ocean, you can follow the [self-hosting instructions](/docs/how-to/self-host).
 

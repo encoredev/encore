@@ -20,16 +20,15 @@ This is what provisions your local development environment, and runs your Local 
 - [Node.js](https://nodejs.org/en/download/) is required to run Encore.ts apps.
 - [Docker](https://www.docker.com) is required for Encore to set up local databases.
 
-### Optional: Add Encore LLM instructions
+### Optional: Add AI/LLM instructions
 
-To help LLM powered tools like Cursor and GitHub Copilot understand how to use Encore, you can add pre-made instructions to your app.
+To help AI coding assistants (Cursor, Claude Code, GitHub Copilot, etc.) understand how to use Encore, run this from your app directory:
 
-Download the [ts_llm_instructions.txt](https://github.com/encoredev/encore/blob/main/ts_llm_instructions.txt) file.
-  
-  **How to use:**
-  - Cursor: Rename the file to `.cursorrules`.
-  - GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
-  - For other tools, place the file in your app root.
+```bash
+encore llm-rules init
+```
+
+This prompts you to select your tool and generates the appropriate config (e.g. `.cursorrules`, `CLAUDE.md`) and MCP setup where supported. For full details and other options, see [AI Tools Integration](/docs/ts/ai-integration).
 
 ### Build from source
 If you prefer to build from source, [follow these instructions](https://github.com/encoredev/encore/blob/main/CONTRIBUTING.md).

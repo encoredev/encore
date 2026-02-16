@@ -7,6 +7,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -78,6 +80,10 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 		copy(labels, baseLabels)
 		labels[len(baseLabels)] = &prompb.Label{Name: "__name__", Value: metricName}
 		labels[len(baseLabels)+1] = &prompb.Label{Name: "service", Value: x.svcs[svcIdx]}
+		// Sort labels lexicographically by name, as required by some Prometheus implementations.
+		slices.SortFunc(labels, func(a, b *prompb.Label) int {
+			return strings.Compare(a.Name, b.Name)
+		})
 		data = append(data, &prompb.TimeSeries{
 			Labels: labels,
 			Samples: []*prompb.Sample{
@@ -166,6 +172,10 @@ func (x *Exporter) getSysMetrics(now time.Time) []*prompb.TimeSeries {
 			Name:  "__name__",
 			Value: metricName,
 		}
+		// Sort labels lexicographically by name, as required by some Prometheus implementations.
+		slices.SortFunc(labels, func(a, b *prompb.Label) int {
+			return strings.Compare(a.Name, b.Name)
+		})
 		return labels
 	}
 

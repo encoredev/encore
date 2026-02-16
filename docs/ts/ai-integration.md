@@ -6,13 +6,13 @@ subtitle: Supercharge your development with AI-powered coding assistants
 lang: ts
 ---
 
-Encore gives AI coding assistants superpowers. With Encore-specific rules and MCP integration, AI understands your architecture and generates type-safe code that follows your patterns. When you run `encore run`, Encore provisions local infrastructure automatically.
+Encore is built for AI-assisted development. Encore-specific rules and [MCP](/docs/ts/ai-integration#mcp-server) integration let AI understand your architecture and generate type-safe code that follows your patterns. Run `encore run` to start your app; Encore provisions local infrastructure automatically.
 
-To deploy, you can [self-host](/docs/ts/self-host/build) or use [Encore Cloud](https://encore.cloud) which provisions infrastructure in your AWS/GCP account with automatic guardrails.
+For production, [self-host](/docs/ts/self-host/build) or use [Encore Cloud](https://encore.cloud) to provision infrastructure in your own AWS or GCP account.
 
 ## What AI Enables
 
-Encore's structured APIs and infrastructure primitives give AI agents a reliable framework. AI can provision databases, pub/sub topics, and other infrastructure with automatic guardrails, generate type-safe code that follows your existing patterns, and understand your architecture through MCP integration.
+Encore's declarative APIs and infrastructure primitives give AI a clear model to work with. AI can add databases, pub/sub topics, and other resources with built-in guardrails, and use MCP to introspect your app—services, APIs, databases, and traces—so it can suggest accurate, pattern-consistent code.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
   <source src="https://encore.cloud/assets/docs/claude-skills.mp4" type="video/mp4" />

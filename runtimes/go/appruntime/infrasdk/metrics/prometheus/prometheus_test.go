@@ -108,12 +108,12 @@ func TestGetMetricData(t *testing.T) {
 				{
 					Labels: []*prompb.Label{
 						{
-							Name:  "key",
-							Value: "value",
-						},
-						{
 							Name:  "__name__",
 							Value: "test_labels",
+						},
+						{
+							Name:  "key",
+							Value: "value",
 						},
 						{
 							Name:  "service",

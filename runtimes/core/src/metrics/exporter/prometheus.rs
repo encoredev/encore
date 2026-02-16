@@ -166,6 +166,9 @@ impl Prometheus {
                 value: metric_name,
             });
 
+            // Sort labels lexicographically by name, as required by some Prometheus implementations.
+            labels.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+
             // Convert metric value to float64
             let value = match metric.value {
                 MetricValue::CounterU64(val) => val as f64,
@@ -191,7 +194,7 @@ impl Prometheus {
 impl Exporter for Prometheus {
     async fn export(&self, metrics: Vec<CollectedMetric>) {
         if let Err(err) = self.export_metrics(metrics).await {
-            log::error!("Failed to export metrics to Prometheus: {}", err);
+            log::error!("Failed to export metrics to Prometheus: {:#}", err);
         }
     }
 }
@@ -211,4 +214,67 @@ fn from_time(t: SystemTime) -> i64 {
 #[allow(dead_code)]
 mod prompb {
     include!(concat!(env!("OUT_DIR"), "/prometheus.rs"));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::encore::runtime::v1 as pb;
+    use std::time::SystemTime;
+
+    /// Test that labels are sorted lexicographically by name.
+    /// Some Prometheus implementations require this or they will reject the request
+    /// with "out of order labels" error.
+    #[tokio::test]
+    async fn test_labels_are_sorted() {
+        let env = pb::Environment::default();
+        let container_meta_client = ContainerMetaClient::new(env, reqwest::Client::new());
+
+        // Create a metric with labels in non-sorted order: "zebra", "apple", "middle"
+        let key = metrics::Key::from_parts(
+            "test_metric",
+            vec![
+                metrics::Label::new("zebra", "last"),
+                metrics::Label::new("apple", "first"),
+                metrics::Label::new("middle", "mid"),
+            ],
+        );
+
+        let collected = vec![CollectedMetric {
+            key,
+            value: MetricValue::CounterU64(42),
+            registered_at: SystemTime::now(),
+        }];
+
+        let prometheus = Prometheus {
+            client: reqwest::Client::new(),
+            remote_write_url: Url::parse("http://localhost:9090/api/v1/write").unwrap(),
+            container_meta_client,
+            container_labels: OnceCell::new(),
+        };
+
+        let time_series = prometheus.get_metric_data(collected).await;
+        assert_eq!(time_series.len(), 1);
+
+        let label_names: Vec<&str> = time_series[0]
+            .labels
+            .iter()
+            .map(|l| l.name.as_str())
+            .collect();
+
+        // Labels should be sorted lexicographically
+        assert_eq!(
+            label_names,
+            vec![
+                "__name__",
+                "apple",
+                "env_name",
+                "instance_id",
+                "middle",
+                "revision_id",
+                "service_id",
+                "zebra"
+            ]
+        );
+    }
 }

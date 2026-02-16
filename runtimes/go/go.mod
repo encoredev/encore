@@ -22,6 +22,7 @@ require (
 	github.com/aws/smithy-go v1.22.0
 	github.com/benbjohnson/clock v1.3.3
 	github.com/felixge/httpsnoop v1.0.4
+	github.com/fmstephe/unsafeutil v1.0.0
 	github.com/frankban/quicktest v1.14.5
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang/mock v1.6.0
@@ -73,7 +74,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dnaeon/go-vcr v1.2.0 // indirect
-	github.com/fmstephe/unsafeutil v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -112,4 +112,3 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240730163845-b1a4ccb954bf // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
-
