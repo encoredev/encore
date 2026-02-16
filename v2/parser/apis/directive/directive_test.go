@@ -69,6 +69,32 @@ func TestParseDirective(t *testing.T) {
 			},
 		},
 		{
+			desc: "pubsub with subject",
+			line: "pubsub orders.created",
+			expected: Directive{
+				Name:    "pubsub",
+				Options: []Field{{Value: "orders.created"}},
+			},
+		},
+		{
+			desc: "pubsub wildcard subject",
+			line: "pubsub orders.*",
+			expected: Directive{
+				Name:    "pubsub",
+				Options: []Field{{Value: "orders.*"}},
+			},
+		},
+		{
+			desc:    "pubsub invalid subject character",
+			line:    "pubsub orders/created",
+			wantErr: `(?m)Invalid option name "orders/created"\.`,
+		},
+		{
+			desc:    "pubsub duplicate subject option",
+			line:    "pubsub orders.created orders.created",
+			wantErr: `(?m)The option "orders.created" is already defined on this directive\.`,
+		},
+		{
 			desc:    "middleware empty target",
 			line:    "middleware target=",
 			wantErr: `(?m)Directive fields must have a value\.`,
