@@ -275,7 +275,7 @@ impl Runtime {
                 .into_iter()
                 .find_map(|p| match p.provider {
                     Some(runtimepb::tracing_provider::Provider::Encore(encore)) => {
-                        Some((encore.sampling_rate, encore.trace_endpoint))
+                        Some((encore.sampling_config, encore.trace_endpoint))
                     }
                     _ => None,
                 })
@@ -288,14 +288,16 @@ impl Runtime {
                 });
 
             match trace_cfg {
-                Some((trace_sampling_rate, trace_endpoint)) => {
+                Some((trace_sampling_config, trace_endpoint)) => {
                     let config = trace::ReporterConfig {
                         app_id: environment.app_id.clone(),
                         env_id: environment.env_id.clone(),
                         deploy_id: deployment.deploy_id.clone(),
                         app_commit: md.app_revision.clone(),
                         trace_endpoint,
-                        trace_sampling_rate,
+                        trace_sampling_config: trace::TraceSamplingConfig::new(
+                            trace_sampling_config,
+                        ),
                         platform_validator: platform_validator.clone(),
                     };
 

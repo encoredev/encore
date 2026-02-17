@@ -28,7 +28,7 @@ use crate::api::call::{CallDesc, ServiceRegistry};
 use crate::api::paths::PathSet;
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::{svcauth, CallMeta};
-use crate::{api, model, trace, EncoreName};
+use crate::{api, model, trace, EncoreName, EndpointName};
 
 use super::cors::cors_headers_config::CorsHeadersConfig;
 use super::encore_routes::healthz;
@@ -50,6 +50,7 @@ struct Inner {
 
 pub struct GatewayCtx {
     upstream_service_name: EncoreName,
+    upstream_endpoint_name: EndpointName,
     upstream_base_path: String,
     upstream_host: Option<String>,
     upstream_require_auth: bool,
@@ -208,6 +209,7 @@ impl ProxyHttp for Gateway {
             .strip_prefix("/__encore/pubsub/push/")
             .and_then(|sub_id| self.inner.proxied_push_subs.get(sub_id))
             .map(|svc| Target {
+                endpoint_name: EndpointName::new(svc.to_string(), "pubsub-push".to_string()),
                 service_name: svc.clone(),
                 requires_auth: false,
             });
@@ -272,6 +274,7 @@ impl ProxyHttp for Gateway {
             upstream_base_path: upstream_url.path().to_string(),
             upstream_host: host,
             upstream_service_name: target.service_name.clone(),
+            upstream_endpoint_name: target.endpoint_name.clone(),
             upstream_require_auth: target.requires_auth,
             trace_id: None,
         });
@@ -400,9 +403,12 @@ impl ProxyHttp for Gateway {
                     .ext_correlation_id
                     .as_ref()
                     .map(|s| Cow::Borrowed(s.as_str())),
-                traced: call_meta
-                    .trace_sampled
-                    .unwrap_or_else(|| self.inner.shared.tracer.should_sample()),
+                traced: call_meta.trace_sampled.unwrap_or_else(|| {
+                    self.inner
+                        .shared
+                        .tracer
+                        .should_sample(&gateway_ctx.upstream_endpoint_name)
+                }),
                 auth_user_id: None,
                 auth_data: None,
                 svc_auth_method: svc_auth_method.as_ref(),

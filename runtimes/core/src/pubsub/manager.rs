@@ -204,7 +204,13 @@ impl SubHandler {
                 .attrs
                 .get(ATTR_PARENT_SAMPLED)
                 .and_then(|s| s.parse::<bool>().ok())
-                .unwrap_or_else(|| self.obj.tracer.should_sample());
+                .unwrap_or_else(|| {
+                    let endpoint_name = crate::EndpointName::new(
+                        self.obj.service.to_string(),
+                        self.obj.subscription.to_string(),
+                    );
+                    self.obj.tracer.should_sample(&endpoint_name)
+                });
 
             let mut de = serde_json::Deserializer::from_slice(&msg.data.raw_body);
             let parsed_payload = self.obj.schema.deserialize(

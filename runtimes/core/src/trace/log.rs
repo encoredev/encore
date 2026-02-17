@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::api::reqauth::platform;
@@ -18,8 +19,64 @@ pub struct ReporterConfig {
     pub deploy_id: String,
     pub app_commit: String,
     pub trace_endpoint: reqwest::Url,
-    pub trace_sampling_rate: Option<f64>,
+    pub trace_sampling_config: TraceSamplingConfig,
     pub platform_validator: Arc<platform::RequestValidator>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TraceSamplingConfig {
+    inner: Option<Arc<SamplingRates>>,
+}
+
+#[derive(Debug)]
+struct SamplingRates {
+    /// Rates keyed by "service.endpoint".
+    endpoint: HashMap<String, f64>,
+    /// Rates keyed by "service".
+    service: HashMap<String, f64>,
+    /// Global default rate (key "_").
+    global: Option<f64>,
+}
+
+impl TraceSamplingConfig {
+    pub fn new(config: HashMap<String, f64>) -> Self {
+        if config.is_empty() {
+            return Self { inner: None };
+        }
+
+        let global = config.get("_").copied();
+        let mut endpoint = HashMap::new();
+        let mut service = HashMap::new();
+        for (key, &rate) in &config {
+            if key == "_" {
+                continue;
+            } else if key.contains('.') {
+                endpoint.insert(key.clone(), rate);
+            } else {
+                service.insert(key.clone(), rate);
+            }
+        }
+
+        Self {
+            inner: Some(Arc::new(SamplingRates {
+                endpoint,
+                service,
+                global,
+            })),
+        }
+    }
+
+    /// Look up the sampling rate for an endpoint, falling back to service then global.
+    /// Returns None if no sampling config is set.
+    pub fn lookup(&self, endpoint: &crate::EndpointName) -> Option<f64> {
+        let rates = self.inner.as_ref()?;
+        rates
+            .endpoint
+            .get(&**endpoint)
+            .or_else(|| rates.service.get(endpoint.service()))
+            .or_else(|| rates.global.as_ref())
+            .copied()
+    }
 }
 
 /// Sends traces to the trace server.
@@ -36,7 +93,7 @@ pub fn streaming_tracer(
     config: ReporterConfig,
 ) -> (Tracer, Reporter) {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-    let tracer = Tracer::new(tx, config.trace_sampling_rate);
+    let tracer = Tracer::new(tx, config.trace_sampling_config.clone());
 
     let anchor = TimeAnchor::new();
     let reporter = Reporter {

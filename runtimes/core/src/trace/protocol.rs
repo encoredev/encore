@@ -8,7 +8,7 @@ use crate::api::{self, PValue};
 use crate::model::{APICall, LogField, LogFieldValue, Request, TraceEventId};
 use crate::trace::eventbuf::EventBuffer;
 use crate::trace::log::TraceEvent;
-use crate::{model, objects, EncoreName};
+use crate::{model, objects, EncoreName, EndpointName};
 
 /// Represents a type of trace event.
 #[derive(Debug, Clone, Copy)]
@@ -58,7 +58,7 @@ static EVENT_ID: AtomicU64 = AtomicU64::new(1);
 #[derive(Debug, Clone)]
 pub struct Tracer {
     tx: Option<tokio::sync::mpsc::UnboundedSender<TraceEvent>>,
-    sampling_rate: Option<f64>,
+    sampling_rate_config: super::TraceSamplingConfig,
 }
 
 pub static TRACE_VERSION: u16 = 17;
@@ -66,32 +66,37 @@ pub static TRACE_VERSION: u16 = 17;
 impl Tracer {
     pub(super) fn new(
         tx: tokio::sync::mpsc::UnboundedSender<TraceEvent>,
-        sampling_rate: Option<f64>,
+        sampling_rate_config: super::TraceSamplingConfig,
     ) -> Self {
         Self {
             tx: Some(tx),
-            sampling_rate,
+            sampling_rate_config,
         }
     }
 
     pub fn noop() -> Self {
         Self {
             tx: None,
-            sampling_rate: None,
+            sampling_rate_config: super::TraceSamplingConfig::new(Default::default()),
         }
     }
 
     /// Determines whether a new request should be traced based on sampling rate.
     /// Returns false if this is a noop tracer (no sender).
-    /// Returns true if no sampling rate is configured (trace everything).
-    /// Otherwise, returns true with probability equal to the sampling rate.
-    pub fn should_sample(&self) -> bool {
+    ///
+    /// Looks up the sampling rate in order of specificity:
+    /// 1. Exact endpoint match ("service.endpoint")
+    /// 2. Service match ("service")
+    /// 3. Global default ("_")
+    ///
+    /// If no match is found, always sample.
+    pub fn should_sample(&self, endpoint: &EndpointName) -> bool {
         // No sender = noop tracer = don't trace
         if self.tx.is_none() {
             return false;
         }
-        // No rate configured = always trace
-        match self.sampling_rate {
+
+        match self.sampling_rate_config.lookup(endpoint) {
             None => true,
             Some(rate) => rand::random::<f64>() < rate,
         }
