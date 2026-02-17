@@ -20,9 +20,7 @@ func init() {
 		if len(samplingConfig) == 0 && appconf.Runtime.TraceSamplingRate != nil {
 			samplingConfig = map[string]float64{"_": *appconf.Runtime.TraceSamplingRate}
 		}
-		traceFactory = &traceprovider.DefaultFactory{
-			SamplingConfig: samplingConfig,
-		}
+		traceFactory = traceprovider.NewDefaultFactory(samplingConfig)
 	}
 
 	Singleton = New(logging.RootLogger, platform.Singleton, traceFactory)

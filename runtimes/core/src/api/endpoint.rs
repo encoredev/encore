@@ -508,7 +508,7 @@ impl EndpointHandler {
             true
         } else {
             meta.trace_sampled
-                .unwrap_or_else(|| self.shared.tracer.should_sample(&self.endpoint.name));
+                .unwrap_or_else(|| self.shared.tracer.should_sample(&self.endpoint.name))
         };
 
         let data = if let Some(direction) = stream_direction {
