@@ -85,7 +85,9 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	}
 
 	var traced bool
-	if p.ParentSpanID.IsZero() {
+	if p.Data.FromEncorePlatform {
+		traced = true
+	} else if p.ParentSpanID.IsZero() {
 		traced = s.rt.SampleTrace()
 	} else {
 		traced = p.ParentSampled
