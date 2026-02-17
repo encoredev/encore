@@ -206,7 +206,7 @@ impl SubHandler {
                 .and_then(|s| s.parse::<bool>().ok())
                 .unwrap_or_else(|| {
                     let endpoint_name = crate::EndpointName::new(
-                        self.obj.service.to_string(),
+                        self.obj.topic.to_string(),
                         self.obj.subscription.to_string(),
                     );
                     self.obj.tracer.should_sample(&endpoint_name)
