@@ -15,8 +15,13 @@ func init() {
 	var traceFactory traceprovider.Factory
 	tracingEnabled := appconf.Runtime.TraceEndpoint != "" && len(appconf.Runtime.AuthKeys) > 0
 	if tracingEnabled {
+		// Use the new sampling config if set, otherwise fall back to the deprecated scalar rate.
+		samplingConfig := appconf.Runtime.TraceSamplingConfig
+		if len(samplingConfig) == 0 && appconf.Runtime.TraceSamplingRate != nil {
+			samplingConfig = map[string]float64{"_": *appconf.Runtime.TraceSamplingRate}
+		}
 		traceFactory = &traceprovider.DefaultFactory{
-			SampleRate: appconf.Runtime.TraceSamplingRate,
+			SamplingConfig: samplingConfig,
 		}
 	}
 

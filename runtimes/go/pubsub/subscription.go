@@ -176,7 +176,7 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 		if val, ok := attrs[parentSampledAttribute]; ok {
 			traced, _ = strconv.ParseBool(val)
 		} else {
-			traced = mgr.rt.SampleTrace()
+			traced = mgr.rt.SampleTrace(staticCfg.Service, subscription.EncoreName)
 		}
 
 		// Start the request tracing span

@@ -145,8 +145,8 @@ func (g *RuntimeConfigGenerator) initialize() error {
 				Rid: newRid(),
 				Provider: &runtimev1.TracingProvider_Encore{
 					Encore: &runtimev1.TracingProvider_EncoreTracingProvider{
-						TraceEndpoint: traceEndpoint,
-						SamplingRate:  &sampleRate,
+						TraceEndpoint:  traceEndpoint,
+						SamplingConfig: map[string]float64{"_": sampleRate},
 					},
 				},
 			})

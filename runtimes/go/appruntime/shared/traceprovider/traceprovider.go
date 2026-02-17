@@ -8,24 +8,37 @@ import (
 
 type Factory interface {
 	NewLogger() trace2.Logger
-	SampleTrace() bool
+	SampleTrace(service, endpoint string) bool
 }
 
 type DefaultFactory struct {
-	// SampleRate is the rate at which to sample traces, between [0, 1].
-	// If nil, 100% of traces are sampled.
-	SampleRate *float64
+	// SamplingConfig holds sampling rates keyed by:
+	//   "service.endpoint" - endpoint-level rate
+	//   "service"          - service-level rate
+	//   "_"                - global default rate
+	// Values are between [0, 1]. If no match is found, all traces are sampled.
+	SamplingConfig map[string]float64
 }
 
 func (f *DefaultFactory) NewLogger() trace2.Logger {
 	return trace2.NewLog()
 }
 
-func (f *DefaultFactory) SampleTrace() bool {
-	if f.SampleRate == nil {
+func (f *DefaultFactory) SampleTrace(service, endpoint string) bool {
+	if len(f.SamplingConfig) == 0 {
 		return true
-	} else {
-		sample := rand.Float64() < *f.SampleRate
-		return sample
 	}
+
+	// Look up by "service.endpoint", then "service", then "_".
+	key := service + "." + endpoint
+	if rate, ok := f.SamplingConfig[key]; ok {
+		return rand.Float64() < rate
+	}
+	if rate, ok := f.SamplingConfig[service]; ok {
+		return rand.Float64() < rate
+	}
+	if rate, ok := f.SamplingConfig["_"]; ok {
+		return rand.Float64() < rate
+	}
+	return true
 }

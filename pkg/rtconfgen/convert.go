@@ -491,7 +491,8 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 		for _, prov := range obs.Tracing {
 			if enc := prov.GetEncore(); enc != nil {
 				cfg.TraceEndpoint = enc.TraceEndpoint
-				cfg.TraceSamplingRate = enc.SamplingRate
+				cfg.TraceSamplingConfig = enc.SamplingConfig
+				cfg.TraceSamplingRate = enc.SamplingRate //nolint:staticcheck // backward compat
 				break
 			}
 		}

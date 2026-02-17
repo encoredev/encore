@@ -112,6 +112,6 @@ func (t *RequestTracker) TracingEnabled() bool {
 	return t.trace != nil
 }
 
-func (t *RequestTracker) SampleTrace() bool {
-	return t.trace != nil && t.trace.SampleTrace()
+func (t *RequestTracker) SampleTrace(service, endpoint string) bool {
+	return t.trace != nil && t.trace.SampleTrace(service, endpoint)
 }
