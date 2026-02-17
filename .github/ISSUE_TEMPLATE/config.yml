@@ -1,0 +1,10 @@
+## To encourage contributors to use issue templates, we don't allow blank issues
+blank_issues_enabled: false
+
+contact_links:
+  - name: "Suggestions and General Help"
+    url: "https://github.com/encoredev/encore/discussions"
+    about: "Please add suggestions or ask general help questions to our GitHub discussions forum."
+  - name: "\U0001F4D5 Documentation"
+    url: "https://encore.dev/docs"
+    about: "Read about every Encore feature in-depth and search for things you are unsure about."

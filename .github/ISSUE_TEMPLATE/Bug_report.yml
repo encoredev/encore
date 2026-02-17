@@ -1,0 +1,103 @@
+name: "\U0001F41B Bug Report"
+description: "If something isn't working as expected"
+labels: ["type: bug"]
+type: bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### We use GitHub Issues to track bug reports
+
+        For suggestions and feature requests, please add those to our [GitHub discussions](https://github.com/encoredev/encore/discussions) forum.
+
+        If you are not sure if your issue is a bug you can ask a question on our [Discord community](https://encore.dev/discord).
+
+        **NOTE:** You don't need to answer questions that you know that aren't relevant.
+
+        ---
+
+  - type: checkboxes
+    attributes:
+      label: "Is there an existing issue for this?"
+      description: "Please search [here](../issues?q=is%3Aissue) to see if an issue already exists for the bug you encountered"
+      options:
+      - label: "I have searched the existing issues"
+        required: true
+  
+  - type: checkboxes
+    id: area
+    attributes:
+      label: "What part(s) of Encore does this bug report apply to?"
+      options:
+        - label: Encore.ts (TypeScript)
+        - label: Encore.go (Go)
+        - label: Encore CLI
+        - label: Local Development Dashboard
+        - label: Encore Cloud
+
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: "Current behavior"
+      description: "How the issue manifests?"
+
+  - type: input
+    attributes:
+      label: "Minimum reproduction code"
+      placeholder: "https://github.com/..."
+      description: |
+        URL to a Git repository that reproduces your issue
+
+  - type: textarea
+    attributes:
+      label: "Steps to reproduce"
+      description: |
+        How the issue manifests?
+        You could leave this blank if you already write this in your reproduction code
+      placeholder: |
+        1. `encore run`
+        2. `curl localhost:4000/path`
+        3. See error...
+
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: "Expected behavior"
+      description: "A clear and concise description of what you expected to happened (or code)"
+
+  - type: input
+    attributes:
+      label: "Encore CLI version"
+      description: |
+        Which exact version of `encore` CLI are you using? Run `encore version` in your terminal to see your version.
+      placeholder: "1.54.0"
+
+  - type: input
+    attributes:
+      label: "Node.js version"
+      description: "Which version of Node.js are you using?"
+      placeholder: "24.0.0"
+
+  - type: checkboxes
+    validations:
+      required: true
+    attributes:
+      label: "In which operating systems have you tested?"
+      options:
+        - label: macOS
+        - label: Windows
+        - label: Linux
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+  - type: textarea
+    attributes:
+      label: "Other"
+      description: |
+        Anything else relevant? eg: Logs, OS version, IDE, package manager, etc.
+        **Tip:** You can attach images, recordings or log files by clicking this area to highlight it and then dragging files in
