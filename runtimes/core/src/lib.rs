@@ -275,12 +275,14 @@ impl Runtime {
                 .into_iter()
                 .find_map(|p| match p.provider {
                     Some(runtimepb::tracing_provider::Provider::Encore(encore)) => {
-                        Some((encore.sampling_config, encore.trace_endpoint))
+                        #[allow(deprecated)]
+                        let sampling_rate = encore.sampling_rate;
+                        Some((encore.sampling_config, sampling_rate, encore.trace_endpoint))
                     }
                     _ => None,
                 })
-                .and_then(|(r, ep)| match reqwest::Url::parse(&ep) {
-                    Ok(ep) => Some((r, ep)),
+                .and_then(|(cfg, sr, ep)| match reqwest::Url::parse(&ep) {
+                    Ok(ep) => Some((cfg, sr, ep)),
                     Err(err) => {
                         ::log::warn!("disabling tracing: invalid trace endpoint {}: {}", ep, err);
                         None
@@ -288,7 +290,15 @@ impl Runtime {
                 });
 
             match trace_cfg {
-                Some((trace_sampling_config, trace_endpoint)) => {
+                Some((mut trace_sampling_config, trace_sampling_rate, trace_endpoint)) => {
+                    // Backward compat: if the new config is empty, fall back
+                    // to the deprecated sampling_rate as the global default.
+                    if trace_sampling_config.is_empty() {
+                        if let Some(rate) = trace_sampling_rate {
+                            trace_sampling_config.insert("_".to_string(), rate);
+                        }
+                    }
+
                     let config = trace::ReporterConfig {
                         app_id: environment.app_id.clone(),
                         env_id: environment.env_id.clone(),
