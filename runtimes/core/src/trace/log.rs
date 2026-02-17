@@ -375,7 +375,7 @@ mod tests {
                 deploy_id: "test-deploy".to_string(),
                 app_commit: "test-commit".to_string(),
                 trace_endpoint: Url::parse("http://localhost:8080").unwrap(),
-                trace_sampling_rate: None,
+                trace_sampling_config: TraceSamplingConfig::new(HashMap::new()),
                 platform_validator: RequestValidator::new_mock().into(),
             },
         }
