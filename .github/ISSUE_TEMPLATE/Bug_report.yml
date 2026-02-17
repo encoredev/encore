@@ -47,7 +47,7 @@ body:
       label: "Minimum reproduction code"
       placeholder: "https://github.com/..."
       description: |
-        URL to a Git repository that reproduces your issue
+        URL to a Git repository that reproduces your issue. [What is a minimum reproduction?](https://github.com/encoredev/encore/blob/main/.github/minimum-reproduction.md)
 
   - type: textarea
     attributes:
