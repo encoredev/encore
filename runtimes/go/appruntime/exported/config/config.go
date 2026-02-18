@@ -48,8 +48,8 @@ type Runtime struct {
 	DeployID            string             `json:"deploy_id"` // Overridden by ENCORE_DEPLOY_ID env var if set
 	DeployedAt          time.Time          `json:"deploy_time"`
 	TraceEndpoint       string             `json:"trace_endpoint,omitempty"`
-	TraceSamplingRate   *float64           `json:"trace_sampling_rate,omitempty"`   // Deprecated: Use TraceSamplingConfig instead.
-	TraceSamplingConfig map[string]float64 `json:"trace_sampling_config,omitempty"` // Keys: "service.endpoint", "service", or "_" (global)
+	TraceSamplingRate   *float64           `json:"trace_sampling_rate,omitempty"` // Deprecated: Use TraceSamplingConfig instead.
+	TraceSamplingConfig map[string]float64 `json:"trace_sampling_config,omitempty"`
 	AuthKeys            []EncoreAuthKey    `json:"auth_keys,omitempty"`
 	CORS                *CORS              `json:"cors,omitempty"`
 	EncoreCloudAPI      *EncoreCloudAPI    `json:"ec_api,omitempty"` // If nil, the app is not running in Encore Cloud

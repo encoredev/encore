@@ -28,7 +28,7 @@ use crate::api::call::{CallDesc, ServiceRegistry};
 use crate::api::paths::PathSet;
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::{svcauth, CallMeta};
-use crate::{api, model, trace, EncoreName, EndpointName};
+use crate::{api, model, trace, EncoreName};
 
 use super::cors::cors_headers_config::CorsHeadersConfig;
 use super::encore_routes::healthz;
@@ -52,13 +52,13 @@ struct Inner {
 #[derive(Clone, Debug)]
 pub struct ProxiedPushSub {
     pub service_name: EncoreName,
-    /// Pre-computed "topic.subscription" name for sampling lookups.
-    pub sampling_name: EndpointName,
+    pub topic: EncoreName,
+    pub subscription: EncoreName,
 }
 
 pub struct GatewayCtx {
     upstream_service_name: EncoreName,
-    upstream_endpoint_name: EndpointName,
+    upstream_sampling_target: router::SamplingTarget,
     upstream_base_path: String,
     upstream_host: Option<String>,
     upstream_require_auth: bool,
@@ -217,8 +217,11 @@ impl ProxyHttp for Gateway {
             .strip_prefix("/__encore/pubsub/push/")
             .and_then(|sub_id| self.inner.proxied_push_subs.get(sub_id))
             .map(|sub| Target {
-                endpoint_name: sub.sampling_name.clone(),
                 service_name: sub.service_name.clone(),
+                sampling_target: router::SamplingTarget::PubSub {
+                    topic: sub.topic.clone(),
+                    subscription: sub.subscription.clone(),
+                },
                 requires_auth: false,
             });
 
@@ -282,7 +285,7 @@ impl ProxyHttp for Gateway {
             upstream_base_path: upstream_url.path().to_string(),
             upstream_host: host,
             upstream_service_name: target.service_name.clone(),
-            upstream_endpoint_name: target.endpoint_name.clone(),
+            upstream_sampling_target: target.sampling_target.clone(),
             upstream_require_auth: target.requires_auth,
             trace_id: None,
         });
@@ -412,10 +415,19 @@ impl ProxyHttp for Gateway {
                     .as_ref()
                     .map(|s| Cow::Borrowed(s.as_str())),
                 traced: call_meta.trace_sampled.unwrap_or_else(|| {
-                    self.inner
-                        .shared
-                        .tracer
-                        .should_sample(&gateway_ctx.upstream_endpoint_name)
+                    match &gateway_ctx.upstream_sampling_target {
+                        router::SamplingTarget::Api(name) => {
+                            self.inner.shared.tracer.should_sample(name)
+                        }
+                        router::SamplingTarget::PubSub {
+                            topic,
+                            subscription,
+                        } => self
+                            .inner
+                            .shared
+                            .tracer
+                            .should_sample_pubsub(topic, subscription),
+                    }
                 }),
                 auth_user_id: None,
                 auth_data: None,

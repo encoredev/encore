@@ -50,7 +50,7 @@ impl Router {
                     }
                     dst.replace(Target {
                         service_name: service.clone(),
-                        endpoint_name: endpoint.name.clone(),
+                        sampling_target: SamplingTarget::Api(endpoint.name.clone()),
                         requires_auth: endpoint.requires_auth,
                     });
                 }
@@ -117,9 +117,18 @@ impl Router {
 }
 
 #[derive(Clone, Debug)]
+pub enum SamplingTarget {
+    Api(EndpointName),
+    PubSub {
+        topic: EncoreName,
+        subscription: EncoreName,
+    },
+}
+
+#[derive(Clone, Debug)]
 pub struct Target {
     pub service_name: EncoreName,
-    pub endpoint_name: EndpointName,
+    pub sampling_target: SamplingTarget,
     pub requires_auth: bool,
 }
 

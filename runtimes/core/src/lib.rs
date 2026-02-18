@@ -290,15 +290,7 @@ impl Runtime {
                 });
 
             match trace_cfg {
-                Some((mut trace_sampling_config, trace_sampling_rate, trace_endpoint)) => {
-                    // Backward compat: if the new config is empty, fall back
-                    // to the deprecated sampling_rate as the global default.
-                    if trace_sampling_config.is_empty() {
-                        if let Some(rate) = trace_sampling_rate {
-                            trace_sampling_config.insert("_".to_string(), rate);
-                        }
-                    }
-
+                Some((trace_sampling_config, trace_sampling_rate, trace_endpoint)) => {
                     let config = trace::ReporterConfig {
                         app_id: environment.app_id.clone(),
                         env_id: environment.env_id.clone(),
@@ -307,6 +299,7 @@ impl Runtime {
                         trace_endpoint,
                         trace_sampling_config: trace::TraceSamplingConfig::new(
                             trace_sampling_config,
+                            trace_sampling_rate,
                         ),
                         platform_validator: platform_validator.clone(),
                     };
@@ -349,7 +342,8 @@ impl Runtime {
                         s.rid.clone(),
                         api::gateway::ProxiedPushSub {
                             service_name: EncoreName::from(sub.service_name.clone()),
-                            sampling_name: EndpointName::new(topic.name.clone(), sub.name.clone()),
+                            topic: EncoreName::from(topic.name.clone()),
+                            subscription: EncoreName::from(sub.name.clone()),
                         },
                     )),
                 }

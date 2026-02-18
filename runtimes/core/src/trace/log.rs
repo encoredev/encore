@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::api::reqauth::platform;
+use crate::encore::runtime::v1 as runtimepb;
 use bytes::Bytes;
 use futures::StreamExt;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -30,51 +31,108 @@ pub struct TraceSamplingConfig {
 
 #[derive(Debug)]
 struct SamplingRates {
-    /// Rates keyed by "service.endpoint".
+    /// Rates keyed by "service.endpoint" for API endpoints.
     endpoint: HashMap<String, f64>,
-    /// Rates keyed by "service".
+    /// Rates keyed by "topic.subscription" for PubSub subscriptions.
+    subscription: HashMap<String, f64>,
+    /// Rates keyed by service name for API services.
     service: HashMap<String, f64>,
-    /// Global default rate (key "_").
-    global: Option<f64>,
+    /// Rates keyed by topic name for PubSub topics.
+    topic: HashMap<String, f64>,
+    /// Default rate.
+    default: Option<f64>,
 }
 
+use runtimepb::tracing_provider::sampling_config::Scope;
+
 impl TraceSamplingConfig {
-    pub fn new(config: HashMap<String, f64>) -> Self {
-        if config.is_empty() {
+    pub fn new(
+        config: Vec<runtimepb::tracing_provider::SamplingConfig>,
+        legacy_rate: Option<f64>,
+    ) -> Self {
+        if config.is_empty() && legacy_rate.is_none() {
             return Self { inner: None };
         }
 
-        let global = config.get("_").copied();
+        let mut default_rate = None;
         let mut endpoint = HashMap::new();
+        let mut subscription = HashMap::new();
         let mut service = HashMap::new();
-        for (key, &rate) in &config {
-            if key == "_" {
-                continue;
-            } else if key.contains('.') {
-                endpoint.insert(key.clone(), rate);
-            } else {
-                service.insert(key.clone(), rate);
+        let mut topic = HashMap::new();
+
+        for entry in &config {
+            let rate = entry.rate;
+            match &entry.scope {
+                Some(Scope::Default(_)) => default_rate = Some(rate),
+                Some(Scope::Service(s)) => {
+                    service.insert(s.clone(), rate);
+                }
+                Some(Scope::Topic(t)) => {
+                    topic.insert(t.clone(), rate);
+                }
+                Some(Scope::Endpoint(ep)) => {
+                    let key = format!("{}.{}", ep.service, ep.endpoint);
+                    endpoint.insert(key, rate);
+                }
+                Some(Scope::Subscription(sub)) => {
+                    let key = format!("{}.{}", sub.topic, sub.subscription);
+                    subscription.insert(key, rate);
+                }
+                None => {}
             }
+        }
+
+        // Backward compat: use deprecated sampling_rate as default.
+        if config.is_empty() {
+            if let Some(rate) = legacy_rate {
+                default_rate = Some(rate);
+            }
+        }
+
+        if default_rate.is_none()
+            && endpoint.is_empty()
+            && subscription.is_empty()
+            && service.is_empty()
+            && topic.is_empty()
+        {
+            return Self { inner: None };
         }
 
         Self {
             inner: Some(Arc::new(SamplingRates {
                 endpoint,
+                subscription,
                 service,
-                global,
+                topic,
+                default: default_rate,
             })),
         }
     }
 
-    /// Look up the sampling rate for an endpoint, falling back to service then global.
-    /// Returns None if no sampling config is set.
-    pub fn lookup(&self, endpoint: &crate::EndpointName) -> Option<f64> {
+    /// Look up the sampling rate for an API endpoint.
+    /// Falls back: endpoint → service → default.
+    /// Returns None if no config matches (meaning: always sample).
+    pub fn lookup_api(&self, name: &crate::EndpointName) -> Option<f64> {
         let rates = self.inner.as_ref()?;
         rates
             .endpoint
-            .get(&**endpoint)
-            .or_else(|| rates.service.get(endpoint.service()))
-            .or_else(|| rates.global.as_ref())
+            .get(&**name)
+            .or_else(|| rates.service.get(name.service()))
+            .or_else(|| rates.default.as_ref())
+            .copied()
+    }
+
+    /// Look up the sampling rate for a PubSub subscription.
+    /// Falls back: subscription → topic → default.
+    /// Returns None if no config matches (meaning: always sample).
+    pub fn lookup_pubsub(&self, topic: &str, subscription: &str) -> Option<f64> {
+        let rates = self.inner.as_ref()?;
+        let key = format!("{}.{}", topic, subscription);
+        rates
+            .subscription
+            .get(&key)
+            .or_else(|| rates.topic.get(topic))
+            .or_else(|| rates.default.as_ref())
             .copied()
     }
 }
@@ -375,7 +433,7 @@ mod tests {
                 deploy_id: "test-deploy".to_string(),
                 app_commit: "test-commit".to_string(),
                 trace_endpoint: Url::parse("http://localhost:8080").unwrap(),
-                trace_sampling_config: TraceSamplingConfig::new(HashMap::new()),
+                trace_sampling_config: TraceSamplingConfig::new(vec![], None),
                 platform_validator: RequestValidator::new_mock().into(),
             },
         }

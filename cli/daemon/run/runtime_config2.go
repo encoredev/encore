@@ -21,6 +21,7 @@ import (
 	"go4.org/syncutil"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"encore.dev/appruntime/exported/config"
 	encoreEnv "encr.dev/internal/env"
@@ -145,8 +146,13 @@ func (g *RuntimeConfigGenerator) initialize() error {
 				Rid: newRid(),
 				Provider: &runtimev1.TracingProvider_Encore{
 					Encore: &runtimev1.TracingProvider_EncoreTracingProvider{
-						TraceEndpoint:  traceEndpoint,
-						SamplingConfig: map[string]float64{"_": sampleRate},
+						TraceEndpoint: traceEndpoint,
+						SamplingConfig: []*runtimev1.TracingProvider_SamplingConfig{
+							{
+								Rate:  sampleRate,
+								Scope: &runtimev1.TracingProvider_SamplingConfig_Default{Default: &emptypb.Empty{}},
+							},
+						},
 					},
 				},
 			})

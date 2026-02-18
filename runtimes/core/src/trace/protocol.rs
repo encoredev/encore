@@ -77,26 +77,35 @@ impl Tracer {
     pub fn noop() -> Self {
         Self {
             tx: None,
-            sampling_rate_config: super::TraceSamplingConfig::new(Default::default()),
+            sampling_rate_config: super::TraceSamplingConfig::new(vec![], None),
         }
     }
 
-    /// Determines whether a new request should be traced based on sampling rate.
+    /// Determines whether a new API request should be traced based on sampling rate.
     /// Returns false if this is a noop tracer (no sender).
     ///
-    /// Looks up the sampling rate in order of specificity:
-    /// 1. Exact endpoint match ("service.endpoint")
-    /// 2. Service match ("service")
-    /// 3. Global default ("_")
-    ///
+    /// Looks up the sampling rate: endpoint → service → default.
     /// If no match is found, always sample.
     pub fn should_sample(&self, endpoint: &EndpointName) -> bool {
-        // No sender = noop tracer = don't trace
         if self.tx.is_none() {
             return false;
         }
+        match self.sampling_rate_config.lookup_api(endpoint) {
+            None => true,
+            Some(rate) => rand::random::<f64>() < rate,
+        }
+    }
 
-        match self.sampling_rate_config.lookup(endpoint) {
+    /// Determines whether a new PubSub message should be traced based on sampling rate.
+    /// Returns false if this is a noop tracer (no sender).
+    ///
+    /// Looks up the sampling rate: subscription → topic → default.
+    /// If no match is found, always sample.
+    pub fn should_sample_pubsub(&self, topic: &str, subscription: &str) -> bool {
+        if self.tx.is_none() {
+            return false;
+        }
+        match self.sampling_rate_config.lookup_pubsub(topic, subscription) {
             None => true,
             Some(rate) => rand::random::<f64>() < rate,
         }

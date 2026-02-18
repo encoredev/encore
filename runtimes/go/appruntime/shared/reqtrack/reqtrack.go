@@ -115,3 +115,7 @@ func (t *RequestTracker) TracingEnabled() bool {
 func (t *RequestTracker) SampleTrace(service, endpoint string) bool {
 	return t.trace != nil && t.trace.SampleTrace(service, endpoint)
 }
+
+func (t *RequestTracker) SamplePubSub(topic, subscription string) bool {
+	return t.trace != nil && t.trace.SamplePubSub(topic, subscription)
+}

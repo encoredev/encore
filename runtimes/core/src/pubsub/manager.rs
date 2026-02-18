@@ -139,8 +139,6 @@ pub struct SubscriptionObj {
     service: EncoreName,
     topic: EncoreName,
     subscription: EncoreName,
-    /// Pre-computed "topic.subscription" name for sampling lookups.
-    sampling_name: crate::EndpointName,
     schema: JSONSchema,
 
     handler: OnceLock<Arc<SubHandler>>,
@@ -206,7 +204,11 @@ impl SubHandler {
                 .attrs
                 .get(ATTR_PARENT_SAMPLED)
                 .and_then(|s| s.parse::<bool>().ok())
-                .unwrap_or_else(|| self.obj.tracer.should_sample(&self.obj.sampling_name));
+                .unwrap_or_else(|| {
+                    self.obj
+                        .tracer
+                        .should_sample_pubsub(&self.obj.topic, &self.obj.subscription)
+                });
 
             let mut de = serde_json::Deserializer::from_slice(&msg.data.raw_body);
             let parsed_payload = self.obj.schema.deserialize(
@@ -367,10 +369,6 @@ impl Manager {
                     inner,
                     tracer: self.tracer.clone(),
                     service: cfg.meta.service_name.clone().into(),
-                    sampling_name: crate::EndpointName::new(
-                        name.topic.to_string(),
-                        name.subscription.to_string(),
-                    ),
                     topic: name.topic.clone(),
                     subscription: name.subscription.clone(),
                     schema: cfg.schema.clone(),
@@ -382,10 +380,6 @@ impl Manager {
                 Arc::new(SubscriptionObj {
                     inner,
                     tracer: self.tracer.clone(),
-                    sampling_name: crate::EndpointName::new(
-                        name.topic.to_string(),
-                        name.subscription.to_string(),
-                    ),
                     topic: name.topic.clone(),
                     subscription: name.subscription.clone(),
 
