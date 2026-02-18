@@ -1,0 +1,54 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before asking a question, please check our [documentation](https://encore.dev/docs) to see if your question is already answered there.
+
+        If you are not sure if your issue is a bug you can ask a question on our [Discord community](https://encore.dev/discord).
+
+        **NOTE:** You don't need to answer questions that you know that aren't relevant.
+
+        ---
+
+  - type: checkboxes
+    attributes:
+      label: "Is there an existing issue/discussion for this?"
+      description: "Please search in Issues and Discussions to see if this question has already been asked"
+      options:
+      - label: "I have searched the existing issues and discussions"
+        required: true
+
+  - type: input
+    attributes:
+      label: "Encore CLI version"
+      description: |
+        Which exact version of `encore` CLI are you using? Run `encore version` in your terminal to see your version.
+      placeholder: "1.54.0"
+
+  - type: input
+    attributes:
+      label: "Node.js version"
+      description: "Which version of Node.js are you using?"
+      placeholder: "24.0.0"
+
+  - type: checkboxes
+    validations:
+      required: true
+    attributes:
+      label: "In which operating systems have you tested?"
+      options:
+        - label: macOS
+        - label: Windows
+        - label: Linux
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+  - type: textarea
+    attributes:
+      label: "Question"
+      description: |
+        What is your question?
+        **Tip:** You can attach images, recordings or log files by clicking this area to highlight it and then dragging files in
