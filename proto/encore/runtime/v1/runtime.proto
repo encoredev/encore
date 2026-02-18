@@ -4,6 +4,7 @@ package encore.runtime.v1;
 import "encore/runtime/v1/infra.proto";
 import "encore/runtime/v1/secretdata.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "encr.dev/proto/encore/runtime/v1;runtimev1";
@@ -121,18 +122,47 @@ message TracingProvider {
 
   message EncoreTracingProvider {
     string trace_endpoint = 1;
+
     // Deprecated: Use sampling_config instead.
-    // The sampling rate to use for traces, between [0, 1].
-    // If unset it defaults to 1 (meaning all requests are traced).
     optional double sampling_rate = 2 [deprecated = true];
 
-    // Sampling configuration for global, service, and endpoint levels.
-    // The key format determines the scope:
-    //   "_"                 - global sampling rate
-    //   "service"           - service-level sampling rate
-    //   "service.endpoint"  - endpoint-level sampling rate
-    // Values should be between [0, 1].
-    map<string, double> sampling_config = 3;
+    // Sampling rates for different scopes.
+    //
+    // When deciding whether to sample a trace, the most specific matching
+    // scope wins.
+    //
+    // If no scope matches, all traces are sampled.
+    repeated SamplingConfig sampling_config = 3;
+  }
+
+  message SamplingConfig {
+    // The sampling rate, between [0, 1].
+    // 0 means never sample, 1 means always sample.
+    double rate = 1;
+
+    // The scope this rate applies to.
+    oneof scope {
+      // Applies to all traces that don't match a more specific scope.
+      google.protobuf.Empty default = 2;
+      // Applies to all endpoints within the named service.
+      string service = 3;
+      // Applies to all subscriptions on the named topic.
+      string topic = 4;
+      // Applies to a specific API endpoint.
+      Endpoint endpoint = 5;
+      // Applies to a specific PubSub subscription.
+      PubSubSubscription subscription = 6;
+    }
+
+    message Endpoint {
+      string service = 1;
+      string endpoint = 2;
+    }
+
+    message PubSubSubscription {
+      string topic = 1;
+      string subscription = 2;
+    }
   }
 }
 
