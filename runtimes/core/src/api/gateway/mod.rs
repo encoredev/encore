@@ -45,7 +45,15 @@ struct Inner {
     cors_config: CorsHeadersConfig,
     healthz: healthz::Handler,
     own_api_address: Option<SocketAddr>,
-    proxied_push_subs: HashMap<String, EncoreName>,
+    proxied_push_subs: HashMap<String, ProxiedPushSub>,
+}
+
+/// A push subscription that the gateway proxies to another service.
+#[derive(Clone, Debug)]
+pub struct ProxiedPushSub {
+    pub service_name: EncoreName,
+    /// Pre-computed "topic.subscription" name for sampling lookups.
+    pub sampling_name: EndpointName,
 }
 
 pub struct GatewayCtx {
@@ -88,7 +96,7 @@ impl Gateway {
         cors_config: CorsHeadersConfig,
         healthz: healthz::Handler,
         own_api_address: Option<SocketAddr>,
-        proxied_push_subs: HashMap<String, EncoreName>,
+        proxied_push_subs: HashMap<String, ProxiedPushSub>,
         tracer: trace::Tracer,
     ) -> anyhow::Result<Self> {
         let shared = Arc::new(SharedGatewayData {
@@ -208,9 +216,9 @@ impl ProxyHttp for Gateway {
         let push_proxy_svc = path
             .strip_prefix("/__encore/pubsub/push/")
             .and_then(|sub_id| self.inner.proxied_push_subs.get(sub_id))
-            .map(|svc| Target {
-                endpoint_name: EndpointName::new(svc.to_string(), "pubsub-push".to_string()),
-                service_name: svc.clone(),
+            .map(|sub| Target {
+                endpoint_name: sub.sampling_name.clone(),
+                service_name: sub.service_name.clone(),
                 requires_auth: false,
             });
 

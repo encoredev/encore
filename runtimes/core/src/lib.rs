@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::io::Read;
@@ -330,33 +330,31 @@ impl Runtime {
             .flat_map(|c| c.subscriptions.iter())
             .filter(|s| s.push_only)
             .filter_map(|s| {
-                let svc_name = (|| -> Result<String, anyhow::Error> {
-                    Ok(md
-                        .pubsub_topics
-                        .iter()
-                        .find(|t| t.name == s.topic_encore_name)
-                        .context("could not find topic")?
-                        .subscriptions
-                        .iter()
-                        .find(|ms| ms.name == s.subscription_encore_name)
-                        .context("could not find sub")?
-                        .service_name
-                        .clone())
-                })();
-                if svc_name.is_err() {
-                    return None;
-                }
+                let topic = md
+                    .pubsub_topics
+                    .iter()
+                    .find(|t| t.name == s.topic_encore_name)?;
+                let sub = topic
+                    .subscriptions
+                    .iter()
+                    .find(|ms| ms.name == s.subscription_encore_name)?;
+
                 match deployment
                     .hosted_services
                     .iter()
-                    .any(|s| s.name == *svc_name.as_ref().unwrap())
+                    .any(|s| s.name == sub.service_name)
                 {
                     true => None,
-                    false => Some(Ok((s.rid.clone(), EncoreName::from(svc_name.unwrap())))),
+                    false => Some((
+                        s.rid.clone(),
+                        api::gateway::ProxiedPushSub {
+                            service_name: EncoreName::from(sub.service_name.clone()),
+                            sampling_name: EndpointName::new(topic.name.clone(), sub.name.clone()),
+                        },
+                    )),
                 }
             })
-            .collect::<Result<HashMap<_, _>, anyhow::Error>>()
-            .context("failed to resolve gateway push subscriptions")?;
+            .collect();
 
         let pubsub = pubsub::Manager::new(tracer.clone(), resources.pubsub_clusters, &md)?;
         let objects =

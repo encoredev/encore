@@ -42,7 +42,7 @@ pub struct ManagerConfig<'a> {
     pub pubsub_push_registry: pubsub::PushHandlerRegistry,
     pub runtime: tokio::runtime::Handle,
     pub testing: bool,
-    pub proxied_push_subs: HashMap<String, EncoreName>,
+    pub proxied_push_subs: HashMap<String, super::gateway::ProxiedPushSub>,
     pub metrics: &'a metrics::Manager,
 }
 
