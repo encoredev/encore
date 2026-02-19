@@ -1,6 +1,8 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::api::reqauth::platform;
+use crate::encore::runtime::v1 as runtimepb;
 use bytes::Bytes;
 use futures::StreamExt;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -18,8 +20,94 @@ pub struct ReporterConfig {
     pub deploy_id: String,
     pub app_commit: String,
     pub trace_endpoint: reqwest::Url,
-    pub trace_sampling_rate: Option<f64>,
+    pub trace_sampling_config: TraceSamplingConfig,
     pub platform_validator: Arc<platform::RequestValidator>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TraceSamplingConfig {
+    inner: Option<Arc<SamplingRates>>,
+}
+
+#[derive(Debug)]
+struct SamplingRates {
+    /// Rates keyed by "service.endpoint" for API endpoints.
+    endpoint: HashMap<String, f64>,
+    /// Rates keyed by service name for API services.
+    service: HashMap<String, f64>,
+    /// Default rate.
+    default: Option<f64>,
+}
+
+use runtimepb::tracing_provider::sampling_config::Scope;
+
+impl TraceSamplingConfig {
+    pub fn new(
+        config: Vec<runtimepb::tracing_provider::SamplingConfig>,
+        legacy_rate: Option<f64>,
+    ) -> Self {
+        if config.is_empty() && legacy_rate.is_none() {
+            return Self { inner: None };
+        }
+
+        let mut default_rate = None;
+        let mut endpoint = HashMap::new();
+        let mut service = HashMap::new();
+
+        for entry in &config {
+            let rate = entry.rate;
+            match &entry.scope {
+                Some(Scope::Default(_)) => default_rate = Some(rate),
+                Some(Scope::Service(s)) => {
+                    service.insert(s.clone(), rate);
+                }
+                Some(Scope::Endpoint(ep)) => {
+                    let key = format!("{}.{}", ep.service, ep.endpoint);
+                    endpoint.insert(key, rate);
+                }
+                None => {}
+            }
+        }
+
+        // Backward compat: use deprecated sampling_rate as default.
+        if config.is_empty() {
+            if let Some(rate) = legacy_rate {
+                default_rate = Some(rate);
+            }
+        }
+
+        if default_rate.is_none() && endpoint.is_empty() && service.is_empty() {
+            return Self { inner: None };
+        }
+
+        Self {
+            inner: Some(Arc::new(SamplingRates {
+                endpoint,
+                service,
+                default: default_rate,
+            })),
+        }
+    }
+
+    /// Look up the sampling rate for an API endpoint.
+    /// Falls back: endpoint → service → default.
+    /// Returns None if no config matches (meaning: always sample).
+    pub fn lookup_api(&self, name: &crate::EndpointName) -> Option<f64> {
+        let rates = self.inner.as_ref()?;
+        rates
+            .endpoint
+            .get(&**name)
+            .or_else(|| rates.service.get(name.service()))
+            .or_else(|| rates.default.as_ref())
+            .copied()
+    }
+
+    /// Look up the default sampling rate.
+    /// Returns None if no default is configured (meaning: always sample).
+    pub fn lookup_default(&self) -> Option<f64> {
+        let rates = self.inner.as_ref()?;
+        rates.default
+    }
 }
 
 /// Sends traces to the trace server.
@@ -36,7 +124,7 @@ pub fn streaming_tracer(
     config: ReporterConfig,
 ) -> (Tracer, Reporter) {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-    let tracer = Tracer::new(tx, config.trace_sampling_rate);
+    let tracer = Tracer::new(tx, config.trace_sampling_config.clone());
 
     let anchor = TimeAnchor::new();
     let reporter = Reporter {
@@ -318,7 +406,7 @@ mod tests {
                 deploy_id: "test-deploy".to_string(),
                 app_commit: "test-commit".to_string(),
                 trace_endpoint: Url::parse("http://localhost:8080").unwrap(),
-                trace_sampling_rate: None,
+                trace_sampling_config: TraceSamplingConfig::new(vec![], None),
                 platform_validator: RequestValidator::new_mock().into(),
             },
         }

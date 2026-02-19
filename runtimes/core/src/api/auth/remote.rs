@@ -92,7 +92,7 @@ impl RemoteAuthHandler {
                 .map(|s| Cow::Borrowed(s.as_str())),
             traced: meta
                 .trace_sampled
-                .unwrap_or_else(|| self.tracer.should_sample()),
+                .unwrap_or_else(|| self.tracer.should_sample(&self.name)),
             auth_user_id: None,
             auth_data: None,
             svc_auth_method: self.svc_auth_method.as_ref(),
