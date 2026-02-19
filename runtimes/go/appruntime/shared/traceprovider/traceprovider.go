@@ -10,19 +10,15 @@ import (
 type Factory interface {
 	NewLogger() trace2.Logger
 	SampleTrace(service, endpoint string) bool
-	SamplePubSub(topic, subscription string) bool
+	SampleDefault() bool
 }
 
 // samplingRates holds pre-split sampling rates for fast lookup.
 type samplingRates struct {
 	// endpoint holds rates keyed by "service.endpoint" for API endpoints.
 	endpoint map[string]float64
-	// subscription holds rates keyed by "topic.subscription" for PubSub.
-	subscription map[string]float64
 	// service holds rates keyed by service name.
 	service map[string]float64
-	// topic holds rates keyed by topic name.
-	topic map[string]float64
 	// defaultRate is the default rate, or -1 if unset.
 	defaultRate float64
 }
@@ -46,21 +42,11 @@ func NewDefaultFactory(cfg map[string]float64) *DefaultFactory {
 				r.service = make(map[string]float64)
 			}
 			r.service[key[len("service:"):]] = rate
-		case strings.HasPrefix(key, "topic:"):
-			if r.topic == nil {
-				r.topic = make(map[string]float64)
-			}
-			r.topic[key[len("topic:"):]] = rate
 		case strings.HasPrefix(key, "endpoint:"):
 			if r.endpoint == nil {
 				r.endpoint = make(map[string]float64)
 			}
 			r.endpoint[key[len("endpoint:"):]] = rate
-		case strings.HasPrefix(key, "subscription:"):
-			if r.subscription == nil {
-				r.subscription = make(map[string]float64)
-			}
-			r.subscription[key[len("subscription:"):]] = rate
 		}
 	}
 	return &DefaultFactory{rates: r}
@@ -91,20 +77,12 @@ func (f *DefaultFactory) SampleTrace(service, endpoint string) bool {
 	return true
 }
 
-// SamplePubSub determines whether to sample a PubSub subscription trace.
-// Lookup order: subscription → topic → default.
-func (f *DefaultFactory) SamplePubSub(topic, subscription string) bool {
+// SampleDefault determines whether to sample based on the default sampling rate.
+// If no default rate is configured, always samples.
+func (f *DefaultFactory) SampleDefault() bool {
 	r := f.rates
 	if r == nil {
 		return true
-	}
-	if len(r.subscription) > 0 {
-		if rate, ok := r.subscription[topic+"."+subscription]; ok {
-			return rand.Float64() < rate
-		}
-	}
-	if rate, ok := r.topic[topic]; ok {
-		return rand.Float64() < rate
 	}
 	if r.defaultRate >= 0 {
 		return rand.Float64() < r.defaultRate

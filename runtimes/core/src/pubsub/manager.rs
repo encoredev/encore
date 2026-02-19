@@ -198,17 +198,13 @@ impl SubHandler {
                 .and_then(|s| TraceId::parse_encore(s).ok());
             let ext_correlation_id = msg.data.attrs.get(ATTR_EXT_CORRELATION_ID);
 
-            // Check parent sampled attribute first, fallback to sampling
+            // Check parent sampled attribute first, fallback to default sampling
             let traced = msg
                 .data
                 .attrs
                 .get(ATTR_PARENT_SAMPLED)
                 .and_then(|s| s.parse::<bool>().ok())
-                .unwrap_or_else(|| {
-                    self.obj
-                        .tracer
-                        .should_sample_pubsub(&self.obj.topic, &self.obj.subscription)
-                });
+                .unwrap_or_else(|| self.obj.tracer.should_sample_default());
 
             let mut de = serde_json::Deserializer::from_slice(&msg.data.raw_body);
             let parsed_payload = self.obj.schema.deserialize(

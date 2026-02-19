@@ -218,10 +218,7 @@ impl ProxyHttp for Gateway {
             .and_then(|sub_id| self.inner.proxied_push_subs.get(sub_id))
             .map(|sub| Target {
                 service_name: sub.service_name.clone(),
-                sampling_target: router::SamplingTarget::PubSub {
-                    topic: sub.topic.clone(),
-                    subscription: sub.subscription.clone(),
-                },
+                sampling_target: router::SamplingTarget::PubSub,
                 requires_auth: false,
             });
 
@@ -419,14 +416,9 @@ impl ProxyHttp for Gateway {
                         router::SamplingTarget::Api(name) => {
                             self.inner.shared.tracer.should_sample(name)
                         }
-                        router::SamplingTarget::PubSub {
-                            topic,
-                            subscription,
-                        } => self
-                            .inner
-                            .shared
-                            .tracer
-                            .should_sample_pubsub(topic, subscription),
+                        router::SamplingTarget::PubSub => {
+                            self.inner.shared.tracer.should_sample_default()
+                        }
                     }
                 }),
                 auth_user_id: None,

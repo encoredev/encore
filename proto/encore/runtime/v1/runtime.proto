@@ -146,22 +146,13 @@ message TracingProvider {
       google.protobuf.Empty default = 2;
       // Applies to all endpoints within the named service.
       string service = 3;
-      // Applies to all subscriptions on the named topic.
-      string topic = 4;
       // Applies to a specific API endpoint.
-      Endpoint endpoint = 5;
-      // Applies to a specific PubSub subscription.
-      PubSubSubscription subscription = 6;
+      Endpoint endpoint = 4;
     }
 
     message Endpoint {
       string service = 1;
       string endpoint = 2;
-    }
-
-    message PubSubSubscription {
-      string topic = 1;
-      string subscription = 2;
     }
   }
 }

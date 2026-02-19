@@ -96,16 +96,15 @@ impl Tracer {
         }
     }
 
-    /// Determines whether a new PubSub message should be traced based on sampling rate.
+    /// Determines whether a new trace should be sampled based on the default sampling rate.
     /// Returns false if this is a noop tracer (no sender).
     ///
-    /// Looks up the sampling rate: subscription → topic → default.
-    /// If no match is found, always sample.
-    pub fn should_sample_pubsub(&self, topic: &str, subscription: &str) -> bool {
+    /// If no default rate is configured, always samples.
+    pub fn should_sample_default(&self) -> bool {
         if self.tx.is_none() {
             return false;
         }
-        match self.sampling_rate_config.lookup_pubsub(topic, subscription) {
+        match self.sampling_rate_config.lookup_default() {
             None => true,
             Some(rate) => rand::random::<f64>() < rate,
         }

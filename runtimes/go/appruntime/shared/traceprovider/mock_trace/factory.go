@@ -21,6 +21,6 @@ func (f *mockFactory) SampleTrace(service, endpoint string) bool {
 	return true
 }
 
-func (f *mockFactory) SamplePubSub(topic, subscription string) bool {
+func (f *mockFactory) SampleDefault() bool {
 	return true
 }
