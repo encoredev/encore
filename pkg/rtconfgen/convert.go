@@ -491,7 +491,8 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 		for _, prov := range obs.Tracing {
 			if enc := prov.GetEncore(); enc != nil {
 				cfg.TraceEndpoint = enc.TraceEndpoint
-				cfg.TraceSamplingRate = enc.SamplingRate
+				cfg.TraceSamplingConfig = convertSamplingConfig(enc.SamplingConfig)
+				cfg.TraceSamplingRate = enc.SamplingRate //nolint:staticcheck // backward compat
 				break
 			}
 		}
@@ -514,6 +515,29 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 		return nil, c.err
 	}
 	return cfg, nil
+}
+
+// convertSamplingConfig converts the typed proto SamplingConfig entries
+// to a map[string]float64 with prefixed keys:
+//   - "_" for the global default
+//   - "service:<name>" for service-level
+//   - "endpoint:<service>.<endpoint>" for endpoint-level
+func convertSamplingConfig(configs []*runtimev1.TracingProvider_SamplingConfig) map[string]float64 {
+	if len(configs) == 0 {
+		return nil
+	}
+	m := make(map[string]float64, len(configs))
+	for _, sc := range configs {
+		switch s := sc.Scope.(type) {
+		case *runtimev1.TracingProvider_SamplingConfig_Default:
+			m["_"] = sc.Rate
+		case *runtimev1.TracingProvider_SamplingConfig_Service:
+			m["service:"+s.Service] = sc.Rate
+		case *runtimev1.TracingProvider_SamplingConfig_Endpoint_:
+			m["endpoint:"+s.Endpoint.Service+"."+s.Endpoint.Endpoint] = sc.Rate
+		}
+	}
+	return m
 }
 
 func (c *legacyConverter) envType() encore.EnvironmentType {

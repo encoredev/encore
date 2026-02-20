@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::io::Read;
@@ -275,12 +275,14 @@ impl Runtime {
                 .into_iter()
                 .find_map(|p| match p.provider {
                     Some(runtimepb::tracing_provider::Provider::Encore(encore)) => {
-                        Some((encore.sampling_rate, encore.trace_endpoint))
+                        #[allow(deprecated)]
+                        let sampling_rate = encore.sampling_rate;
+                        Some((encore.sampling_config, sampling_rate, encore.trace_endpoint))
                     }
                     _ => None,
                 })
-                .and_then(|(r, ep)| match reqwest::Url::parse(&ep) {
-                    Ok(ep) => Some((r, ep)),
+                .and_then(|(cfg, sr, ep)| match reqwest::Url::parse(&ep) {
+                    Ok(ep) => Some((cfg, sr, ep)),
                     Err(err) => {
                         ::log::warn!("disabling tracing: invalid trace endpoint {}: {}", ep, err);
                         None
@@ -288,14 +290,17 @@ impl Runtime {
                 });
 
             match trace_cfg {
-                Some((trace_sampling_rate, trace_endpoint)) => {
+                Some((trace_sampling_config, trace_sampling_rate, trace_endpoint)) => {
                     let config = trace::ReporterConfig {
                         app_id: environment.app_id.clone(),
                         env_id: environment.env_id.clone(),
                         deploy_id: deployment.deploy_id.clone(),
                         app_commit: md.app_revision.clone(),
                         trace_endpoint,
-                        trace_sampling_rate,
+                        trace_sampling_config: trace::TraceSamplingConfig::new(
+                            trace_sampling_config,
+                            trace_sampling_rate,
+                        ),
                         platform_validator: platform_validator.clone(),
                     };
 
@@ -318,33 +323,32 @@ impl Runtime {
             .flat_map(|c| c.subscriptions.iter())
             .filter(|s| s.push_only)
             .filter_map(|s| {
-                let svc_name = (|| -> Result<String, anyhow::Error> {
-                    Ok(md
-                        .pubsub_topics
-                        .iter()
-                        .find(|t| t.name == s.topic_encore_name)
-                        .context("could not find topic")?
-                        .subscriptions
-                        .iter()
-                        .find(|ms| ms.name == s.subscription_encore_name)
-                        .context("could not find sub")?
-                        .service_name
-                        .clone())
-                })();
-                if svc_name.is_err() {
-                    return None;
-                }
+                let topic = md
+                    .pubsub_topics
+                    .iter()
+                    .find(|t| t.name == s.topic_encore_name)?;
+                let sub = topic
+                    .subscriptions
+                    .iter()
+                    .find(|ms| ms.name == s.subscription_encore_name)?;
+
                 match deployment
                     .hosted_services
                     .iter()
-                    .any(|s| s.name == *svc_name.as_ref().unwrap())
+                    .any(|s| s.name == sub.service_name)
                 {
                     true => None,
-                    false => Some(Ok((s.rid.clone(), EncoreName::from(svc_name.unwrap())))),
+                    false => Some((
+                        s.rid.clone(),
+                        api::gateway::ProxiedPushSub {
+                            service_name: EncoreName::from(sub.service_name.clone()),
+                            topic: EncoreName::from(topic.name.clone()),
+                            subscription: EncoreName::from(sub.name.clone()),
+                        },
+                    )),
                 }
             })
-            .collect::<Result<HashMap<_, _>, anyhow::Error>>()
-            .context("failed to resolve gateway push subscriptions")?;
+            .collect();
 
         let pubsub = pubsub::Manager::new(tracer.clone(), resources.pubsub_clusters, &md)?;
         let objects =

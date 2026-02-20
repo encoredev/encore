@@ -45,11 +45,20 @@ struct Inner {
     cors_config: CorsHeadersConfig,
     healthz: healthz::Handler,
     own_api_address: Option<SocketAddr>,
-    proxied_push_subs: HashMap<String, EncoreName>,
+    proxied_push_subs: HashMap<String, ProxiedPushSub>,
+}
+
+/// A push subscription that the gateway proxies to another service.
+#[derive(Clone, Debug)]
+pub struct ProxiedPushSub {
+    pub service_name: EncoreName,
+    pub topic: EncoreName,
+    pub subscription: EncoreName,
 }
 
 pub struct GatewayCtx {
     upstream_service_name: EncoreName,
+    upstream_sampling_target: router::SamplingTarget,
     upstream_base_path: String,
     upstream_host: Option<String>,
     upstream_require_auth: bool,
@@ -87,7 +96,7 @@ impl Gateway {
         cors_config: CorsHeadersConfig,
         healthz: healthz::Handler,
         own_api_address: Option<SocketAddr>,
-        proxied_push_subs: HashMap<String, EncoreName>,
+        proxied_push_subs: HashMap<String, ProxiedPushSub>,
         tracer: trace::Tracer,
     ) -> anyhow::Result<Self> {
         let shared = Arc::new(SharedGatewayData {
@@ -207,8 +216,9 @@ impl ProxyHttp for Gateway {
         let push_proxy_svc = path
             .strip_prefix("/__encore/pubsub/push/")
             .and_then(|sub_id| self.inner.proxied_push_subs.get(sub_id))
-            .map(|svc| Target {
-                service_name: svc.clone(),
+            .map(|sub| Target {
+                service_name: sub.service_name.clone(),
+                sampling_target: router::SamplingTarget::PubSub,
                 requires_auth: false,
             });
 
@@ -272,6 +282,7 @@ impl ProxyHttp for Gateway {
             upstream_base_path: upstream_url.path().to_string(),
             upstream_host: host,
             upstream_service_name: target.service_name.clone(),
+            upstream_sampling_target: target.sampling_target.clone(),
             upstream_require_auth: target.requires_auth,
             trace_id: None,
         });
@@ -400,9 +411,16 @@ impl ProxyHttp for Gateway {
                     .ext_correlation_id
                     .as_ref()
                     .map(|s| Cow::Borrowed(s.as_str())),
-                traced: call_meta
-                    .trace_sampled
-                    .unwrap_or_else(|| self.inner.shared.tracer.should_sample()),
+                traced: call_meta.trace_sampled.unwrap_or_else(|| {
+                    match &gateway_ctx.upstream_sampling_target {
+                        router::SamplingTarget::Api(name) => {
+                            self.inner.shared.tracer.should_sample(name)
+                        }
+                        router::SamplingTarget::PubSub => {
+                            self.inner.shared.tracer.should_sample_default()
+                        }
+                    }
+                }),
                 auth_user_id: None,
                 auth_data: None,
                 svc_auth_method: svc_auth_method.as_ref(),

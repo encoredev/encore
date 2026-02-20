@@ -17,6 +17,10 @@ func (f *mockFactory) NewLogger() trace2.Logger {
 	return f.log
 }
 
-func (f *mockFactory) SampleTrace() bool {
+func (f *mockFactory) SampleTrace(service, endpoint string) bool {
+	return true
+}
+
+func (f *mockFactory) SampleDefault() bool {
 	return true
 }

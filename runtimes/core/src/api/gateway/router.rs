@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     api::{self, paths::PathSet, schema::Method},
-    EncoreName,
+    EncoreName, EndpointName,
 };
 
 #[derive(Clone)]
@@ -50,6 +50,7 @@ impl Router {
                     }
                     dst.replace(Target {
                         service_name: service.clone(),
+                        sampling_target: SamplingTarget::Api(endpoint.name.clone()),
                         requires_auth: endpoint.requires_auth,
                     });
                 }
@@ -116,8 +117,15 @@ impl Router {
 }
 
 #[derive(Clone, Debug)]
+pub enum SamplingTarget {
+    Api(EndpointName),
+    PubSub,
+}
+
+#[derive(Clone, Debug)]
 pub struct Target {
     pub service_name: EncoreName,
+    pub sampling_target: SamplingTarget,
     pub requires_auth: bool,
 }
 

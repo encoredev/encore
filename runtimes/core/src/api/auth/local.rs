@@ -69,7 +69,7 @@ impl AuthHandler for LocalAuthHandler {
 
             let traced = meta
                 .trace_sampled
-                .unwrap_or_else(|| self.tracer.should_sample());
+                .unwrap_or_else(|| self.tracer.should_sample(&self.name));
 
             let req = Arc::new(model::Request {
                 span,
