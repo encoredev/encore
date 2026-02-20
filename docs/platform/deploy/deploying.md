@@ -155,12 +155,12 @@ with their default values:
         // with a command and optional environment variables.
         "hooks": {
             // Runs before the Encore build, but after dependencies are fetched (e.g. npm install).
-            "prebuild": "my-command",
+            "prebuild": "",
             // Or as an object:
             // "prebuild": {"command": "my-command", "env": {"MY_VAR": "value"}},
 
             // Runs after the Encore build has finished.
-            "postbuild": "my-command"
+            "postbuild": ""
             // Or as an object:
             // "postbuild": {"command": "my-command", "env": {"MY_VAR": "value"}}
         }
