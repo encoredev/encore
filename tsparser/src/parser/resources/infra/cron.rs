@@ -24,6 +24,7 @@ pub struct CronJob {
     pub doc: Option<String>,
     pub schedule: CronJobSchedule,
     pub endpoint: Sp<Rc<Object>>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -77,6 +78,7 @@ fn parse_cron_job(
         title: r.config.title,
         endpoint: Sp::new(r.config.endpoint.span(), endpoint),
         schedule,
+        span: r.range.to_span(),
     }));
     pass.add_resource(resource.clone());
     pass.add_bind(BindData {

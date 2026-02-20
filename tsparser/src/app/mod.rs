@@ -96,10 +96,13 @@ impl AppValidator<'_> {
         self.validate_pubsub();
         self.validate_sqldb();
         self.validate_metrics();
+        self.validate_crons();
+        self.validate_buckets();
+        self.validate_auth_handlers();
     }
 
     fn validate_apis(&self) {
-        let mut seen = std::collections::HashMap::new();
+        let mut seen = HashMap::new();
         for resource in &self.parse.resources {
             if let Resource::APIEndpoint(ep) = resource {
                 let key = (ep.service_name.clone(), ep.name.clone());
@@ -276,15 +279,102 @@ impl AppValidator<'_> {
     }
 
     fn validate_pubsub(&self) {
+        let mut seen_topics = HashMap::new();
         for res in self.parse.resources.iter() {
             if let Resource::PubSubTopic(topic) = &res {
                 self.validate_validations(&topic.message_type);
+
+                if let Some(prev_span) = seen_topics.insert(topic.name.clone(), topic.span) {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                topic.span,
+                                "PubSub topic with this name already defined",
+                            )
+                            .span_note(prev_span, "previously defined here")
+                            .emit();
+                    })
+                }
+            }
+        }
+
+        // Validate subscription name uniqueness per topic.
+        let mut seen_subs: HashMap<*const (), HashMap<String, Span>> = HashMap::new();
+        for res in self.parse.resources.iter() {
+            if let Resource::PubSubSubscription(sub) = &res {
+                let topic_ptr = std::rc::Rc::as_ptr(sub.topic.get()) as *const ();
+                let topic_subs = seen_subs.entry(topic_ptr).or_default();
+                let sub_span = sub.range.to_span();
+                if let Some(prev_span) = topic_subs.insert(sub.name.clone(), sub_span) {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                sub_span,
+                                "PubSub subscription with this name already defined on this topic",
+                            )
+                            .span_note(prev_span, "previously defined here")
+                            .emit();
+                    })
+                }
+            }
+        }
+    }
+
+    fn validate_crons(&self) {
+        let mut seen = HashMap::new();
+        for resource in &self.parse.resources {
+            if let Resource::CronJob(cron) = resource {
+                if let Some(prev_span) = seen.insert(cron.name.clone(), cron.span) {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(cron.span, "cron job with this name already defined")
+                            .span_note(prev_span, "previously defined here")
+                            .emit();
+                    })
+                }
+            }
+        }
+    }
+
+    fn validate_buckets(&self) {
+        let mut seen = HashMap::new();
+        for resource in &self.parse.resources {
+            if let Resource::Bucket(bucket) = resource {
+                if let Some(prev_span) = seen.insert(bucket.name.clone(), bucket.span) {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(bucket.span, "bucket with this name already defined")
+                            .span_note(prev_span, "previously defined here")
+                            .emit();
+                    })
+                }
+            }
+        }
+    }
+
+    fn validate_auth_handlers(&self) {
+        let mut first: Option<Span> = None;
+        for resource in &self.parse.resources {
+            if let Resource::AuthHandler(auth) = resource {
+                let span = auth.range.to_span();
+                match first {
+                    None => first = Some(span),
+                    Some(prev_span) => HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                span,
+                                "only one auth handler can be defined per application",
+                            )
+                            .span_note(prev_span, "previously defined here")
+                            .emit();
+                    }),
+                }
             }
         }
     }
 
     fn validate_sqldb(&self) {
-        let mut seen = std::collections::HashMap::new();
+        let mut seen = HashMap::new();
         for resource in &self.parse.resources {
             if let Resource::SQLDatabase(db) = resource {
                 if let Some(prev_range) = seen.insert(db.name.clone(), db.span) {
@@ -300,7 +390,7 @@ impl AppValidator<'_> {
     }
 
     fn validate_metrics(&self) {
-        let mut seen = std::collections::HashMap::new();
+        let mut seen = HashMap::new();
         for resource in &self.parse.resources {
             if let Resource::Metric(metric) = resource {
                 if let Some(prev_span) = seen.insert(metric.name.clone(), metric.span) {

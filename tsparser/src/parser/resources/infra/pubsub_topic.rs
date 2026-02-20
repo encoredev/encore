@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
+use swc_common::Span;
 use swc_ecma_ast as ast;
 
 use litparser::{report_and_continue, LitParser, ParseResult, Sp, ToParseErr};
@@ -27,6 +28,7 @@ pub struct Topic {
     pub delivery_guarantee: DeliveryGuarantee,
     pub ordering_attribute: Option<String>,
     pub message_type: Sp<Type>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -80,6 +82,7 @@ pub const TOPIC_PARSER: ResourceParser = ResourceParser {
                 delivery_guarantee,
                 message_type,
                 ordering_attribute: r.config.orderingAttribute,
+                span: r.range.to_span(),
             }));
             pass.add_resource(resource.clone());
             pass.add_bind(BindData {

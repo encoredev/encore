@@ -3,6 +3,7 @@ use std::ops::Deref;
 use litparser::{report_and_continue, LitParser};
 use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
+use swc_common::Span;
 use swc_ecma_ast as ast;
 
 use crate::parser::resourceparser::bind::ResourceOrPath;
@@ -26,6 +27,7 @@ pub struct Bucket {
     pub doc: Option<String>,
     pub versioned: bool,
     pub public: bool,
+    pub span: Span,
 }
 
 #[derive(LitParser, Default)]
@@ -59,6 +61,7 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
                     doc: r.doc_comment,
                     versioned: cfg.versioned.unwrap_or(false),
                     public: cfg.public.unwrap_or(false),
+                    span: r.range.to_span(),
                 }));
 
                 pass.add_resource(resource.clone());
