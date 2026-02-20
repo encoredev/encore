@@ -51,8 +51,6 @@ impl CacheCluster {
             .map_err(|e| Error::new(e.status, e.reason.clone()))
     }
 
-    // ==================== Basic Operations ====================
-
     /// Get a value by key.
     #[napi]
     pub async fn get(&self, key: String, source: Option<&Request>) -> napi::Result<Option<Buffer>> {
@@ -173,8 +171,6 @@ impl CacheCluster {
         Ok(result.into_iter().map(|v| v.map(|b| b.into())).collect())
     }
 
-    // ==================== String Operations ====================
-
     /// Append to a string value.
     #[napi]
     pub async fn append(
@@ -233,8 +229,6 @@ impl CacheCluster {
         self.pool()?.strlen(&key, source).await.map_err(to_error)
     }
 
-    // ==================== Numeric Operations ====================
-
     /// Increment an integer value.
     #[napi]
     pub async fn incr_by(
@@ -266,8 +260,6 @@ impl CacheCluster {
             .await
             .map_err(to_error)
     }
-
-    // ==================== List Operations ====================
 
     /// Push values to the left (head) of a list.
     #[napi]
@@ -486,7 +478,12 @@ impl CacheCluster {
         let dst_dir = match dst_dir.as_str() {
             "left" => cache::ListDirection::Left,
             "right" => cache::ListDirection::Right,
-            _ => return Err(Error::new(Status::InvalidArg, "invalid destination direction")),
+            _ => {
+                return Err(Error::new(
+                    Status::InvalidArg,
+                    "invalid destination direction",
+                ))
+            }
         };
         let result = self
             .pool()?
@@ -495,8 +492,6 @@ impl CacheCluster {
             .map_err(to_error)?;
         Ok(result.map(|v| v.into()))
     }
-
-    // ==================== Set Operations ====================
 
     /// Add members to a set.
     #[napi]
@@ -724,8 +719,6 @@ impl CacheCluster {
             .await
             .map_err(to_error)
     }
-
-    // ==================== Expiry Operations ====================
 
     /// Set expiry on a key in milliseconds.
     #[napi]
