@@ -8,12 +8,12 @@ export type { KeyspaceConfig, WriteOptions, GetResult } from "./keyspace";
 // Basic keyspaces
 export { StringKeyspace, IntKeyspace, FloatKeyspace, StructKeyspace } from "./basic";
 
-// List keyspace
-export { ListKeyspace } from "./list";
+// List keyspaces
+export { StringListKeyspace, NumberListKeyspace } from "./list";
 export type { ListPosition } from "./list";
 
-// Set keyspace
-export { SetKeyspace } from "./set";
+// Set keyspaces
+export { StringSetKeyspace, NumberSetKeyspace } from "./set";
 
 // Expiry utilities
 export {
@@ -28,4 +28,4 @@ export {
 export type { Expiry } from "./expiry";
 
 // Error types
-export { CacheMiss, CacheKeyExists } from "./errors";
+export { CacheError, CacheMiss, CacheKeyExists } from "./errors";

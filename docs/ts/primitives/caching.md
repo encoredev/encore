@@ -183,7 +183,8 @@ Additional string operations:
 
 ### IntKeyspace
 
-Stores 64-bit integer values.
+Stores 64-bit integer values. Values are floored to integers using `Math.floor`.
+For fractional values, use `FloatKeyspace` instead.
 
 ```typescript
 import { IntKeyspace } from "encore.dev/storage/cache";
@@ -255,14 +256,14 @@ await profiles.set(
 const profile = await profiles.get({ userId: "user123" });
 ```
 
-### ListKeyspace
+### StringListKeyspace
 
-Stores ordered lists of values.
+Stores ordered lists of string values.
 
 ```typescript
-import { ListKeyspace } from "encore.dev/storage/cache";
+import { StringListKeyspace } from "encore.dev/storage/cache";
 
-const recentItems = new ListKeyspace<{ userId: string }, string>(cluster, {
+const recentItems = new StringListKeyspace<{ userId: string }>(cluster, {
   keyPattern: "recent/:userId",
 });
 
@@ -272,18 +273,36 @@ await recentItems.pushRight({ userId: "user123" }, "item1", "item2");
 // Get items from the list
 const items = await recentItems.getRange({ userId: "user123" }, 0, -1); // Get all
 
-// Pop an item
+// Pop an item (returns undefined if empty)
 const lastItem = await recentItems.popRight({ userId: "user123" });
 ```
 
-### SetKeyspace
+### NumberListKeyspace
 
-Stores unordered sets of unique values.
+Stores ordered lists of numeric values.
 
 ```typescript
-import { SetKeyspace } from "encore.dev/storage/cache";
+import { NumberListKeyspace } from "encore.dev/storage/cache";
 
-const tags = new SetKeyspace<{ articleId: string }, string>(cluster, {
+const scoreHistory = new NumberListKeyspace<{ playerId: string }>(cluster, {
+  keyPattern: "scores/:playerId",
+});
+
+// Push scores
+await scoreHistory.pushRight({ playerId: "player1" }, 100, 200, 150);
+
+// Get all scores
+const scores = await scoreHistory.items({ playerId: "player1" });
+```
+
+### StringSetKeyspace
+
+Stores unordered sets of unique string values.
+
+```typescript
+import { StringSetKeyspace } from "encore.dev/storage/cache";
+
+const tags = new StringSetKeyspace<{ articleId: string }>(cluster, {
   keyPattern: "tags/:articleId",
 });
 
@@ -298,6 +317,24 @@ const allTags = await tags.members({ articleId: "post1" });
 
 // Remove members
 await tags.remove({ articleId: "post1" }, "backend");
+```
+
+### NumberSetKeyspace
+
+Stores unordered sets of unique numeric values.
+
+```typescript
+import { NumberSetKeyspace } from "encore.dev/storage/cache";
+
+const uniqueScores = new NumberSetKeyspace<{ gameId: string }>(cluster, {
+  keyPattern: "unique-scores/:gameId",
+});
+
+// Add scores
+await uniqueScores.add({ gameId: "game1" }, 100, 200, 300);
+
+// Check if a score exists
+const has100 = await uniqueScores.contains({ gameId: "game1" }, 100);
 ```
 
 ## Expiry options
@@ -328,7 +365,7 @@ const expiry3 = ExpireInMinutes(5);
 const expiry4 = ExpireInHours(24);
 
 // Expire at a specific time each day (UTC)
-const expiry5 = ExpireDailyAt({ hour: 0, minute: 0 }); // Midnight UTC
+const expiry5 = ExpireDailyAt(0, 0, 0); // Midnight UTC
 
 // Never expire (Redis may still evict based on eviction policy)
 const expiry6 = NeverExpire;
@@ -339,25 +376,28 @@ const expiry7 = KeepTTL;
 
 ## Write options
 
-When setting values, you can specify additional options:
+When setting values, you can override the default expiry:
 
 ```typescript
-// Only set if key doesn't exist
-await keyspace.set(key, value, { onlyIfNotExists: true });
-
 // Set with a specific expiry (overrides default)
 await keyspace.set(key, value, { expiry: ExpireInMinutes(30) });
 
-// Keep existing TTL
+// Keep existing TTL when updating
 await keyspace.set(key, value, { expiry: KeepTTL });
+
+// Only set if key doesn't exist (throws CacheKeyExists otherwise)
+await keyspace.setIfNotExists(key, value);
+
+// Only set if key already exists (throws CacheMiss otherwise)
+await keyspace.replace(key, value);
 ```
 
 ## Error handling
 
-Cache operations can throw two special error types:
+Cache operations can throw specific error types, all extending the base `CacheError` class:
 
 ```typescript
-import { CacheMiss, CacheKeyExists } from "encore.dev/storage/cache";
+import { CacheError, CacheMiss, CacheKeyExists } from "encore.dev/storage/cache";
 
 try {
   const value = await keyspace.get(key);

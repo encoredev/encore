@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use crate::cache::error::{Error, Result};
 use crate::cache::manager::Cluster;
-use crate::cache::pool::{ListDirection, Pool};
+use crate::cache::pool::{ListDirection, Pool, TtlOp};
 use crate::names::EncoreName;
 use crate::trace::Tracer;
 
@@ -81,6 +81,21 @@ impl Entry {
     fn set_ttl(&mut self, ttl_ms: u64) {
         self.expires_at = Some(Instant::now() + Duration::from_millis(ttl_ms));
     }
+
+    fn apply_ttl_op(&mut self, ttl: Option<TtlOp>) {
+        match ttl {
+            None | Some(TtlOp::Keep) => {} // preserve existing TTL
+            Some(TtlOp::SetMs(ms)) => self.set_ttl(ms),
+            Some(TtlOp::Persist) => { self.expires_at = None; }
+        }
+    }
+
+    fn new_with_ttl_op(value: Value, ttl: Option<TtlOp>) -> Self {
+        match ttl {
+            Some(TtlOp::SetMs(ms)) => Self::with_ttl(value, ms),
+            _ => Self::new(value),
+        }
+    }
 }
 
 /// In-memory key-value store with TTL support.
@@ -135,18 +150,26 @@ impl MemoryStore {
         }
     }
 
-    pub fn set(&self, key: &str, value: &[u8], ttl_ms: Option<u64>) -> Result<()> {
+    pub fn set(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<()> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
-        let entry = match ttl_ms {
-            Some(ms) => Entry::with_ttl(Value::String(value.to_vec()), ms),
-            None => Entry::new(Value::String(value.to_vec())),
-        };
-        data.insert(key.to_string(), entry);
+        match ttl {
+            Some(TtlOp::Keep) => {
+                // Preserve existing TTL: get old expiry, insert new value with same expiry
+                let old_expires = data.get(key).and_then(|e| if e.is_expired() { None } else { e.expires_at });
+                let mut entry = Entry::new(Value::String(value.to_vec()));
+                entry.expires_at = old_expires;
+                data.insert(key.to_string(), entry);
+            }
+            _ => {
+                let entry = Entry::new_with_ttl_op(Value::String(value.to_vec()), ttl);
+                data.insert(key.to_string(), entry);
+            }
+        }
         Ok(())
     }
 
-    pub fn set_if_not_exists(&self, key: &str, value: &[u8], ttl_ms: Option<u64>) -> Result<bool> {
+    pub fn set_if_not_exists(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<bool> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -157,33 +180,37 @@ impl MemoryStore {
             }
         }
 
-        let entry = match ttl_ms {
-            Some(ms) => Entry::with_ttl(Value::String(value.to_vec()), ms),
-            None => Entry::new(Value::String(value.to_vec())),
-        };
+        let entry = Entry::new_with_ttl_op(Value::String(value.to_vec()), ttl);
         data.insert(key.to_string(), entry);
         Ok(true)
     }
 
-    pub fn replace(&self, key: &str, value: &[u8], ttl_ms: Option<u64>) -> Result<bool> {
+    pub fn replace(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<bool> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
         // Check if key exists and is not expired
-        if let Some(entry) = data.get(key) {
+        let old_expires = if let Some(entry) = data.get(key) {
             if entry.is_expired() {
                 data.remove(key);
                 return Ok(false);
             }
+            entry.expires_at
         } else {
             return Ok(false);
-        }
-
-        let entry = match ttl_ms {
-            Some(ms) => Entry::with_ttl(Value::String(value.to_vec()), ms),
-            None => Entry::new(Value::String(value.to_vec())),
         };
-        data.insert(key.to_string(), entry);
+
+        match ttl {
+            Some(TtlOp::Keep) => {
+                let mut entry = Entry::new(Value::String(value.to_vec()));
+                entry.expires_at = old_expires;
+                data.insert(key.to_string(), entry);
+            }
+            _ => {
+                let entry = Entry::new_with_ttl_op(Value::String(value.to_vec()), ttl);
+                data.insert(key.to_string(), entry);
+            }
+        }
         Ok(true)
     }
 
@@ -191,26 +218,32 @@ impl MemoryStore {
         &self,
         key: &str,
         value: &[u8],
-        ttl_ms: Option<u64>,
+        ttl: Option<TtlOp>,
     ) -> Result<Option<Vec<u8>>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
-        let old_value = data.get(key).and_then(|entry| {
+        let (old_value, old_expires) = data.get(key).map(|entry| {
             if entry.is_expired() {
-                None
+                (None, None)
             } else if let Value::String(v) = &entry.value {
-                Some(v.clone())
+                (Some(v.clone()), entry.expires_at)
             } else {
-                None
+                (None, None)
             }
-        });
+        }).unwrap_or((None, None));
 
-        let entry = match ttl_ms {
-            Some(ms) => Entry::with_ttl(Value::String(value.to_vec()), ms),
-            None => Entry::new(Value::String(value.to_vec())),
-        };
-        data.insert(key.to_string(), entry);
+        match ttl {
+            Some(TtlOp::Keep) => {
+                let mut entry = Entry::new(Value::String(value.to_vec()));
+                entry.expires_at = old_expires;
+                data.insert(key.to_string(), entry);
+            }
+            _ => {
+                let entry = Entry::new_with_ttl_op(Value::String(value.to_vec()), ttl);
+                data.insert(key.to_string(), entry);
+            }
+        }
         Ok(old_value)
     }
 
@@ -263,7 +296,7 @@ impl MemoryStore {
 
     // ==================== String Operations ====================
 
-    pub fn append(&self, key: &str, value: &[u8]) -> Result<i64> {
+    pub fn append(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -273,15 +306,21 @@ impl MemoryStore {
 
         if entry.is_expired() {
             *entry = Entry::new(Value::String(value.to_vec()));
+            entry.apply_ttl_op(ttl);
             return Ok(value.len() as i64);
         }
 
-        if let Value::String(ref mut v) = entry.value {
+        let result = if let Value::String(ref mut v) = entry.value {
             v.extend_from_slice(value);
             Ok(v.len() as i64)
         } else {
             Err(Error::TypeMismatch("expected string".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
     pub fn get_range(&self, key: &str, start: i64, end: i64) -> Result<Vec<u8>> {
@@ -315,7 +354,7 @@ impl MemoryStore {
         }
     }
 
-    pub fn set_range(&self, key: &str, offset: i64, value: &[u8]) -> Result<i64> {
+    pub fn set_range(&self, key: &str, offset: i64, value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -327,7 +366,7 @@ impl MemoryStore {
             *entry = Entry::new(Value::String(Vec::new()));
         }
 
-        if let Value::String(ref mut v) = entry.value {
+        let result = if let Value::String(ref mut v) = entry.value {
             let offset = offset as usize;
             // Extend with zeros if needed
             if v.len() < offset {
@@ -342,7 +381,12 @@ impl MemoryStore {
             Ok(v.len() as i64)
         } else {
             Err(Error::TypeMismatch("expected string".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
     pub fn strlen(&self, key: &str) -> Result<i64> {
@@ -363,7 +407,7 @@ impl MemoryStore {
 
     // ==================== Numeric Operations ====================
 
-    pub fn incr_by(&self, key: &str, delta: i64) -> Result<i64> {
+    pub fn incr_by(&self, key: &str, delta: i64, ttl: Option<TtlOp>) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -375,7 +419,7 @@ impl MemoryStore {
             *entry = Entry::new(Value::String(b"0".to_vec()));
         }
 
-        if let Value::String(ref mut v) = entry.value {
+        let result = if let Value::String(ref mut v) = entry.value {
             let current: i64 = std::str::from_utf8(v)
                 .map_err(|_| Error::InvalidValue("value is not a valid integer".to_string()))?
                 .parse()
@@ -386,10 +430,15 @@ impl MemoryStore {
             Ok(new_val)
         } else {
             Err(Error::TypeMismatch("expected string".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
-    pub fn incr_by_float(&self, key: &str, delta: f64) -> Result<f64> {
+    pub fn incr_by_float(&self, key: &str, delta: f64, ttl: Option<TtlOp>) -> Result<f64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -401,7 +450,7 @@ impl MemoryStore {
             *entry = Entry::new(Value::String(b"0".to_vec()));
         }
 
-        if let Value::String(ref mut v) = entry.value {
+        let result = if let Value::String(ref mut v) = entry.value {
             let current: f64 = std::str::from_utf8(v)
                 .map_err(|_| Error::InvalidValue("value is not a valid float".to_string()))?
                 .parse()
@@ -412,7 +461,12 @@ impl MemoryStore {
             Ok(new_val)
         } else {
             Err(Error::TypeMismatch("expected string".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
     // ==================== List Operations ====================
@@ -436,7 +490,7 @@ impl MemoryStore {
         }
     }
 
-    pub fn lpush(&self, key: &str, values: &[&[u8]]) -> Result<i64> {
+    pub fn lpush(&self, key: &str, values: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
         let list = self.get_or_create_list(&mut data, key)?;
@@ -444,10 +498,14 @@ impl MemoryStore {
         for v in values.iter().rev() {
             list.push_front(v.to_vec());
         }
-        Ok(list.len() as i64)
+        let len = list.len() as i64;
+        if let Some(entry) = data.get_mut(key) {
+            entry.apply_ttl_op(ttl);
+        }
+        Ok(len)
     }
 
-    pub fn rpush(&self, key: &str, values: &[&[u8]]) -> Result<i64> {
+    pub fn rpush(&self, key: &str, values: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
         let list = self.get_or_create_list(&mut data, key)?;
@@ -455,10 +513,14 @@ impl MemoryStore {
         for v in values {
             list.push_back(v.to_vec());
         }
-        Ok(list.len() as i64)
+        let len = list.len() as i64;
+        if let Some(entry) = data.get_mut(key) {
+            entry.apply_ttl_op(ttl);
+        }
+        Ok(len)
     }
 
-    pub fn lpop(&self, key: &str, count: Option<usize>) -> Result<Vec<Vec<u8>>> {
+    pub fn lpop(&self, key: &str, count: Option<usize>, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -467,7 +529,7 @@ impl MemoryStore {
             _ => return Ok(Vec::new()),
         };
 
-        if let Value::List(list) = &mut entry.value {
+        let result = if let Value::List(list) = &mut entry.value {
             let count = count.unwrap_or(1);
             let mut results = Vec::with_capacity(count);
             for _ in 0..count {
@@ -480,10 +542,15 @@ impl MemoryStore {
             Ok(results)
         } else {
             Err(Error::TypeMismatch("expected list".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
-    pub fn rpop(&self, key: &str, count: Option<usize>) -> Result<Vec<Vec<u8>>> {
+    pub fn rpop(&self, key: &str, count: Option<usize>, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -492,7 +559,7 @@ impl MemoryStore {
             _ => return Ok(Vec::new()),
         };
 
-        if let Value::List(list) = &mut entry.value {
+        let result = if let Value::List(list) = &mut entry.value {
             let count = count.unwrap_or(1);
             let mut results = Vec::with_capacity(count);
             for _ in 0..count {
@@ -505,7 +572,12 @@ impl MemoryStore {
             Ok(results)
         } else {
             Err(Error::TypeMismatch("expected list".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
     pub fn lindex(&self, key: &str, index: i64) -> Result<Option<Vec<u8>>> {
@@ -530,7 +602,7 @@ impl MemoryStore {
         }
     }
 
-    pub fn lset(&self, key: &str, index: i64, value: &[u8]) -> Result<()> {
+    pub fn lset(&self, key: &str, index: i64, value: &[u8], ttl: Option<TtlOp>) -> Result<()> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -539,7 +611,7 @@ impl MemoryStore {
             _ => return Err(Error::NoSuchKey),
         };
 
-        if let Value::List(list) = &mut entry.value {
+        let result = if let Value::List(list) = &mut entry.value {
             let len = list.len() as i64;
             let idx = if index < 0 { len + index } else { index };
             if idx < 0 || idx >= len {
@@ -549,7 +621,12 @@ impl MemoryStore {
             Ok(())
         } else {
             Err(Error::TypeMismatch("expected list".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
     pub fn lrange(&self, key: &str, start: i64, stop: i64) -> Result<Vec<Vec<u8>>> {
@@ -589,7 +666,7 @@ impl MemoryStore {
         }
     }
 
-    pub fn ltrim(&self, key: &str, start: i64, stop: i64) -> Result<()> {
+    pub fn ltrim(&self, key: &str, start: i64, stop: i64, ttl: Option<TtlOp>) -> Result<()> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -598,7 +675,7 @@ impl MemoryStore {
             _ => return Ok(()),
         };
 
-        if let Value::List(list) = &mut entry.value {
+        let result = if let Value::List(list) = &mut entry.value {
             let len = list.len() as i64;
             let start = if start < 0 {
                 (len + start).max(0)
@@ -625,10 +702,15 @@ impl MemoryStore {
             Ok(())
         } else {
             Err(Error::TypeMismatch("expected list".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
-    pub fn linsert_before(&self, key: &str, pivot: &[u8], value: &[u8]) -> Result<i64> {
+    pub fn linsert_before(&self, key: &str, pivot: &[u8], value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -637,7 +719,7 @@ impl MemoryStore {
             _ => return Ok(-1),
         };
 
-        if let Value::List(list) = &mut entry.value {
+        let result = if let Value::List(list) = &mut entry.value {
             if let Some(pos) = list.iter().position(|v| v == pivot) {
                 list.insert(pos, value.to_vec());
                 Ok(list.len() as i64)
@@ -646,10 +728,15 @@ impl MemoryStore {
             }
         } else {
             Err(Error::TypeMismatch("expected list".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
-    pub fn linsert_after(&self, key: &str, pivot: &[u8], value: &[u8]) -> Result<i64> {
+    pub fn linsert_after(&self, key: &str, pivot: &[u8], value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -658,7 +745,7 @@ impl MemoryStore {
             _ => return Ok(-1),
         };
 
-        if let Value::List(list) = &mut entry.value {
+        let result = if let Value::List(list) = &mut entry.value {
             if let Some(pos) = list.iter().position(|v| v == pivot) {
                 list.insert(pos + 1, value.to_vec());
                 Ok(list.len() as i64)
@@ -667,10 +754,15 @@ impl MemoryStore {
             }
         } else {
             Err(Error::TypeMismatch("expected list".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
-    pub fn lrem(&self, key: &str, count: i64, value: &[u8]) -> Result<i64> {
+    pub fn lrem(&self, key: &str, count: i64, value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -679,7 +771,7 @@ impl MemoryStore {
             _ => return Ok(0),
         };
 
-        if let Value::List(list) = &mut entry.value {
+        let result = if let Value::List(list) = &mut entry.value {
             let mut removed = 0i64;
             let abs_count = count.unsigned_abs() as i64;
 
@@ -718,7 +810,12 @@ impl MemoryStore {
             Ok(removed)
         } else {
             Err(Error::TypeMismatch("expected list".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
     pub fn lmove(
@@ -727,6 +824,7 @@ impl MemoryStore {
         dst: &str,
         src_dir: ListDirection,
         dst_dir: ListDirection,
+        ttl: Option<TtlOp>,
     ) -> Result<Option<Vec<u8>>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
@@ -773,6 +871,9 @@ impl MemoryStore {
             }
         }
 
+        if let Some(entry) = data.get_mut(dst) {
+            entry.apply_ttl_op(ttl);
+        }
         Ok(Some(value))
     }
 
@@ -830,7 +931,7 @@ impl MemoryStore {
         }
     }
 
-    pub fn sadd(&self, key: &str, members: &[&[u8]]) -> Result<i64> {
+    pub fn sadd(&self, key: &str, members: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
         let set = self.get_or_create_set(&mut data, key)?;
@@ -841,10 +942,13 @@ impl MemoryStore {
                 added += 1;
             }
         }
+        if let Some(entry) = data.get_mut(key) {
+            entry.apply_ttl_op(ttl);
+        }
         Ok(added)
     }
 
-    pub fn srem(&self, key: &str, members: &[&[u8]]) -> Result<i64> {
+    pub fn srem(&self, key: &str, members: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -853,7 +957,7 @@ impl MemoryStore {
             _ => return Ok(0),
         };
 
-        if let Value::Set(set) = &mut entry.value {
+        let result = if let Value::Set(set) = &mut entry.value {
             let mut removed = 0i64;
             for m in members {
                 if set.remove(*m) {
@@ -863,7 +967,12 @@ impl MemoryStore {
             Ok(removed)
         } else {
             Err(Error::TypeMismatch("expected set".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
     pub fn sismember(&self, key: &str, member: &[u8]) -> Result<bool> {
@@ -876,7 +985,7 @@ impl MemoryStore {
         }
     }
 
-    pub fn spop(&self, key: &str, count: Option<usize>) -> Result<Vec<Vec<u8>>> {
+    pub fn spop(&self, key: &str, count: Option<usize>, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -885,7 +994,7 @@ impl MemoryStore {
             _ => return Ok(Vec::new()),
         };
 
-        if let Value::Set(set) = &mut entry.value {
+        let result = if let Value::Set(set) = &mut entry.value {
             let count = count.unwrap_or(1);
             let mut results = Vec::with_capacity(count);
             for _ in 0..count {
@@ -899,7 +1008,12 @@ impl MemoryStore {
             Ok(results)
         } else {
             Err(Error::TypeMismatch("expected set".to_string()))
+        };
+
+        if result.is_ok() {
+            entry.apply_ttl_op(ttl);
         }
+        result
     }
 
     pub fn srandmember(&self, key: &str, count: i64) -> Result<Vec<Vec<u8>>> {
@@ -982,13 +1096,16 @@ impl MemoryStore {
         Ok(result.into_iter().collect())
     }
 
-    pub fn sdiffstore(&self, dest: &str, keys: &[&str]) -> Result<i64> {
+    pub fn sdiffstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64> {
         let diff = self.sdiff(keys)?;
         let count = diff.len() as i64;
 
         let mut data = self.data.write().unwrap();
         let set: HashSet<_> = diff.into_iter().collect();
         data.insert(dest.to_string(), Entry::new(Value::Set(set)));
+        if let Some(entry) = data.get_mut(dest) {
+            entry.apply_ttl_op(ttl);
+        }
         Ok(count)
     }
 
@@ -1017,13 +1134,16 @@ impl MemoryStore {
         Ok(result.into_iter().collect())
     }
 
-    pub fn sinterstore(&self, dest: &str, keys: &[&str]) -> Result<i64> {
+    pub fn sinterstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64> {
         let inter = self.sinter(keys)?;
         let count = inter.len() as i64;
 
         let mut data = self.data.write().unwrap();
         let set: HashSet<_> = inter.into_iter().collect();
         data.insert(dest.to_string(), Entry::new(Value::Set(set)));
+        if let Some(entry) = data.get_mut(dest) {
+            entry.apply_ttl_op(ttl);
+        }
         Ok(count)
     }
 
@@ -1040,17 +1160,20 @@ impl MemoryStore {
         Ok(result.into_iter().collect())
     }
 
-    pub fn sunionstore(&self, dest: &str, keys: &[&str]) -> Result<i64> {
+    pub fn sunionstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64> {
         let union = self.sunion(keys)?;
         let count = union.len() as i64;
 
         let mut data = self.data.write().unwrap();
         let set: HashSet<_> = union.into_iter().collect();
         data.insert(dest.to_string(), Entry::new(Value::Set(set)));
+        if let Some(entry) = data.get_mut(dest) {
+            entry.apply_ttl_op(ttl);
+        }
         Ok(count)
     }
 
-    pub fn smove(&self, src: &str, dst: &str, member: &[u8]) -> Result<bool> {
+    pub fn smove(&self, src: &str, dst: &str, member: &[u8], ttl: Option<TtlOp>) -> Result<bool> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -1075,6 +1198,9 @@ impl MemoryStore {
         // Add to destination
         let set = self.get_or_create_set(&mut data, dst)?;
         set.insert(member.to_vec());
+        if let Some(entry) = data.get_mut(dst) {
+            entry.apply_ttl_op(ttl);
+        }
         Ok(true)
     }
 

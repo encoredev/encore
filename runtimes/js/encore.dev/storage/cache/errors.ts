@@ -1,13 +1,25 @@
 /**
+ * CacheError is the base class for all cache-related errors.
+ */
+export class CacheError extends Error {
+  readonly operation: string;
+  readonly key?: string;
+
+  constructor(operation: string, key: string | undefined, message: string) {
+    super(`cache ${operation}${key ? ` "${key}"` : ""}: ${message}`);
+    this.name = "CacheError";
+    this.operation = operation;
+    this.key = key;
+  }
+}
+
+/**
  * CacheMiss is thrown when a cache key is not found.
  */
-export class CacheMiss extends Error {
-  readonly key: string;
-
+export class CacheMiss extends CacheError {
   constructor(key: string) {
-    super(`cache miss: key "${key}" not found`);
+    super("get", key, "key not found");
     this.name = "CacheMiss";
-    this.key = key;
   }
 }
 
@@ -15,12 +27,9 @@ export class CacheMiss extends Error {
  * CacheKeyExists is thrown when attempting to set a key that already exists
  * using setIfNotExists.
  */
-export class CacheKeyExists extends Error {
-  readonly key: string;
-
+export class CacheKeyExists extends CacheError {
   constructor(key: string) {
-    super(`cache key exists: key "${key}" already exists`);
+    super("setIfNotExists", key, "key already exists");
     this.name = "CacheKeyExists";
-    this.key = key;
   }
 }

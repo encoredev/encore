@@ -34,10 +34,11 @@ export class StringKeyspace<K> extends BaseKeyspace<K, string> {
    * If the key doesn't exist, creates it with the given value.
    * @returns The length of the string after appending.
    */
-  async append(key: K, value: string): Promise<number> {
+  async append(key: K, value: string, options?: WriteOptions): Promise<number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    const result = await this.cluster.impl.append(mappedKey, Buffer.from(value, "utf-8"), source);
+    const ttlMs = this.resolveTtl(options);
+    const result = await this.cluster.impl.append(mappedKey, Buffer.from(value, "utf-8"), ttlMs, source);
     return Number(result);
   }
 
@@ -57,13 +58,15 @@ export class StringKeyspace<K> extends BaseKeyspace<K, string> {
    * Overwrites part of the string starting at the specified offset.
    * @returns The length of the string after the operation.
    */
-  async setRange(key: K, offset: number, value: string): Promise<number> {
+  async setRange(key: K, offset: number, value: string, options?: WriteOptions): Promise<number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
+    const ttlMs = this.resolveTtl(options);
     const result = await this.cluster.impl.setRange(
       mappedKey,
       offset,
       Buffer.from(value, "utf-8"),
+      ttlMs,
       source
     );
     return Number(result);
@@ -82,6 +85,8 @@ export class StringKeyspace<K> extends BaseKeyspace<K, string> {
 
 /**
  * IntKeyspace stores 64-bit integer values.
+ * Values are floored to integers using `Math.floor`.
+ * For fractional values, use `FloatKeyspace` instead.
  *
  * @example
  * ```ts
@@ -111,10 +116,11 @@ export class IntKeyspace<K> extends BaseKeyspace<K, number> {
    * If the key doesn't exist, initializes it to delta.
    * @returns The new value after incrementing.
    */
-  async increment(key: K, delta: number = 1): Promise<number> {
+  async increment(key: K, delta: number = 1, options?: WriteOptions): Promise<number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    return await this.cluster.impl.incrBy(mappedKey, Math.floor(delta), source);
+    const ttlMs = this.resolveTtl(options);
+    return await this.cluster.impl.incrBy(mappedKey, Math.floor(delta), ttlMs, source);
   }
 
   /**
@@ -122,10 +128,11 @@ export class IntKeyspace<K> extends BaseKeyspace<K, number> {
    * If the key doesn't exist, initializes it to -delta.
    * @returns The new value after decrementing.
    */
-  async decrement(key: K, delta: number = 1): Promise<number> {
+  async decrement(key: K, delta: number = 1, options?: WriteOptions): Promise<number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    return await this.cluster.impl.incrBy(mappedKey, -Math.floor(delta), source);
+    const ttlMs = this.resolveTtl(options);
+    return await this.cluster.impl.incrBy(mappedKey, -Math.floor(delta), ttlMs, source);
   }
 }
 
@@ -160,10 +167,11 @@ export class FloatKeyspace<K> extends BaseKeyspace<K, number> {
    * If the key doesn't exist, initializes it to delta.
    * @returns The new value after incrementing.
    */
-  async increment(key: K, delta: number = 1): Promise<number> {
+  async increment(key: K, delta: number = 1, options?: WriteOptions): Promise<number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    return await this.cluster.impl.incrByFloat(mappedKey, delta, source);
+    const ttlMs = this.resolveTtl(options);
+    return await this.cluster.impl.incrByFloat(mappedKey, delta, ttlMs, source);
   }
 
   /**
@@ -171,10 +179,11 @@ export class FloatKeyspace<K> extends BaseKeyspace<K, number> {
    * If the key doesn't exist, initializes it to -delta.
    * @returns The new value after decrementing.
    */
-  async decrement(key: K, delta: number = 1): Promise<number> {
+  async decrement(key: K, delta: number = 1, options?: WriteOptions): Promise<number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    return await this.cluster.impl.incrByFloat(mappedKey, -delta, source);
+    const ttlMs = this.resolveTtl(options);
+    return await this.cluster.impl.incrByFloat(mappedKey, -delta, ttlMs, source);
   }
 }
 

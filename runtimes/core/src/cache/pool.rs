@@ -11,6 +11,17 @@ use crate::model::{Request, TraceEventId};
 use crate::trace::protocol::{CacheCallEndData, CacheCallStartData, CacheOpResult};
 use crate::trace::Tracer;
 
+/// TTL operation for cache write commands.
+#[derive(Debug, Clone, Copy)]
+pub enum TtlOp {
+    /// Preserve the existing TTL (KEEPTTL for SET; no-op for others).
+    Keep,
+    /// Set TTL in milliseconds (PX for SET; atomic PEXPIRE for others).
+    SetMs(u64),
+    /// Remove TTL / never expire (no TTL flags for SET; atomic PERSIST for others).
+    Persist,
+}
+
 /// Backend type for the pool.
 enum Backend {
     /// Real Redis connection pool.
@@ -154,12 +165,12 @@ impl Pool {
         }
     }
 
-    /// Set a value by key with optional TTL in milliseconds.
+    /// Set a value by key with optional TTL operation.
     pub async fn set(
         &self,
         key: &str,
         value: &[u8],
-        ttl_ms: Option<u64>,
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<()> {
         let key = self.prefixed_key(key);
@@ -167,7 +178,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.set(&key, value, ttl_ms);
+            let result = store.set(&key, value, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -176,11 +187,14 @@ impl Pool {
         }
 
         let mut conn = self.conn().await?;
-        let result: RedisResult<()> = if let Some(ms) = ttl_ms {
-            (*conn).set_ex(&key, value, ms / 1000).await
-        } else {
-            (*conn).set(&key, value).await
-        };
+        let mut cmd = redis::cmd("SET");
+        cmd.arg(&key).arg(value);
+        match ttl {
+            Some(TtlOp::Keep) => { cmd.arg("KEEPTTL"); }
+            Some(TtlOp::SetMs(ms)) => { cmd.arg("PX").arg(ms); }
+            Some(TtlOp::Persist) | None => {} // No TTL flags
+        }
+        let result: RedisResult<()> = cmd.query_async(&mut *conn).await;
 
         match result {
             Ok(()) => {
@@ -199,7 +213,7 @@ impl Pool {
         &self,
         key: &str,
         value: &[u8],
-        ttl_ms: Option<u64>,
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<bool> {
         let key = self.prefixed_key(key);
@@ -207,7 +221,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.set_if_not_exists(&key, value, ttl_ms);
+            let result = store.set_if_not_exists(&key, value, ttl);
             match &result {
                 Ok(set) => {
                     let op_result = if *set {
@@ -226,8 +240,9 @@ impl Pool {
             let mut conn = self.conn().await?;
             let mut cmd = redis::cmd("SET");
             cmd.arg(&key).arg(value).arg("NX");
-            if let Some(ms) = ttl_ms {
-                cmd.arg("PX").arg(ms);
+            match ttl {
+                Some(TtlOp::SetMs(ms)) => { cmd.arg("PX").arg(ms); }
+                _ => {} // KeepTTL doesn't apply to NX (new key has no TTL to keep)
             }
             cmd.query_async(&mut *conn).await
         };
@@ -254,7 +269,7 @@ impl Pool {
         &self,
         key: &str,
         value: &[u8],
-        ttl_ms: Option<u64>,
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<bool> {
         let key = self.prefixed_key(key);
@@ -262,7 +277,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.replace(&key, value, ttl_ms);
+            let result = store.replace(&key, value, ttl);
             match &result {
                 Ok(replaced) => {
                     let op_result = if *replaced {
@@ -281,8 +296,10 @@ impl Pool {
             let mut conn = self.conn().await?;
             let mut cmd = redis::cmd("SET");
             cmd.arg(&key).arg(value).arg("XX");
-            if let Some(ms) = ttl_ms {
-                cmd.arg("PX").arg(ms);
+            match ttl {
+                Some(TtlOp::Keep) => { cmd.arg("KEEPTTL"); }
+                Some(TtlOp::SetMs(ms)) => { cmd.arg("PX").arg(ms); }
+                Some(TtlOp::Persist) | None => {}
             }
             cmd.query_async(&mut *conn).await
         };
@@ -308,7 +325,7 @@ impl Pool {
         &self,
         key: &str,
         value: &[u8],
-        ttl_ms: Option<u64>,
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<Option<Vec<u8>>> {
         let key = self.prefixed_key(key);
@@ -316,7 +333,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.get_and_set(&key, value, ttl_ms);
+            let result = store.get_and_set(&key, value, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -328,8 +345,10 @@ impl Pool {
             let mut conn = self.conn().await?;
             let mut cmd = redis::cmd("SET");
             cmd.arg(&key).arg(value).arg("GET");
-            if let Some(ms) = ttl_ms {
-                cmd.arg("PX").arg(ms);
+            match ttl {
+                Some(TtlOp::Keep) => { cmd.arg("KEEPTTL"); }
+                Some(TtlOp::SetMs(ms)) => { cmd.arg("PX").arg(ms); }
+                Some(TtlOp::Persist) | None => {}
             }
             cmd.query_async(&mut *conn).await
         };
@@ -450,13 +469,13 @@ impl Pool {
     // ==================== String Operations ====================
 
     /// Append to a string value.
-    pub async fn append(&self, key: &str, value: &[u8], source: Option<&Request>) -> Result<i64> {
+    pub async fn append(&self, key: &str, value: &[u8], ttl: Option<TtlOp>, source: Option<&Request>) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("append", true, &[&key], source);
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.append(&key, value);
+            let result = store.append(&key, value, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -465,7 +484,21 @@ impl Pool {
         }
 
         let mut conn = self.conn().await?;
-        let result: RedisResult<i64> = (*conn).append(&key, value).await;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).append(&key, value).await,
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("APPEND").arg(&key).arg(value)
+                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("APPEND").arg(&key).arg(value)
+                    .cmd("PERSIST").arg(&key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(new_len) => {
@@ -524,6 +557,7 @@ impl Pool {
         key: &str,
         offset: i64,
         value: &[u8],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<i64> {
         let key = self.prefixed_key(key);
@@ -531,7 +565,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.set_range(&key, offset, value);
+            let result = store.set_range(&key, offset, value, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -539,11 +573,22 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<i64> = self
-            .conn()
-            .await?
-            .setrange(&key, offset as isize, value)
-            .await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).setrange(&key, offset as isize, value).await,
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("SETRANGE").arg(&key).arg(offset).arg(value)
+                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("SETRANGE").arg(&key).arg(offset).arg(value)
+                    .cmd("PERSIST").arg(&key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(new_len) => {
@@ -589,13 +634,13 @@ impl Pool {
     // ==================== Numeric Operations ====================
 
     /// Increment an integer value.
-    pub async fn incr_by(&self, key: &str, delta: i64, source: Option<&Request>) -> Result<i64> {
+    pub async fn incr_by(&self, key: &str, delta: i64, ttl: Option<TtlOp>, source: Option<&Request>) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("incrby", true, &[&key], source);
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.incr_by(&key, delta);
+            let result = store.incr_by(&key, delta, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -603,7 +648,22 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<i64> = self.conn().await?.incr(&key, delta).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).incr(&key, delta).await,
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("INCRBY").arg(&key).arg(delta)
+                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("INCRBY").arg(&key).arg(delta)
+                    .cmd("PERSIST").arg(&key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(new_val) => {
@@ -622,6 +682,7 @@ impl Pool {
         &self,
         key: &str,
         delta: f64,
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<f64> {
         let key = self.prefixed_key(key);
@@ -629,7 +690,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.incr_by_float(&key, delta);
+            let result = store.incr_by_float(&key, delta, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -637,7 +698,22 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<f64> = self.conn().await?.incr(&key, delta).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<f64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).incr(&key, delta).await,
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("INCRBYFLOAT").arg(&key).arg(delta)
+                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("INCRBYFLOAT").arg(&key).arg(delta)
+                    .cmd("PERSIST").arg(&key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(new_val) => {
@@ -658,6 +734,7 @@ impl Pool {
         &self,
         key: &str,
         values: &[&[u8]],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<i64> {
         let key = self.prefixed_key(key);
@@ -665,7 +742,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lpush(&key, values);
+            let result = store.lpush(&key, values, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -673,7 +750,24 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<i64> = self.conn().await?.lpush(&key, values).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).lpush(&key, values).await,
+            Some(TtlOp::SetMs(ms)) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("LPUSH").arg(&key);
+                for v in values { pipe.arg(*v); }
+                pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
+                pipe.query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("LPUSH").arg(&key);
+                for v in values { pipe.arg(*v); }
+                pipe.cmd("PERSIST").arg(&key).ignore();
+                pipe.query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(len) => {
@@ -692,6 +786,7 @@ impl Pool {
         &self,
         key: &str,
         values: &[&[u8]],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<i64> {
         let key = self.prefixed_key(key);
@@ -699,7 +794,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.rpush(&key, values);
+            let result = store.rpush(&key, values, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -707,7 +802,24 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<i64> = self.conn().await?.rpush(&key, values).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).rpush(&key, values).await,
+            Some(TtlOp::SetMs(ms)) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("RPUSH").arg(&key);
+                for v in values { pipe.arg(*v); }
+                pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
+                pipe.query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("RPUSH").arg(&key);
+                for v in values { pipe.arg(*v); }
+                pipe.cmd("PERSIST").arg(&key).ignore();
+                pipe.query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(len) => {
@@ -726,6 +838,7 @@ impl Pool {
         &self,
         key: &str,
         count: Option<usize>,
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<Vec<Vec<u8>>> {
         let key = self.prefixed_key(key);
@@ -733,7 +846,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lpop(&key, count);
+            let result = store.lpop(&key, count, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -741,12 +854,30 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<Vec<Vec<u8>>> = match count.and_then(NonZeroUsize::new) {
-            Some(n) => self.conn().await?.lpop(&key, Some(n)).await,
-            None => {
-                let single: RedisResult<Option<Vec<u8>>> =
-                    self.conn().await?.lpop(&key, None).await;
-                single.map(|v| v.into_iter().collect())
+        let mut conn = self.conn().await?;
+        let result: RedisResult<Vec<Vec<u8>>> = match ttl {
+            None | Some(TtlOp::Keep) => {
+                match count.and_then(NonZeroUsize::new) {
+                    Some(n) => (*conn).lpop(&key, Some(n)).await,
+                    None => {
+                        let single: RedisResult<Option<Vec<u8>>> = (*conn).lpop(&key, None).await;
+                        single.map(|v| v.into_iter().collect())
+                    }
+                }
+            }
+            Some(TtlOp::SetMs(ms)) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("LPOP").arg(&key);
+                if let Some(n) = count { pipe.arg(n); }
+                pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
+                pipe.query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("LPOP").arg(&key);
+                if let Some(n) = count { pipe.arg(n); }
+                pipe.cmd("PERSIST").arg(&key).ignore();
+                pipe.query_async(&mut *conn).await
             }
         };
 
@@ -767,6 +898,7 @@ impl Pool {
         &self,
         key: &str,
         count: Option<usize>,
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<Vec<Vec<u8>>> {
         let key = self.prefixed_key(key);
@@ -774,7 +906,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.rpop(&key, count);
+            let result = store.rpop(&key, count, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -782,12 +914,30 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<Vec<Vec<u8>>> = match count.and_then(NonZeroUsize::new) {
-            Some(n) => self.conn().await?.rpop(&key, Some(n)).await,
-            None => {
-                let single: RedisResult<Option<Vec<u8>>> =
-                    self.conn().await?.rpop(&key, None).await;
-                single.map(|v| v.into_iter().collect())
+        let mut conn = self.conn().await?;
+        let result: RedisResult<Vec<Vec<u8>>> = match ttl {
+            None | Some(TtlOp::Keep) => {
+                match count.and_then(NonZeroUsize::new) {
+                    Some(n) => (*conn).rpop(&key, Some(n)).await,
+                    None => {
+                        let single: RedisResult<Option<Vec<u8>>> = (*conn).rpop(&key, None).await;
+                        single.map(|v| v.into_iter().collect())
+                    }
+                }
+            }
+            Some(TtlOp::SetMs(ms)) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("RPOP").arg(&key);
+                if let Some(n) = count { pipe.arg(n); }
+                pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
+                pipe.query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("RPOP").arg(&key);
+                if let Some(n) = count { pipe.arg(n); }
+                pipe.cmd("PERSIST").arg(&key).ignore();
+                pipe.query_async(&mut *conn).await
             }
         };
 
@@ -844,6 +994,7 @@ impl Pool {
         key: &str,
         index: i64,
         value: &[u8],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<()> {
         let key = self.prefixed_key(key);
@@ -851,7 +1002,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lset(&key, index, value);
+            let result = store.lset(&key, index, value, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -859,7 +1010,22 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<()> = self.conn().await?.lset(&key, index as isize, value).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<()> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).lset(&key, index as isize, value).await,
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("LSET").arg(&key).arg(index).arg(value)
+                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("LSET").arg(&key).arg(index).arg(value)
+                    .cmd("PERSIST").arg(&key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(()) => {
@@ -918,6 +1084,7 @@ impl Pool {
         key: &str,
         start: i64,
         stop: i64,
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<()> {
         let key = self.prefixed_key(key);
@@ -925,7 +1092,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.ltrim(&key, start, stop);
+            let result = store.ltrim(&key, start, stop, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -933,11 +1100,22 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<()> = self
-            .conn()
-            .await?
-            .ltrim(&key, start as isize, stop as isize)
-            .await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<()> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).ltrim(&key, start as isize, stop as isize).await,
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("LTRIM").arg(&key).arg(start).arg(stop)
+                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("LTRIM").arg(&key).arg(start).arg(stop)
+                    .cmd("PERSIST").arg(&key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(()) => {
@@ -957,6 +1135,7 @@ impl Pool {
         key: &str,
         pivot: &[u8],
         value: &[u8],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<i64> {
         let key = self.prefixed_key(key);
@@ -964,7 +1143,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.linsert_before(&key, pivot, value);
+            let result = store.linsert_before(&key, pivot, value, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -973,13 +1152,24 @@ impl Pool {
         }
 
         let mut conn = self.conn().await?;
-        let result: RedisResult<i64> = redis::cmd("LINSERT")
-            .arg(&key)
-            .arg("BEFORE")
-            .arg(pivot)
-            .arg(value)
-            .query_async(&mut *conn)
-            .await;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => {
+                redis::cmd("LINSERT").arg(&key).arg("BEFORE").arg(pivot).arg(value)
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("LINSERT").arg(&key).arg("BEFORE").arg(pivot).arg(value)
+                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("LINSERT").arg(&key).arg("BEFORE").arg(pivot).arg(value)
+                    .cmd("PERSIST").arg(&key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(pos) => {
@@ -999,6 +1189,7 @@ impl Pool {
         key: &str,
         pivot: &[u8],
         value: &[u8],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<i64> {
         let key = self.prefixed_key(key);
@@ -1006,7 +1197,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.linsert_after(&key, pivot, value);
+            let result = store.linsert_after(&key, pivot, value, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -1015,13 +1206,24 @@ impl Pool {
         }
 
         let mut conn = self.conn().await?;
-        let result: RedisResult<i64> = redis::cmd("LINSERT")
-            .arg(&key)
-            .arg("AFTER")
-            .arg(pivot)
-            .arg(value)
-            .query_async(&mut *conn)
-            .await;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => {
+                redis::cmd("LINSERT").arg(&key).arg("AFTER").arg(pivot).arg(value)
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("LINSERT").arg(&key).arg("AFTER").arg(pivot).arg(value)
+                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("LINSERT").arg(&key).arg("AFTER").arg(pivot).arg(value)
+                    .cmd("PERSIST").arg(&key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(pos) => {
@@ -1044,6 +1246,7 @@ impl Pool {
         key: &str,
         count: i64,
         value: &[u8],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<i64> {
         let key = self.prefixed_key(key);
@@ -1051,7 +1254,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lrem(&key, count, value);
+            let result = store.lrem(&key, count, value, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -1059,7 +1262,22 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<i64> = self.conn().await?.lrem(&key, count as isize, value).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).lrem(&key, count as isize, value).await,
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("LREM").arg(&key).arg(count).arg(value)
+                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("LREM").arg(&key).arg(count).arg(value)
+                    .cmd("PERSIST").arg(&key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(removed) => {
@@ -1080,6 +1298,7 @@ impl Pool {
         dst: &str,
         src_dir: ListDirection,
         dst_dir: ListDirection,
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<Option<Vec<u8>>> {
         let src_key = self.prefixed_key(src);
@@ -1088,7 +1307,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lmove(&src_key, &dst_key, src_dir, dst_dir);
+            let result = store.lmove(&src_key, &dst_key, src_dir, dst_dir, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -1097,13 +1316,25 @@ impl Pool {
         }
 
         let mut conn = self.conn().await?;
-        let result: RedisResult<Option<Vec<u8>>> = redis::cmd("LMOVE")
-            .arg(&src_key)
-            .arg(&dst_key)
-            .arg(src_dir.as_str())
-            .arg(dst_dir.as_str())
-            .query_async(&mut *conn)
-            .await;
+        let result: RedisResult<Option<Vec<u8>>> = match ttl {
+            None | Some(TtlOp::Keep) => {
+                redis::cmd("LMOVE").arg(&src_key).arg(&dst_key)
+                    .arg(src_dir.as_str()).arg(dst_dir.as_str())
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("LMOVE").arg(&src_key).arg(&dst_key).arg(src_dir.as_str()).arg(dst_dir.as_str())
+                    .cmd("PEXPIRE").arg(&dst_key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("LMOVE").arg(&src_key).arg(&dst_key).arg(src_dir.as_str()).arg(dst_dir.as_str())
+                    .cmd("PERSIST").arg(&dst_key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(value) => {
@@ -1153,6 +1384,7 @@ impl Pool {
         &self,
         key: &str,
         members: &[&[u8]],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<i64> {
         let key = self.prefixed_key(key);
@@ -1160,7 +1392,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sadd(&key, members);
+            let result = store.sadd(&key, members, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -1168,7 +1400,24 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<i64> = self.conn().await?.sadd(&key, members).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).sadd(&key, members).await,
+            Some(TtlOp::SetMs(ms)) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("SADD").arg(&key);
+                for m in members { pipe.arg(*m); }
+                pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
+                pipe.query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("SADD").arg(&key);
+                for m in members { pipe.arg(*m); }
+                pipe.cmd("PERSIST").arg(&key).ignore();
+                pipe.query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(added) => {
@@ -1187,6 +1436,7 @@ impl Pool {
         &self,
         key: &str,
         members: &[&[u8]],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<i64> {
         let key = self.prefixed_key(key);
@@ -1194,7 +1444,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.srem(&key, members);
+            let result = store.srem(&key, members, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -1202,7 +1452,24 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<i64> = self.conn().await?.srem(&key, members).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).srem(&key, members).await,
+            Some(TtlOp::SetMs(ms)) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("SREM").arg(&key);
+                for m in members { pipe.arg(*m); }
+                pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
+                pipe.query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("SREM").arg(&key);
+                for m in members { pipe.arg(*m); }
+                pipe.cmd("PERSIST").arg(&key).ignore();
+                pipe.query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(removed) => {
@@ -1255,6 +1522,7 @@ impl Pool {
         &self,
         key: &str,
         count: Option<usize>,
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<Vec<Vec<u8>>> {
         let key = self.prefixed_key(key);
@@ -1262,7 +1530,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.spop(&key, count);
+            let result = store.spop(&key, count, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -1271,17 +1539,31 @@ impl Pool {
         }
 
         let mut conn = self.conn().await?;
-        let result: RedisResult<Vec<Vec<u8>>> = match count {
-            Some(n) => {
-                redis::cmd("SPOP")
-                    .arg(&key)
-                    .arg(n)
-                    .query_async(&mut *conn)
-                    .await
+        let result: RedisResult<Vec<Vec<u8>>> = match ttl {
+            None | Some(TtlOp::Keep) => {
+                match count {
+                    Some(n) => {
+                        redis::cmd("SPOP").arg(&key).arg(n).query_async(&mut *conn).await
+                    }
+                    None => {
+                        let single: RedisResult<Option<Vec<u8>>> = (*conn).spop(&key).await;
+                        single.map(|v| v.into_iter().collect())
+                    }
+                }
             }
-            None => {
-                let single: RedisResult<Option<Vec<u8>>> = (*conn).spop(&key).await;
-                single.map(|v| v.into_iter().collect())
+            Some(TtlOp::SetMs(ms)) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("SPOP").arg(&key);
+                if let Some(n) = count { pipe.arg(n); }
+                pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
+                pipe.query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                let mut pipe = redis::pipe();
+                pipe.atomic().cmd("SPOP").arg(&key);
+                if let Some(n) = count { pipe.arg(n); }
+                pipe.cmd("PERSIST").arg(&key).ignore();
+                pipe.query_async(&mut *conn).await
             }
         };
 
@@ -1430,6 +1712,7 @@ impl Pool {
         &self,
         dest: &str,
         keys: &[&str],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<i64> {
         let dest_key = self.prefixed_key(dest);
@@ -1441,7 +1724,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sdiffstore(&dest_key, &key_refs);
+            let result = store.sdiffstore(&dest_key, &key_refs, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -1449,7 +1732,22 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<i64> = self.conn().await?.sdiffstore(&dest_key, &prefixed).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).sdiffstore(&dest_key, &prefixed).await,
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("SDIFFSTORE").arg(&dest_key).arg(&prefixed)
+                    .cmd("PEXPIRE").arg(&dest_key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("SDIFFSTORE").arg(&dest_key).arg(&prefixed)
+                    .cmd("PERSIST").arg(&dest_key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(count) => {
@@ -1498,6 +1796,7 @@ impl Pool {
         &self,
         dest: &str,
         keys: &[&str],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<i64> {
         let dest_key = self.prefixed_key(dest);
@@ -1509,7 +1808,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sinterstore(&dest_key, &key_refs);
+            let result = store.sinterstore(&dest_key, &key_refs, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -1517,7 +1816,22 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<i64> = self.conn().await?.sinterstore(&dest_key, &prefixed).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).sinterstore(&dest_key, &prefixed).await,
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("SINTERSTORE").arg(&dest_key).arg(&prefixed)
+                    .cmd("PEXPIRE").arg(&dest_key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("SINTERSTORE").arg(&dest_key).arg(&prefixed)
+                    .cmd("PERSIST").arg(&dest_key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(count) => {
@@ -1566,6 +1880,7 @@ impl Pool {
         &self,
         dest: &str,
         keys: &[&str],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<i64> {
         let dest_key = self.prefixed_key(dest);
@@ -1577,7 +1892,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sunionstore(&dest_key, &key_refs);
+            let result = store.sunionstore(&dest_key, &key_refs, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -1585,7 +1900,22 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<i64> = self.conn().await?.sunionstore(&dest_key, &prefixed).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<i64> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).sunionstore(&dest_key, &prefixed).await,
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("SUNIONSTORE").arg(&dest_key).arg(&prefixed)
+                    .cmd("PEXPIRE").arg(&dest_key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("SUNIONSTORE").arg(&dest_key).arg(&prefixed)
+                    .cmd("PERSIST").arg(&dest_key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(count) => {
@@ -1605,6 +1935,7 @@ impl Pool {
         src: &str,
         dst: &str,
         member: &[u8],
+        ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> Result<bool> {
         let src_key = self.prefixed_key(src);
@@ -1613,7 +1944,7 @@ impl Pool {
 
         // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.smove(&src_key, &dst_key, member);
+            let result = store.smove(&src_key, &dst_key, member, ttl);
             match &result {
                 Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
                 Err(_) => self.trace_end_err(trace, source),
@@ -1621,7 +1952,22 @@ impl Pool {
             return result;
         }
 
-        let result: RedisResult<bool> = self.conn().await?.smove(&src_key, &dst_key, member).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<bool> = match ttl {
+            None | Some(TtlOp::Keep) => (*conn).smove(&src_key, &dst_key, member).await,
+            Some(TtlOp::SetMs(ms)) => {
+                redis::pipe().atomic()
+                    .cmd("SMOVE").arg(&src_key).arg(&dst_key).arg(member)
+                    .cmd("PEXPIRE").arg(&dst_key).arg(ms).ignore()
+                    .query_async(&mut *conn).await
+            }
+            Some(TtlOp::Persist) => {
+                redis::pipe().atomic()
+                    .cmd("SMOVE").arg(&src_key).arg(&dst_key).arg(member)
+                    .cmd("PERSIST").arg(&dst_key).ignore()
+                    .query_async(&mut *conn).await
+            }
+        };
 
         match result {
             Ok(moved) => {

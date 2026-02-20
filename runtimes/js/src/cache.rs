@@ -1,9 +1,25 @@
 use crate::api::Request;
 use encore_runtime_core::cache;
+use encore_runtime_core::cache::TtlOp;
 use napi::bindgen_prelude::*;
 use napi::{Error, Status};
 use napi_derive::napi;
 use std::sync::{Arc, OnceLock};
+
+/// Maps i64 sentinel values from TypeScript to TtlOp.
+/// - None → None (no TTL config)
+/// - -1 → KeepTTL
+/// - -2 → Persist (NeverExpire)
+/// - >= 0 → SetMs(ms)
+fn to_ttl_op(ttl_ms: Option<i64>) -> Option<TtlOp> {
+    match ttl_ms {
+        None => None,
+        Some(-1) => Some(TtlOp::Keep),
+        Some(-2) => Some(TtlOp::Persist),
+        Some(ms) if ms >= 0 => Some(TtlOp::SetMs(ms as u64)),
+        Some(_) => None, // invalid negative values treated as no TTL
+    }
+}
 
 /// A cache cluster for storing cached data.
 #[napi]
@@ -45,18 +61,18 @@ impl CacheCluster {
         Ok(result.map(|v| v.into()))
     }
 
-    /// Set a value by key with optional TTL in milliseconds.
+    /// Set a value by key with optional TTL.
     #[napi]
     pub async fn set(
         &self,
         key: String,
         value: Buffer,
-        ttl_ms: Option<u32>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<()> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .set(&key, &value, ttl_ms.map(|t| t as u64), source)
+            .set(&key, &value, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -67,12 +83,12 @@ impl CacheCluster {
         &self,
         key: String,
         value: Buffer,
-        ttl_ms: Option<u32>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<bool> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .set_if_not_exists(&key, &value, ttl_ms.map(|t| t as u64), source)
+            .set_if_not_exists(&key, &value, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -83,12 +99,12 @@ impl CacheCluster {
         &self,
         key: String,
         value: Buffer,
-        ttl_ms: Option<u32>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<bool> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .replace(&key, &value, ttl_ms.map(|t| t as u64), source)
+            .replace(&key, &value, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -99,13 +115,13 @@ impl CacheCluster {
         &self,
         key: String,
         value: Buffer,
-        ttl_ms: Option<u32>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<Option<Buffer>> {
         let source = source.map(|s| s.inner.as_ref());
         let result = self
             .pool()?
-            .get_and_set(&key, &value, ttl_ms.map(|t| t as u64), source)
+            .get_and_set(&key, &value, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)?;
         Ok(result.map(|v| v.into()))
@@ -165,11 +181,12 @@ impl CacheCluster {
         &self,
         key: String,
         value: Buffer,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .append(&key, &value, source)
+            .append(&key, &value, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -199,11 +216,12 @@ impl CacheCluster {
         key: String,
         offset: i32,
         value: Buffer,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .set_range(&key, offset as i64, &value, source)
+            .set_range(&key, offset as i64, &value, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -223,11 +241,12 @@ impl CacheCluster {
         &self,
         key: String,
         delta: i64,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .incr_by(&key, delta, source)
+            .incr_by(&key, delta, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -238,11 +257,12 @@ impl CacheCluster {
         &self,
         key: String,
         delta: f64,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<f64> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .incr_by_float(&key, delta, source)
+            .incr_by_float(&key, delta, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -255,12 +275,13 @@ impl CacheCluster {
         &self,
         key: String,
         values: Vec<Buffer>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         let value_refs: Vec<&[u8]> = values.iter().map(|v| v.as_ref()).collect();
         self.pool()?
-            .lpush(&key, &value_refs, source)
+            .lpush(&key, &value_refs, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -271,12 +292,13 @@ impl CacheCluster {
         &self,
         key: String,
         values: Vec<Buffer>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         let value_refs: Vec<&[u8]> = values.iter().map(|v| v.as_ref()).collect();
         self.pool()?
-            .rpush(&key, &value_refs, source)
+            .rpush(&key, &value_refs, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -287,12 +309,13 @@ impl CacheCluster {
         &self,
         key: String,
         count: Option<u32>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<Vec<Buffer>> {
         let source = source.map(|s| s.inner.as_ref());
         let result = self
             .pool()?
-            .lpop(&key, count.map(|c| c as usize), source)
+            .lpop(&key, count.map(|c| c as usize), to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)?;
         Ok(result.into_iter().map(|v| v.into()).collect())
@@ -304,12 +327,13 @@ impl CacheCluster {
         &self,
         key: String,
         count: Option<u32>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<Vec<Buffer>> {
         let source = source.map(|s| s.inner.as_ref());
         let result = self
             .pool()?
-            .rpop(&key, count.map(|c| c as usize), source)
+            .rpop(&key, count.map(|c| c as usize), to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)?;
         Ok(result.into_iter().map(|v| v.into()).collect())
@@ -364,11 +388,12 @@ impl CacheCluster {
         key: String,
         start: i32,
         stop: i32,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<()> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .ltrim(&key, start as i64, stop as i64, source)
+            .ltrim(&key, start as i64, stop as i64, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -380,11 +405,12 @@ impl CacheCluster {
         key: String,
         index: i32,
         value: Buffer,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<()> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .lset(&key, index as i64, &value, source)
+            .lset(&key, index as i64, &value, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -396,11 +422,12 @@ impl CacheCluster {
         key: String,
         pivot: Buffer,
         value: Buffer,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .linsert_before(&key, &pivot, &value, source)
+            .linsert_before(&key, &pivot, &value, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -412,11 +439,12 @@ impl CacheCluster {
         key: String,
         pivot: Buffer,
         value: Buffer,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .linsert_after(&key, &pivot, &value, source)
+            .linsert_after(&key, &pivot, &value, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -428,11 +456,12 @@ impl CacheCluster {
         key: String,
         count: i32,
         value: Buffer,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .lrem(&key, count as i64, &value, source)
+            .lrem(&key, count as i64, &value, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -445,6 +474,7 @@ impl CacheCluster {
         dst: String,
         src_dir: String,
         dst_dir: String,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<Option<Buffer>> {
         let source = source.map(|s| s.inner.as_ref());
@@ -460,7 +490,7 @@ impl CacheCluster {
         };
         let result = self
             .pool()?
-            .lmove(&src, &dst, src_dir, dst_dir, source)
+            .lmove(&src, &dst, src_dir, dst_dir, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)?;
         Ok(result.map(|v| v.into()))
@@ -474,12 +504,13 @@ impl CacheCluster {
         &self,
         key: String,
         members: Vec<Buffer>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         let member_refs: Vec<&[u8]> = members.iter().map(|v| v.as_ref()).collect();
         self.pool()?
-            .sadd(&key, &member_refs, source)
+            .sadd(&key, &member_refs, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -490,12 +521,13 @@ impl CacheCluster {
         &self,
         key: String,
         members: Vec<Buffer>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         let member_refs: Vec<&[u8]> = members.iter().map(|v| v.as_ref()).collect();
         self.pool()?
-            .srem(&key, &member_refs, source)
+            .srem(&key, &member_refs, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -544,12 +576,13 @@ impl CacheCluster {
         &self,
         key: String,
         count: Option<u32>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<Vec<Buffer>> {
         let source = source.map(|s| s.inner.as_ref());
         let result = self
             .pool()?
-            .spop(&key, count.map(|c| c as usize), source)
+            .spop(&key, count.map(|c| c as usize), to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)?;
         Ok(result.into_iter().map(|v| v.into()).collect())
@@ -596,12 +629,13 @@ impl CacheCluster {
         &self,
         destination: String,
         keys: Vec<String>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
         self.pool()?
-            .sdiffstore(&destination, &key_refs, source)
+            .sdiffstore(&destination, &key_refs, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -629,12 +663,13 @@ impl CacheCluster {
         &self,
         destination: String,
         keys: Vec<String>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
         self.pool()?
-            .sinterstore(&destination, &key_refs, source)
+            .sinterstore(&destination, &key_refs, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -662,12 +697,13 @@ impl CacheCluster {
         &self,
         destination: String,
         keys: Vec<String>,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
         self.pool()?
-            .sunionstore(&destination, &key_refs, source)
+            .sunionstore(&destination, &key_refs, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -679,11 +715,12 @@ impl CacheCluster {
         src: String,
         dst: String,
         member: Buffer,
+        ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<bool> {
         let source = source.map(|s| s.inner.as_ref());
         self.pool()?
-            .smove(&src, &dst, &member, source)
+            .smove(&src, &dst, &member, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -695,7 +732,7 @@ impl CacheCluster {
     pub async fn pexpire(
         &self,
         key: String,
-        ttl_ms: u32,
+        ttl_ms: i64,
         source: Option<&Request>,
     ) -> napi::Result<bool> {
         let source = source.map(|s| s.inner.as_ref());

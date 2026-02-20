@@ -1,108 +1,19 @@
 import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import { CacheCluster } from "./cluster";
-import { resolveExpiry } from "./expiry";
-import { KeyspaceConfig, WriteOptions } from "./keyspace";
+import { KeyspaceBase, KeyspaceConfig, WriteOptions } from "./keyspace";
 
 /**
- * SetKeyspace stores sets of unique values.
- *
- * @example
- * ```ts
- * const tags = new SetKeyspace<string, string>(cluster, {
- *   keyPattern: "tags/:articleId",
- * });
- *
- * await tags.add("article1", "typescript", "programming", "web");
- * const hasTech = await tags.contains("article1", "typescript");
- * const allTags = await tags.members("article1");
- * ```
+ * Base class for set keyspaces with all set operations.
+ * Subclasses provide typed serialization/deserialization.
+ * @internal
  */
-export class SetKeyspace<K, V> {
-  protected readonly cluster: CacheCluster;
-  protected readonly config: KeyspaceConfig<K>;
-  protected readonly keyMapper: (key: K) => string;
-
+abstract class SetKeyspaceBase<K, V> extends KeyspaceBase<K> {
   constructor(cluster: CacheCluster, config: KeyspaceConfig<K>) {
-    this.cluster = cluster;
-    this.config = config;
-    this.keyMapper = config.__keyMapper ?? this.createRuntimeKeyMapper(config.keyPattern);
+    super(cluster, config);
   }
 
-  private createRuntimeKeyMapper(pattern: string): (key: K) => string {
-    const segments = pattern.split("/").map((seg) => {
-      if (seg.startsWith(":")) {
-        return { isLiteral: false, field: seg.slice(1) };
-      }
-      return { isLiteral: true, value: seg };
-    });
-
-    return (key: K) => {
-      return segments
-        .map((seg) => {
-          if ("value" in seg) return seg.value;
-
-          let val: unknown;
-          if (typeof key === "object" && key !== null) {
-            val = (key as Record<string, unknown>)[seg.field];
-          } else {
-            val = key;
-          }
-
-          const str = String(val);
-          return str.replace(/\//g, "\\/");
-        })
-        .join("/");
-    };
-  }
-
-  protected mapKey(key: K): string {
-    return this.keyMapper(key);
-  }
-
-  protected serialize(value: V): Buffer {
-    return Buffer.from(JSON.stringify(value), "utf-8");
-  }
-
-  protected deserialize(data: Buffer): V {
-    return JSON.parse(data.toString("utf-8")) as V;
-  }
-
-  /**
-   * Resolves the TTL in milliseconds for a write operation.
-   */
-  protected getTtlMs(options?: WriteOptions): number | undefined {
-    const expiry = options?.expiry ?? this.config.defaultExpiry;
-    if (!expiry) return undefined;
-
-    const resolved = resolveExpiry(expiry);
-    if (resolved === null) return undefined;
-    return resolved;
-  }
-
-  /**
-   * Returns a new keyspace wrapper with the specified write options.
-   * This allows setting expiry for a chain of operations.
-   *
-   * @example
-   * ```ts
-   * await mySet.with({ expiry: ExpireIn(5000) }).add(key, "value");
-   * ```
-   */
-  with(options: WriteOptions): SetKeyspace<K, V> {
-    const wrapper = Object.create(this) as SetKeyspace<K, V>;
-    const originalConfig = this.config;
-
-    Object.defineProperty(wrapper, "config", {
-      get() {
-        return {
-          ...originalConfig,
-          defaultExpiry: options.expiry ?? originalConfig.defaultExpiry,
-        };
-      },
-    });
-
-    return wrapper;
-  }
+  protected abstract serializeItem(value: V): Buffer;
+  protected abstract deserializeItem(data: Buffer): V;
 
   /**
    * Adds one or more members to the set.
@@ -111,8 +22,9 @@ export class SetKeyspace<K, V> {
   async add(key: K, ...members: V[]): Promise<number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    const serialized = members.map((m) => this.serialize(m));
-    const result = await this.cluster.impl.sadd(mappedKey, serialized, source);
+    const serialized = members.map((m) => this.serializeItem(m));
+    const ttlMs = this.resolveTtl();
+    const result = await this.cluster.impl.sadd(mappedKey, serialized, ttlMs, source);
     return Number(result);
   }
 
@@ -123,8 +35,9 @@ export class SetKeyspace<K, V> {
   async remove(key: K, ...members: V[]): Promise<number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    const serialized = members.map((m) => this.serialize(m));
-    const result = await this.cluster.impl.srem(mappedKey, serialized, source);
+    const serialized = members.map((m) => this.serializeItem(m));
+    const ttlMs = this.resolveTtl();
+    const result = await this.cluster.impl.srem(mappedKey, serialized, ttlMs, source);
     return Number(result);
   }
 
@@ -134,7 +47,7 @@ export class SetKeyspace<K, V> {
   async contains(key: K, member: V): Promise<boolean> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    const serialized = this.serialize(member);
+    const serialized = this.serializeItem(member);
     return await this.cluster.impl.sismember(mappedKey, serialized, source);
   }
 
@@ -145,7 +58,7 @@ export class SetKeyspace<K, V> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const results = await this.cluster.impl.smembers(mappedKey, source);
-    return results.map((r) => this.deserialize(r));
+    return results.map((r) => this.deserializeItem(r));
   }
 
   /**
@@ -170,14 +83,15 @@ export class SetKeyspace<K, V> {
    * Removes and returns a random member from the set.
    * @returns The removed member, or undefined if the set is empty.
    */
-  async pop(key: K): Promise<V | undefined> {
+  async pop(key: K, options?: WriteOptions): Promise<V | undefined> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    const results = await this.cluster.impl.spop(mappedKey, 1, source);
+    const ttlMs = this.resolveTtl(options);
+    const results = await this.cluster.impl.spop(mappedKey, 1, ttlMs, source);
     if (results.length === 0) {
       return undefined;
     }
-    return this.deserialize(results[0]);
+    return this.deserializeItem(results[0]);
   }
 
   /**
@@ -185,11 +99,12 @@ export class SetKeyspace<K, V> {
    * @param count - Number of members to pop.
    * @returns Array of removed members (may be fewer than count if set is small).
    */
-  async popMany(key: K, count: number): Promise<V[]> {
+  async popMany(key: K, count: number, options?: WriteOptions): Promise<V[]> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    const results = await this.cluster.impl.spop(mappedKey, count, source);
-    return results.map((r) => this.deserialize(r));
+    const ttlMs = this.resolveTtl(options);
+    const results = await this.cluster.impl.spop(mappedKey, count, ttlMs, source);
+    return results.map((r) => this.deserializeItem(r));
   }
 
   /**
@@ -203,7 +118,7 @@ export class SetKeyspace<K, V> {
     if (results.length === 0) {
       return undefined;
     }
-    return this.deserialize(results[0]);
+    return this.deserializeItem(results[0]);
   }
 
   /**
@@ -218,7 +133,7 @@ export class SetKeyspace<K, V> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const results = await this.cluster.impl.srandmember(mappedKey, count, source);
-    return results.map((r) => this.deserialize(r));
+    return results.map((r) => this.deserializeItem(r));
   }
 
   /**
@@ -234,7 +149,7 @@ export class SetKeyspace<K, V> {
     const mappedKey = this.mapKey(key);
     // Negative count in Redis SRANDMEMBER allows duplicates
     const results = await this.cluster.impl.srandmember(mappedKey, -count, source);
-    return results.map((r) => this.deserialize(r));
+    return results.map((r) => this.deserializeItem(r));
   }
 
   /**
@@ -249,7 +164,7 @@ export class SetKeyspace<K, V> {
     const source = getCurrentRequest();
     const mappedKeys = keys.map((k) => this.mapKey(k));
     const results = await this.cluster.impl.sdiff(mappedKeys, source);
-    return results.map((r) => this.deserialize(r));
+    return results.map((r) => this.deserializeItem(r));
   }
 
   /**
@@ -265,7 +180,8 @@ export class SetKeyspace<K, V> {
     const source = getCurrentRequest();
     const destKey = this.mapKey(destination);
     const mappedKeys = keys.map((k) => this.mapKey(k));
-    const result = await this.cluster.impl.sdiffstore(destKey, mappedKeys, source);
+    const ttlMs = this.resolveTtl();
+    const result = await this.cluster.impl.sdiffstore(destKey, mappedKeys, ttlMs, source);
     return Number(result);
   }
 
@@ -281,7 +197,7 @@ export class SetKeyspace<K, V> {
     const source = getCurrentRequest();
     const mappedKeys = keys.map((k) => this.mapKey(k));
     const results = await this.cluster.impl.sinter(mappedKeys, source);
-    return results.map((r) => this.deserialize(r));
+    return results.map((r) => this.deserializeItem(r));
   }
 
   /**
@@ -297,7 +213,8 @@ export class SetKeyspace<K, V> {
     const source = getCurrentRequest();
     const destKey = this.mapKey(destination);
     const mappedKeys = keys.map((k) => this.mapKey(k));
-    const result = await this.cluster.impl.sinterstore(destKey, mappedKeys, source);
+    const ttlMs = this.resolveTtl();
+    const result = await this.cluster.impl.sinterstore(destKey, mappedKeys, ttlMs, source);
     return Number(result);
   }
 
@@ -313,7 +230,7 @@ export class SetKeyspace<K, V> {
     const source = getCurrentRequest();
     const mappedKeys = keys.map((k) => this.mapKey(k));
     const results = await this.cluster.impl.sunion(mappedKeys, source);
-    return results.map((r) => this.deserialize(r));
+    return results.map((r) => this.deserializeItem(r));
   }
 
   /**
@@ -329,7 +246,8 @@ export class SetKeyspace<K, V> {
     const source = getCurrentRequest();
     const destKey = this.mapKey(destination);
     const mappedKeys = keys.map((k) => this.mapKey(k));
-    const result = await this.cluster.impl.sunionstore(destKey, mappedKeys, source);
+    const ttlMs = this.resolveTtl();
+    const result = await this.cluster.impl.sunionstore(destKey, mappedKeys, ttlMs, source);
     return Number(result);
   }
 
@@ -340,21 +258,67 @@ export class SetKeyspace<K, V> {
    * @param member - The member to move.
    * @returns true if the member was moved, false if not found in source.
    */
-  async move(src: K, dst: K, member: V): Promise<boolean> {
+  async move(src: K, dst: K, member: V, options?: WriteOptions): Promise<boolean> {
     const source = getCurrentRequest();
     const srcKey = this.mapKey(src);
     const dstKey = this.mapKey(dst);
-    const serialized = this.serialize(member);
-    return await this.cluster.impl.smove(srcKey, dstKey, serialized, source);
+    const serialized = this.serializeItem(member);
+    const ttlMs = this.resolveTtl(options);
+    return await this.cluster.impl.smove(srcKey, dstKey, serialized, ttlMs, source);
+  }
+}
+
+/**
+ * StringSetKeyspace stores sets of unique string values.
+ *
+ * @example
+ * ```ts
+ * const tags = new StringSetKeyspace<string>(cluster, {
+ *   keyPattern: "tags/:articleId",
+ * });
+ *
+ * await tags.add("article1", "typescript", "programming", "web");
+ * const hasTech = await tags.contains("article1", "typescript");
+ * const allTags = await tags.members("article1");
+ * ```
+ */
+export class StringSetKeyspace<K> extends SetKeyspaceBase<K, string> {
+  constructor(cluster: CacheCluster, config: KeyspaceConfig<K>) {
+    super(cluster, config);
   }
 
-  /**
-   * Deletes one or more keys.
-   * @returns The number of keys that were deleted.
-   */
-  async delete(...keys: K[]): Promise<number> {
-    const source = getCurrentRequest();
-    const mappedKeys = keys.map((k) => this.mapKey(k));
-    return await this.cluster.impl.delete(mappedKeys, source);
+  protected serializeItem(value: string): Buffer {
+    return Buffer.from(value, "utf-8");
+  }
+
+  protected deserializeItem(data: Buffer): string {
+    return data.toString("utf-8");
+  }
+}
+
+/**
+ * NumberSetKeyspace stores sets of unique numeric values.
+ *
+ * @example
+ * ```ts
+ * const scores = new NumberSetKeyspace<string>(cluster, {
+ *   keyPattern: "unique-scores/:gameId",
+ * });
+ *
+ * await scores.add("game1", 100, 200, 300);
+ * const hasScore = await scores.contains("game1", 100);
+ * ```
+ */
+export class NumberSetKeyspace<K> extends SetKeyspaceBase<K, number> {
+  constructor(cluster: CacheCluster, config: KeyspaceConfig<K>) {
+    super(cluster, config);
+  }
+
+  protected serializeItem(value: number): Buffer {
+    return Buffer.from(String(value), "utf-8");
+  }
+
+  protected deserializeItem(data: Buffer): number {
+    return Number(data.toString("utf-8"));
   }
 }

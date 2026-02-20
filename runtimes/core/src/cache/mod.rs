@@ -6,4 +6,4 @@ mod pool;
 
 pub use error::{Error, Result};
 pub use manager::{Cluster, ClusterImpl, Manager, ManagerConfig};
-pub use pool::{ListDirection, Pool};
+pub use pool::{ListDirection, Pool, TtlOp};

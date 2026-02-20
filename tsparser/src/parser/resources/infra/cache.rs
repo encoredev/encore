@@ -88,10 +88,14 @@ pub enum KeyspaceType {
     Int,
     /// Stores float values (f64).
     Float,
-    /// Stores list of values.
-    List,
-    /// Stores set of values.
-    Set,
+    /// Stores list of string values.
+    StringList,
+    /// Stores list of numeric values.
+    NumberList,
+    /// Stores set of unique string values.
+    StringSet,
+    /// Stores set of unique numeric values.
+    NumberSet,
 }
 
 impl KeyspaceType {
@@ -101,8 +105,10 @@ impl KeyspaceType {
             KeyspaceType::String => "string",
             KeyspaceType::Int => "int",
             KeyspaceType::Float => "float",
-            KeyspaceType::List => "list",
-            KeyspaceType::Set => "set",
+            KeyspaceType::StringList => "string_list",
+            KeyspaceType::NumberList => "number_list",
+            KeyspaceType::StringSet => "string_set",
+            KeyspaceType::NumberSet => "number_set",
         }
     }
 }
@@ -218,14 +224,24 @@ const KEYSPACE_CONSTRUCTORS: &[KeyspaceConstructorSpec] = &[
         num_type_params: 1, // Only key type, value is implicitly float
     },
     KeyspaceConstructorSpec {
-        class_name: "ListKeyspace",
-        keyspace_type: KeyspaceType::List,
-        num_type_params: 2, // Key type and element type
+        class_name: "StringListKeyspace",
+        keyspace_type: KeyspaceType::StringList,
+        num_type_params: 1, // Only key type, value is implicitly string
     },
     KeyspaceConstructorSpec {
-        class_name: "SetKeyspace",
-        keyspace_type: KeyspaceType::Set,
-        num_type_params: 2, // Key type and element type
+        class_name: "NumberListKeyspace",
+        keyspace_type: KeyspaceType::NumberList,
+        num_type_params: 1, // Only key type, value is implicitly number
+    },
+    KeyspaceConstructorSpec {
+        class_name: "StringSetKeyspace",
+        keyspace_type: KeyspaceType::StringSet,
+        num_type_params: 1, // Only key type, value is implicitly string
+    },
+    KeyspaceConstructorSpec {
+        class_name: "NumberSetKeyspace",
+        keyspace_type: KeyspaceType::NumberSet,
+        num_type_params: 1, // Only key type, value is implicitly number
     },
     KeyspaceConstructorSpec {
         class_name: "StructKeyspace",
@@ -307,11 +323,13 @@ pub const CACHE_KEYSPACE_PARSER: ResourceParser = ResourceParser {
                 use crate::parser::types::{Basic, Type};
                 use litparser::Sp;
                 match spec.keyspace_type {
-                    KeyspaceType::String => Some(Sp::new(r.expr.span(), Type::Basic(Basic::String))),
-                    KeyspaceType::Int | KeyspaceType::Float => {
+                    KeyspaceType::String | KeyspaceType::StringList | KeyspaceType::StringSet => {
+                        Some(Sp::new(r.expr.span(), Type::Basic(Basic::String)))
+                    }
+                    KeyspaceType::Int | KeyspaceType::Float | KeyspaceType::NumberList | KeyspaceType::NumberSet => {
                         Some(Sp::new(r.expr.span(), Type::Basic(Basic::Number)))
                     }
-                    // List, Set, and Struct keyspaces require explicit value type parameter
+                    // Struct keyspace requires explicit value type parameter
                     _ => None,
                 }
             };

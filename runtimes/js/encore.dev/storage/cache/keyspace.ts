@@ -65,13 +65,15 @@ interface KeyPatternSegment {
 }
 
 /**
- * Base keyspace class with common operations.
+ * Base keyspace class with key mapping, TTL resolution, with(), and delete().
+ * Shared by all keyspace types (basic, list, set).
  * @internal
  */
-export abstract class BaseKeyspace<K, V> {
+export abstract class KeyspaceBase<K> {
   protected readonly cluster: CacheCluster;
   protected readonly config: KeyspaceConfig<K>;
   protected readonly keyMapper: (key: K) => string;
+  private _effectiveExpiry?: Expiry;
 
   constructor(cluster: CacheCluster, config: KeyspaceConfig<K>) {
     this.cluster = cluster;
@@ -119,17 +121,54 @@ export abstract class BaseKeyspace<K, V> {
   }
 
   /**
-   * Resolves the TTL in milliseconds for a write operation.
+   * Resolves the TTL for a write operation.
+   * Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/NeverExpire, >=0=ms
    */
-  protected getTtlMs(options?: WriteOptions): number | undefined {
-    const expiry = options?.expiry ?? this.config.defaultExpiry;
+  protected resolveTtl(options?: WriteOptions): number | undefined {
+    const expiry = options?.expiry ?? this._effectiveExpiry ?? this.config.defaultExpiry;
     if (!expiry) return undefined;
 
     const resolved = resolveExpiry(expiry);
-    // null means KeepTTL which we handle differently at the cache level
-    // For now, treat it as undefined (no TTL change)
-    if (resolved === null) return undefined;
-    return resolved;
+    if (resolved === null) return -1;       // KeepTTL
+    if (resolved === undefined) return -2;   // NeverExpire → Persist
+    return resolved;                         // milliseconds
+  }
+
+  /**
+   * Returns a shallow clone of this keyspace with the specified write options applied.
+   * This allows setting expiry for a chain of operations.
+   *
+   * @example
+   * ```ts
+   * await myKeyspace.with({ expiry: ExpireIn(5000) }).set(key, value);
+   * ```
+   */
+  with(options: WriteOptions): this {
+    const clone = Object.create(Object.getPrototypeOf(this)) as this;
+    Object.assign(clone, this);
+    (clone as any)._effectiveExpiry = options.expiry ?? this._effectiveExpiry;
+    return clone;
+  }
+
+  /**
+   * Deletes one or more keys.
+   * @returns The number of keys that were deleted.
+   */
+  async delete(...keys: K[]): Promise<number> {
+    const source = getCurrentRequest();
+    const mappedKeys = keys.map((k) => this.mapKey(k));
+    return await this.cluster.impl.delete(mappedKeys, source);
+  }
+}
+
+/**
+ * Base keyspace class with common operations for value-based keyspaces.
+ * Extends KeyspaceBase with get/set/replace/etc operations.
+ * @internal
+ */
+export abstract class BaseKeyspace<K, V> extends KeyspaceBase<K> {
+  constructor(cluster: CacheCluster, config: KeyspaceConfig<K>) {
+    super(cluster, config);
   }
 
   /**
@@ -141,31 +180,6 @@ export abstract class BaseKeyspace<K, V> {
    * Deserializes a Buffer from storage to a value.
    */
   protected abstract deserialize(data: Buffer): V;
-
-  /**
-   * Returns a new keyspace wrapper with the specified write options.
-   * This allows setting expiry for a chain of operations.
-   *
-   * @example
-   * ```ts
-   * await myKeyspace.with({ expiry: ExpireIn(5000) }).set(key, value);
-   * ```
-   */
-  with(options: WriteOptions): this {
-    const wrapper = Object.create(this) as this;
-    const originalConfig = this.config;
-
-    Object.defineProperty(wrapper, "config", {
-      get() {
-        return {
-          ...originalConfig,
-          defaultExpiry: options.expiry ?? originalConfig.defaultExpiry,
-        };
-      },
-    });
-
-    return wrapper;
-  }
 
   /**
    * Gets the value for the given key.
@@ -205,7 +219,7 @@ export abstract class BaseKeyspace<K, V> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const serialized = this.serialize(value);
-    const ttlMs = this.getTtlMs(options);
+    const ttlMs = this.resolveTtl(options);
 
     await this.cluster.impl.set(mappedKey, serialized, ttlMs, source);
   }
@@ -218,7 +232,7 @@ export abstract class BaseKeyspace<K, V> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const serialized = this.serialize(value);
-    const ttlMs = this.getTtlMs(options);
+    const ttlMs = this.resolveTtl(options);
 
     const set = await this.cluster.impl.setIfNotExists(mappedKey, serialized, ttlMs, source);
 
@@ -235,7 +249,7 @@ export abstract class BaseKeyspace<K, V> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const serialized = this.serialize(value);
-    const ttlMs = this.getTtlMs(options);
+    const ttlMs = this.resolveTtl(options);
 
     const replaced = await this.cluster.impl.replace(mappedKey, serialized, ttlMs, source);
 
@@ -252,7 +266,7 @@ export abstract class BaseKeyspace<K, V> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const serialized = this.serialize(value);
-    const ttlMs = this.getTtlMs(options);
+    const ttlMs = this.resolveTtl(options);
 
     const oldValue = await this.cluster.impl.getAndSet(mappedKey, serialized, ttlMs, source);
 
@@ -278,16 +292,6 @@ export abstract class BaseKeyspace<K, V> {
     }
 
     return this.deserialize(value);
-  }
-
-  /**
-   * Deletes one or more keys.
-   * @returns The number of keys that were deleted.
-   */
-  async delete(...keys: K[]): Promise<number> {
-    const source = getCurrentRequest();
-    const mappedKeys = keys.map((k) => this.mapKey(k));
-    return await this.cluster.impl.delete(mappedKeys, source);
   }
 
   /**
