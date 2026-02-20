@@ -102,7 +102,7 @@ impl AppValidator<'_> {
     }
 
     fn validate_apis(&self) {
-        let mut seen = std::collections::HashMap::new();
+        let mut seen = HashMap::new();
         for resource in &self.parse.resources {
             if let Resource::APIEndpoint(ep) = resource {
                 let key = (ep.service_name.clone(), ep.name.clone());
@@ -279,7 +279,7 @@ impl AppValidator<'_> {
     }
 
     fn validate_pubsub(&self) {
-        let mut seen_topics = std::collections::HashMap::new();
+        let mut seen_topics = HashMap::new();
         for res in self.parse.resources.iter() {
             if let Resource::PubSubTopic(topic) = &res {
                 self.validate_validations(&topic.message_type);
@@ -321,7 +321,7 @@ impl AppValidator<'_> {
     }
 
     fn validate_crons(&self) {
-        let mut seen = std::collections::HashMap::new();
+        let mut seen = HashMap::new();
         for resource in &self.parse.resources {
             if let Resource::CronJob(cron) = resource {
                 if let Some(prev_span) = seen.insert(cron.name.clone(), cron.span) {
@@ -337,7 +337,7 @@ impl AppValidator<'_> {
     }
 
     fn validate_buckets(&self) {
-        let mut seen = std::collections::HashMap::new();
+        let mut seen = HashMap::new();
         for resource in &self.parse.resources {
             if let Resource::Bucket(bucket) = resource {
                 if let Some(prev_span) = seen.insert(bucket.name.clone(), bucket.span) {
@@ -374,7 +374,7 @@ impl AppValidator<'_> {
     }
 
     fn validate_sqldb(&self) {
-        let mut seen = std::collections::HashMap::new();
+        let mut seen = HashMap::new();
         for resource in &self.parse.resources {
             if let Resource::SQLDatabase(db) = resource {
                 if let Some(prev_range) = seen.insert(db.name.clone(), db.span) {
@@ -390,7 +390,7 @@ impl AppValidator<'_> {
     }
 
     fn validate_metrics(&self) {
-        let mut seen = std::collections::HashMap::new();
+        let mut seen = HashMap::new();
         for resource in &self.parse.resources {
             if let Resource::Metric(metric) = resource {
                 if let Some(prev_span) = seen.insert(metric.name.clone(), metric.span) {
