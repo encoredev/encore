@@ -2018,7 +2018,6 @@ dependencies = [
  "sysinfo",
  "thiserror 1.0.69",
  "tokio",
- "tokio-native-tls",
  "tokio-nsq",
  "tokio-postgres",
  "tokio-retry",
