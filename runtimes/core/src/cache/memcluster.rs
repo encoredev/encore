@@ -86,7 +86,9 @@ impl Entry {
         match ttl {
             None | Some(TtlOp::Keep) => {} // preserve existing TTL
             Some(TtlOp::SetMs(ms)) => self.set_ttl(ms),
-            Some(TtlOp::Persist) => { self.expires_at = None; }
+            Some(TtlOp::Persist) => {
+                self.expires_at = None;
+            }
         }
     }
 
@@ -156,7 +158,9 @@ impl MemoryStore {
         match ttl {
             Some(TtlOp::Keep) => {
                 // Preserve existing TTL: get old expiry, insert new value with same expiry
-                let old_expires = data.get(key).and_then(|e| if e.is_expired() { None } else { e.expires_at });
+                let old_expires =
+                    data.get(key)
+                        .and_then(|e| if e.is_expired() { None } else { e.expires_at });
                 let mut entry = Entry::new(Value::String(value.to_vec()));
                 entry.expires_at = old_expires;
                 data.insert(key.to_string(), entry);
@@ -223,15 +227,18 @@ impl MemoryStore {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
-        let (old_value, old_expires) = data.get(key).map(|entry| {
-            if entry.is_expired() {
-                (None, None)
-            } else if let Value::String(v) = &entry.value {
-                (Some(v.clone()), entry.expires_at)
-            } else {
-                (None, None)
-            }
-        }).unwrap_or((None, None));
+        let (old_value, old_expires) = data
+            .get(key)
+            .map(|entry| {
+                if entry.is_expired() {
+                    (None, None)
+                } else if let Value::String(v) = &entry.value {
+                    (Some(v.clone()), entry.expires_at)
+                } else {
+                    (None, None)
+                }
+            })
+            .unwrap_or((None, None));
 
         match ttl {
             Some(TtlOp::Keep) => {
@@ -268,8 +275,13 @@ impl MemoryStore {
         let mut data = self.data.write().unwrap();
         let mut count = 0u64;
         for key in keys {
-            if data.remove(*key).is_some() {
-                count += 1;
+            if let Some(entry) = data.get(*key) {
+                if !entry.is_expired() {
+                    data.remove(*key);
+                    count += 1;
+                } else {
+                    data.remove(*key);
+                }
             }
         }
         Ok(count)
@@ -354,7 +366,13 @@ impl MemoryStore {
         }
     }
 
-    pub fn set_range(&self, key: &str, offset: i64, value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
+    pub fn set_range(
+        &self,
+        key: &str,
+        offset: i64,
+        value: &[u8],
+        ttl: Option<TtlOp>,
+    ) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -520,7 +538,12 @@ impl MemoryStore {
         Ok(len)
     }
 
-    pub fn lpop(&self, key: &str, count: Option<usize>, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>> {
+    pub fn lpop(
+        &self,
+        key: &str,
+        count: Option<usize>,
+        ttl: Option<TtlOp>,
+    ) -> Result<Vec<Vec<u8>>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -550,7 +573,12 @@ impl MemoryStore {
         result
     }
 
-    pub fn rpop(&self, key: &str, count: Option<usize>, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>> {
+    pub fn rpop(
+        &self,
+        key: &str,
+        count: Option<usize>,
+        ttl: Option<TtlOp>,
+    ) -> Result<Vec<Vec<u8>>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -710,7 +738,13 @@ impl MemoryStore {
         result
     }
 
-    pub fn linsert_before(&self, key: &str, pivot: &[u8], value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
+    pub fn linsert_before(
+        &self,
+        key: &str,
+        pivot: &[u8],
+        value: &[u8],
+        ttl: Option<TtlOp>,
+    ) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -736,7 +770,13 @@ impl MemoryStore {
         result
     }
 
-    pub fn linsert_after(&self, key: &str, pivot: &[u8], value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
+    pub fn linsert_after(
+        &self,
+        key: &str,
+        pivot: &[u8],
+        value: &[u8],
+        ttl: Option<TtlOp>,
+    ) -> Result<i64> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -985,7 +1025,12 @@ impl MemoryStore {
         }
     }
 
-    pub fn spop(&self, key: &str, count: Option<usize>, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>> {
+    pub fn spop(
+        &self,
+        key: &str,
+        count: Option<usize>,
+        ttl: Option<TtlOp>,
+    ) -> Result<Vec<Vec<u8>>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -1033,14 +1078,15 @@ impl MemoryStore {
                 let mut results = Vec::with_capacity(abs_count);
 
                 if allow_duplicates {
-                    // Allow duplicates
+                    // Allow duplicates — each pick is independently random
                     use std::collections::hash_map::RandomState;
                     use std::hash::{BuildHasher, Hasher};
-                    let hasher = RandomState::new();
 
-                    for i in 0..abs_count {
-                        let idx = hasher.build_hasher().finish() as usize % members.len();
-                        results.push(members[(idx + i) % members.len()].clone());
+                    for _ in 0..abs_count {
+                        // RandomState::new() uses per-call random seeds
+                        let idx =
+                            RandomState::new().build_hasher().finish() as usize % members.len();
+                        results.push(members[idx].clone());
                     }
                 } else {
                     // No duplicates
@@ -1097,15 +1143,40 @@ impl MemoryStore {
     }
 
     pub fn sdiffstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64> {
-        let diff = self.sdiff(keys)?;
-        let count = diff.len() as i64;
-
+        self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
-        let set: HashSet<_> = diff.into_iter().collect();
-        data.insert(dest.to_string(), Entry::new(Value::Set(set)));
-        if let Some(entry) = data.get_mut(dest) {
-            entry.apply_ttl_op(ttl);
+
+        if keys.is_empty() {
+            data.insert(
+                dest.to_string(),
+                Entry::new_with_ttl_op(Value::Set(HashSet::new()), ttl),
+            );
+            return Ok(0);
         }
+
+        let first = match self.get_set(&data, keys[0])? {
+            Some(set) => set.clone(),
+            None => {
+                data.insert(
+                    dest.to_string(),
+                    Entry::new_with_ttl_op(Value::Set(HashSet::new()), ttl),
+                );
+                return Ok(0);
+            }
+        };
+
+        let mut result = first;
+        for key in &keys[1..] {
+            if let Some(set) = self.get_set(&data, key)? {
+                result = result.difference(set).cloned().collect();
+            }
+        }
+
+        let count = result.len() as i64;
+        data.insert(
+            dest.to_string(),
+            Entry::new_with_ttl_op(Value::Set(result), ttl),
+        );
         Ok(count)
     }
 
@@ -1135,15 +1206,49 @@ impl MemoryStore {
     }
 
     pub fn sinterstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64> {
-        let inter = self.sinter(keys)?;
-        let count = inter.len() as i64;
-
+        self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
-        let set: HashSet<_> = inter.into_iter().collect();
-        data.insert(dest.to_string(), Entry::new(Value::Set(set)));
-        if let Some(entry) = data.get_mut(dest) {
-            entry.apply_ttl_op(ttl);
+
+        if keys.is_empty() {
+            data.insert(
+                dest.to_string(),
+                Entry::new_with_ttl_op(Value::Set(HashSet::new()), ttl),
+            );
+            return Ok(0);
         }
+
+        let first = match self.get_set(&data, keys[0])? {
+            Some(set) => set.clone(),
+            None => {
+                data.insert(
+                    dest.to_string(),
+                    Entry::new_with_ttl_op(Value::Set(HashSet::new()), ttl),
+                );
+                return Ok(0);
+            }
+        };
+
+        let mut result = first;
+        for key in &keys[1..] {
+            match self.get_set(&data, key)? {
+                Some(set) => {
+                    result = result.intersection(set).cloned().collect();
+                }
+                None => {
+                    data.insert(
+                        dest.to_string(),
+                        Entry::new_with_ttl_op(Value::Set(HashSet::new()), ttl),
+                    );
+                    return Ok(0);
+                }
+            }
+        }
+
+        let count = result.len() as i64;
+        data.insert(
+            dest.to_string(),
+            Entry::new_with_ttl_op(Value::Set(result), ttl),
+        );
         Ok(count)
     }
 
@@ -1161,15 +1266,21 @@ impl MemoryStore {
     }
 
     pub fn sunionstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64> {
-        let union = self.sunion(keys)?;
-        let count = union.len() as i64;
-
+        self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
-        let set: HashSet<_> = union.into_iter().collect();
-        data.insert(dest.to_string(), Entry::new(Value::Set(set)));
-        if let Some(entry) = data.get_mut(dest) {
-            entry.apply_ttl_op(ttl);
+
+        let mut result = HashSet::new();
+        for key in keys {
+            if let Some(set) = self.get_set(&data, key)? {
+                result.extend(set.iter().cloned());
+            }
         }
+
+        let count = result.len() as i64;
+        data.insert(
+            dest.to_string(),
+            Entry::new_with_ttl_op(Value::Set(result), ttl),
+        );
         Ok(count)
     }
 

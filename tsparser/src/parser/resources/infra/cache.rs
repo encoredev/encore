@@ -167,16 +167,18 @@ pub const CACHE_CLUSTER_PARSER: ResourceParser = ResourceParser {
             for r in iter_references::<Res>(&module, &names) {
                 let r = report_and_continue!(r);
 
-                let eviction_policy = match r.config.as_ref().and_then(|c| c.evictionPolicy.as_ref()) {
-                    Some(policy) => {
-                        match policy.parse() {
-                            Ok(p) => p,
-                            Err(_) => {
-                                policy.span().err("invalid eviction policy: must be one of noeviction, allkeys-lru, allkeys-lfu, allkeys-random, volatile-lru, volatile-lfu, volatile-ttl, or volatile-random");
-                                continue;
-                            }
+                let eviction_policy = match r
+                    .config
+                    .as_ref()
+                    .and_then(|c| c.evictionPolicy.as_ref())
+                {
+                    Some(policy) => match policy.parse() {
+                        Ok(p) => p,
+                        Err(_) => {
+                            policy.span().err("invalid eviction policy: must be one of noeviction, allkeys-lru, allkeys-lfu, allkeys-random, volatile-lru, volatile-lfu, volatile-ttl, or volatile-random");
+                            continue;
                         }
-                    }
+                    },
                     None => EvictionPolicy::default(),
                 };
 
@@ -326,7 +328,10 @@ pub const CACHE_KEYSPACE_PARSER: ResourceParser = ResourceParser {
                     KeyspaceType::String | KeyspaceType::StringList | KeyspaceType::StringSet => {
                         Some(Sp::new(r.expr.span(), Type::Basic(Basic::String)))
                     }
-                    KeyspaceType::Int | KeyspaceType::Float | KeyspaceType::NumberList | KeyspaceType::NumberSet => {
+                    KeyspaceType::Int
+                    | KeyspaceType::Float
+                    | KeyspaceType::NumberList
+                    | KeyspaceType::NumberSet => {
                         Some(Sp::new(r.expr.span(), Type::Basic(Basic::Number)))
                     }
                     // Struct keyspace requires explicit value type parameter
@@ -416,9 +421,10 @@ pub const CACHE_KEYSPACE_PARSER: ResourceParser = ResourceParser {
                         let field_name = match &field.name {
                             FieldName::String(s) => s.clone(),
                             FieldName::Symbol(_) => {
-                                key_type_ast.unwrap().span().err(
-                                    "cache key type must not contain symbol fields",
-                                );
+                                key_type_ast
+                                    .unwrap()
+                                    .span()
+                                    .err("cache key type must not contain symbol fields");
                                 has_error = true;
                                 continue;
                             }

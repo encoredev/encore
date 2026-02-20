@@ -190,8 +190,12 @@ impl Pool {
         let mut cmd = redis::cmd("SET");
         cmd.arg(&key).arg(value);
         match ttl {
-            Some(TtlOp::Keep) => { cmd.arg("KEEPTTL"); }
-            Some(TtlOp::SetMs(ms)) => { cmd.arg("PX").arg(ms); }
+            Some(TtlOp::Keep) => {
+                cmd.arg("KEEPTTL");
+            }
+            Some(TtlOp::SetMs(ms)) => {
+                cmd.arg("PX").arg(ms);
+            }
             Some(TtlOp::Persist) | None => {} // No TTL flags
         }
         let result: RedisResult<()> = cmd.query_async(&mut *conn).await;
@@ -241,7 +245,9 @@ impl Pool {
             let mut cmd = redis::cmd("SET");
             cmd.arg(&key).arg(value).arg("NX");
             match ttl {
-                Some(TtlOp::SetMs(ms)) => { cmd.arg("PX").arg(ms); }
+                Some(TtlOp::SetMs(ms)) => {
+                    cmd.arg("PX").arg(ms);
+                }
                 _ => {} // KeepTTL doesn't apply to NX (new key has no TTL to keep)
             }
             cmd.query_async(&mut *conn).await
@@ -297,8 +303,12 @@ impl Pool {
             let mut cmd = redis::cmd("SET");
             cmd.arg(&key).arg(value).arg("XX");
             match ttl {
-                Some(TtlOp::Keep) => { cmd.arg("KEEPTTL"); }
-                Some(TtlOp::SetMs(ms)) => { cmd.arg("PX").arg(ms); }
+                Some(TtlOp::Keep) => {
+                    cmd.arg("KEEPTTL");
+                }
+                Some(TtlOp::SetMs(ms)) => {
+                    cmd.arg("PX").arg(ms);
+                }
                 Some(TtlOp::Persist) | None => {}
             }
             cmd.query_async(&mut *conn).await
@@ -346,8 +356,12 @@ impl Pool {
             let mut cmd = redis::cmd("SET");
             cmd.arg(&key).arg(value).arg("GET");
             match ttl {
-                Some(TtlOp::Keep) => { cmd.arg("KEEPTTL"); }
-                Some(TtlOp::SetMs(ms)) => { cmd.arg("PX").arg(ms); }
+                Some(TtlOp::Keep) => {
+                    cmd.arg("KEEPTTL");
+                }
+                Some(TtlOp::SetMs(ms)) => {
+                    cmd.arg("PX").arg(ms);
+                }
                 Some(TtlOp::Persist) | None => {}
             }
             cmd.query_async(&mut *conn).await
@@ -469,7 +483,13 @@ impl Pool {
     // ==================== String Operations ====================
 
     /// Append to a string value.
-    pub async fn append(&self, key: &str, value: &[u8], ttl: Option<TtlOp>, source: Option<&Request>) -> Result<i64> {
+    pub async fn append(
+        &self,
+        key: &str,
+        value: &[u8],
+        ttl: Option<TtlOp>,
+        source: Option<&Request>,
+    ) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("append", true, &[&key], source);
 
@@ -487,16 +507,29 @@ impl Pool {
         let result: RedisResult<i64> = match ttl {
             None | Some(TtlOp::Keep) => (*conn).append(&key, value).await,
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("APPEND").arg(&key).arg(value)
-                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("APPEND")
+                    .arg(&key)
+                    .arg(value)
+                    .cmd("PEXPIRE")
+                    .arg(&key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("APPEND").arg(&key).arg(value)
-                    .cmd("PERSIST").arg(&key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("APPEND")
+                    .arg(&key)
+                    .arg(value)
+                    .cmd("PERSIST")
+                    .arg(&key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -577,16 +610,31 @@ impl Pool {
         let result: RedisResult<i64> = match ttl {
             None | Some(TtlOp::Keep) => (*conn).setrange(&key, offset as isize, value).await,
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("SETRANGE").arg(&key).arg(offset).arg(value)
-                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("SETRANGE")
+                    .arg(&key)
+                    .arg(offset)
+                    .arg(value)
+                    .cmd("PEXPIRE")
+                    .arg(&key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("SETRANGE").arg(&key).arg(offset).arg(value)
-                    .cmd("PERSIST").arg(&key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("SETRANGE")
+                    .arg(&key)
+                    .arg(offset)
+                    .arg(value)
+                    .cmd("PERSIST")
+                    .arg(&key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -634,7 +682,13 @@ impl Pool {
     // ==================== Numeric Operations ====================
 
     /// Increment an integer value.
-    pub async fn incr_by(&self, key: &str, delta: i64, ttl: Option<TtlOp>, source: Option<&Request>) -> Result<i64> {
+    pub async fn incr_by(
+        &self,
+        key: &str,
+        delta: i64,
+        ttl: Option<TtlOp>,
+        source: Option<&Request>,
+    ) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("incrby", true, &[&key], source);
 
@@ -652,16 +706,29 @@ impl Pool {
         let result: RedisResult<i64> = match ttl {
             None | Some(TtlOp::Keep) => (*conn).incr(&key, delta).await,
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("INCRBY").arg(&key).arg(delta)
-                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("INCRBY")
+                    .arg(&key)
+                    .arg(delta)
+                    .cmd("PEXPIRE")
+                    .arg(&key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("INCRBY").arg(&key).arg(delta)
-                    .cmd("PERSIST").arg(&key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("INCRBY")
+                    .arg(&key)
+                    .arg(delta)
+                    .cmd("PERSIST")
+                    .arg(&key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -702,16 +769,29 @@ impl Pool {
         let result: RedisResult<f64> = match ttl {
             None | Some(TtlOp::Keep) => (*conn).incr(&key, delta).await,
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("INCRBYFLOAT").arg(&key).arg(delta)
-                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("INCRBYFLOAT")
+                    .arg(&key)
+                    .arg(delta)
+                    .cmd("PEXPIRE")
+                    .arg(&key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("INCRBYFLOAT").arg(&key).arg(delta)
-                    .cmd("PERSIST").arg(&key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("INCRBYFLOAT")
+                    .arg(&key)
+                    .arg(delta)
+                    .cmd("PERSIST")
+                    .arg(&key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -756,14 +836,18 @@ impl Pool {
             Some(TtlOp::SetMs(ms)) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("LPUSH").arg(&key);
-                for v in values { pipe.arg(*v); }
+                for v in values {
+                    pipe.arg(*v);
+                }
                 pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
                 pipe.query_async(&mut *conn).await
             }
             Some(TtlOp::Persist) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("LPUSH").arg(&key);
-                for v in values { pipe.arg(*v); }
+                for v in values {
+                    pipe.arg(*v);
+                }
                 pipe.cmd("PERSIST").arg(&key).ignore();
                 pipe.query_async(&mut *conn).await
             }
@@ -808,14 +892,18 @@ impl Pool {
             Some(TtlOp::SetMs(ms)) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("RPUSH").arg(&key);
-                for v in values { pipe.arg(*v); }
+                for v in values {
+                    pipe.arg(*v);
+                }
                 pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
                 pipe.query_async(&mut *conn).await
             }
             Some(TtlOp::Persist) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("RPUSH").arg(&key);
-                for v in values { pipe.arg(*v); }
+                for v in values {
+                    pipe.arg(*v);
+                }
                 pipe.cmd("PERSIST").arg(&key).ignore();
                 pipe.query_async(&mut *conn).await
             }
@@ -856,26 +944,28 @@ impl Pool {
 
         let mut conn = self.conn().await?;
         let result: RedisResult<Vec<Vec<u8>>> = match ttl {
-            None | Some(TtlOp::Keep) => {
-                match count.and_then(NonZeroUsize::new) {
-                    Some(n) => (*conn).lpop(&key, Some(n)).await,
-                    None => {
-                        let single: RedisResult<Option<Vec<u8>>> = (*conn).lpop(&key, None).await;
-                        single.map(|v| v.into_iter().collect())
-                    }
+            None | Some(TtlOp::Keep) => match count.and_then(NonZeroUsize::new) {
+                Some(n) => (*conn).lpop(&key, Some(n)).await,
+                None => {
+                    let single: RedisResult<Option<Vec<u8>>> = (*conn).lpop(&key, None).await;
+                    single.map(|v| v.into_iter().collect())
                 }
-            }
+            },
             Some(TtlOp::SetMs(ms)) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("LPOP").arg(&key);
-                if let Some(n) = count { pipe.arg(n); }
+                if let Some(n) = count {
+                    pipe.arg(n);
+                }
                 pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
                 pipe.query_async(&mut *conn).await
             }
             Some(TtlOp::Persist) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("LPOP").arg(&key);
-                if let Some(n) = count { pipe.arg(n); }
+                if let Some(n) = count {
+                    pipe.arg(n);
+                }
                 pipe.cmd("PERSIST").arg(&key).ignore();
                 pipe.query_async(&mut *conn).await
             }
@@ -916,26 +1006,28 @@ impl Pool {
 
         let mut conn = self.conn().await?;
         let result: RedisResult<Vec<Vec<u8>>> = match ttl {
-            None | Some(TtlOp::Keep) => {
-                match count.and_then(NonZeroUsize::new) {
-                    Some(n) => (*conn).rpop(&key, Some(n)).await,
-                    None => {
-                        let single: RedisResult<Option<Vec<u8>>> = (*conn).rpop(&key, None).await;
-                        single.map(|v| v.into_iter().collect())
-                    }
+            None | Some(TtlOp::Keep) => match count.and_then(NonZeroUsize::new) {
+                Some(n) => (*conn).rpop(&key, Some(n)).await,
+                None => {
+                    let single: RedisResult<Option<Vec<u8>>> = (*conn).rpop(&key, None).await;
+                    single.map(|v| v.into_iter().collect())
                 }
-            }
+            },
             Some(TtlOp::SetMs(ms)) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("RPOP").arg(&key);
-                if let Some(n) = count { pipe.arg(n); }
+                if let Some(n) = count {
+                    pipe.arg(n);
+                }
                 pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
                 pipe.query_async(&mut *conn).await
             }
             Some(TtlOp::Persist) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("RPOP").arg(&key);
-                if let Some(n) = count { pipe.arg(n); }
+                if let Some(n) = count {
+                    pipe.arg(n);
+                }
                 pipe.cmd("PERSIST").arg(&key).ignore();
                 pipe.query_async(&mut *conn).await
             }
@@ -1014,16 +1106,31 @@ impl Pool {
         let result: RedisResult<()> = match ttl {
             None | Some(TtlOp::Keep) => (*conn).lset(&key, index as isize, value).await,
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("LSET").arg(&key).arg(index).arg(value)
-                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LSET")
+                    .arg(&key)
+                    .arg(index)
+                    .arg(value)
+                    .cmd("PEXPIRE")
+                    .arg(&key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("LSET").arg(&key).arg(index).arg(value)
-                    .cmd("PERSIST").arg(&key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LSET")
+                    .arg(&key)
+                    .arg(index)
+                    .arg(value)
+                    .cmd("PERSIST")
+                    .arg(&key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -1104,16 +1211,31 @@ impl Pool {
         let result: RedisResult<()> = match ttl {
             None | Some(TtlOp::Keep) => (*conn).ltrim(&key, start as isize, stop as isize).await,
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("LTRIM").arg(&key).arg(start).arg(stop)
-                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LTRIM")
+                    .arg(&key)
+                    .arg(start)
+                    .arg(stop)
+                    .cmd("PEXPIRE")
+                    .arg(&key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("LTRIM").arg(&key).arg(start).arg(stop)
-                    .cmd("PERSIST").arg(&key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LTRIM")
+                    .arg(&key)
+                    .arg(start)
+                    .arg(stop)
+                    .cmd("PERSIST")
+                    .arg(&key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -1154,20 +1276,42 @@ impl Pool {
         let mut conn = self.conn().await?;
         let result: RedisResult<i64> = match ttl {
             None | Some(TtlOp::Keep) => {
-                redis::cmd("LINSERT").arg(&key).arg("BEFORE").arg(pivot).arg(value)
-                    .query_async(&mut *conn).await
+                redis::cmd("LINSERT")
+                    .arg(&key)
+                    .arg("BEFORE")
+                    .arg(pivot)
+                    .arg(value)
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("LINSERT").arg(&key).arg("BEFORE").arg(pivot).arg(value)
-                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LINSERT")
+                    .arg(&key)
+                    .arg("BEFORE")
+                    .arg(pivot)
+                    .arg(value)
+                    .cmd("PEXPIRE")
+                    .arg(&key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("LINSERT").arg(&key).arg("BEFORE").arg(pivot).arg(value)
-                    .cmd("PERSIST").arg(&key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LINSERT")
+                    .arg(&key)
+                    .arg("BEFORE")
+                    .arg(pivot)
+                    .arg(value)
+                    .cmd("PERSIST")
+                    .arg(&key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -1208,20 +1352,42 @@ impl Pool {
         let mut conn = self.conn().await?;
         let result: RedisResult<i64> = match ttl {
             None | Some(TtlOp::Keep) => {
-                redis::cmd("LINSERT").arg(&key).arg("AFTER").arg(pivot).arg(value)
-                    .query_async(&mut *conn).await
+                redis::cmd("LINSERT")
+                    .arg(&key)
+                    .arg("AFTER")
+                    .arg(pivot)
+                    .arg(value)
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("LINSERT").arg(&key).arg("AFTER").arg(pivot).arg(value)
-                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LINSERT")
+                    .arg(&key)
+                    .arg("AFTER")
+                    .arg(pivot)
+                    .arg(value)
+                    .cmd("PEXPIRE")
+                    .arg(&key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("LINSERT").arg(&key).arg("AFTER").arg(pivot).arg(value)
-                    .cmd("PERSIST").arg(&key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LINSERT")
+                    .arg(&key)
+                    .arg("AFTER")
+                    .arg(pivot)
+                    .arg(value)
+                    .cmd("PERSIST")
+                    .arg(&key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -1266,16 +1432,31 @@ impl Pool {
         let result: RedisResult<i64> = match ttl {
             None | Some(TtlOp::Keep) => (*conn).lrem(&key, count as isize, value).await,
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("LREM").arg(&key).arg(count).arg(value)
-                    .cmd("PEXPIRE").arg(&key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LREM")
+                    .arg(&key)
+                    .arg(count)
+                    .arg(value)
+                    .cmd("PEXPIRE")
+                    .arg(&key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("LREM").arg(&key).arg(count).arg(value)
-                    .cmd("PERSIST").arg(&key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LREM")
+                    .arg(&key)
+                    .arg(count)
+                    .arg(value)
+                    .cmd("PERSIST")
+                    .arg(&key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -1318,21 +1499,42 @@ impl Pool {
         let mut conn = self.conn().await?;
         let result: RedisResult<Option<Vec<u8>>> = match ttl {
             None | Some(TtlOp::Keep) => {
-                redis::cmd("LMOVE").arg(&src_key).arg(&dst_key)
-                    .arg(src_dir.as_str()).arg(dst_dir.as_str())
-                    .query_async(&mut *conn).await
+                redis::cmd("LMOVE")
+                    .arg(&src_key)
+                    .arg(&dst_key)
+                    .arg(src_dir.as_str())
+                    .arg(dst_dir.as_str())
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("LMOVE").arg(&src_key).arg(&dst_key).arg(src_dir.as_str()).arg(dst_dir.as_str())
-                    .cmd("PEXPIRE").arg(&dst_key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LMOVE")
+                    .arg(&src_key)
+                    .arg(&dst_key)
+                    .arg(src_dir.as_str())
+                    .arg(dst_dir.as_str())
+                    .cmd("PEXPIRE")
+                    .arg(&dst_key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("LMOVE").arg(&src_key).arg(&dst_key).arg(src_dir.as_str()).arg(dst_dir.as_str())
-                    .cmd("PERSIST").arg(&dst_key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("LMOVE")
+                    .arg(&src_key)
+                    .arg(&dst_key)
+                    .arg(src_dir.as_str())
+                    .arg(dst_dir.as_str())
+                    .cmd("PERSIST")
+                    .arg(&dst_key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -1406,14 +1608,18 @@ impl Pool {
             Some(TtlOp::SetMs(ms)) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("SADD").arg(&key);
-                for m in members { pipe.arg(*m); }
+                for m in members {
+                    pipe.arg(*m);
+                }
                 pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
                 pipe.query_async(&mut *conn).await
             }
             Some(TtlOp::Persist) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("SADD").arg(&key);
-                for m in members { pipe.arg(*m); }
+                for m in members {
+                    pipe.arg(*m);
+                }
                 pipe.cmd("PERSIST").arg(&key).ignore();
                 pipe.query_async(&mut *conn).await
             }
@@ -1458,14 +1664,18 @@ impl Pool {
             Some(TtlOp::SetMs(ms)) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("SREM").arg(&key);
-                for m in members { pipe.arg(*m); }
+                for m in members {
+                    pipe.arg(*m);
+                }
                 pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
                 pipe.query_async(&mut *conn).await
             }
             Some(TtlOp::Persist) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("SREM").arg(&key);
-                for m in members { pipe.arg(*m); }
+                for m in members {
+                    pipe.arg(*m);
+                }
                 pipe.cmd("PERSIST").arg(&key).ignore();
                 pipe.query_async(&mut *conn).await
             }
@@ -1540,28 +1750,34 @@ impl Pool {
 
         let mut conn = self.conn().await?;
         let result: RedisResult<Vec<Vec<u8>>> = match ttl {
-            None | Some(TtlOp::Keep) => {
-                match count {
-                    Some(n) => {
-                        redis::cmd("SPOP").arg(&key).arg(n).query_async(&mut *conn).await
-                    }
-                    None => {
-                        let single: RedisResult<Option<Vec<u8>>> = (*conn).spop(&key).await;
-                        single.map(|v| v.into_iter().collect())
-                    }
+            None | Some(TtlOp::Keep) => match count {
+                Some(n) => {
+                    redis::cmd("SPOP")
+                        .arg(&key)
+                        .arg(n)
+                        .query_async(&mut *conn)
+                        .await
                 }
-            }
+                None => {
+                    let single: RedisResult<Option<Vec<u8>>> = (*conn).spop(&key).await;
+                    single.map(|v| v.into_iter().collect())
+                }
+            },
             Some(TtlOp::SetMs(ms)) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("SPOP").arg(&key);
-                if let Some(n) = count { pipe.arg(n); }
+                if let Some(n) = count {
+                    pipe.arg(n);
+                }
                 pipe.cmd("PEXPIRE").arg(&key).arg(ms).ignore();
                 pipe.query_async(&mut *conn).await
             }
             Some(TtlOp::Persist) => {
                 let mut pipe = redis::pipe();
                 pipe.atomic().cmd("SPOP").arg(&key);
-                if let Some(n) = count { pipe.arg(n); }
+                if let Some(n) = count {
+                    pipe.arg(n);
+                }
                 pipe.cmd("PERSIST").arg(&key).ignore();
                 pipe.query_async(&mut *conn).await
             }
@@ -1736,16 +1952,29 @@ impl Pool {
         let result: RedisResult<i64> = match ttl {
             None | Some(TtlOp::Keep) => (*conn).sdiffstore(&dest_key, &prefixed).await,
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("SDIFFSTORE").arg(&dest_key).arg(&prefixed)
-                    .cmd("PEXPIRE").arg(&dest_key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("SDIFFSTORE")
+                    .arg(&dest_key)
+                    .arg(&prefixed)
+                    .cmd("PEXPIRE")
+                    .arg(&dest_key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("SDIFFSTORE").arg(&dest_key).arg(&prefixed)
-                    .cmd("PERSIST").arg(&dest_key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("SDIFFSTORE")
+                    .arg(&dest_key)
+                    .arg(&prefixed)
+                    .cmd("PERSIST")
+                    .arg(&dest_key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -1820,16 +2049,29 @@ impl Pool {
         let result: RedisResult<i64> = match ttl {
             None | Some(TtlOp::Keep) => (*conn).sinterstore(&dest_key, &prefixed).await,
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("SINTERSTORE").arg(&dest_key).arg(&prefixed)
-                    .cmd("PEXPIRE").arg(&dest_key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("SINTERSTORE")
+                    .arg(&dest_key)
+                    .arg(&prefixed)
+                    .cmd("PEXPIRE")
+                    .arg(&dest_key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("SINTERSTORE").arg(&dest_key).arg(&prefixed)
-                    .cmd("PERSIST").arg(&dest_key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("SINTERSTORE")
+                    .arg(&dest_key)
+                    .arg(&prefixed)
+                    .cmd("PERSIST")
+                    .arg(&dest_key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -1904,16 +2146,29 @@ impl Pool {
         let result: RedisResult<i64> = match ttl {
             None | Some(TtlOp::Keep) => (*conn).sunionstore(&dest_key, &prefixed).await,
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("SUNIONSTORE").arg(&dest_key).arg(&prefixed)
-                    .cmd("PEXPIRE").arg(&dest_key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("SUNIONSTORE")
+                    .arg(&dest_key)
+                    .arg(&prefixed)
+                    .cmd("PEXPIRE")
+                    .arg(&dest_key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("SUNIONSTORE").arg(&dest_key).arg(&prefixed)
-                    .cmd("PERSIST").arg(&dest_key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("SUNIONSTORE")
+                    .arg(&dest_key)
+                    .arg(&prefixed)
+                    .cmd("PERSIST")
+                    .arg(&dest_key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 
@@ -1956,16 +2211,31 @@ impl Pool {
         let result: RedisResult<bool> = match ttl {
             None | Some(TtlOp::Keep) => (*conn).smove(&src_key, &dst_key, member).await,
             Some(TtlOp::SetMs(ms)) => {
-                redis::pipe().atomic()
-                    .cmd("SMOVE").arg(&src_key).arg(&dst_key).arg(member)
-                    .cmd("PEXPIRE").arg(&dst_key).arg(ms).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("SMOVE")
+                    .arg(&src_key)
+                    .arg(&dst_key)
+                    .arg(member)
+                    .cmd("PEXPIRE")
+                    .arg(&dst_key)
+                    .arg(ms)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
             Some(TtlOp::Persist) => {
-                redis::pipe().atomic()
-                    .cmd("SMOVE").arg(&src_key).arg(&dst_key).arg(member)
-                    .cmd("PERSIST").arg(&dst_key).ignore()
-                    .query_async(&mut *conn).await
+                redis::pipe()
+                    .atomic()
+                    .cmd("SMOVE")
+                    .arg(&src_key)
+                    .arg(&dst_key)
+                    .arg(member)
+                    .cmd("PERSIST")
+                    .arg(&dst_key)
+                    .ignore()
+                    .query_async(&mut *conn)
+                    .await
             }
         };
 

@@ -260,8 +260,7 @@ fn build_redis_client(
             let password = password
                 .get()
                 .context("failed to resolve Redis auth string")?;
-            let password_str =
-                std::str::from_utf8(password).context("invalid auth string")?;
+            let password_str = std::str::from_utf8(password).context("invalid auth string")?;
             // Trim whitespace/newlines that might be in the secret
             let password_str = password_str.trim().to_string();
             log::debug!(
@@ -276,9 +275,7 @@ fn build_redis_client(
                 .as_ref()
                 .context("ACL auth requires password")?;
             let password = secrets.load(password.clone());
-            let password = password
-                .get()
-                .context("failed to resolve Redis password")?;
+            let password = password.get().context("failed to resolve Redis password")?;
             let password_str = std::str::from_utf8(password).context("invalid password")?;
             let password_str = password_str.trim().to_string();
             // If username is empty, treat it as password-only auth (like AuthString)
