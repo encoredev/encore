@@ -104,6 +104,7 @@ export namespace svc {
 
         queryFoo?: boolean
         queryBar?: string
+        where?: WhereFilter
         headerBaz?: string
         headerNum?: number
     }
@@ -121,6 +122,7 @@ export namespace svc {
 
         queryFoo?: boolean
         queryBar?: string
+        where?: WhereFilter
         headerBaz?: string
         headerNum?: number
     }
@@ -138,8 +140,20 @@ export namespace svc {
 
         queryFoo?: boolean
         queryBar?: string
+        where?: WhereFilter
         headerBaz?: string
         headerNum?: number
+    }
+
+    export interface StringOps {
+        eq?: string | null
+        gt?: string | null
+    }
+
+    export interface WhereFilter {
+        and?: WhereFilter[]
+        or?: WhereFilter[]
+        "created_at"?: StringOps
     }
 
     export class ServiceClient {
@@ -164,9 +178,10 @@ export namespace svc {
                 num: params.headerNum === undefined ? undefined : String(params.headerNum),
             })
 
-            const query = makeRecord<string, string | string[]>({
-                bar: params.queryBar,
-                foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            const query = makeRecord<string, QueryParamValue>({
+                bar:   params.queryBar,
+                foo:   params.queryFoo === undefined ? undefined : String(params.queryFoo),
+                where: asQueryParamValue(params.where),
             })
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
@@ -197,9 +212,10 @@ export namespace svc {
                 num: params.headerNum === undefined ? undefined : String(params.headerNum),
             })
 
-            const query = makeRecord<string, string | string[]>({
-                bar: params.queryBar,
-                foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            const query = makeRecord<string, QueryParamValue>({
+                bar:   params.queryBar,
+                foo:   params.queryFoo === undefined ? undefined : String(params.queryFoo),
+                where: asQueryParamValue(params.where),
             })
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
@@ -234,9 +250,10 @@ export namespace svc {
                 num: params.headerNum === undefined ? undefined : String(params.headerNum),
             })
 
-            const query = makeRecord<string, string | string[]>({
-                bar: params.queryBar,
-                foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            const query = makeRecord<string, QueryParamValue>({
+                bar:   params.queryBar,
+                foo:   params.queryFoo === undefined ? undefined : String(params.queryFoo),
+                where: asQueryParamValue(params.where),
             })
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
@@ -262,15 +279,49 @@ export namespace common_stuff {
 
 
 
-function encodeQuery(parts: Record<string, string | string[]>): string {
+function encodeQuery(parts: Record<string, QueryParamValue>): string {
     const pairs: string[] = []
     for (const key in parts) {
-        const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]]) as string[]
-        for (const v of val) {
-            pairs.push(`${key}=${encodeURIComponent(v)}`)
+        const value = parts[key]
+        if (value === undefined) {
+            continue
+        }
+        const values = toQueryValues(value)
+        for (const value of values) {
+            pairs.push(`${key}=${encodeURIComponent(value)}`)
         }
     }
     return pairs.join("&")
+}
+
+type QueryParamPrimitive = string | number | boolean | Date | null
+type QueryParamValue = QueryParamPrimitive | QueryParamValue[] | { [key: string]: QueryParamValue | undefined }
+
+type QuerySerializable<T> =
+    T extends QueryParamPrimitive ? T :
+    T extends (infer U)[] ? QuerySerializable<U>[] :
+    T extends object ? { [K in keyof T]: QuerySerializable<T[K]> } :
+    never
+
+function asQueryParamValue<T>(value: QuerySerializable<T> | undefined): QueryParamValue | undefined {
+    return value as QueryParamValue | undefined
+}
+
+
+function toQueryValues(value: QueryParamValue): string[] {
+    if (value === null) {
+        return ["null"]
+    }
+    if (value instanceof Date) {
+        return [value.toISOString()]
+    }
+    if (Array.isArray(value)) {
+        return value.flatMap((v) => toQueryValues(v))
+    }
+    if (typeof value === "object") {
+        return [JSON.stringify(value)]
+    }
+    return [String(value)]
 }
 
 // makeRecord takes a record and strips any undefined values from it,
@@ -461,7 +512,7 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     headers?: Record<string, string>
 
     /** Query parameters to be sent with the request */
-    query?: Record<string, string | string[]>
+    query?: Record<string, QueryParamValue>
 }
 
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API

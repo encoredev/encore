@@ -62,6 +62,10 @@ impl JSONSchema {
         str
     }
 
+    pub fn resolve_value(&self, idx: usize) -> &Value {
+        self.registry.get(idx)
+    }
+
     pub fn parse<P, O>(&self, payload: P) -> APIResult<O>
     where
         P: ParseWithSchema<O>,

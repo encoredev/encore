@@ -24,16 +24,11 @@ export type Header<
   Name extends string = ""
 > = TypeOrName extends string ? string : TypeOrName;
 
+type QueryPrimitive = string | number | boolean | Date | null;
+type QueryValue = QueryPrimitive | QueryValue[] | { [key: string]: QueryValue };
+
 export type Query<
-  TypeOrName extends
-    | string
-    | string[]
-    | number
-    | number[]
-    | boolean
-    | boolean[]
-    | Date
-    | Date[] = string,
+  TypeOrName extends QueryValue = string,
   Name extends string = ""
 > = TypeOrName extends string ? string : TypeOrName;
 

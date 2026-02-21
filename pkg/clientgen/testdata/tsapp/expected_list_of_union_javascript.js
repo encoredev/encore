@@ -51,7 +51,7 @@ class SvcServiceClient {
     async dummy(params) {
         // Convert our params into the objects we need for the request
         const query = makeRecord({
-            listOfUnion: params.listOfUnion.map((v) => String(v)),
+            listOfUnion: params.listOfUnion,
         })
 
         await this.baseClient.callTypedAPI("GET", `/dummy`, undefined, {query})
@@ -66,12 +66,28 @@ export const svc = {
 function encodeQuery(parts) {
     const pairs = []
     for (const key in parts) {
-        const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]])
-        for (const v of val) {
-            pairs.push(`${key}=${encodeURIComponent(v)}`)
+        const values = toQueryValues(parts[key])
+        for (const value of values) {
+            pairs.push(`${key}=${encodeURIComponent(value)}`)
         }
     }
     return pairs.join("&")
+}
+
+function toQueryValues(value) {
+    if (value === null) {
+        return ["null"]
+    }
+    if (value instanceof Date) {
+        return [value.toISOString()]
+    }
+    if (Array.isArray(value)) {
+        return value.flatMap((v) => toQueryValues(v))
+    }
+    if (typeof value === "object") {
+        return [JSON.stringify(value)]
+    }
+    return [String(value)]
 }
 
 // makeRecord takes a record and strips any undefined values from it,

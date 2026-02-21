@@ -328,16 +328,11 @@ func (js *javascript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 
 			dict := make(map[string]string)
 			for _, field := range handshakeEnc.QueryParameters {
-				if list := field.Type.GetList(); list != nil {
-					dict[field.WireFormat] = js.Dot("params", field.SrcName) +
-						".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
-				} else {
-					dict[field.WireFormat] = js.convertBuiltinToString(
-						field.Type.GetBuiltin(),
-						js.Dot("params", field.SrcName),
-						field.Optional,
-					)
-				}
+				dict[field.WireFormat] = js.convertQueryValueToString(
+					field.Type,
+					js.Dot("params", field.SrcName),
+					field.Optional,
+				)
 			}
 
 			w.WriteString("const query = makeRecord(")
@@ -433,16 +428,11 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 
 			dict := make(map[string]string)
 			for _, field := range reqEnc.QueryParameters {
-				if list := field.Type.GetList(); list != nil {
-					dict[field.WireFormat] = js.Dot("params", field.SrcName) +
-						".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
-				} else {
-					dict[field.WireFormat] = js.convertBuiltinToString(
-						field.Type.GetBuiltin(),
-						js.Dot("params", field.SrcName),
-						field.Optional,
-					)
-				}
+				dict[field.WireFormat] = js.convertQueryValueToString(
+					field.Type,
+					js.Dot("params", field.SrcName),
+					field.Optional,
+				)
 			}
 
 			w.WriteString("const query = makeRecord(")
@@ -862,16 +852,11 @@ class BaseClient {`)
 			if len(authData.QueryParameters) > 0 {
 				dict := make(map[string]string)
 				for _, field := range authData.QueryParameters {
-					if list := field.Type.GetList(); list != nil {
-						dict[field.WireFormat] = js.Dot("authData", field.SrcName) +
-							".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
-					} else {
-						dict[field.WireFormat] = js.convertBuiltinToString(
-							field.Type.GetBuiltin(),
-							js.Dot("authData", field.SrcName),
-							field.Optional,
-						)
-					}
+					dict[field.WireFormat] = js.convertQueryValueToString(
+						field.Type,
+						js.Dot("authData", field.SrcName),
+						field.Optional,
+					)
 				}
 
 				w.WriteString("data.query = makeRecord(")
@@ -1046,12 +1031,28 @@ func (js *javascript) writeExtraTypes() {
 function encodeQuery(parts) {
     const pairs = []
     for (const key in parts) {
-        const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]])
-        for (const v of val) {
-            pairs.push(` + "`" + `${key}=${encodeURIComponent(v)}` + "`" + `)
+        const values = toQueryValues(parts[key])
+        for (const value of values) {
+            pairs.push(` + "`" + `${key}=${encodeURIComponent(value)}` + "`" + `)
         }
     }
     return pairs.join("&")
+}
+
+function toQueryValues(value) {
+    if (value === null) {
+        return ["null"]
+    }
+    if (value instanceof Date) {
+        return [value.toISOString()]
+    }
+    if (Array.isArray(value)) {
+        return value.flatMap((v) => toQueryValues(v))
+    }
+    if (typeof value === "object") {
+        return [JSON.stringify(value)]
+    }
+    return [String(value)]
 }
 
 // makeRecord takes a record and strips any undefined values from it,
@@ -1100,6 +1101,38 @@ func (js *javascript) convertBuiltinToString(typ schema.Builtin, val string, isO
 		code = fmt.Sprintf("%s === undefined ? undefined : %s", val, code)
 	}
 	return code
+}
+
+func (js *javascript) convertQueryValueToString(typ *schema.Type, val string, isOptional bool) string {
+	if list := typ.GetList(); list != nil {
+		if builtin, ok := js.queryBuiltinType(list.Elem); ok {
+			dot := val
+			if isOptional {
+				dot += "?"
+			}
+			return dot + ".map((v) => " + js.convertBuiltinToString(builtin, "v", false) + ")"
+		}
+		return val
+	}
+
+	if builtin, ok := js.queryBuiltinType(typ); ok {
+		return js.convertBuiltinToString(builtin, val, isOptional)
+	}
+
+	return val
+}
+
+func (js *javascript) queryBuiltinType(typ *schema.Type) (schema.Builtin, bool) {
+	switch t := typ.Typ.(type) {
+	case *schema.Type_Builtin:
+		return t.Builtin, true
+	case *schema.Type_Option:
+		return js.queryBuiltinType(t.Option.Value)
+	case *schema.Type_Pointer:
+		return js.queryBuiltinType(t.Pointer.Base)
+	default:
+		return schema.Builtin_ANY, false
+	}
 }
 
 func (js *javascript) convertStringToBuiltin(typ schema.Builtin, val string) string {

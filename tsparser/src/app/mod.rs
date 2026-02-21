@@ -159,23 +159,55 @@ impl AppValidator<'_> {
     fn validate_req_params(&self, params: &Vec<Param>) {
         for param in params {
             if let ParamData::Query { .. } = param.loc {
-                fn is_valid_query_type(state: &ResolveState, typ: &Type) -> bool {
+                fn is_valid_query_type(
+                    state: &ResolveState,
+                    typ: &Type,
+                    seen_named: &mut HashSet<ObjectId>,
+                ) -> bool {
+                    // Resolve wrappers while tracking named type recursion.
+                    match typ {
+                        Type::Optional(opt) => return is_valid_query_type(state, &opt.0, seen_named),
+                        Type::Validated(v) => return is_valid_query_type(state, &v.typ, seen_named),
+                        Type::Named(named) => {
+                            // Allow recursive types like:
+                            // type OperatorMap<T> = { and?: Query<T>[]; or?: Query<T>[]; ... }
+                            if !seen_named.insert(named.obj.id) {
+                                return true;
+                            }
+                            let underlying = named.underlying(state);
+                            return is_valid_query_type(state, &underlying, seen_named);
+                        }
+                        _ => {}
+                    }
+
                     match resolve_to_concrete(state, typ) {
                         Type::Basic(_) | Type::Literal(_) => true,
                         Type::Enum(_) => true,
-                        Type::Array(ref t) => is_valid_query_type(state, &t.0),
-                        Type::Union(ref u) => u.types.iter().all(|t| is_valid_query_type(state, t)),
+                        Type::Array(ref t) => is_valid_query_type(state, &t.0, seen_named),
+                        Type::Union(ref u) => u
+                            .types
+                            .iter()
+                            .all(|t| is_valid_query_type(state, t, seen_named)),
+                        Type::Interface(Interface {
+                            fields,
+                            index: None,
+                            call: None,
+                        }) => fields
+                            .iter()
+                            .all(|field| is_valid_query_type(state, &field.typ, seen_named)),
                         Type::Custom(Custom::Decimal) => true,
                         Type::Custom(Custom::WireSpec(WireSpec {
                             location: WireLocation::Query,
                             underlying: typ,
                             ..
-                        })) => is_valid_query_type(state, &typ),
+                        })) => is_valid_query_type(state, &typ, seen_named),
                         _ => false,
                     }
                 }
 
-                if !is_valid_query_type(self.pc.type_checker.state(), &param.typ) {
+                let mut seen_named = HashSet::new();
+                if !is_valid_query_type(self.pc.type_checker.state(), &param.typ, &mut seen_named)
+                {
                     HANDLER.with(|handler| {
                         handler.span_err(param.range, "type not supported for query parameters")
                     });

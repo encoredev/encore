@@ -69,6 +69,7 @@ type typescript struct {
 	seenJSON           bool // true if a JSON type was seen
 	seenStream         bool // true if a stream endpoint was seen
 	seenHeaderResponse bool // true if we've seen a header used in a response object
+	seenQueryValueCast bool // true if we've emitted asQueryParamValue in generated query conversion
 	hasAuth            bool // true if we've seen an authentication handler
 	authIsComplexType  bool // true if the auth type is a complex type
 }
@@ -525,23 +526,14 @@ func (ts *typescript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 
 			dict := make(map[string]string)
 			for _, field := range handshakeEnc.QueryParameters {
-				if list := field.Type.GetList(); list != nil {
-					dot := ts.Dot("params", field.SrcName)
-					if field.Optional || ts.isRecursive(field.Type) {
-						dot += "?"
-					}
-					dict[field.WireFormat] = dot +
-						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
-				} else {
-					dict[field.WireFormat] = ts.convertBuiltinToString(
-						field.Type.GetBuiltin(),
-						ts.Dot("params", field.SrcName),
-						field.Optional,
-					)
-				}
+				dict[field.WireFormat] = ts.convertQueryValueToString(
+					field.Type,
+					ts.Dot("params", field.SrcName),
+					field.Optional,
+				)
 			}
 
-			w.WriteString("const query = makeRecord<string, string | string[]>(")
+			w.WriteString("const query = makeRecord<string, QueryParamValue>(")
 			ts.Values(w, dict)
 			w.WriteString(")\n\n")
 		}
@@ -647,23 +639,14 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 			dict := make(map[string]string)
 			for _, field := range reqEnc.QueryParameters {
-				if list := field.Type.GetList(); list != nil {
-					dot := ts.Dot("params", field.SrcName)
-					if field.Optional || ts.isRecursive(field.Type) {
-						dot += "?"
-					}
-					dict[field.WireFormat] = dot +
-						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
-				} else {
-					dict[field.WireFormat] = ts.convertBuiltinToString(
-						field.Type.GetBuiltin(),
-						ts.Dot("params", field.SrcName),
-						field.Optional,
-					)
-				}
+				dict[field.WireFormat] = ts.convertQueryValueToString(
+					field.Type,
+					ts.Dot("params", field.SrcName),
+					field.Optional,
+				)
 			}
 
-			w.WriteString("const query = makeRecord<string, string | string[]>(")
+			w.WriteString("const query = makeRecord<string, QueryParamValue>(")
 			ts.Values(w, dict)
 			w.WriteString(")\n\n")
 		}
@@ -1246,7 +1229,7 @@ type CallParameters = Omit<RequestInit, %s> & {
     headers?: Record<string, string>
 
     /** Query parameters to be sent with the request */
-    query?: Record<string, string | string[]>
+    query?: Record<string, QueryParamValue>
 }
 `, reqOmit)
 
@@ -1351,23 +1334,14 @@ class BaseClient {
 			if len(authData.QueryParameters) > 0 {
 				dict := make(map[string]string)
 				for _, field := range authData.QueryParameters {
-					if list := field.Type.GetList(); list != nil {
-						dot := ts.Dot("authData", field.SrcName)
-						if field.Optional || ts.isRecursive(field.Type) {
-							dot += "?"
-						}
-						dict[field.WireFormat] = dot +
-							".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
-					} else {
-						dict[field.WireFormat] = ts.convertBuiltinToString(
-							field.Type.GetBuiltin(),
-							ts.Dot("authData", field.SrcName),
-							field.Optional,
-						)
-					}
+					dict[field.WireFormat] = ts.convertQueryValueToString(
+						field.Type,
+						ts.Dot("authData", field.SrcName),
+						field.Optional,
+					)
 				}
 
-				w.WriteString("data.query = makeRecord<string, string | string[]>(")
+				w.WriteString("data.query = makeRecord<string, QueryParamValue>(")
 				ts.Values(w, dict)
 				w.WriteString(");\n")
 			}
@@ -1589,15 +1563,55 @@ function dateReviver(key: string, value: any): any {
 
 	ts.WriteString(`
 
-function encodeQuery(parts: Record<string, string | string[]>): string {
+function encodeQuery(parts: Record<string, QueryParamValue>): string {
     const pairs: string[] = []
     for (const key in parts) {
-        const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]]) as string[]
-        for (const v of val) {
-            pairs.push(` + "`" + `${key}=${encodeURIComponent(v)}` + "`" + `)
+        const value = parts[key]
+        if (value === undefined) {
+            continue
+        }
+        const values = toQueryValues(value)
+        for (const value of values) {
+            pairs.push(` + "`" + `${key}=${encodeURIComponent(value)}` + "`" + `)
         }
     }
     return pairs.join("&")
+}
+
+type QueryParamPrimitive = string | number | boolean | Date | null
+type QueryParamValue = QueryParamPrimitive | QueryParamValue[] | { [key: string]: QueryParamValue | undefined }
+`)
+
+	if ts.seenQueryValueCast {
+		ts.WriteString(`
+type QuerySerializable<T> =
+    T extends QueryParamPrimitive ? T :
+    T extends (infer U)[] ? QuerySerializable<U>[] :
+    T extends object ? { [K in keyof T]: QuerySerializable<T[K]> } :
+    never
+
+function asQueryParamValue<T>(value: QuerySerializable<T> | undefined): QueryParamValue | undefined {
+    return value as QueryParamValue | undefined
+}
+`)
+	}
+
+	ts.WriteString(`
+
+function toQueryValues(value: QueryParamValue): string[] {
+    if (value === null) {
+        return ["null"]
+    }
+    if (value instanceof Date) {
+        return [value.toISOString()]
+    }
+    if (Array.isArray(value)) {
+        return value.flatMap((v) => toQueryValues(v))
+    }
+    if (typeof value === "object") {
+        return [JSON.stringify(value)]
+    }
+    return [String(value)]
 }
 
 // makeRecord takes a record and strips any undefined values from it,
@@ -1701,6 +1715,40 @@ func (ts *typescript) convertBuiltinToString(typ schema.Builtin, val string, isO
 		code = fmt.Sprintf("%s === undefined ? undefined : %s", val, code)
 	}
 	return code
+}
+
+func (ts *typescript) convertQueryValueToString(typ *schema.Type, val string, isOptional bool) string {
+	if list := typ.GetList(); list != nil {
+		if builtin, ok := ts.queryBuiltinType(list.Elem); ok {
+			dot := val
+			if isOptional || ts.isRecursive(typ) {
+				dot += "?"
+			}
+			return dot + ".map((v) => " + ts.convertBuiltinToString(builtin, "v", false) + ")"
+		}
+		ts.seenQueryValueCast = true
+		return "asQueryParamValue(" + val + ")"
+	}
+
+	if builtin, ok := ts.queryBuiltinType(typ); ok {
+		return ts.convertBuiltinToString(builtin, val, isOptional)
+	}
+
+	ts.seenQueryValueCast = true
+	return "asQueryParamValue(" + val + ")"
+}
+
+func (ts *typescript) queryBuiltinType(typ *schema.Type) (schema.Builtin, bool) {
+	switch t := typ.Typ.(type) {
+	case *schema.Type_Builtin:
+		return t.Builtin, true
+	case *schema.Type_Option:
+		return ts.queryBuiltinType(t.Option.Value)
+	case *schema.Type_Pointer:
+		return ts.queryBuiltinType(t.Pointer.Base)
+	default:
+		return schema.Builtin_ANY, false
+	}
 }
 
 func (ts *typescript) convertStringToBuiltin(typ schema.Builtin, val string) string {

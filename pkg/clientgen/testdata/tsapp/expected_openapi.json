@@ -33,6 +33,57 @@
         },
         "description": "Error response"
       }
+    },
+    "schemas": {
+      "svc.StringOps": {
+        "properties": {
+          "eq": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "nullable": true,
+                "type": "boolean"
+              }
+            ],
+            "nullable": true
+          },
+          "gt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "nullable": true,
+                "type": "boolean"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "type": "object"
+      },
+      "svc.WhereFilter": {
+        "properties": {
+          "and": {
+            "items": {
+              "$ref": "#/components/schemas/svc.WhereFilter"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/svc.StringOps"
+          },
+          "or": {
+            "items": {
+              "$ref": "#/components/schemas/svc.WhereFilter"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      }
     }
   },
   "info": {
@@ -88,6 +139,16 @@
             "name": "bar",
             "schema": {
               "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": true,
+            "in": "query",
+            "name": "where",
+            "schema": {
+              "$ref": "#/components/schemas/svc.WhereFilter"
             },
             "style": "form"
           }
@@ -165,6 +226,16 @@
             "name": "bar",
             "schema": {
               "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": true,
+            "in": "query",
+            "name": "where",
+            "schema": {
+              "$ref": "#/components/schemas/svc.WhereFilter"
             },
             "style": "form"
           }
@@ -255,6 +326,16 @@
             "name": "bar",
             "schema": {
               "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": true,
+            "in": "query",
+            "name": "where",
+            "schema": {
+              "$ref": "#/components/schemas/svc.WhereFilter"
             },
             "style": "form"
           }

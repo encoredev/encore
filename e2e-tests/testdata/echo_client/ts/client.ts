@@ -396,7 +396,7 @@ export namespace echo {
          */
         public async MuteEcho(params: Data<string, string>): Promise<void> {
             // Convert our params into the objects we need for the request
-            const query = makeRecord<string, string | string[]>({
+            const query = makeRecord<string, QueryParamValue>({
                 key:   params.Key,
                 value: params.Value,
             })
@@ -423,7 +423,7 @@ export namespace echo {
                 "x-header-string": params.HeaderString,
             })
 
-            const query = makeRecord<string, string | string[]>({
+            const query = makeRecord<string, QueryParamValue>({
                 no:     String(params.QueryNumber),
                 optnum: params.OptQueryNumber === undefined ? undefined : String(params.OptQueryNumber),
                 optstr: params.OptQueryString,
@@ -652,7 +652,7 @@ export namespace test {
                 "x-uuid":    String(params.HeaderUUID),
             })
 
-            const query = makeRecord<string, string | string[]>({
+            const query = makeRecord<string, QueryParamValue>({
                 boolean:   String(params.QueryBoolean),
                 bytes:     String(params.QueryBytes),
                 float:     String(params.QueryFloat),
@@ -740,7 +740,7 @@ export namespace test {
                 "some-key": params.HeaderValue,
             })
 
-            const query = makeRecord<string, string | string[]>({
+            const query = makeRecord<string, QueryParamValue>({
                 "Some-Key": params.QueryValue,
             })
 
@@ -811,15 +811,39 @@ export namespace validation {
 export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue}
 
 
-function encodeQuery(parts: Record<string, string | string[]>): string {
+function encodeQuery(parts: Record<string, QueryParamValue>): string {
     const pairs: string[] = []
     for (const key in parts) {
-        const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]]) as string[]
-        for (const v of val) {
-            pairs.push(`${key}=${encodeURIComponent(v)}`)
+        const value = parts[key]
+        if (value === undefined) {
+            continue
+        }
+        const values = toQueryValues(value)
+        for (const value of values) {
+            pairs.push(`${key}=${encodeURIComponent(value)}`)
         }
     }
     return pairs.join("&")
+}
+
+type QueryParamPrimitive = string | number | boolean | Date | null
+type QueryParamValue = QueryParamPrimitive | QueryParamValue[] | { [key: string]: QueryParamValue | undefined }
+
+
+function toQueryValues(value: QueryParamValue): string[] {
+    if (value === null) {
+        return ["null"]
+    }
+    if (value instanceof Date) {
+        return [value.toISOString()]
+    }
+    if (Array.isArray(value)) {
+        return value.flatMap((v) => toQueryValues(v))
+    }
+    if (typeof value === "object") {
+        return [JSON.stringify(value)]
+    }
+    return [String(value)]
 }
 
 // makeRecord takes a record and strips any undefined values from it,
@@ -1025,7 +1049,7 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     headers?: Record<string, string>
 
     /** Query parameters to be sent with the request */
-    query?: Record<string, string | string[]>
+    query?: Record<string, QueryParamValue>
 }
 
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
@@ -1092,7 +1116,7 @@ class BaseClient {
         if (authData) {
             const data: CallParameters = {};
 
-            data.query = makeRecord<string, string | string[]>({
+            data.query = makeRecord<string, QueryParamValue>({
                 "new-auth": String(authData.NewAuth),
                 query:      authData.Query.map((v) => String(v)),
             });

@@ -62,8 +62,9 @@ class SvcServiceClient {
         })
 
         const query = makeRecord({
-            bar: params.queryBar,
-            foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            bar:   params.queryBar,
+            foo:   params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            where: params.where,
         })
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
@@ -91,8 +92,9 @@ class SvcServiceClient {
         })
 
         const query = makeRecord({
-            bar: params.queryBar,
-            foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            bar:   params.queryBar,
+            foo:   params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            where: params.where,
         })
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
@@ -128,8 +130,9 @@ class SvcServiceClient {
         })
 
         const query = makeRecord({
-            bar: params.queryBar,
-            foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            bar:   params.queryBar,
+            foo:   params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            where: params.where,
         })
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
@@ -150,12 +153,28 @@ export const svc = {
 function encodeQuery(parts) {
     const pairs = []
     for (const key in parts) {
-        const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]])
-        for (const v of val) {
-            pairs.push(`${key}=${encodeURIComponent(v)}`)
+        const values = toQueryValues(parts[key])
+        for (const value of values) {
+            pairs.push(`${key}=${encodeURIComponent(value)}`)
         }
     }
     return pairs.join("&")
+}
+
+function toQueryValues(value) {
+    if (value === null) {
+        return ["null"]
+    }
+    if (value instanceof Date) {
+        return [value.toISOString()]
+    }
+    if (Array.isArray(value)) {
+        return value.flatMap((v) => toQueryValues(v))
+    }
+    if (typeof value === "object") {
+        return [JSON.stringify(value)]
+    }
+    return [String(value)]
 }
 
 // makeRecord takes a record and strips any undefined values from it,

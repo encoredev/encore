@@ -1,0 +1,30 @@
+-- foo/foo.ts --
+import { api, Query } from "encore.dev/api";
+
+interface StringOps {
+  eq?: string | string[] | null;
+  gt?: string | null;
+  lt?: string | null;
+}
+
+interface Params {
+  where?: Query<Where>;
+}
+
+interface Where {
+  and?: Where[];
+  or?: Where[];
+  created_at?: StringOps;
+  revoked_at?: StringOps;
+}
+
+export const test = api<Params, void>({}, () => {});
+
+-- package.json --
+{
+  "name": "foo",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}

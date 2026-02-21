@@ -7,9 +7,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	go1 "github.com/json-iterator/go"
 	"io"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 )
 
@@ -97,36 +99,50 @@ type SvcAuthParams struct {
 }
 
 type SvcRequest struct {
-	Foo        float64 `encore:"optional"` // Foo is good
-	Baz        string  // Baz is better
-	QueryFoo   bool    `encore:"optional" query:"foo,optional"`
-	QueryBar   string  `encore:"optional" query:"bar,optional"`
-	HeaderBaz  string  `encore:"optional" header:"baz,optional"`
-	HeaderNum  float64 `encore:"optional" header:"num,optional"`
-	CookieQux  string  `cookie:"qux,optional" encore:"optional"`
-	CookieQuux float64 `cookie:"quux,optional" encore:"optional"`
+	Foo        float64        `encore:"optional"` // Foo is good
+	Baz        string         // Baz is better
+	QueryFoo   bool           `encore:"optional" query:"foo,optional"`
+	QueryBar   string         `encore:"optional" query:"bar,optional"`
+	Where      SvcWhereFilter `encore:"optional" query:"where,optional"`
+	HeaderBaz  string         `encore:"optional" header:"baz,optional"`
+	HeaderNum  float64        `encore:"optional" header:"num,optional"`
+	CookieQux  string         `cookie:"qux,optional" encore:"optional"`
+	CookieQuux float64        `cookie:"quux,optional" encore:"optional"`
 }
 
 type SvcRequest struct {
-	Foo        float64 `encore:"optional"` // Foo is good
-	Baz        string  // Baz is better
-	QueryFoo   bool    `encore:"optional" query:"foo,optional"`
-	QueryBar   string  `encore:"optional" query:"bar,optional"`
-	HeaderBaz  string  `encore:"optional" header:"baz,optional"`
-	HeaderNum  float64 `encore:"optional" header:"num,optional"`
-	CookieQux  string  `cookie:"qux,optional" encore:"optional"`
-	CookieQuux float64 `cookie:"quux,optional" encore:"optional"`
+	Foo        float64        `encore:"optional"` // Foo is good
+	Baz        string         // Baz is better
+	QueryFoo   bool           `encore:"optional" query:"foo,optional"`
+	QueryBar   string         `encore:"optional" query:"bar,optional"`
+	Where      SvcWhereFilter `encore:"optional" query:"where,optional"`
+	HeaderBaz  string         `encore:"optional" header:"baz,optional"`
+	HeaderNum  float64        `encore:"optional" header:"num,optional"`
+	CookieQux  string         `cookie:"qux,optional" encore:"optional"`
+	CookieQuux float64        `cookie:"quux,optional" encore:"optional"`
 }
 
 type SvcRequest struct {
-	Foo        float64 `encore:"optional"` // Foo is good
-	Baz        string  // Baz is better
-	QueryFoo   bool    `encore:"optional" query:"foo,optional"`
-	QueryBar   string  `encore:"optional" query:"bar,optional"`
-	HeaderBaz  string  `encore:"optional" header:"baz,optional"`
-	HeaderNum  float64 `encore:"optional" header:"num,optional"`
-	CookieQux  string  `cookie:"qux,optional" encore:"optional"`
-	CookieQuux float64 `cookie:"quux,optional" encore:"optional"`
+	Foo        float64        `encore:"optional"` // Foo is good
+	Baz        string         // Baz is better
+	QueryFoo   bool           `encore:"optional" query:"foo,optional"`
+	QueryBar   string         `encore:"optional" query:"bar,optional"`
+	Where      SvcWhereFilter `encore:"optional" query:"where,optional"`
+	HeaderBaz  string         `encore:"optional" header:"baz,optional"`
+	HeaderNum  float64        `encore:"optional" header:"num,optional"`
+	CookieQux  string         `cookie:"qux,optional" encore:"optional"`
+	CookieQuux float64        `cookie:"quux,optional" encore:"optional"`
+}
+
+type SvcStringOps struct {
+	Eq any `encore:"optional"`
+	Gt any `encore:"optional"`
+}
+
+type SvcWhereFilter struct {
+	And       []SvcWhereFilter `encore:"optional"`
+	Or        []SvcWhereFilter `encore:"optional"`
+	CreatedAt SvcStringOps     `encore:"optional"`
 }
 
 // SvcClient Provides you access to call public and authenticated APIs on svc. The concrete implementation is svcClient.
@@ -165,8 +181,9 @@ func (c *svcClient) CookieDummy(ctx context.Context, params SvcRequest) (resp st
 	}
 
 	queryString := url.Values{
-		"bar": {reqEncoder.FromString(params.queryBar)},
-		"foo": {reqEncoder.FromBool(params.queryFoo)},
+		"bar":   {reqEncoder.FromString(params.queryBar)},
+		"foo":   {reqEncoder.FromBool(params.queryFoo)},
+		"where": reqEncoder.ToJSONSlice(params.where),
 	}
 
 	if reqEncoder.LastError != nil {
@@ -216,8 +233,9 @@ func (c *svcClient) Dummy(ctx context.Context, params SvcRequest) error {
 	}
 
 	queryString := url.Values{
-		"bar": {reqEncoder.FromString(params.queryBar)},
-		"foo": {reqEncoder.FromBool(params.queryFoo)},
+		"bar":   {reqEncoder.FromString(params.queryBar)},
+		"foo":   {reqEncoder.FromBool(params.queryFoo)},
+		"where": reqEncoder.ToJSONSlice(params.where),
 	}
 
 	if reqEncoder.LastError != nil {
@@ -272,8 +290,9 @@ func (c *svcClient) Root(ctx context.Context, params SvcRequest) error {
 	}
 
 	queryString := url.Values{
-		"bar": {reqEncoder.FromString(params.queryBar)},
-		"foo": {reqEncoder.FromBool(params.queryFoo)},
+		"bar":   {reqEncoder.FromString(params.queryBar)},
+		"foo":   {reqEncoder.FromBool(params.queryFoo)},
+		"where": reqEncoder.ToJSONSlice(params.where),
 	}
 
 	if reqEncoder.LastError != nil {
@@ -696,4 +715,30 @@ func (e *serde) setErr(msg, field string, err error) {
 	if err != nil && e.LastError == nil {
 		e.LastError = fmt.Errorf("%s: %s: %w", field, msg, err)
 	}
+}
+
+func (d *serde) ParseJSON(field string, iter *go1.Iterator, dst interface{}) {
+	iter.ReadVal(dst)
+	d.setErr("invalid json parameter", field, iter.Error)
+}
+
+func (d *serde) ToJSON(value interface{}) string {
+	encoded, err := json.Marshal(value)
+	d.setErr("invalid json parameter", "", err)
+	return string(encoded)
+}
+
+func (d *serde) ToJSONSlice(value interface{}) []string {
+	if value == nil {
+		return nil
+	}
+	v := reflect.ValueOf(value)
+	if v.Kind() == reflect.Slice || v.Kind() == reflect.Array {
+		out := make([]string, 0, v.Len())
+		for i := 0; i < v.Len(); i++ {
+			out = append(out, d.ToJSON(v.Index(i).Interface()))
+		}
+		return out
+	}
+	return []string{d.ToJSON(value)}
 }

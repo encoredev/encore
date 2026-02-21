@@ -80,6 +80,17 @@ export const gw = new Gateway({
   authHandler: auth,
 })
 
+interface StringOps {
+  eq?: string | null;
+  gt?: string | null;
+}
+
+interface WhereFilter {
+  and?: WhereFilter[];
+  or?: WhereFilter[];
+  created_at?: StringOps;
+}
+
 interface Request {
   // Foo is good
   foo?: number;
@@ -88,6 +99,7 @@ interface Request {
 
   queryFoo?: Query<boolean, "foo">;
   queryBar?: Query<"bar">;
+  where?: Query<WhereFilter, "where">;
   headerBaz?: Header<"baz">;
   headerNum?: Header<number, "num">;
   cookieQux?: Cookie<"qux">;

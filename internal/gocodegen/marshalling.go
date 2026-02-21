@@ -172,6 +172,29 @@ func (g *MarshallingCodeGenerator) WriteToFile(f *File) {
 			Id("iter").Dot("ReadVal").Call(Id("dst")),
 			Id("d").Dot("setErr").Call(Lit("invalid json parameter"), Id("field"), Id("iter").Dot("Error")),
 		)
+
+		f.Line()
+		f.Func().Params(Id("d").Op("*").Id(g.structName)).Id("ToJSON").Params(Id("value").Interface()).String().Block(
+			List(Id("encoded"), Err()).Op(":=").Qual("encoding/json", "Marshal").Call(Id("value")),
+			Id("d").Dot("setErr").Call(Lit("invalid json parameter"), Lit(""), Err()),
+			Return(String().Call(Id("encoded"))),
+		)
+
+		f.Line()
+		f.Func().Params(Id("d").Op("*").Id(g.structName)).Id("ToJSONSlice").Params(Id("value").Interface()).Index().String().Block(
+			If(Id("value").Op("==").Nil()).Block(
+				Return(Nil()),
+			),
+			Id("v").Op(":=").Qual("reflect", "ValueOf").Call(Id("value")),
+			If(Id("v").Dot("Kind").Call().Op("==").Qual("reflect", "Slice").Op("||").Id("v").Dot("Kind").Call().Op("==").Qual("reflect", "Array")).Block(
+				Id("out").Op(":=").Make(Index().String(), Lit(0), Id("v").Dot("Len").Call()),
+				For(Id("i").Op(":=").Lit(0), Id("i").Op("<").Id("v").Dot("Len").Call(), Id("i").Op("++")).Block(
+					Id("out").Op("=").Append(Id("out"), Id("d").Dot("ToJSON").Call(Id("v").Dot("Index").Call(Id("i")).Dot("Interface").Call())),
+				),
+				Return(Id("out")),
+			),
+			Return(Index().String().Values(Id("d").Dot("ToJSON").Call(Id("value")))),
+		)
 	}
 	f.Line()
 }
@@ -673,7 +696,8 @@ func (w *MarshallingCodeWrapper) ToStringSlice(sourceType *schema.Type, sourceVa
 		return Values(Id(w.instanceName).Dot(funcName).Call(sourceValue)), nil
 
 	default:
-		return nil, errors.Newf("unsupported type for serialization: %T", t)
+		w.g.usedJson = true
+		return Id(w.instanceName).Dot("ToJSONSlice").Call(sourceValue), nil
 	}
 }
 
@@ -715,6 +739,7 @@ func (w *MarshallingCodeWrapper) ToString(sourceType *schema.Type, sourceValue C
 		}
 
 	default:
-		return nil, errors.Newf("unsupported type for serialization: %T", t)
+		w.g.usedJson = true
+		return Id(w.instanceName).Dot("ToJSON").Call(sourceValue), nil
 	}
 }
