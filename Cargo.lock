@@ -1960,6 +1960,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "encore-traceparser"
+version = "0.1.0"
+dependencies = [
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "encore-tsparser"
 version = "0.1.0"
 dependencies = [
