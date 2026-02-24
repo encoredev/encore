@@ -50,6 +50,8 @@ pub enum EventType {
     BucketListObjectsEnd = 0x20,
     BucketDeleteObjectsStart = 0x21,
     BucketDeleteObjectsEnd = 0x22,
+    CustomSpanStart = 0x23,
+    CustomSpanEnd = 0x24,
 }
 
 // A global event id counter.
@@ -949,6 +951,66 @@ impl Tracer {
         }
 
         _ = self.send(EventType::BucketObjectGetAttrsEnd, data.source.span, eb);
+    }
+}
+
+pub struct CustomSpanStartData<'a> {
+    pub source: &'a Request,
+    pub name: &'a str,
+    pub attributes: &'a [(String, String)],
+}
+
+pub struct CustomSpanEndData<'a, E> {
+    pub start_id: Option<TraceEventId>,
+    pub source: &'a Request,
+    pub error: Option<&'a E>,
+}
+
+impl Tracer {
+    #[inline]
+    pub fn custom_span_start(&self, data: CustomSpanStartData) -> Option<TraceEventId> {
+        if !data.source.traced {
+            return None;
+        }
+        let attrs_space: usize = data
+            .attributes
+            .iter()
+            .map(|(k, v)| 10 + k.len() + 10 + v.len())
+            .sum();
+        let mut eb = BasicEventData {
+            correlation_event_id: None,
+            extra_space: 10 + data.name.len() + 1 + 10 + attrs_space,
+        }
+        .into_eb();
+
+        eb.str(data.name);
+        eb.nyi_stack_pcs();
+        eb.uvarint(data.attributes.len() as u64);
+        for (k, v) in data.attributes {
+            eb.str(k);
+            eb.str(v);
+        }
+
+        Some(self.send(EventType::CustomSpanStart, data.source.span, eb))
+    }
+
+    #[inline]
+    pub fn custom_span_end<E>(&self, data: CustomSpanEndData<E>)
+    where
+        E: std::fmt::Display,
+    {
+        let Some(start_id) = data.start_id else {
+            return;
+        };
+        let mut eb = BasicEventData {
+            correlation_event_id: Some(start_id),
+            extra_space: 4 + 4 + 8,
+        }
+        .into_eb();
+
+        eb.err_with_legacy_stack(data.error);
+
+        _ = self.send(EventType::CustomSpanEnd, data.source.span, eb);
     }
 }
 

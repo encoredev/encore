@@ -276,12 +276,42 @@ func (tp *traceParser) spanEvent(eventType trace2.EventType) *tracepb2.SpanEvent
 		ev.Data = &tracepb2.SpanEvent_BucketDeleteObjectsStart{BucketDeleteObjectsStart: tp.bucketDeleteObjectsStart()}
 	case trace2.BucketDeleteObjectsEnd:
 		ev.Data = &tracepb2.SpanEvent_BucketDeleteObjectsEnd{BucketDeleteObjectsEnd: tp.bucketDeleteObjectsEnd()}
+	case trace2.CustomSpanStartEvent:
+		ev.Data = &tracepb2.SpanEvent_CustomSpanStart{CustomSpanStart: tp.customSpanStart()}
+	case trace2.CustomSpanEndEvent:
+		ev.Data = &tracepb2.SpanEvent_CustomSpanEnd{CustomSpanEnd: tp.customSpanEnd()}
 
 	default:
 		tp.bailout(fmt.Errorf("unknown event %v", eventType))
 	}
 
 	return ev
+}
+
+func (tp *traceParser) customSpanStart() *tracepb2.CustomSpanStart {
+	name := tp.String()
+	stack := tp.stack()
+	numAttrs := int(tp.UVarint())
+	var attrs map[string]string
+	if numAttrs > 0 {
+		attrs = make(map[string]string, numAttrs)
+		for i := 0; i < numAttrs; i++ {
+			k := tp.String()
+			v := tp.String()
+			attrs[k] = v
+		}
+	}
+	return &tracepb2.CustomSpanStart{
+		Name:       name,
+		Stack:      stack,
+		Attributes: attrs,
+	}
+}
+
+func (tp *traceParser) customSpanEnd() *tracepb2.CustomSpanEnd {
+	return &tracepb2.CustomSpanEnd{
+		Err: tp.errWithStack(),
+	}
 }
 
 func (tp *traceParser) requestSpanStart() *tracepb2.SpanStart {

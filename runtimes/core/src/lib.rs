@@ -214,6 +214,7 @@ pub struct Runtime {
     runtime: tokio::runtime::Runtime,
     metrics: metrics::Manager,
     runtime_config: runtime_config::RuntimeConfig,
+    tracer: trace::Tracer,
 }
 
 impl Runtime {
@@ -434,6 +435,7 @@ impl Runtime {
             runtime: tokio_rt,
             metrics: metrics_manager,
             runtime_config,
+            tracer,
         })
     }
 
@@ -470,6 +472,11 @@ impl Runtime {
     #[inline]
     pub fn metrics(&self) -> &metrics::Manager {
         &self.metrics
+    }
+
+    #[inline]
+    pub fn tracer(&self) -> &trace::Tracer {
+        &self.tracer
     }
 
     #[inline]

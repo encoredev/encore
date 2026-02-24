@@ -84,6 +84,11 @@
       "bun": "./metrics/mod.ts",
       "default": "./dist/metrics/mod.js"
     },
+    "./tracing": {
+      "types": "./tracing/mod.ts",
+      "bun": "./tracing/mod.ts",
+      "default": "./dist/tracing/mod.js"
+    },
     "./internal/codegen/*": {
       "types": "./internal/codegen/*.ts",
       "bun": "./internal/codegen/*.ts",

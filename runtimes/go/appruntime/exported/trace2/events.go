@@ -51,6 +51,8 @@ const (
 	BucketListObjectsEnd      EventType = 0x20
 	BucketDeleteObjectsStart  EventType = 0x21
 	BucketDeleteObjectsEnd    EventType = 0x22
+	CustomSpanStartEvent      EventType = 0x23
+	CustomSpanEndEvent        EventType = 0x24
 )
 
 func (te EventType) String() string {
@@ -123,6 +125,10 @@ func (te EventType) String() string {
 		return "BucketDeleteObjectsStart"
 	case BucketDeleteObjectsEnd:
 		return "BucketDeleteObjectsEnd"
+	case CustomSpanStartEvent:
+		return "CustomSpanStart"
+	case CustomSpanEndEvent:
+		return "CustomSpanEnd"
 
 	default:
 		return fmt.Sprintf("Unknown(%x)", byte(te))

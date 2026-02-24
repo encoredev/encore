@@ -409,6 +409,48 @@ impl Runtime {
             )
         })
     }
+
+    /// Start a custom span within the current request's trace.
+    /// Returns the event ID (as a string) that must be passed to custom_span_end.
+    /// Returns null if the request is not being traced.
+    #[napi]
+    pub fn custom_span_start(
+        &self,
+        source: &Request,
+        name: String,
+        attributes: std::collections::HashMap<String, String>,
+    ) -> Option<String> {
+        use encore_runtime_core::trace::protocol::CustomSpanStartData;
+
+        let attrs: Vec<(String, String)> = attributes.into_iter().collect();
+        let event_id = self.runtime.tracer().custom_span_start(CustomSpanStartData {
+            source: &source.inner,
+            name: &name,
+            attributes: &attrs,
+        })?;
+        Some(event_id.serialize())
+    }
+
+    /// End a custom span.
+    #[napi]
+    pub fn custom_span_end(
+        &self,
+        source: &Request,
+        start_event_id: String,
+        error: Option<String>,
+    ) {
+        use encore_runtime_core::model::TraceEventId;
+        use encore_runtime_core::trace::protocol::CustomSpanEndData;
+
+        let Ok(start_id) = start_event_id.parse::<TraceEventId>() else {
+            return;
+        };
+        self.runtime.tracer().custom_span_end(CustomSpanEndData {
+            start_id: Some(start_id),
+            source: &source.inner,
+            error: error.as_ref(),
+        });
+    }
 }
 
 #[napi(object)]
