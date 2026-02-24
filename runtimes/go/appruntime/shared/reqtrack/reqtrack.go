@@ -41,7 +41,7 @@ func (t *RequestTracker) FinishOperation() {
 }
 
 func (t *RequestTracker) BeginRequest(req *model.Request) {
-	if prev, _, _, _ := t.currentReq(); prev != nil {
+	if prev, _, _, _, _ := t.currentReq(); prev != nil {
 		copyReqInfoFromParent(req, prev)
 		t.clearReq()
 	}
@@ -94,11 +94,17 @@ type Current struct {
 	Trace  trace2.Logger  // can be nil
 	Goctr  uint32         // zero if Req == nil && Trace == nil
 	SvcNum uint16         // 0 if not in a service
+
+	// SpanID is the active span's ID. If a custom span is active,
+	// this is the custom span's SpanID. Otherwise it's the request's SpanID.
+	// Operations (DB queries, PubSub publishes, etc.) should use this
+	// when recording trace events, rather than Req.SpanID directly.
+	SpanID model.SpanID
 }
 
 func (t *RequestTracker) Current() Current {
-	req, tr, goid, svc := t.currentReq()
-	return Current{req, tr, goid, svc}
+	req, tr, goid, svc, spanID := t.currentReq()
+	return Current{req, tr, goid, svc, spanID}
 }
 
 func (t *RequestTracker) Logger() *zerolog.Logger {

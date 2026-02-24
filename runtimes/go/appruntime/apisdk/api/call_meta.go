@@ -83,7 +83,7 @@ func (s *Server) metaFromAPICall(call *model.APICall) (meta CallMeta, err error)
 	// Trace the source data if we're tracing
 	if call != nil && call.Source != nil {
 		meta.TraceID = call.Source.TraceID
-		meta.ParentSpanID = call.Source.SpanID
+		meta.ParentSpanID = call.SpanID // Use the active span ID (may be a custom span)
 		meta.ParentEventID = call.StartEventID
 		meta.CorrelationID = call.Source.ExtCorrelationID
 		meta.TraceSampled = call.Source.Traced

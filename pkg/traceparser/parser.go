@@ -143,6 +143,10 @@ func (tp *traceParser) parseEvent(h header) (ev *tracepb2.TraceEvent, err error)
 		ev.Event = &tracepb2.TraceEvent_SpanStart{SpanStart: tp.testSpanStart()}
 	case trace2.TestEnd:
 		ev.Event = &tracepb2.TraceEvent_SpanEnd{SpanEnd: tp.testSpanEnd()}
+	case trace2.CustomSpanStartEvent:
+		ev.Event = &tracepb2.TraceEvent_SpanStart{SpanStart: tp.customSpanSpanStart()}
+	case trace2.CustomSpanEndEvent:
+		ev.Event = &tracepb2.TraceEvent_SpanEnd{SpanEnd: tp.customSpanSpanEnd()}
 	default:
 		ev.Event = &tracepb2.TraceEvent_SpanEvent{SpanEvent: tp.spanEvent(h.Type)}
 	}
@@ -276,11 +280,6 @@ func (tp *traceParser) spanEvent(eventType trace2.EventType) *tracepb2.SpanEvent
 		ev.Data = &tracepb2.SpanEvent_BucketDeleteObjectsStart{BucketDeleteObjectsStart: tp.bucketDeleteObjectsStart()}
 	case trace2.BucketDeleteObjectsEnd:
 		ev.Data = &tracepb2.SpanEvent_BucketDeleteObjectsEnd{BucketDeleteObjectsEnd: tp.bucketDeleteObjectsEnd()}
-	case trace2.CustomSpanStartEvent:
-		ev.Data = &tracepb2.SpanEvent_CustomSpanStart{CustomSpanStart: tp.customSpanStart()}
-	case trace2.CustomSpanEndEvent:
-		ev.Data = &tracepb2.SpanEvent_CustomSpanEnd{CustomSpanEnd: tp.customSpanEnd()}
-
 	default:
 		tp.bailout(fmt.Errorf("unknown event %v", eventType))
 	}
@@ -288,7 +287,9 @@ func (tp *traceParser) spanEvent(eventType trace2.EventType) *tracepb2.SpanEvent
 	return ev
 }
 
-func (tp *traceParser) customSpanStart() *tracepb2.CustomSpanStart {
+func (tp *traceParser) customSpanSpanStart() *tracepb2.SpanStart {
+	spanStart := tp.spanStartEvent()
+
 	name := tp.String()
 	stack := tp.stack()
 	numAttrs := int(tp.UVarint())
@@ -301,16 +302,38 @@ func (tp *traceParser) customSpanStart() *tracepb2.CustomSpanStart {
 			attrs[k] = v
 		}
 	}
-	return &tracepb2.CustomSpanStart{
-		Name:       name,
-		Stack:      stack,
-		Attributes: attrs,
+
+	return &tracepb2.SpanStart{
+		Goid:                  spanStart.Goid,
+		ParentTraceId:         spanStart.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:          spanStart.ParentSpanID.PtrOrNil(),
+		DefLoc:                spanStart.DefLoc.PtrOrNil(),
+		CallerEventId:         (*uint64)(spanStart.CallerEventID.PtrOrNil()),
+		ExternalCorrelationId: spanStart.ExtCorrelationID.PtrOrNil(),
+		Data: &tracepb2.SpanStart_Custom{
+			Custom: &tracepb2.CustomSpanStart{
+				Name:       name,
+				Stack:      stack,
+				Attributes: attrs,
+			},
+		},
 	}
 }
 
-func (tp *traceParser) customSpanEnd() *tracepb2.CustomSpanEnd {
-	return &tracepb2.CustomSpanEnd{
-		Err: tp.errWithStack(),
+func (tp *traceParser) customSpanSpanEnd() *tracepb2.SpanEnd {
+	spanEnd := tp.spanEndEvent()
+	return &tracepb2.SpanEnd{
+		DurationNanos: spanEnd.DurationNanos,
+		StatusCode:    spanEnd.StatusCode,
+		Error:         spanEnd.Err,
+		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
+		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:  spanEnd.ParentSpanID.PtrOrNil(),
+		Data: &tracepb2.SpanEnd_Custom{
+			Custom: &tracepb2.CustomSpanEnd{
+				Err: spanEnd.Err,
+			},
+		},
 	}
 }
 

@@ -468,7 +468,7 @@ func (l *Log) RPCCallStart(call *model.APICall, goid uint32) EventID {
 	return l.Add(Event{
 		Type:    RPCCallStart,
 		TraceID: call.Source.TraceID,
-		SpanID:  call.Source.SpanID,
+		SpanID:  call.SpanID,
 		Data:    tb,
 	})
 }
@@ -485,7 +485,7 @@ func (l *Log) RPCCallEnd(call *model.APICall, goid uint32, err error) {
 	l.Add(Event{
 		Type:    RPCCallEnd,
 		TraceID: call.Source.TraceID,
-		SpanID:  call.Source.SpanID,
+		SpanID:  call.SpanID,
 		Data:    tb,
 	})
 }
@@ -1049,6 +1049,72 @@ func (l *Log) BucketDeleteObjectsEnd(p BucketDeleteObjectsEndParams) {
 
 	l.Add(Event{
 		Type:    BucketDeleteObjectsEnd,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type CustomSpanStartParams struct {
+	// TraceID is the trace this span belongs to.
+	TraceID model.TraceID
+	// SpanID is the new custom span's own SpanID.
+	SpanID model.SpanID
+	// ParentSpanID is the parent span's ID (the currently active span).
+	ParentSpanID model.SpanID
+	Goid         uint32
+	Name         string
+	Attributes   map[string]string
+}
+
+func (l *Log) CustomSpanStart(p CustomSpanStartParams) {
+	attrsSpace := 0
+	for k, v := range p.Attributes {
+		attrsSpace += 10 + len(k) + 10 + len(v)
+	}
+	tb := l.newSpanStartEvent(spanStartEventData{
+		ParentTraceID: p.TraceID,
+		ParentSpanID:  p.ParentSpanID,
+		Goid:          p.Goid,
+		ExtraSpace:    len(p.Name) + 10 + attrsSpace + 64,
+	})
+
+	tb.String(p.Name)
+	tb.Stack(stack.Build(4))
+	tb.UVarint(uint64(len(p.Attributes)))
+	for k, v := range p.Attributes {
+		tb.String(k)
+		tb.String(v)
+	}
+
+	l.Add(Event{
+		Type:    CustomSpanStartEvent,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type CustomSpanEndParams struct {
+	TraceID model.TraceID
+	// SpanID is the custom span's own SpanID.
+	SpanID model.SpanID
+	// ParentSpanID is the parent span's ID.
+	ParentSpanID model.SpanID
+	Duration     time.Duration
+	Err          error
+}
+
+func (l *Log) CustomSpanEnd(p CustomSpanEndParams) {
+	tb := l.newSpanEndEvent(spanEndEventData{
+		Duration:      p.Duration,
+		Err:           p.Err,
+		ParentTraceID: p.TraceID,
+		ParentSpanID:  p.ParentSpanID,
+	})
+
+	l.Add(Event{
+		Type:    CustomSpanEndEvent,
 		TraceID: p.TraceID,
 		SpanID:  p.SpanID,
 		Data:    tb,

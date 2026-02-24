@@ -206,6 +206,7 @@ const (
 	SpanSummary_AUTH           SpanSummary_SpanType = 2
 	SpanSummary_PUBSUB_MESSAGE SpanSummary_SpanType = 3
 	SpanSummary_TEST           SpanSummary_SpanType = 4
+	SpanSummary_CUSTOM         SpanSummary_SpanType = 5
 )
 
 // Enum value maps for SpanSummary_SpanType.
@@ -216,6 +217,7 @@ var (
 		2: "AUTH",
 		3: "PUBSUB_MESSAGE",
 		4: "TEST",
+		5: "CUSTOM",
 	}
 	SpanSummary_SpanType_value = map[string]int32{
 		"UNKNOWN":        0,
@@ -223,6 +225,7 @@ var (
 		"AUTH":           2,
 		"PUBSUB_MESSAGE": 3,
 		"TEST":           4,
+		"CUSTOM":         5,
 	}
 )
 
@@ -834,6 +837,7 @@ type SpanStart struct {
 	//	*SpanStart_Auth
 	//	*SpanStart_PubsubMessage
 	//	*SpanStart_Test
+	//	*SpanStart_Custom
 	Data          isSpanStart_Data `protobuf_oneof:"data"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -954,6 +958,15 @@ func (x *SpanStart) GetTest() *TestSpanStart {
 	return nil
 }
 
+func (x *SpanStart) GetCustom() *CustomSpanStart {
+	if x != nil {
+		if x, ok := x.Data.(*SpanStart_Custom); ok {
+			return x.Custom
+		}
+	}
+	return nil
+}
+
 type isSpanStart_Data interface {
 	isSpanStart_Data()
 }
@@ -974,6 +987,10 @@ type SpanStart_Test struct {
 	Test *TestSpanStart `protobuf:"bytes,13,opt,name=test,proto3,oneof"`
 }
 
+type SpanStart_Custom struct {
+	Custom *CustomSpanStart `protobuf:"bytes,14,opt,name=custom,proto3,oneof"`
+}
+
 func (*SpanStart_Request) isSpanStart_Data() {}
 
 func (*SpanStart_Auth) isSpanStart_Data() {}
@@ -981,6 +998,8 @@ func (*SpanStart_Auth) isSpanStart_Data() {}
 func (*SpanStart_PubsubMessage) isSpanStart_Data() {}
 
 func (*SpanStart_Test) isSpanStart_Data() {}
+
+func (*SpanStart_Custom) isSpanStart_Data() {}
 
 type SpanEnd struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -997,6 +1016,7 @@ type SpanEnd struct {
 	//	*SpanEnd_Auth
 	//	*SpanEnd_PubsubMessage
 	//	*SpanEnd_Test
+	//	*SpanEnd_Custom
 	Data          isSpanEnd_Data `protobuf_oneof:"data"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1117,6 +1137,15 @@ func (x *SpanEnd) GetTest() *TestSpanEnd {
 	return nil
 }
 
+func (x *SpanEnd) GetCustom() *CustomSpanEnd {
+	if x != nil {
+		if x, ok := x.Data.(*SpanEnd_Custom); ok {
+			return x.Custom
+		}
+	}
+	return nil
+}
+
 type isSpanEnd_Data interface {
 	isSpanEnd_Data()
 }
@@ -1137,6 +1166,10 @@ type SpanEnd_Test struct {
 	Test *TestSpanEnd `protobuf:"bytes,13,opt,name=test,proto3,oneof"`
 }
 
+type SpanEnd_Custom struct {
+	Custom *CustomSpanEnd `protobuf:"bytes,14,opt,name=custom,proto3,oneof"`
+}
+
 func (*SpanEnd_Request) isSpanEnd_Data() {}
 
 func (*SpanEnd_Auth) isSpanEnd_Data() {}
@@ -1144,6 +1177,8 @@ func (*SpanEnd_Auth) isSpanEnd_Data() {}
 func (*SpanEnd_PubsubMessage) isSpanEnd_Data() {}
 
 func (*SpanEnd_Test) isSpanEnd_Data() {}
+
+func (*SpanEnd_Custom) isSpanEnd_Data() {}
 
 type RequestSpanStart struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`

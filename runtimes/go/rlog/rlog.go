@@ -141,7 +141,7 @@ func (l *Manager) doLog(level model.LogLevel, ev *zerolog.Event, msg string, ctx
 		tp = trace2.LogMessageParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 			},
 			Level:  level,

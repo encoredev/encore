@@ -55,4 +55,7 @@ type Logger interface {
 	BucketListObjectsEnd(BucketListObjectsEndParams)
 	BucketDeleteObjectsStart(BucketDeleteObjectsStartParams) EventID
 	BucketDeleteObjectsEnd(BucketDeleteObjectsEndParams)
+
+	CustomSpanStart(CustomSpanStartParams)
+	CustomSpanEnd(CustomSpanEndParams)
 }

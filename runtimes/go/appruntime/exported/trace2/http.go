@@ -14,6 +14,10 @@ import (
 	"encore.dev/appruntime/exported/stack"
 )
 
+// activeSpanIDKeyType is the context key used to pass the active span ID
+// from the request tracker to the HTTP tracer.
+type activeSpanIDKeyType struct{}
+
 func (l *Log) HTTPBeginRoundTrip(httpReq *http.Request, req *model.Request, goid uint32) (context.Context, error) {
 	if l == nil {
 		return httpReq.Context(), nil
@@ -22,6 +26,12 @@ func (l *Log) HTTPBeginRoundTrip(httpReq *http.Request, req *model.Request, goid
 	callCorrelationParentSpanID, err := model.GenSpanID()
 	if err != nil {
 		return nil, err
+	}
+
+	// Use the active span ID if available (set by reqtrack when inside a custom span).
+	spanID := req.SpanID
+	if activeID, ok := httpReq.Context().Value(activeSpanIDKeyType{}).(model.SpanID); ok {
+		spanID = activeID
 	}
 
 	requestURL := httpReq.URL.String()
@@ -40,13 +50,13 @@ func (l *Log) HTTPBeginRoundTrip(httpReq *http.Request, req *model.Request, goid
 	eventID := l.Add(Event{
 		Type:    HTTPCallStart,
 		TraceID: req.TraceID,
-		SpanID:  req.SpanID,
+		SpanID:  spanID,
 		Data:    tb,
 	})
 
 	rt := &httpRoundTrip{
 		TraceID:                 req.TraceID,
-		SpanID:                  req.SpanID,
+		SpanID:                  spanID,
 		StartID:                 eventID,
 		CorrelationParentSpanID: callCorrelationParentSpanID,
 		log:                     l,

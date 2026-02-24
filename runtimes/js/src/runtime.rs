@@ -411,8 +411,8 @@ impl Runtime {
     }
 
     /// Start a custom span within the current request's trace.
-    /// Returns the event ID (as a string) that must be passed to custom_span_end.
-    /// Returns null if the request is not being traced.
+    /// Returns a serialized SpanKey (trace_id:span_id:start_nanos) that must be
+    /// passed to custom_span_end. Returns null if the request is not being traced.
     #[napi]
     pub fn custom_span_start(
         &self,
@@ -423,12 +423,24 @@ impl Runtime {
         use encore_runtime_core::trace::protocol::CustomSpanStartData;
 
         let attrs: Vec<(String, String)> = attributes.into_iter().collect();
-        let event_id = self.runtime.tracer().custom_span_start(CustomSpanStartData {
+        let span_key = self.runtime.tracer().custom_span_start(CustomSpanStartData {
             source: &source.inner,
             name: &name,
             attributes: &attrs,
         })?;
-        Some(event_id.serialize())
+
+        // Serialize the SpanKey and capture the start time so we can compute
+        // the duration in custom_span_end.
+        let start_nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        Some(format!(
+            "{}:{}:{}",
+            span_key.0.serialize_std(),
+            span_key.1.serialize_std(),
+            start_nanos
+        ))
     }
 
     /// End a custom span.
@@ -436,18 +448,43 @@ impl Runtime {
     pub fn custom_span_end(
         &self,
         source: &Request,
-        start_event_id: String,
+        span_key_str: String,
         error: Option<String>,
     ) {
-        use encore_runtime_core::model::TraceEventId;
+        use encore_runtime_core::model::{SpanId, SpanKey, TraceId};
         use encore_runtime_core::trace::protocol::CustomSpanEndData;
 
-        let Ok(start_id) = start_event_id.parse::<TraceEventId>() else {
+        // Parse "trace_id_hex:span_id_hex:start_nanos"
+        let parts: Vec<&str> = span_key_str.splitn(3, ':').collect();
+        if parts.len() != 3 {
+            return;
+        }
+
+        let Ok(trace_id) = TraceId::parse_std(parts[0]) else {
             return;
         };
+        let Ok(span_id) = SpanId::parse_std(parts[1]) else {
+            return;
+        };
+        let Ok(start_nanos) = parts[2].parse::<u128>() else {
+            return;
+        };
+
+        let custom_span = SpanKey(trace_id, span_id);
+        let parent_span = source.inner.span;
+
+        let now_nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let duration = std::time::Duration::from_nanos(
+            now_nanos.saturating_sub(start_nanos) as u64
+        );
+
         self.runtime.tracer().custom_span_end(CustomSpanEndData {
-            start_id: Some(start_id),
-            source: &source.inner,
+            span: custom_span,
+            parent_span,
+            duration,
             error: error.as_ref(),
         });
     }

@@ -33,6 +33,7 @@ message SpanSummary {
     AUTH = 2;
     PUBSUB_MESSAGE = 3;
     TEST = 4;
+    CUSTOM = 5;
   }
 }
 
@@ -71,6 +72,7 @@ message SpanStart {
     AuthSpanStart auth = 11;
     PubsubMessageSpanStart pubsub_message = 12;
     TestSpanStart test = 13;
+    CustomSpanStart custom = 14;
   }
 }
 
@@ -88,6 +90,7 @@ message SpanEnd {
     AuthSpanEnd auth = 11;
     PubsubMessageSpanEnd pubsub_message = 12;
     TestSpanEnd test = 13;
+    CustomSpanEnd custom = 14;
   }
 }
 

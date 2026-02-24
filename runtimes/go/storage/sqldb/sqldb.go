@@ -54,7 +54,7 @@ func (tx *Tx) commit() error {
 		curr.Trace.DBTransactionEnd(trace2.DBTransactionEndParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 				DefLoc:  0,
 			},
@@ -76,7 +76,7 @@ func (tx *Tx) rollback() error {
 		curr.Trace.DBTransactionEnd(trace2.DBTransactionEndParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 				DefLoc:  0,
 			},
@@ -105,7 +105,7 @@ func (tx *Tx) exec(ctx context.Context, query string, args ...interface{}) (Exec
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
@@ -138,7 +138,7 @@ func (tx *Tx) Query(ctx context.Context, query string, args ...interface{}) (*Ro
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
@@ -174,7 +174,7 @@ func (tx *Tx) QueryRow(ctx context.Context, query string, args ...interface{}) *
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}

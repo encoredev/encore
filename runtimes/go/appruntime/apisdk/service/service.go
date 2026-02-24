@@ -63,7 +63,7 @@ func doSetupService[T any](mgr *Manager, decl *Decl[T], holder *InstanceHolder[T
 	if curr.Trace != nil && curr.Req != nil && decl.SetupDefLoc != 0 {
 		eventParams := trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  decl.SetupDefLoc,
 		}

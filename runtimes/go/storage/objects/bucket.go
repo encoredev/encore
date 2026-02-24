@@ -115,7 +115,7 @@ func (b *Bucket) Upload(ctx context.Context, object string, options ...UploadOpt
 		w.startEventID = curr.Trace.BucketObjectUploadStart(trace2.BucketObjectUploadStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 			},
 			Bucket: b.name,
@@ -191,7 +191,7 @@ func (w *Writer) Close() error {
 			StartID: w.startEventID,
 			EventParams: trace2.EventParams{
 				TraceID: w.curr.Req.TraceID,
-				SpanID:  w.curr.Req.SpanID,
+				SpanID:  w.curr.SpanID,
 				Goid:    w.curr.Goctr,
 			},
 			Err: err,
@@ -258,7 +258,7 @@ func (b *Bucket) Download(ctx context.Context, object string, options ...Downloa
 		startEventID = curr.Trace.BucketObjectDownloadStart(trace2.BucketObjectDownloadStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 			},
 			Bucket:  b.name,
@@ -328,7 +328,7 @@ func (r *Reader) completeTrace() {
 			StartID: r.startEventID,
 			EventParams: trace2.EventParams{
 				TraceID: r.curr.Req.TraceID,
-				SpanID:  r.curr.Req.SpanID,
+				SpanID:  r.curr.SpanID,
 				Goid:    r.curr.Goctr,
 			},
 			Err:  r.err,
@@ -426,7 +426,7 @@ func (b *Bucket) List(ctx context.Context, query *Query, options ...ListOption) 
 			startEventID := curr.Trace.BucketListObjectsStart(trace2.BucketListObjectsStartParams{
 				EventParams: trace2.EventParams{
 					TraceID: curr.Req.TraceID,
-					SpanID:  curr.Req.SpanID,
+					SpanID:  curr.SpanID,
 					Goid:    curr.Goctr,
 				},
 				Bucket: b.name,
@@ -438,7 +438,7 @@ func (b *Bucket) List(ctx context.Context, query *Query, options ...ListOption) 
 				StartID: startEventID,
 				EventParams: trace2.EventParams{
 					TraceID: curr.Req.TraceID,
-					SpanID:  curr.Req.SpanID,
+					SpanID:  curr.SpanID,
 					Goid:    curr.Goctr,
 				},
 				Err:      listErr,
@@ -479,7 +479,7 @@ func (b *Bucket) Remove(ctx context.Context, object string, options ...RemoveOpt
 		startEventID := curr.Trace.BucketDeleteObjectsStart(trace2.BucketDeleteObjectsStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 			},
 			Bucket: b.name,
@@ -496,7 +496,7 @@ func (b *Bucket) Remove(ctx context.Context, object string, options ...RemoveOpt
 			StartID: startEventID,
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 			},
 			Err: removeErr,
@@ -543,7 +543,7 @@ func (b *Bucket) Attrs(ctx context.Context, object string, options ...AttrsOptio
 		startEventID := curr.Trace.BucketObjectGetAttrsStart(trace2.BucketObjectGetAttrsStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 			},
 			Bucket:  b.name,
@@ -557,7 +557,7 @@ func (b *Bucket) Attrs(ctx context.Context, object string, options ...AttrsOptio
 				StartID: startEventID,
 				EventParams: trace2.EventParams{
 					TraceID: curr.Req.TraceID,
-					SpanID:  curr.Req.SpanID,
+					SpanID:  curr.SpanID,
 					Goid:    curr.Goctr,
 				},
 				Err: attrsErr,
@@ -656,7 +656,7 @@ func (b *Bucket) Exists(ctx context.Context, object string, options ...ExistsOpt
 		startEventID := curr.Trace.BucketObjectGetAttrsStart(trace2.BucketObjectGetAttrsStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 			},
 			Bucket:  b.name,
@@ -670,7 +670,7 @@ func (b *Bucket) Exists(ctx context.Context, object string, options ...ExistsOpt
 				StartID: startEventID,
 				EventParams: trace2.EventParams{
 					TraceID: curr.Req.TraceID,
-					SpanID:  curr.Req.SpanID,
+					SpanID:  curr.SpanID,
 					Goid:    curr.Goctr,
 				},
 				Err: attrsErr,

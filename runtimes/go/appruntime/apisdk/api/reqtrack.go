@@ -352,6 +352,7 @@ func (s *Server) beginCall(ctx context.Context, serviceName, endpointName string
 
 	curr := s.rt.Current()
 	call.Source = curr.Req
+	call.SpanID = curr.SpanID
 
 	// Add  auth data to the call, if any
 	if curr.Req != nil && curr.Req.RPCData != nil {

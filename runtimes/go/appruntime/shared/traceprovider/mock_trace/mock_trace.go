@@ -219,6 +219,30 @@ func (mr *MockLoggerMockRecorder) BucketObjectUploadStart(arg0 interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BucketObjectUploadStart", reflect.TypeOf((*MockLogger)(nil).BucketObjectUploadStart), arg0)
 }
 
+// CustomSpanStart mocks base method.
+func (m *MockLogger) CustomSpanStart(arg0 trace2.CustomSpanStartParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "CustomSpanStart", arg0)
+}
+
+// CustomSpanStart indicates an expected call of CustomSpanStart.
+func (mr *MockLoggerMockRecorder) CustomSpanStart(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CustomSpanStart", reflect.TypeOf((*MockLogger)(nil).CustomSpanStart), arg0)
+}
+
+// CustomSpanEnd mocks base method.
+func (m *MockLogger) CustomSpanEnd(arg0 trace2.CustomSpanEndParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "CustomSpanEnd", arg0)
+}
+
+// CustomSpanEnd indicates an expected call of CustomSpanEnd.
+func (mr *MockLoggerMockRecorder) CustomSpanEnd(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CustomSpanEnd", reflect.TypeOf((*MockLogger)(nil).CustomSpanEnd), arg0)
+}
+
 // CacheCallEnd mocks base method.
 func (m *MockLogger) CacheCallEnd(arg0 trace2.CacheCallEndParams) {
 	m.ctrl.T.Helper()

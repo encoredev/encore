@@ -68,7 +68,7 @@ func (i *interceptor) ConnQuery(ctx context.Context, conn driver.QueryerContext,
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
@@ -99,7 +99,7 @@ func (i *interceptor) ConnExec(ctx context.Context, conn driver.ExecerContext, q
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
@@ -131,7 +131,7 @@ func (i *interceptor) StmtQuery(ctx context.Context, conn driver.StmtQueryContex
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
@@ -162,7 +162,7 @@ func (i *interceptor) StmtExec(ctx context.Context, conn driver.StmtExecContext,
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
@@ -190,7 +190,7 @@ func (i *interceptor) ConnBegin(tx driver.Tx) (driver.Tx, error) {
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams := trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
@@ -213,7 +213,7 @@ func (i *interceptor) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx, 
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams := trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
@@ -237,7 +237,7 @@ func (i *interceptor) TxCommit(ctx context.Context, tx driver.Tx) error {
 		if curr.Req != nil && curr.Trace != nil {
 			eventParams := trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 				DefLoc:  0,
 			}
@@ -262,7 +262,7 @@ func (i *interceptor) TxRollback(ctx context.Context, tx driver.Tx) error {
 		if curr.Req != nil && curr.Trace != nil {
 			eventParams := trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 				DefLoc:  0,
 			}

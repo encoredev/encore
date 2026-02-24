@@ -24,6 +24,18 @@ type encoreG struct {
 
 	// goctr is the per-op goroutine counter.
 	goctr uint32
+
+	// spanStack tracks active custom spans for this goroutine.
+	// When non-empty, the top of the stack is the "active" span
+	// that operations (DB queries, PubSub publishes, etc.) emit events under.
+	// When empty, the active span is the request span.
+	spanStack []activeSpan
+}
+
+// activeSpan represents an active custom span that is currently
+// being traced on this goroutine.
+type activeSpan struct {
+	spanID model2.SpanID
 }
 
 // encoreOp represents an Encore operation.
@@ -175,7 +187,7 @@ func (t *RequestTracker) finishReq(blockOnTraceSend bool) {
 	e.req = nil
 }
 
-func (t *RequestTracker) currentReq() (req *model2.Request, tr trace2.Logger, goctr uint32, svcNum uint16) {
+func (t *RequestTracker) currentReq() (req *model2.Request, tr trace2.Logger, goctr uint32, svcNum uint16, spanID model2.SpanID) {
 	if g := t.impl.get(); g != nil {
 		var tr trace2.Logger
 		if g.op != nil {
@@ -186,10 +198,37 @@ func (t *RequestTracker) currentReq() (req *model2.Request, tr trace2.Logger, go
 		if g.req != nil {
 			req = g.req.data
 			svcNum = req.SvcNum
+			spanID = req.SpanID
 		}
-		return req, tr, g.goctr, svcNum
+		// If there's an active custom span, use its SpanID.
+		if len(g.spanStack) > 0 {
+			spanID = g.spanStack[len(g.spanStack)-1].spanID
+		}
+		return req, tr, g.goctr, svcNum, spanID
 	}
-	return nil, nil, 0, 0
+	return nil, nil, 0, 0, model2.SpanID{}
+}
+
+// PushSpan pushes a custom span onto the active span stack for the current goroutine.
+// While this span is active, operations (DB queries, PubSub publishes, etc.) will emit
+// trace events under this span's ID instead of the request's span ID.
+func (t *RequestTracker) PushSpan(spanID model2.SpanID) {
+	g := t.impl.get()
+	if g == nil {
+		return
+	}
+	g.spanStack = append(g.spanStack, activeSpan{spanID: spanID})
+}
+
+// PopSpan removes the top custom span from the active span stack for the current goroutine.
+// After popping, operations will emit under the next span in the stack, or the request span
+// if the stack is empty.
+func (t *RequestTracker) PopSpan() {
+	g := t.impl.get()
+	if g == nil || len(g.spanStack) == 0 {
+		return
+	}
+	g.spanStack = g.spanStack[:len(g.spanStack)-1]
 }
 
 // encoreClearReq clears request data from the running g

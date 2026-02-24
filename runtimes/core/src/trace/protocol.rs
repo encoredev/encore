@@ -961,24 +961,35 @@ pub struct CustomSpanStartData<'a> {
 }
 
 pub struct CustomSpanEndData<'a, E> {
-    pub start_id: Option<TraceEventId>,
-    pub source: &'a Request,
+    /// The custom span's own SpanKey (returned from custom_span_start).
+    pub span: model::SpanKey,
+    /// The parent span's SpanKey (the request span that contains this custom span).
+    pub parent_span: model::SpanKey,
+    pub duration: std::time::Duration,
     pub error: Option<&'a E>,
 }
 
 impl Tracer {
     #[inline]
-    pub fn custom_span_start(&self, data: CustomSpanStartData) -> Option<TraceEventId> {
+    pub fn custom_span_start(&self, data: CustomSpanStartData) -> Option<model::SpanKey> {
         if !data.source.traced {
             return None;
         }
+
+        // Generate a new SpanId for the custom span, keeping the same TraceId.
+        let trace_id = data.source.span.0;
+        let new_span_id = model::SpanId::generate();
+        let new_span_key = model::SpanKey(trace_id, new_span_id);
+
         let attrs_space: usize = data
             .attributes
             .iter()
             .map(|(k, v)| 10 + k.len() + 10 + v.len())
             .sum();
-        let mut eb = BasicEventData {
-            correlation_event_id: None,
+        let mut eb = SpanStartEventData {
+            parent: Some(Parent::Span(data.source.span)),
+            caller_event_id: None,
+            ext_correlation_id: None,
             extra_space: 10 + data.name.len() + 1 + 10 + attrs_space,
         }
         .into_eb();
@@ -991,7 +1002,8 @@ impl Tracer {
             eb.str(v);
         }
 
-        Some(self.send(EventType::CustomSpanStart, data.source.span, eb))
+        _ = self.send(EventType::CustomSpanStart, new_span_key, eb);
+        Some(new_span_key)
     }
 
     #[inline]
@@ -999,18 +1011,29 @@ impl Tracer {
     where
         E: std::fmt::Display,
     {
-        let Some(start_id) = data.start_id else {
-            return;
-        };
-        let mut eb = BasicEventData {
-            correlation_event_id: Some(start_id),
-            extra_space: 4 + 4 + 8,
-        }
-        .into_eb();
+        // Manually construct the event buffer to match the spanEndEvent format.
+        // We can't use SpanEndEventData directly because it takes api::Error
+        // while custom spans use a generic error type.
+        let parent = Parent::Span(data.parent_span);
+        let mut eb = EventBuffer::with_capacity(8 + 12 + 16 + 8 + 4);
 
+        // 1. Duration
+        eb.duration(data.duration);
+
+        // 2. Status code: 0 (OK) if no error, 2 (Unknown) if error
+        let status_code: u8 = if data.error.is_some() { 2 } else { 0 };
+        eb.byte(status_code);
+
+        // 3. Error with stack (in the standard errWithStack format)
         eb.err_with_legacy_stack(data.error);
 
-        _ = self.send(EventType::CustomSpanEnd, data.source.span, eb);
+        // 4. Formatted panic stack (none for custom spans)
+        eb.formatted_stack(None);
+
+        // 5. Parent span
+        eb.parent(Some(&parent));
+
+        _ = self.send(EventType::CustomSpanEnd, data.span, eb);
     }
 }
 

@@ -43,7 +43,7 @@ func (t *pgxTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pg
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams := trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}

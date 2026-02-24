@@ -175,7 +175,7 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 		startEventID = curr.Trace.PubsubPublishStart(trace2.PubsubPublishStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 			},
 			Desc:    desc,
@@ -195,7 +195,7 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 		curr.Trace.PubsubPublishEnd(trace2.PubsubPublishEndParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 			},
 			StartID:   startEventID,

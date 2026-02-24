@@ -334,7 +334,7 @@ func (c *client[K, V]) traceStart(op string, write bool, keys ...string) (eventI
 		eventID = curr.Trace.CacheCallStart(trace2.CacheCallStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 				DefLoc:  c.cfg.EncoreInternal_DefLoc,
 			},
@@ -371,7 +371,7 @@ func (c *client[K, V]) traceEnd(startEventID model.TraceEventID, err error, valu
 		curr.Trace.CacheCallEnd(trace2.CacheCallEndParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 			},
 			StartID: startEventID,

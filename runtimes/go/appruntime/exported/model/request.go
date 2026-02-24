@@ -248,7 +248,7 @@ type Response struct {
 type APICall struct {
 	ID     uint64 // call id
 	Source *Request
-	SpanID SpanID // deprecated: this is not used
+	SpanID SpanID // the active span ID at the time the call was made
 	DefLoc uint32
 
 	// Service/endpoint being called

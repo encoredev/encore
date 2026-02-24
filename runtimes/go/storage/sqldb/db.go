@@ -180,7 +180,7 @@ func (db *Database) Exec(ctx context.Context, query string, args ...interface{})
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
@@ -222,7 +222,7 @@ func (db *Database) Query(ctx context.Context, query string, args ...interface{}
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
@@ -265,7 +265,7 @@ func (db *Database) QueryRow(ctx context.Context, query string, args ...interfac
 	if curr.Req != nil && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
@@ -307,7 +307,7 @@ func (db *Database) Begin(ctx context.Context) (*Tx, error) {
 	if curr.Req != nil && curr.Trace != nil {
 		startID = curr.Trace.DBTransactionStart(trace2.EventParams{
 			TraceID: curr.Req.TraceID,
-			SpanID:  curr.Req.SpanID,
+			SpanID:  curr.SpanID,
 			Goid:    curr.Goctr,
 		}, stack.Build(4))
 	}

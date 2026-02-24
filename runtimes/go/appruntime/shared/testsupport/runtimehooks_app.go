@@ -62,7 +62,7 @@ func encoreTestLog(line string, frameSkip int) {
 		curr.Trace.LogMessage(trace2.LogMessageParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
-				SpanID:  curr.Req.SpanID,
+				SpanID:  curr.SpanID,
 				Goid:    curr.Goctr,
 			},
 			Level: model.LevelTrace,
