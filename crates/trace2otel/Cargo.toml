@@ -1,0 +1,8 @@
+[package]
+name = "encore-trace2otel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+encore-traceparser = { path = "../traceparser" }
+prost = "0.12.3"

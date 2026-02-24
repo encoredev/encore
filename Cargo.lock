@@ -1960,6 +1960,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "encore-trace2otel"
+version = "0.1.0"
+dependencies = [
+ "encore-traceparser",
+ "prost 0.12.6",
+]
+
+[[package]]
 name = "encore-traceparser"
 version = "0.1.0"
 dependencies = [
