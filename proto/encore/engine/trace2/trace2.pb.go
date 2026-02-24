@@ -1835,6 +1835,8 @@ type SpanEvent struct {
 	//	*SpanEvent_BucketListObjectsEnd
 	//	*SpanEvent_BucketDeleteObjectsStart
 	//	*SpanEvent_BucketDeleteObjectsEnd
+	//	*SpanEvent_CustomSpanStart
+	//	*SpanEvent_CustomSpanEnd
 	Data          isSpanEvent_Data `protobuf_oneof:"data"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2132,6 +2134,24 @@ func (x *SpanEvent) GetBucketDeleteObjectsEnd() *BucketDeleteObjectsEnd {
 	return nil
 }
 
+func (x *SpanEvent) GetCustomSpanStart() *CustomSpanStart {
+	if x != nil {
+		if x, ok := x.Data.(*SpanEvent_CustomSpanStart); ok {
+			return x.CustomSpanStart
+		}
+	}
+	return nil
+}
+
+func (x *SpanEvent) GetCustomSpanEnd() *CustomSpanEnd {
+	if x != nil {
+		if x, ok := x.Data.(*SpanEvent_CustomSpanEnd); ok {
+			return x.CustomSpanEnd
+		}
+	}
+	return nil
+}
+
 type isSpanEvent_Data interface {
 	isSpanEvent_Data()
 }
@@ -2240,6 +2260,14 @@ type SpanEvent_BucketDeleteObjectsEnd struct {
 	BucketDeleteObjectsEnd *BucketDeleteObjectsEnd `protobuf:"bytes,35,opt,name=bucket_delete_objects_end,json=bucketDeleteObjectsEnd,proto3,oneof"`
 }
 
+type SpanEvent_CustomSpanStart struct {
+	CustomSpanStart *CustomSpanStart `protobuf:"bytes,36,opt,name=custom_span_start,json=customSpanStart,proto3,oneof"`
+}
+
+type SpanEvent_CustomSpanEnd struct {
+	CustomSpanEnd *CustomSpanEnd `protobuf:"bytes,37,opt,name=custom_span_end,json=customSpanEnd,proto3,oneof"`
+}
+
 func (*SpanEvent_LogMessage) isSpanEvent_Data() {}
 
 func (*SpanEvent_BodyStream) isSpanEvent_Data() {}
@@ -2291,6 +2319,10 @@ func (*SpanEvent_BucketListObjectsEnd) isSpanEvent_Data() {}
 func (*SpanEvent_BucketDeleteObjectsStart) isSpanEvent_Data() {}
 
 func (*SpanEvent_BucketDeleteObjectsEnd) isSpanEvent_Data() {}
+
+func (*SpanEvent_CustomSpanStart) isSpanEvent_Data() {}
+
+func (*SpanEvent_CustomSpanEnd) isSpanEvent_Data() {}
 
 type RPCCallStart struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
@@ -3626,6 +3658,110 @@ func (*BucketDeleteObjectsEnd) Descriptor() ([]byte, []int) {
 }
 
 func (x *BucketDeleteObjectsEnd) GetErr() *Error {
+	if x != nil {
+		return x.Err
+	}
+	return nil
+}
+
+type CustomSpanStart struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Stack         *StackTrace            `protobuf:"bytes,2,opt,name=stack,proto3" json:"stack,omitempty"`
+	Attributes    map[string]string      `protobuf:"bytes,3,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CustomSpanStart) Reset() {
+	*x = CustomSpanStart{}
+	mi := &file_encore_engine_trace2_trace2_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CustomSpanStart) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomSpanStart) ProtoMessage() {}
+
+func (x *CustomSpanStart) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace2_trace2_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomSpanStart.ProtoReflect.Descriptor instead.
+func (*CustomSpanStart) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace2_trace2_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *CustomSpanStart) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CustomSpanStart) GetStack() *StackTrace {
+	if x != nil {
+		return x.Stack
+	}
+	return nil
+}
+
+func (x *CustomSpanStart) GetAttributes() map[string]string {
+	if x != nil {
+		return x.Attributes
+	}
+	return nil
+}
+
+type CustomSpanEnd struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Err           *Error                 `protobuf:"bytes,1,opt,name=err,proto3,oneof" json:"err,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CustomSpanEnd) Reset() {
+	*x = CustomSpanEnd{}
+	mi := &file_encore_engine_trace2_trace2_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CustomSpanEnd) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomSpanEnd) ProtoMessage() {}
+
+func (x *CustomSpanEnd) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_engine_trace2_trace2_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomSpanEnd.ProtoReflect.Descriptor instead.
+func (*CustomSpanEnd) Descriptor() ([]byte, []int) {
+	return file_encore_engine_trace2_trace2_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *CustomSpanEnd) GetErr() *Error {
 	if x != nil {
 		return x.Err
 	}
@@ -5875,7 +6011,7 @@ func file_encore_engine_trace2_trace2_proto_rawDescGZIP() []byte {
 }
 
 var file_encore_engine_trace2_trace2_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_encore_engine_trace2_trace2_proto_msgTypes = make([]protoimpl.MessageInfo, 67)
+var file_encore_engine_trace2_trace2_proto_msgTypes = make([]protoimpl.MessageInfo, 70)
 var file_encore_engine_trace2_trace2_proto_goTypes = []any{
 	(HTTPTraceEventCode)(0),              // 0: encore.engine.trace2.HTTPTraceEventCode
 	(StatusCode)(0),                      // 1: encore.engine.trace2.StatusCode
@@ -5950,14 +6086,17 @@ var file_encore_engine_trace2_trace2_proto_goTypes = []any{
 	(*Error)(nil),                        // 70: encore.engine.trace2.Error
 	nil,                                  // 71: encore.engine.trace2.RequestSpanStart.RequestHeadersEntry
 	nil,                                  // 72: encore.engine.trace2.RequestSpanEnd.ResponseHeadersEntry
-	(*timestamppb.Timestamp)(nil),        // 73: google.protobuf.Timestamp
+	(*CustomSpanStart)(nil),              // 73: encore.engine.trace2.CustomSpanStart
+	(*CustomSpanEnd)(nil),                // 74: encore.engine.trace2.CustomSpanEnd
+	nil,                                  // 75: encore.engine.trace2.CustomSpanStart.AttributesEntry
+	(*timestamppb.Timestamp)(nil),        // 76: google.protobuf.Timestamp
 }
 var file_encore_engine_trace2_trace2_proto_depIdxs = []int32{
 	2,   // 0: encore.engine.trace2.SpanSummary.type:type_name -> encore.engine.trace2.SpanSummary.SpanType
-	73,  // 1: encore.engine.trace2.SpanSummary.started_at:type_name -> google.protobuf.Timestamp
+	76,  // 1: encore.engine.trace2.SpanSummary.started_at:type_name -> google.protobuf.Timestamp
 	9,   // 2: encore.engine.trace2.EventList.events:type_name -> encore.engine.trace2.TraceEvent
 	7,   // 3: encore.engine.trace2.TraceEvent.trace_id:type_name -> encore.engine.trace2.TraceID
-	73,  // 4: encore.engine.trace2.TraceEvent.event_time:type_name -> google.protobuf.Timestamp
+	76,  // 4: encore.engine.trace2.TraceEvent.event_time:type_name -> google.protobuf.Timestamp
 	10,  // 5: encore.engine.trace2.TraceEvent.span_start:type_name -> encore.engine.trace2.SpanStart
 	11,  // 6: encore.engine.trace2.TraceEvent.span_end:type_name -> encore.engine.trace2.SpanEnd
 	20,  // 7: encore.engine.trace2.TraceEvent.span_event:type_name -> encore.engine.trace2.SpanEvent
@@ -5976,7 +6115,7 @@ var file_encore_engine_trace2_trace2_proto_depIdxs = []int32{
 	19,  // 20: encore.engine.trace2.SpanEnd.test:type_name -> encore.engine.trace2.TestSpanEnd
 	71,  // 21: encore.engine.trace2.RequestSpanStart.request_headers:type_name -> encore.engine.trace2.RequestSpanStart.RequestHeadersEntry
 	72,  // 22: encore.engine.trace2.RequestSpanEnd.response_headers:type_name -> encore.engine.trace2.RequestSpanEnd.ResponseHeadersEntry
-	73,  // 23: encore.engine.trace2.PubsubMessageSpanStart.publish_time:type_name -> google.protobuf.Timestamp
+	76,  // 23: encore.engine.trace2.PubsubMessageSpanStart.publish_time:type_name -> google.protobuf.Timestamp
 	66,  // 24: encore.engine.trace2.SpanEvent.log_message:type_name -> encore.engine.trace2.LogMessage
 	47,  // 25: encore.engine.trace2.SpanEvent.body_stream:type_name -> encore.engine.trace2.BodyStream
 	21,  // 26: encore.engine.trace2.SpanEvent.rpc_call_start:type_name -> encore.engine.trace2.RPCCallStart
@@ -6003,63 +6142,68 @@ var file_encore_engine_trace2_trace2_proto_depIdxs = []int32{
 	42,  // 47: encore.engine.trace2.SpanEvent.bucket_list_objects_end:type_name -> encore.engine.trace2.BucketListObjectsEnd
 	43,  // 48: encore.engine.trace2.SpanEvent.bucket_delete_objects_start:type_name -> encore.engine.trace2.BucketDeleteObjectsStart
 	45,  // 49: encore.engine.trace2.SpanEvent.bucket_delete_objects_end:type_name -> encore.engine.trace2.BucketDeleteObjectsEnd
-	68,  // 50: encore.engine.trace2.RPCCallStart.stack:type_name -> encore.engine.trace2.StackTrace
-	70,  // 51: encore.engine.trace2.RPCCallEnd.err:type_name -> encore.engine.trace2.Error
-	68,  // 52: encore.engine.trace2.DBTransactionStart.stack:type_name -> encore.engine.trace2.StackTrace
-	3,   // 53: encore.engine.trace2.DBTransactionEnd.completion:type_name -> encore.engine.trace2.DBTransactionEnd.CompletionType
-	68,  // 54: encore.engine.trace2.DBTransactionEnd.stack:type_name -> encore.engine.trace2.StackTrace
-	70,  // 55: encore.engine.trace2.DBTransactionEnd.err:type_name -> encore.engine.trace2.Error
-	68,  // 56: encore.engine.trace2.DBQueryStart.stack:type_name -> encore.engine.trace2.StackTrace
-	70,  // 57: encore.engine.trace2.DBQueryEnd.err:type_name -> encore.engine.trace2.Error
-	68,  // 58: encore.engine.trace2.PubsubPublishStart.stack:type_name -> encore.engine.trace2.StackTrace
-	70,  // 59: encore.engine.trace2.PubsubPublishEnd.err:type_name -> encore.engine.trace2.Error
-	70,  // 60: encore.engine.trace2.ServiceInitEnd.err:type_name -> encore.engine.trace2.Error
-	68,  // 61: encore.engine.trace2.CacheCallStart.stack:type_name -> encore.engine.trace2.StackTrace
-	4,   // 62: encore.engine.trace2.CacheCallEnd.result:type_name -> encore.engine.trace2.CacheCallEnd.Result
-	70,  // 63: encore.engine.trace2.CacheCallEnd.err:type_name -> encore.engine.trace2.Error
-	46,  // 64: encore.engine.trace2.BucketObjectUploadStart.attrs:type_name -> encore.engine.trace2.BucketObjectAttributes
-	68,  // 65: encore.engine.trace2.BucketObjectUploadStart.stack:type_name -> encore.engine.trace2.StackTrace
-	70,  // 66: encore.engine.trace2.BucketObjectUploadEnd.err:type_name -> encore.engine.trace2.Error
-	68,  // 67: encore.engine.trace2.BucketObjectDownloadStart.stack:type_name -> encore.engine.trace2.StackTrace
-	70,  // 68: encore.engine.trace2.BucketObjectDownloadEnd.err:type_name -> encore.engine.trace2.Error
-	68,  // 69: encore.engine.trace2.BucketObjectGetAttrsStart.stack:type_name -> encore.engine.trace2.StackTrace
-	70,  // 70: encore.engine.trace2.BucketObjectGetAttrsEnd.err:type_name -> encore.engine.trace2.Error
-	46,  // 71: encore.engine.trace2.BucketObjectGetAttrsEnd.attrs:type_name -> encore.engine.trace2.BucketObjectAttributes
-	68,  // 72: encore.engine.trace2.BucketListObjectsStart.stack:type_name -> encore.engine.trace2.StackTrace
-	70,  // 73: encore.engine.trace2.BucketListObjectsEnd.err:type_name -> encore.engine.trace2.Error
-	68,  // 74: encore.engine.trace2.BucketDeleteObjectsStart.stack:type_name -> encore.engine.trace2.StackTrace
-	44,  // 75: encore.engine.trace2.BucketDeleteObjectsStart.entries:type_name -> encore.engine.trace2.BucketDeleteObjectEntry
-	70,  // 76: encore.engine.trace2.BucketDeleteObjectsEnd.err:type_name -> encore.engine.trace2.Error
-	68,  // 77: encore.engine.trace2.HTTPCallStart.stack:type_name -> encore.engine.trace2.StackTrace
-	70,  // 78: encore.engine.trace2.HTTPCallEnd.err:type_name -> encore.engine.trace2.Error
-	50,  // 79: encore.engine.trace2.HTTPCallEnd.trace_events:type_name -> encore.engine.trace2.HTTPTraceEvent
-	51,  // 80: encore.engine.trace2.HTTPTraceEvent.get_conn:type_name -> encore.engine.trace2.HTTPGetConn
-	52,  // 81: encore.engine.trace2.HTTPTraceEvent.got_conn:type_name -> encore.engine.trace2.HTTPGotConn
-	53,  // 82: encore.engine.trace2.HTTPTraceEvent.got_first_response_byte:type_name -> encore.engine.trace2.HTTPGotFirstResponseByte
-	54,  // 83: encore.engine.trace2.HTTPTraceEvent.got_1xx_response:type_name -> encore.engine.trace2.HTTPGot1xxResponse
-	55,  // 84: encore.engine.trace2.HTTPTraceEvent.dns_start:type_name -> encore.engine.trace2.HTTPDNSStart
-	56,  // 85: encore.engine.trace2.HTTPTraceEvent.dns_done:type_name -> encore.engine.trace2.HTTPDNSDone
-	58,  // 86: encore.engine.trace2.HTTPTraceEvent.connect_start:type_name -> encore.engine.trace2.HTTPConnectStart
-	59,  // 87: encore.engine.trace2.HTTPTraceEvent.connect_done:type_name -> encore.engine.trace2.HTTPConnectDone
-	60,  // 88: encore.engine.trace2.HTTPTraceEvent.tls_handshake_start:type_name -> encore.engine.trace2.HTTPTLSHandshakeStart
-	61,  // 89: encore.engine.trace2.HTTPTraceEvent.tls_handshake_done:type_name -> encore.engine.trace2.HTTPTLSHandshakeDone
-	62,  // 90: encore.engine.trace2.HTTPTraceEvent.wrote_headers:type_name -> encore.engine.trace2.HTTPWroteHeaders
-	63,  // 91: encore.engine.trace2.HTTPTraceEvent.wrote_request:type_name -> encore.engine.trace2.HTTPWroteRequest
-	64,  // 92: encore.engine.trace2.HTTPTraceEvent.wait_100_continue:type_name -> encore.engine.trace2.HTTPWait100Continue
-	65,  // 93: encore.engine.trace2.HTTPTraceEvent.closed_body:type_name -> encore.engine.trace2.HTTPClosedBodyData
-	57,  // 94: encore.engine.trace2.HTTPDNSDone.addrs:type_name -> encore.engine.trace2.DNSAddr
-	5,   // 95: encore.engine.trace2.LogMessage.level:type_name -> encore.engine.trace2.LogMessage.Level
-	67,  // 96: encore.engine.trace2.LogMessage.fields:type_name -> encore.engine.trace2.LogField
-	68,  // 97: encore.engine.trace2.LogMessage.stack:type_name -> encore.engine.trace2.StackTrace
-	70,  // 98: encore.engine.trace2.LogField.error:type_name -> encore.engine.trace2.Error
-	73,  // 99: encore.engine.trace2.LogField.time:type_name -> google.protobuf.Timestamp
-	69,  // 100: encore.engine.trace2.StackTrace.frames:type_name -> encore.engine.trace2.StackFrame
-	68,  // 101: encore.engine.trace2.Error.stack:type_name -> encore.engine.trace2.StackTrace
-	102, // [102:102] is the sub-list for method output_type
-	102, // [102:102] is the sub-list for method input_type
-	102, // [102:102] is the sub-list for extension type_name
-	102, // [102:102] is the sub-list for extension extendee
-	0,   // [0:102] is the sub-list for field type_name
+	73,  // 50: encore.engine.trace2.SpanEvent.custom_span_start:type_name -> encore.engine.trace2.CustomSpanStart
+	74,  // 51: encore.engine.trace2.SpanEvent.custom_span_end:type_name -> encore.engine.trace2.CustomSpanEnd
+	68,  // 52: encore.engine.trace2.RPCCallStart.stack:type_name -> encore.engine.trace2.StackTrace
+	70,  // 53: encore.engine.trace2.RPCCallEnd.err:type_name -> encore.engine.trace2.Error
+	68,  // 54: encore.engine.trace2.DBTransactionStart.stack:type_name -> encore.engine.trace2.StackTrace
+	3,   // 55: encore.engine.trace2.DBTransactionEnd.completion:type_name -> encore.engine.trace2.DBTransactionEnd.CompletionType
+	68,  // 56: encore.engine.trace2.DBTransactionEnd.stack:type_name -> encore.engine.trace2.StackTrace
+	70,  // 57: encore.engine.trace2.DBTransactionEnd.err:type_name -> encore.engine.trace2.Error
+	68,  // 58: encore.engine.trace2.DBQueryStart.stack:type_name -> encore.engine.trace2.StackTrace
+	70,  // 59: encore.engine.trace2.DBQueryEnd.err:type_name -> encore.engine.trace2.Error
+	68,  // 60: encore.engine.trace2.PubsubPublishStart.stack:type_name -> encore.engine.trace2.StackTrace
+	70,  // 61: encore.engine.trace2.PubsubPublishEnd.err:type_name -> encore.engine.trace2.Error
+	70,  // 62: encore.engine.trace2.ServiceInitEnd.err:type_name -> encore.engine.trace2.Error
+	68,  // 63: encore.engine.trace2.CacheCallStart.stack:type_name -> encore.engine.trace2.StackTrace
+	4,   // 64: encore.engine.trace2.CacheCallEnd.result:type_name -> encore.engine.trace2.CacheCallEnd.Result
+	70,  // 65: encore.engine.trace2.CacheCallEnd.err:type_name -> encore.engine.trace2.Error
+	46,  // 66: encore.engine.trace2.BucketObjectUploadStart.attrs:type_name -> encore.engine.trace2.BucketObjectAttributes
+	68,  // 67: encore.engine.trace2.BucketObjectUploadStart.stack:type_name -> encore.engine.trace2.StackTrace
+	70,  // 68: encore.engine.trace2.BucketObjectUploadEnd.err:type_name -> encore.engine.trace2.Error
+	68,  // 69: encore.engine.trace2.BucketObjectDownloadStart.stack:type_name -> encore.engine.trace2.StackTrace
+	70,  // 70: encore.engine.trace2.BucketObjectDownloadEnd.err:type_name -> encore.engine.trace2.Error
+	68,  // 71: encore.engine.trace2.BucketObjectGetAttrsStart.stack:type_name -> encore.engine.trace2.StackTrace
+	70,  // 72: encore.engine.trace2.BucketObjectGetAttrsEnd.err:type_name -> encore.engine.trace2.Error
+	46,  // 73: encore.engine.trace2.BucketObjectGetAttrsEnd.attrs:type_name -> encore.engine.trace2.BucketObjectAttributes
+	68,  // 74: encore.engine.trace2.BucketListObjectsStart.stack:type_name -> encore.engine.trace2.StackTrace
+	70,  // 75: encore.engine.trace2.BucketListObjectsEnd.err:type_name -> encore.engine.trace2.Error
+	68,  // 76: encore.engine.trace2.BucketDeleteObjectsStart.stack:type_name -> encore.engine.trace2.StackTrace
+	44,  // 77: encore.engine.trace2.BucketDeleteObjectsStart.entries:type_name -> encore.engine.trace2.BucketDeleteObjectEntry
+	70,  // 78: encore.engine.trace2.BucketDeleteObjectsEnd.err:type_name -> encore.engine.trace2.Error
+	68,  // 79: encore.engine.trace2.HTTPCallStart.stack:type_name -> encore.engine.trace2.StackTrace
+	70,  // 80: encore.engine.trace2.HTTPCallEnd.err:type_name -> encore.engine.trace2.Error
+	50,  // 81: encore.engine.trace2.HTTPCallEnd.trace_events:type_name -> encore.engine.trace2.HTTPTraceEvent
+	51,  // 82: encore.engine.trace2.HTTPTraceEvent.get_conn:type_name -> encore.engine.trace2.HTTPGetConn
+	52,  // 83: encore.engine.trace2.HTTPTraceEvent.got_conn:type_name -> encore.engine.trace2.HTTPGotConn
+	53,  // 84: encore.engine.trace2.HTTPTraceEvent.got_first_response_byte:type_name -> encore.engine.trace2.HTTPGotFirstResponseByte
+	54,  // 85: encore.engine.trace2.HTTPTraceEvent.got_1xx_response:type_name -> encore.engine.trace2.HTTPGot1xxResponse
+	55,  // 86: encore.engine.trace2.HTTPTraceEvent.dns_start:type_name -> encore.engine.trace2.HTTPDNSStart
+	56,  // 87: encore.engine.trace2.HTTPTraceEvent.dns_done:type_name -> encore.engine.trace2.HTTPDNSDone
+	58,  // 88: encore.engine.trace2.HTTPTraceEvent.connect_start:type_name -> encore.engine.trace2.HTTPConnectStart
+	59,  // 89: encore.engine.trace2.HTTPTraceEvent.connect_done:type_name -> encore.engine.trace2.HTTPConnectDone
+	60,  // 90: encore.engine.trace2.HTTPTraceEvent.tls_handshake_start:type_name -> encore.engine.trace2.HTTPTLSHandshakeStart
+	61,  // 91: encore.engine.trace2.HTTPTraceEvent.tls_handshake_done:type_name -> encore.engine.trace2.HTTPTLSHandshakeDone
+	62,  // 92: encore.engine.trace2.HTTPTraceEvent.wrote_headers:type_name -> encore.engine.trace2.HTTPWroteHeaders
+	63,  // 93: encore.engine.trace2.HTTPTraceEvent.wrote_request:type_name -> encore.engine.trace2.HTTPWroteRequest
+	64,  // 94: encore.engine.trace2.HTTPTraceEvent.wait_100_continue:type_name -> encore.engine.trace2.HTTPWait100Continue
+	65,  // 95: encore.engine.trace2.HTTPTraceEvent.closed_body:type_name -> encore.engine.trace2.HTTPClosedBodyData
+	57,  // 96: encore.engine.trace2.HTTPDNSDone.addrs:type_name -> encore.engine.trace2.DNSAddr
+	5,   // 97: encore.engine.trace2.LogMessage.level:type_name -> encore.engine.trace2.LogMessage.Level
+	67,  // 98: encore.engine.trace2.LogMessage.fields:type_name -> encore.engine.trace2.LogField
+	68,  // 99: encore.engine.trace2.LogMessage.stack:type_name -> encore.engine.trace2.StackTrace
+	70,  // 100: encore.engine.trace2.LogField.error:type_name -> encore.engine.trace2.Error
+	76,  // 101: encore.engine.trace2.LogField.time:type_name -> google.protobuf.Timestamp
+	69,  // 102: encore.engine.trace2.StackTrace.frames:type_name -> encore.engine.trace2.StackFrame
+	68,  // 103: encore.engine.trace2.Error.stack:type_name -> encore.engine.trace2.StackTrace
+	68,  // 104: encore.engine.trace2.CustomSpanStart.stack:type_name -> encore.engine.trace2.StackTrace
+	75,  // 105: encore.engine.trace2.CustomSpanStart.attributes:type_name -> encore.engine.trace2.CustomSpanStart.AttributesEntry
+	70,  // 106: encore.engine.trace2.CustomSpanEnd.err:type_name -> encore.engine.trace2.Error
+	107, // [107:107] is the sub-list for method output_type
+	107, // [107:107] is the sub-list for method input_type
+	107, // [107:107] is the sub-list for extension type_name
+	107, // [107:107] is the sub-list for extension extendee
+	0,   // [0:107] is the sub-list for field type_name
 }
 
 func init() { file_encore_engine_trace2_trace2_proto_init() }
@@ -6118,6 +6262,8 @@ func file_encore_engine_trace2_trace2_proto_init() {
 		(*SpanEvent_BucketListObjectsEnd)(nil),
 		(*SpanEvent_BucketDeleteObjectsStart)(nil),
 		(*SpanEvent_BucketDeleteObjectsEnd)(nil),
+		(*SpanEvent_CustomSpanStart)(nil),
+		(*SpanEvent_CustomSpanEnd)(nil),
 	}
 	file_encore_engine_trace2_trace2_proto_msgTypes[16].OneofWrappers = []any{}
 	file_encore_engine_trace2_trace2_proto_msgTypes[20].OneofWrappers = []any{}
@@ -6170,13 +6316,14 @@ func file_encore_engine_trace2_trace2_proto_init() {
 		(*LogField_Float64)(nil),
 	}
 	file_encore_engine_trace2_trace2_proto_msgTypes[64].OneofWrappers = []any{}
+	file_encore_engine_trace2_trace2_proto_msgTypes[68].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_encore_engine_trace2_trace2_proto_rawDesc), len(file_encore_engine_trace2_trace2_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   67,
+			NumMessages:   70,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
