@@ -151,29 +151,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("get", &key, e);
         let trace = self.trace_start("get", false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.get(&key);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.get(&key), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
         let result: RedisResult<Option<Vec<u8>>> = (*conn).get(&key).await;
-
-        match result {
-            Ok(value) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(value)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Set a value by key with optional TTL operation.
@@ -188,14 +172,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set", &key, e);
         let trace = self.trace_start("set", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.set(&key, value, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.set(&key, value, ttl), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -211,17 +189,7 @@ impl Pool {
             Some(TtlOp::Persist) | None => {} // No TTL flags
         }
         let result: RedisResult<()> = cmd.query_async(&mut *conn).await;
-
-        match result {
-            Ok(()) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(())
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Set a value only if the key doesn't exist (SET NX).
@@ -236,21 +204,22 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set if not exists", &key, e);
         let trace = self.trace_start("set if not exists", true, &[&key], source);
 
-        // Use in-memory backend if available
-        if let Some(store) = self.memory_store() {
-            let result = store.set_if_not_exists(&key, value, ttl);
-            match &result {
-                Ok(set) => {
-                    let op_result = if *set {
-                        CacheOpResult::Ok
-                    } else {
-                        CacheOpResult::Conflict
-                    };
-                    self.trace_end(trace, source, op_result, None);
-                }
-                Err(_) => self.trace_end_err(trace, source),
+        let classify_set = |set: &bool| {
+            if *set {
+                CacheOpResult::Ok
+            } else {
+                CacheOpResult::Conflict
             }
-            return result.map_err(&wrap);
+        };
+
+        if let Some(store) = self.memory_store() {
+            return self.trace_mem_result_with(
+                store.set_if_not_exists(&key, value, ttl),
+                trace,
+                source,
+                &wrap,
+                classify_set,
+            );
         }
 
         let result: RedisResult<bool> = {
@@ -262,22 +231,7 @@ impl Pool {
             }
             cmd.query_async(&mut *conn).await
         };
-
-        match result {
-            Ok(set) => {
-                let op_result = if set {
-                    CacheOpResult::Ok
-                } else {
-                    CacheOpResult::Conflict
-                };
-                self.trace_end(trace, source, op_result, None);
-                Ok(set)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result_with(result, trace, source, &wrap, classify_set)
     }
 
     /// Replace a value only if the key exists (SET XX).
@@ -292,21 +246,20 @@ impl Pool {
         let wrap = |e: Error| OpError::new("replace", &key, e);
         let trace = self.trace_start("replace", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.replace(&key, value, ttl);
-            match &result {
-                Ok(replaced) => {
-                    let op_result = if *replaced {
+            return self.trace_mem_result_with(
+                store.replace(&key, value, ttl),
+                trace,
+                source,
+                &wrap,
+                |replaced| {
+                    if *replaced {
                         CacheOpResult::Ok
                     } else {
                         CacheOpResult::NoSuchKey
-                    };
-                    self.trace_end(trace, source, op_result, None);
-                }
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+                    }
+                },
+            );
         }
 
         let result: RedisResult<Option<()>> = {
@@ -353,14 +306,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("get and set", &key, e);
         let trace = self.trace_start("get and set", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.get_and_set(&key, value, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.get_and_set(&key, value, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let result: RedisResult<Option<Vec<u8>>> = {
@@ -378,17 +330,7 @@ impl Pool {
             }
             cmd.query_async(&mut *conn).await
         };
-
-        match result {
-            Ok(old_value) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(old_value)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get value and delete key atomically (GETDEL).
@@ -401,30 +343,14 @@ impl Pool {
         let wrap = |e: Error| OpError::new("get and delete", &key, e);
         let trace = self.trace_start("get and delete", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.get_and_delete(&key);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.get_and_delete(&key), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
         let result: RedisResult<Option<Vec<u8>>> =
             redis::cmd("GETDEL").arg(&key).query_async(&mut *conn).await;
-
-        match result {
-            Ok(value) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(value)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Delete one or more keys.
@@ -434,29 +360,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("delete", keys.first().copied().unwrap_or(""), e);
         let trace = self.trace_start("delete", true, &key_refs, source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.delete(&key_refs);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.delete(&key_refs), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
         let result: RedisResult<u64> = (*conn).del(&prefixed).await;
-
-        match result {
-            Ok(count) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(count)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get multiple values (MGET).
@@ -470,29 +380,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("multi get", keys.first().copied().unwrap_or(""), e);
         let trace = self.trace_start("multi get", false, &key_refs, source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.mget(&key_refs);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.mget(&key_refs), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
         let result: RedisResult<Vec<Option<Vec<u8>>>> = (*conn).mget(&prefixed).await;
-
-        match result {
-            Ok(values) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(values)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Append to a string value.
@@ -507,14 +401,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("append", &key, e);
         let trace = self.trace_start("append", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.append(&key, value, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.append(&key, value, ttl), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -544,17 +432,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(new_len) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(new_len)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get a substring of a string value.
@@ -569,14 +447,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("get range", &key, e);
         let trace = self.trace_start("get range", false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.get_range(&key, start, end);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.get_range(&key, start, end), trace, source, &wrap);
         }
 
         let result: RedisResult<Vec<u8>> = self
@@ -585,17 +457,7 @@ impl Pool {
             .map_err(&wrap)?
             .getrange(&key, start as isize, end as isize)
             .await;
-
-        match result {
-            Ok(value) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(value)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Set a substring at a specific offset.
@@ -611,14 +473,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set range", &key, e);
         let trace = self.trace_start("set range", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.set_range(&key, offset, value, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.set_range(&key, offset, value, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -650,17 +511,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(new_len) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(new_len)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get string length.
@@ -669,28 +520,12 @@ impl Pool {
         let wrap = |e: Error| OpError::new("len", &key, e);
         let trace = self.trace_start("len", false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.strlen(&key);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.strlen(&key), trace, source, &wrap);
         }
 
         let result: RedisResult<i64> = self.conn().await.map_err(&wrap)?.strlen(&key).await;
-
-        match result {
-            Ok(len) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(len)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Increment an integer value.
@@ -705,14 +540,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("increment", &key, e);
         let trace = self.trace_start("increment", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.incr_by(&key, delta, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.incr_by(&key, delta, ttl), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -742,17 +571,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(new_val) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(new_val)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Decrement an integer value.
@@ -767,14 +586,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("decrement", &key, e);
         let trace = self.trace_start("decrement", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.incr_by(&key, -delta, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.incr_by(&key, -delta, ttl), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -804,17 +617,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(new_val) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(new_val)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Increment a float value.
@@ -829,14 +632,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("increment", &key, e);
         let trace = self.trace_start("increment", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.incr_by_float(&key, delta, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.incr_by_float(&key, delta, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -866,17 +668,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(new_val) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(new_val)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Decrement a float value.
@@ -891,14 +683,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("decrement", &key, e);
         let trace = self.trace_start("decrement", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.incr_by_float(&key, -delta, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.incr_by_float(&key, -delta, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -928,17 +719,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(new_val) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(new_val)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Push values to the left (head) of a list.
@@ -953,14 +734,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("push left", &key, e);
         let trace = self.trace_start("push left", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lpush(&key, values, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.lpush(&key, values, ttl), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -988,17 +763,7 @@ impl Pool {
                 pipe.query_async::<(i64,)>(&mut *conn).await.map(|t| t.0)
             }
         };
-
-        match result {
-            Ok(len) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(len)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Push values to the right (tail) of a list.
@@ -1013,14 +778,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("push right", &key, e);
         let trace = self.trace_start("push right", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.rpush(&key, values, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.rpush(&key, values, ttl), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -1048,17 +807,7 @@ impl Pool {
                 pipe.query_async::<(i64,)>(&mut *conn).await.map(|t| t.0)
             }
         };
-
-        match result {
-            Ok(len) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(len)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Pop value from the left (head) of a list.
@@ -1073,14 +822,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("pop left", &key, e);
         let trace = self.trace_start("pop left", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lpop(&key, count, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.lpop(&key, count, ttl), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -1125,17 +868,7 @@ impl Pool {
                     .map(|t| t.0)
             }
         };
-
-        match result {
-            Ok(values) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(values)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Pop value from the right (tail) of a list.
@@ -1150,14 +883,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("pop right", &key, e);
         let trace = self.trace_start("pop right", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.rpop(&key, count, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.rpop(&key, count, ttl), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -1202,17 +929,7 @@ impl Pool {
                     .map(|t| t.0)
             }
         };
-
-        match result {
-            Ok(values) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(values)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get element at index from a list.
@@ -1226,14 +943,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("list get", &key, e);
         let trace = self.trace_start("list get", false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lindex(&key, index);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.lindex(&key, index), trace, source, &wrap);
         }
 
         let result: RedisResult<Option<Vec<u8>>> = self
@@ -1242,17 +953,7 @@ impl Pool {
             .map_err(&wrap)?
             .lindex(&key, index as isize)
             .await;
-
-        match result {
-            Ok(value) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(value)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Set element at index in a list.
@@ -1268,14 +969,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("list set", &key, e);
         let trace = self.trace_start("list set", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lset(&key, index, value, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.lset(&key, index, value, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -1309,17 +1009,7 @@ impl Pool {
                     .await
             }
         };
-
-        match result {
-            Ok(()) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(())
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get a range of elements from a list.
@@ -1334,14 +1024,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("get range", &key, e);
         let trace = self.trace_start("get range", false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lrange(&key, start, stop);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.lrange(&key, start, stop), trace, source, &wrap);
         }
 
         let result: RedisResult<Vec<Vec<u8>>> = self
@@ -1350,17 +1034,7 @@ impl Pool {
             .map_err(&wrap)?
             .lrange(&key, start as isize, stop as isize)
             .await;
-
-        match result {
-            Ok(values) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(values)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get all elements of a list. Equivalent to LRANGE 0 -1 but traced as "items".
@@ -1369,29 +1043,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("items", &key, e);
         let trace = self.trace_start("items", false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lrange(&key, 0, -1);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.lrange(&key, 0, -1), trace, source, &wrap);
         }
 
         let result: RedisResult<Vec<Vec<u8>>> =
             self.conn().await.map_err(&wrap)?.lrange(&key, 0, -1).await;
-
-        match result {
-            Ok(values) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(values)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Trim list to specified range.
@@ -1407,14 +1065,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("list trim", &key, e);
         let trace = self.trace_start("list trim", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.ltrim(&key, start, stop, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.ltrim(&key, start, stop, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -1448,17 +1105,7 @@ impl Pool {
                     .await
             }
         };
-
-        match result {
-            Ok(()) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(())
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Insert element before pivot in list.
@@ -1474,14 +1121,22 @@ impl Pool {
         let wrap = |e: Error| OpError::new("insert before", &key, e);
         let trace = self.trace_start("insert before", true, &[&key], source);
 
-        // Use in-memory backend if available
-        if let Some(store) = self.memory_store() {
-            let result = store.linsert_before(&key, pivot, value, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
+        let classify_insert = |pos: &i64| {
+            if *pos == -1 {
+                CacheOpResult::NoSuchKey
+            } else {
+                CacheOpResult::Ok
             }
-            return result.map_err(&wrap);
+        };
+
+        if let Some(store) = self.memory_store() {
+            return self.trace_mem_result_with(
+                store.linsert_before(&key, pivot, value, ttl),
+                trace,
+                source,
+                &wrap,
+                classify_insert,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -1523,22 +1178,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(pos) => {
-                let op_result = if pos == -1 {
-                    CacheOpResult::NoSuchKey
-                } else {
-                    CacheOpResult::Ok
-                };
-                self.trace_end(trace, source, op_result, None);
-                Ok(pos)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result_with(result, trace, source, &wrap, classify_insert)
     }
 
     /// Insert element after pivot in list.
@@ -1554,14 +1194,22 @@ impl Pool {
         let wrap = |e: Error| OpError::new("insert after", &key, e);
         let trace = self.trace_start("insert after", true, &[&key], source);
 
-        // Use in-memory backend if available
-        if let Some(store) = self.memory_store() {
-            let result = store.linsert_after(&key, pivot, value, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
+        let classify_insert = |pos: &i64| {
+            if *pos == -1 {
+                CacheOpResult::NoSuchKey
+            } else {
+                CacheOpResult::Ok
             }
-            return result.map_err(&wrap);
+        };
+
+        if let Some(store) = self.memory_store() {
+            return self.trace_mem_result_with(
+                store.linsert_after(&key, pivot, value, ttl),
+                trace,
+                source,
+                &wrap,
+                classify_insert,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -1603,22 +1251,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(pos) => {
-                let op_result = if pos == -1 {
-                    CacheOpResult::NoSuchKey
-                } else {
-                    CacheOpResult::Ok
-                };
-                self.trace_end(trace, source, op_result, None);
-                Ok(pos)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result_with(result, trace, source, &wrap, classify_insert)
     }
 
     /// Remove elements from list. Count specifies:
@@ -1644,14 +1277,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new(op, &key, e);
         let trace = self.trace_start(op, true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lrem(&key, count, value, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.lrem(&key, count, value, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -1683,17 +1315,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(removed) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(removed)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Move element between lists.
@@ -1711,14 +1333,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("list move", &src_key, e);
         let trace = self.trace_start("list move", true, &[&src_key, &dst_key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.lmove(&src_key, &dst_key, src_dir, dst_dir, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.lmove(&src_key, &dst_key, src_dir, dst_dir, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -1767,17 +1388,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(value) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(value)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get list length.
@@ -1786,28 +1397,12 @@ impl Pool {
         let wrap = |e: Error| OpError::new("list len", &key, e);
         let trace = self.trace_start("list len", false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.llen(&key);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.llen(&key), trace, source, &wrap);
         }
 
         let result: RedisResult<i64> = self.conn().await.map_err(&wrap)?.llen(&key).await;
-
-        match result {
-            Ok(len) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(len)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Add members to a set.
@@ -1822,14 +1417,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set add", &key, e);
         let trace = self.trace_start("set add", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sadd(&key, members, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.sadd(&key, members, ttl), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -1857,17 +1446,7 @@ impl Pool {
                 pipe.query_async::<(i64,)>(&mut *conn).await.map(|t| t.0)
             }
         };
-
-        match result {
-            Ok(added) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(added)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Remove members from a set.
@@ -1882,14 +1461,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set remove", &key, e);
         let trace = self.trace_start("set remove", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.srem(&key, members, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.srem(&key, members, ttl), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -1917,17 +1490,7 @@ impl Pool {
                 pipe.query_async::<(i64,)>(&mut *conn).await.map(|t| t.0)
             }
         };
-
-        match result {
-            Ok(removed) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(removed)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Check if member exists in set.
@@ -1941,14 +1504,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set contains", &key, e);
         let trace = self.trace_start("set contains", false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sismember(&key, member);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.sismember(&key, member), trace, source, &wrap);
         }
 
         let result: RedisResult<bool> = self
@@ -1957,17 +1514,7 @@ impl Pool {
             .map_err(&wrap)?
             .sismember(&key, member)
             .await;
-
-        match result {
-            Ok(is_member) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(is_member)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Pop a single random member from a set (SPOP without count).
@@ -1982,14 +1529,10 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set pop one", &key, e);
         let trace = self.trace_start("set pop one", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.spop(&key, Some(1), ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map(|m| m.into_iter().next()).map_err(&wrap);
+            return self
+                .trace_mem_result(store.spop(&key, Some(1), ttl), trace, source, &wrap)
+                .map(|m| m.into_iter().next());
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -2017,17 +1560,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(member) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(member)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Pop random members from a set (SPOP with count).
@@ -2042,14 +1575,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set pop", &key, e);
         let trace = self.trace_start("set pop", true, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.spop(&key, Some(count), ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.spop(&key, Some(count), ttl), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -2081,17 +1608,7 @@ impl Pool {
                     .map(|t| t.0)
             }
         };
-
-        match result {
-            Ok(members) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(members)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get a single random member from a set without removing (SRANDMEMBER).
@@ -2105,14 +1622,10 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set sample one", &key, e);
         let trace = self.trace_start("set sample one", false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.srandmember(&key, 1);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map(|m| m.into_iter().next()).map_err(&wrap);
+            return self
+                .trace_mem_result(store.srandmember(&key, 1), trace, source, &wrap)
+                .map(|m| m.into_iter().next());
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -2121,17 +1634,7 @@ impl Pool {
             .arg(&key)
             .query_async(&mut *conn)
             .await;
-
-        match result {
-            Ok(member) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(member)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get random members from a set without removing (SRANDMEMBER).
@@ -2151,14 +1654,8 @@ impl Pool {
         let wrap = |e: Error| OpError::new(op, &key, e);
         let trace = self.trace_start(op, false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.srandmember(&key, count);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.srandmember(&key, count), trace, source, &wrap);
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -2167,17 +1664,7 @@ impl Pool {
             .arg(count)
             .query_async(&mut *conn)
             .await;
-
-        match result {
-            Ok(members) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(members)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get all members of a set.
@@ -2186,29 +1673,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set items", &key, e);
         let trace = self.trace_start("set items", false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.smembers(&key);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.smembers(&key), trace, source, &wrap);
         }
 
         let result: RedisResult<Vec<Vec<u8>>> =
             self.conn().await.map_err(&wrap)?.smembers(&key).await;
-
-        match result {
-            Ok(members) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(members)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Get set cardinality.
@@ -2217,28 +1688,12 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set len", &key, e);
         let trace = self.trace_start("set len", false, &[&key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.scard(&key);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.scard(&key), trace, source, &wrap);
         }
 
         let result: RedisResult<i64> = self.conn().await.map_err(&wrap)?.scard(&key).await;
-
-        match result {
-            Ok(count) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(count)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Set difference.
@@ -2248,29 +1703,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("set diff", keys.first().copied().unwrap_or(""), e);
         let trace = self.trace_start("set diff", false, &key_refs, source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sdiff(&key_refs);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.sdiff(&key_refs), trace, source, &wrap);
         }
 
         let result: RedisResult<Vec<Vec<u8>>> =
             self.conn().await.map_err(&wrap)?.sdiff(&prefixed).await;
-
-        match result {
-            Ok(members) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(members)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Store set difference.
@@ -2289,14 +1728,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("store set diff", &dest_key, e);
         let trace = self.trace_start("store set diff", true, &all_keys, source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sdiffstore(&dest_key, &key_refs, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.sdiffstore(&dest_key, &key_refs, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -2326,17 +1764,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(count) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(count)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Set intersection.
@@ -2346,29 +1774,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("intersect", keys.first().copied().unwrap_or(""), e);
         let trace = self.trace_start("intersect", false, &key_refs, source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sinter(&key_refs);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.sinter(&key_refs), trace, source, &wrap);
         }
 
         let result: RedisResult<Vec<Vec<u8>>> =
             self.conn().await.map_err(&wrap)?.sinter(&prefixed).await;
-
-        match result {
-            Ok(members) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(members)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Store set intersection.
@@ -2387,14 +1799,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("store set intersect", &dest_key, e);
         let trace = self.trace_start("store set intersect", true, &all_keys, source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sinterstore(&dest_key, &key_refs, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.sinterstore(&dest_key, &key_refs, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -2424,17 +1835,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(count) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(count)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Set union.
@@ -2444,29 +1845,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("union", keys.first().copied().unwrap_or(""), e);
         let trace = self.trace_start("union", false, &key_refs, source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sunion(&key_refs);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(store.sunion(&key_refs), trace, source, &wrap);
         }
 
         let result: RedisResult<Vec<Vec<u8>>> =
             self.conn().await.map_err(&wrap)?.sunion(&prefixed).await;
-
-        match result {
-            Ok(members) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(members)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Store set union.
@@ -2485,14 +1870,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("store set union", &dest_key, e);
         let trace = self.trace_start("store set union", true, &all_keys, source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.sunionstore(&dest_key, &key_refs, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.sunionstore(&dest_key, &key_refs, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -2522,17 +1906,7 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
-
-        match result {
-            Ok(count) => {
-                self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(count)
-            }
-            Err(e) => {
-                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
-                Err(wrap(e.into()))
-            }
-        }
+        self.trace_redis_result(result, trace, source, &wrap)
     }
 
     /// Move member between sets.
@@ -2549,14 +1923,13 @@ impl Pool {
         let wrap = |e: Error| OpError::new("move", &src_key, e);
         let trace = self.trace_start("move", true, &[&src_key, &dst_key], source);
 
-        // Use in-memory backend if available
         if let Some(store) = self.memory_store() {
-            let result = store.smove(&src_key, &dst_key, member, ttl);
-            match &result {
-                Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
-                Err(_) => self.trace_end_err(trace, source),
-            }
-            return result.map_err(&wrap);
+            return self.trace_mem_result(
+                store.smove(&src_key, &dst_key, member, ttl),
+                trace,
+                source,
+                &wrap,
+            );
         }
 
         let mut conn = self.conn().await.map_err(&wrap)?;
@@ -2595,11 +1968,73 @@ impl Pool {
                 .await
                 .map(|t| t.0),
         };
+        self.trace_redis_result(result, trace, source, &wrap)
+    }
 
+    /// Trace and wrap an in-memory backend result with default Ok classification.
+    fn trace_mem_result<T>(
+        &self,
+        result: Result<T>,
+        trace: Option<TraceEventId>,
+        source: Option<&Request>,
+        wrap: &impl Fn(Error) -> OpError,
+    ) -> OpResult<T> {
+        match &result {
+            Ok(_) => self.trace_end(trace, source, CacheOpResult::Ok, None),
+            Err(_) => self.trace_end_err(trace, source),
+        }
+        result.map_err(wrap)
+    }
+
+    /// Trace and wrap an in-memory backend result with custom classification.
+    fn trace_mem_result_with<T>(
+        &self,
+        result: Result<T>,
+        trace: Option<TraceEventId>,
+        source: Option<&Request>,
+        wrap: &impl Fn(Error) -> OpError,
+        classify: impl FnOnce(&T) -> CacheOpResult,
+    ) -> OpResult<T> {
+        match &result {
+            Ok(val) => self.trace_end(trace, source, classify(val), None),
+            Err(_) => self.trace_end_err(trace, source),
+        }
+        result.map_err(wrap)
+    }
+
+    /// Trace and wrap a Redis result with default Ok classification.
+    fn trace_redis_result<T>(
+        &self,
+        result: RedisResult<T>,
+        trace: Option<TraceEventId>,
+        source: Option<&Request>,
+        wrap: &impl Fn(Error) -> OpError,
+    ) -> OpResult<T> {
         match result {
-            Ok(moved) => {
+            Ok(val) => {
                 self.trace_end(trace, source, CacheOpResult::Ok, None);
-                Ok(moved)
+                Ok(val)
+            }
+            Err(e) => {
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
+                Err(wrap(e.into()))
+            }
+        }
+    }
+
+    /// Trace and wrap a Redis result with custom classification.
+    fn trace_redis_result_with<T>(
+        &self,
+        result: RedisResult<T>,
+        trace: Option<TraceEventId>,
+        source: Option<&Request>,
+        wrap: &impl Fn(Error) -> OpError,
+        classify: impl FnOnce(&T) -> CacheOpResult,
+    ) -> OpResult<T> {
+        match result {
+            Ok(val) => {
+                self.trace_end(trace, source, classify(&val), None);
+                Ok(val)
             }
             Err(e) => {
                 self.trace_end(trace, source, CacheOpResult::Err, Some(&e));

@@ -35,10 +35,6 @@ pub enum Error {
     #[error("cache miss")]
     KeyNotFound,
 
-    /// Key already exists (used for SetIfNotExists).
-    #[error("key already exists")]
-    KeyExists,
-
     /// Key does not exist (used for operations that require existing key).
     #[error("no such key")]
     NoSuchKey,
@@ -51,10 +47,6 @@ pub enum Error {
     #[error("invalid value: {0}")]
     InvalidValue(String),
 
-    /// Cache cluster is not configured for this service.
-    #[error("cache: this service is not configured to use this cache cluster")]
-    NotConfigured,
-
     /// Redis connection error.
     #[error("redis error: {0}")]
     Redis(#[from] redis::RedisError),
@@ -62,16 +54,4 @@ pub enum Error {
     /// Connection pool error.
     #[error("pool error: {0}")]
     Pool(String),
-
-    /// Serialization error.
-    #[error("serialization error: {0}")]
-    Serialization(String),
-
-    /// Internal error.
-    #[error("internal error: {0}")]
-    Internal(String),
-
-    /// Connection error.
-    #[error("connection error: {0}")]
-    Connection(#[from] anyhow::Error),
 }

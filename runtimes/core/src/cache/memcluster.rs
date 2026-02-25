@@ -17,6 +17,10 @@ use crate::trace::Tracer;
 /// Maximum number of keys before cleanup is triggered.
 const MAX_KEYS: usize = 100;
 
+const TYPE_ERR_STRING: &str = "expected string";
+const TYPE_ERR_LIST: &str = "expected list";
+const TYPE_ERR_SET: &str = "expected set";
+
 /// In-memory cache cluster that stores data in memory.
 /// Used as a fallback when running in Encore Cloud without configured Redis.
 pub struct MemoryCluster {
@@ -142,7 +146,7 @@ impl MemoryStore {
                 if let Value::String(v) = &entry.value {
                     Ok(Some(v.clone()))
                 } else {
-                    Err(Error::TypeMismatch("expected string".to_string()))
+                    Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
                 }
             }
             _ => Ok(None),
@@ -224,18 +228,13 @@ impl MemoryStore {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
-        let (old_value, old_expires) = data
-            .get(key)
-            .map(|entry| {
-                if entry.is_expired() {
-                    (None, None)
-                } else if let Value::String(v) = &entry.value {
-                    (Some(v.clone()), entry.expires_at)
-                } else {
-                    (None, None)
-                }
-            })
-            .unwrap_or((None, None));
+        let (old_value, old_expires) = match data.get(key) {
+            Some(entry) if !entry.is_expired() => match &entry.value {
+                Value::String(v) => (Some(v.clone()), entry.expires_at),
+                _ => return Err(Error::TypeMismatch(TYPE_ERR_STRING.into())),
+            },
+            _ => (None, None),
+        };
 
         match ttl {
             Some(TtlOp::Keep) => {
@@ -260,7 +259,7 @@ impl MemoryStore {
                 if let Value::String(v) = entry.value {
                     Ok(Some(v))
                 } else {
-                    Err(Error::TypeMismatch("expected string".to_string()))
+                    Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
                 }
             }
             _ => Ok(None),
@@ -272,12 +271,9 @@ impl MemoryStore {
         let mut data = self.data.write().unwrap();
         let mut count = 0u64;
         for key in keys {
-            if let Some(entry) = data.get(*key) {
+            if let Some(entry) = data.remove(*key) {
                 if !entry.is_expired() {
-                    data.remove(*key);
                     count += 1;
-                } else {
-                    data.remove(*key);
                 }
             }
         }
@@ -321,7 +317,7 @@ impl MemoryStore {
             v.extend_from_slice(value);
             Ok(v.len() as i64)
         } else {
-            Err(Error::TypeMismatch("expected string".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
         };
 
         if result.is_ok() {
@@ -354,7 +350,7 @@ impl MemoryStore {
                         Ok(v[start..=end.min(v.len() - 1)].to_vec())
                     }
                 } else {
-                    Err(Error::TypeMismatch("expected string".to_string()))
+                    Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
                 }
             }
             _ => Ok(Vec::new()),
@@ -393,7 +389,7 @@ impl MemoryStore {
             v[offset..end].copy_from_slice(value);
             Ok(v.len() as i64)
         } else {
-            Err(Error::TypeMismatch("expected string".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
         };
 
         if result.is_ok() {
@@ -411,7 +407,7 @@ impl MemoryStore {
                 if let Value::String(v) = &entry.value {
                     Ok(v.len() as i64)
                 } else {
-                    Err(Error::TypeMismatch("expected string".to_string()))
+                    Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
                 }
             }
             _ => Ok(0),
@@ -440,7 +436,7 @@ impl MemoryStore {
             *v = new_val.to_string().into_bytes();
             Ok(new_val)
         } else {
-            Err(Error::TypeMismatch("expected string".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
         };
 
         if result.is_ok() {
@@ -471,7 +467,7 @@ impl MemoryStore {
             *v = new_val.to_string().into_bytes();
             Ok(new_val)
         } else {
-            Err(Error::TypeMismatch("expected string".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
         };
 
         if result.is_ok() {
@@ -495,7 +491,7 @@ impl MemoryStore {
 
         match &mut entry.value {
             Value::List(list) => Ok(list),
-            _ => Err(Error::TypeMismatch("expected list".to_string())),
+            _ => Err(Error::TypeMismatch(TYPE_ERR_LIST.into())),
         }
     }
 
@@ -540,22 +536,32 @@ impl MemoryStore {
 
         let entry = match data.get_mut(key) {
             Some(e) if !e.is_expired() => e,
-            _ => return Ok(Vec::new()),
+            _ => {
+                return if count.is_none() {
+                    Err(Error::KeyNotFound)
+                } else {
+                    Ok(Vec::new())
+                };
+            }
         };
 
         let result = if let Value::List(list) = &mut entry.value {
-            let count = count.unwrap_or(1);
-            let mut results = Vec::with_capacity(count);
-            for _ in 0..count {
+            let n = count.unwrap_or(1);
+            let mut results = Vec::with_capacity(n);
+            for _ in 0..n {
                 if let Some(v) = list.pop_front() {
                     results.push(v);
                 } else {
                     break;
                 }
             }
-            Ok(results)
+            if count.is_none() && results.is_empty() {
+                Err(Error::KeyNotFound)
+            } else {
+                Ok(results)
+            }
         } else {
-            Err(Error::TypeMismatch("expected list".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         };
 
         if result.is_ok() {
@@ -575,22 +581,32 @@ impl MemoryStore {
 
         let entry = match data.get_mut(key) {
             Some(e) if !e.is_expired() => e,
-            _ => return Ok(Vec::new()),
+            _ => {
+                return if count.is_none() {
+                    Err(Error::KeyNotFound)
+                } else {
+                    Ok(Vec::new())
+                };
+            }
         };
 
         let result = if let Value::List(list) = &mut entry.value {
-            let count = count.unwrap_or(1);
-            let mut results = Vec::with_capacity(count);
-            for _ in 0..count {
+            let n = count.unwrap_or(1);
+            let mut results = Vec::with_capacity(n);
+            for _ in 0..n {
                 if let Some(v) = list.pop_back() {
                     results.push(v);
                 } else {
                     break;
                 }
             }
-            Ok(results)
+            if count.is_none() && results.is_empty() {
+                Err(Error::KeyNotFound)
+            } else {
+                Ok(results)
+            }
         } else {
-            Err(Error::TypeMismatch("expected list".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         };
 
         if result.is_ok() {
@@ -617,7 +633,7 @@ impl MemoryStore {
                 Ok(list.get(idx as usize).cloned())
             }
         } else {
-            Err(Error::TypeMismatch("expected list".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         }
     }
 
@@ -639,7 +655,7 @@ impl MemoryStore {
             list[idx as usize] = value.to_vec();
             Ok(())
         } else {
-            Err(Error::TypeMismatch("expected list".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         };
 
         if result.is_ok() {
@@ -681,7 +697,7 @@ impl MemoryStore {
                     .collect())
             }
         } else {
-            Err(Error::TypeMismatch("expected list".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         }
     }
 
@@ -720,7 +736,7 @@ impl MemoryStore {
             }
             Ok(())
         } else {
-            Err(Error::TypeMismatch("expected list".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         };
 
         if result.is_ok() {
@@ -752,7 +768,7 @@ impl MemoryStore {
                 Ok(-1)
             }
         } else {
-            Err(Error::TypeMismatch("expected list".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         };
 
         if result.is_ok() {
@@ -784,7 +800,7 @@ impl MemoryStore {
                 Ok(-1)
             }
         } else {
-            Err(Error::TypeMismatch("expected list".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         };
 
         if result.is_ok() {
@@ -840,7 +856,7 @@ impl MemoryStore {
             }
             Ok(removed)
         } else {
-            Err(Error::TypeMismatch("expected list".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         };
 
         if result.is_ok() {
@@ -873,7 +889,7 @@ impl MemoryStore {
                     ListDirection::Right => list.pop_back(),
                 }
             } else {
-                return Err(Error::TypeMismatch("expected list".to_string()));
+                return Err(Error::TypeMismatch(TYPE_ERR_LIST.into()));
             }
         };
 
@@ -883,7 +899,7 @@ impl MemoryStore {
         };
 
         // Push to destination
-        {
+        let ret = {
             let entry = data
                 .entry(dst.to_string())
                 .or_insert_with(|| Entry::new(Value::List(VecDeque::new())));
@@ -893,19 +909,21 @@ impl MemoryStore {
             }
 
             if let Value::List(list) = &mut entry.value {
+                let ret = value.clone();
                 match dst_dir {
-                    ListDirection::Left => list.push_front(value.clone()),
-                    ListDirection::Right => list.push_back(value.clone()),
+                    ListDirection::Left => list.push_front(value),
+                    ListDirection::Right => list.push_back(value),
                 }
+                ret
             } else {
-                return Err(Error::TypeMismatch("expected list".to_string()));
+                return Err(Error::TypeMismatch(TYPE_ERR_LIST.into()));
             }
-        }
+        };
 
         if let Some(entry) = data.get_mut(dst) {
             entry.apply_ttl_op(ttl);
         }
-        Ok(Some(value))
+        Ok(Some(ret))
     }
 
     pub fn llen(&self, key: &str) -> Result<i64> {
@@ -920,7 +938,7 @@ impl MemoryStore {
         if let Value::List(list) = &entry.value {
             Ok(list.len() as i64)
         } else {
-            Err(Error::TypeMismatch("expected list".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         }
     }
 
@@ -939,7 +957,7 @@ impl MemoryStore {
 
         match &mut entry.value {
             Value::Set(set) => Ok(set),
-            _ => Err(Error::TypeMismatch("expected set".to_string())),
+            _ => Err(Error::TypeMismatch(TYPE_ERR_SET.into())),
         }
     }
 
@@ -953,7 +971,7 @@ impl MemoryStore {
                 if let Value::Set(set) = &e.value {
                     Ok(Some(set))
                 } else {
-                    Err(Error::TypeMismatch("expected set".to_string()))
+                    Err(Error::TypeMismatch(TYPE_ERR_SET.into()))
                 }
             }
             _ => Ok(None),
@@ -995,7 +1013,7 @@ impl MemoryStore {
             }
             Ok(removed)
         } else {
-            Err(Error::TypeMismatch("expected set".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_SET.into()))
         };
 
         if result.is_ok() {
@@ -1041,7 +1059,7 @@ impl MemoryStore {
             }
             Ok(results)
         } else {
-            Err(Error::TypeMismatch("expected set".to_string()))
+            Err(Error::TypeMismatch(TYPE_ERR_SET.into()))
         };
 
         if result.is_ok() {
@@ -1287,7 +1305,7 @@ impl MemoryStore {
             if let Value::Set(set) = &mut entry.value {
                 set.remove(member)
             } else {
-                return Err(Error::TypeMismatch("expected set".to_string()));
+                return Err(Error::TypeMismatch(TYPE_ERR_SET.into()));
             }
         };
 

@@ -593,6 +593,11 @@ impl MetaBuilder<'_> {
 
                     if let Some(&idx) = cache_cluster_idx.get(&keyspace.cluster.id) {
                         self.data.cache_clusters[idx].keyspaces.push(ks_info);
+                    } else {
+                        log::warn!(
+                            "cache keyspace references unknown cluster object {:?}, skipping",
+                            keyspace.cluster.id,
+                        );
                     }
                 }
             }
