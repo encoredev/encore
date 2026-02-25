@@ -63,7 +63,7 @@ type messageWrapper struct {
 	Data       json.RawMessage
 }
 
-func (l *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (l *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, pullConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	if implCfg.PushOnly {
 		panic("push-only subscriptions are not supported by nsq")
 	}

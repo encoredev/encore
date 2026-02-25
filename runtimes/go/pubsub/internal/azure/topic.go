@@ -149,7 +149,7 @@ func (t *topic) processMessage(
 	return err
 }
 
-func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, pullConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	receiver, err := t.client.NewReceiverForSubscription(t.topicCfg.ProviderName, subCfg.ProviderName, nil)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create pubsub receiver for subscription %s: %s", subCfg.EncoreName, err))
