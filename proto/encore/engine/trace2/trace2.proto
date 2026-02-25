@@ -209,9 +209,6 @@ message SpanEvent {
     BucketListObjectsEnd bucket_list_objects_end = 33;
     BucketDeleteObjectsStart bucket_delete_objects_start = 34;
     BucketDeleteObjectsEnd bucket_delete_objects_end = 35;
-
-    CustomSpanStart custom_span_start = 36;
-    CustomSpanEnd custom_span_end = 37;
   }
 }
 

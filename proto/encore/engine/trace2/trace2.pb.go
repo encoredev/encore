@@ -1870,8 +1870,6 @@ type SpanEvent struct {
 	//	*SpanEvent_BucketListObjectsEnd
 	//	*SpanEvent_BucketDeleteObjectsStart
 	//	*SpanEvent_BucketDeleteObjectsEnd
-	//	*SpanEvent_CustomSpanStart
-	//	*SpanEvent_CustomSpanEnd
 	Data          isSpanEvent_Data `protobuf_oneof:"data"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2169,24 +2167,6 @@ func (x *SpanEvent) GetBucketDeleteObjectsEnd() *BucketDeleteObjectsEnd {
 	return nil
 }
 
-func (x *SpanEvent) GetCustomSpanStart() *CustomSpanStart {
-	if x != nil {
-		if x, ok := x.Data.(*SpanEvent_CustomSpanStart); ok {
-			return x.CustomSpanStart
-		}
-	}
-	return nil
-}
-
-func (x *SpanEvent) GetCustomSpanEnd() *CustomSpanEnd {
-	if x != nil {
-		if x, ok := x.Data.(*SpanEvent_CustomSpanEnd); ok {
-			return x.CustomSpanEnd
-		}
-	}
-	return nil
-}
-
 type isSpanEvent_Data interface {
 	isSpanEvent_Data()
 }
@@ -2295,14 +2275,6 @@ type SpanEvent_BucketDeleteObjectsEnd struct {
 	BucketDeleteObjectsEnd *BucketDeleteObjectsEnd `protobuf:"bytes,35,opt,name=bucket_delete_objects_end,json=bucketDeleteObjectsEnd,proto3,oneof"`
 }
 
-type SpanEvent_CustomSpanStart struct {
-	CustomSpanStart *CustomSpanStart `protobuf:"bytes,36,opt,name=custom_span_start,json=customSpanStart,proto3,oneof"`
-}
-
-type SpanEvent_CustomSpanEnd struct {
-	CustomSpanEnd *CustomSpanEnd `protobuf:"bytes,37,opt,name=custom_span_end,json=customSpanEnd,proto3,oneof"`
-}
-
 func (*SpanEvent_LogMessage) isSpanEvent_Data() {}
 
 func (*SpanEvent_BodyStream) isSpanEvent_Data() {}
@@ -2354,10 +2326,6 @@ func (*SpanEvent_BucketListObjectsEnd) isSpanEvent_Data() {}
 func (*SpanEvent_BucketDeleteObjectsStart) isSpanEvent_Data() {}
 
 func (*SpanEvent_BucketDeleteObjectsEnd) isSpanEvent_Data() {}
-
-func (*SpanEvent_CustomSpanStart) isSpanEvent_Data() {}
-
-func (*SpanEvent_CustomSpanEnd) isSpanEvent_Data() {}
 
 type RPCCallStart struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
@@ -6297,8 +6265,6 @@ func file_encore_engine_trace2_trace2_proto_init() {
 		(*SpanEvent_BucketListObjectsEnd)(nil),
 		(*SpanEvent_BucketDeleteObjectsStart)(nil),
 		(*SpanEvent_BucketDeleteObjectsEnd)(nil),
-		(*SpanEvent_CustomSpanStart)(nil),
-		(*SpanEvent_CustomSpanEnd)(nil),
 	}
 	file_encore_engine_trace2_trace2_proto_msgTypes[16].OneofWrappers = []any{}
 	file_encore_engine_trace2_trace2_proto_msgTypes[20].OneofWrappers = []any{}
