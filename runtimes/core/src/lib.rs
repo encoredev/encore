@@ -375,6 +375,7 @@ impl Runtime {
             secrets: &secrets,
             tracer: tracer.clone(),
             cloud,
+            testing,
         }
         .build()
         .context("unable to initialize cache manager")?;

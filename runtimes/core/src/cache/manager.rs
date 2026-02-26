@@ -27,6 +27,7 @@ pub struct ManagerConfig<'a> {
     pub secrets: &'a secrets::Manager,
     pub tracer: Tracer,
     pub cloud: pb::environment::Cloud,
+    pub testing: bool,
 }
 
 impl ManagerConfig<'_> {
@@ -35,9 +36,9 @@ impl ManagerConfig<'_> {
             clusters_from_cfg(self.clusters, self.creds, self.secrets, self.tracer.clone())
                 .context("failed to parse Redis clusters")?;
 
-        // Create memory cluster for Encore Cloud fallback
-        let memory_cluster = if self.cloud == pb::environment::Cloud::Encore {
-            log::debug!("cache: running in Encore Cloud, enabling in-memory cache fallback");
+        // Use in-memory cache for testing and Encore Cloud.
+        let memory_cluster = if self.testing || self.cloud == pb::environment::Cloud::Encore {
+            log::debug!("cache: enabling in-memory cache");
             Some(Arc::new(MemoryCluster::new(self.tracer.clone())))
         } else {
             None
