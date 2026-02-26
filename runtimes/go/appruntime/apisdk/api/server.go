@@ -331,6 +331,11 @@ func (s *Server) registerEndpoint(h Handler, function any) {
 		adapter = s.createServiceHandlerAdapter(h)
 
 	case s.IsGateway():
+		// Private endpoints don't need to be proxied through the gateway
+		// as they are only accessible via service-to-service calls.
+		if h.AccessType() == Private {
+			return
+		}
 		adapter = s.createGatewayHandlerAdapter(h)
 
 	default:
