@@ -346,7 +346,7 @@ func (i *BuilderImpl) generateTestSpec(ctx context.Context, p builder.TestSpecPa
 	})
 }
 
-// testEnvVars takes a list of env vars and filters them down to the ones
+// testEnvVarsToEmbed takes a list of env vars and filters them down to the ones
 // that should be embedded within the test binary.
 func (i *BuilderImpl) testEnvVarsToEmbed(args, envs []string) map[string]string {
 	if !slices.Contains(args, "-c") {
