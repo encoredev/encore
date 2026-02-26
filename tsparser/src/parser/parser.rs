@@ -332,6 +332,18 @@ fn resolve_binds(resources: &[Resource], binds: Vec<UnresolvedBind>) -> Vec<Lrc<
                 },
                 r,
             )),
+            Resource::Bucket(bkt) => Some((
+                ResourcePath::Bucket {
+                    name: bkt.name.clone(),
+                },
+                r,
+            )),
+            Resource::CacheCluster(cluster) => Some((
+                ResourcePath::CacheCluster {
+                    name: cluster.name.clone(),
+                },
+                r,
+            )),
             _ => None,
         })
         .collect::<HashMap<ResourcePath, &Resource>>();

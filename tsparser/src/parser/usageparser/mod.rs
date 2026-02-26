@@ -241,6 +241,7 @@ pub enum Usage {
     AccessDatabase(infra::sqldb::AccessDatabaseUsage),
     Bucket(infra::objects::BucketUsage),
     Metric(infra::metrics::MetricUsage),
+    CacheCluster(infra::cache::CacheClusterUsage),
 }
 
 pub struct ResolveUsageData<'a> {
@@ -291,6 +292,13 @@ impl UsageResolver<'_> {
                 }
                 Resource::Metric(metric) => {
                     if let Some(u) = infra::metrics::resolve_metric_usage(&data, metric.clone()) {
+                        usages.push(u)
+                    }
+                }
+                Resource::CacheCluster(cluster) => {
+                    if let Some(u) =
+                        infra::cache::resolve_cache_cluster_usage(&data, cluster.clone())
+                    {
                         usages.push(u)
                     }
                 }

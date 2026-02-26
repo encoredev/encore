@@ -1,0 +1,57 @@
+-- svc/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+export default new Service("svc");
+
+-- svc/cache.ts --
+import { CacheCluster, StringKeyspace } from "encore.dev/storage/cache";
+
+// Define a cache cluster
+export const cluster = new CacheCluster("myCluster", {
+    evictionPolicy: "allkeys-lru",
+});
+
+// Define a keyspace in the same service
+export const greetings = new StringKeyspace<string>(cluster, {
+    keyPattern: "greeting/:key",
+});
+
+-- other/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+export default new Service("other");
+
+-- other/cache.ts --
+import { CacheCluster, IntKeyspace, StructKeyspace } from "encore.dev/storage/cache";
+
+// Reference the cluster from a different service using .named()
+const cluster = CacheCluster.named("myCluster");
+
+// Use the referenced cluster for keyspaces
+export const counters = new IntKeyspace<{ userId: string }>(cluster, {
+    keyPattern: "counter/:userId",
+});
+
+// Struct keyspace with multiple key fields
+interface SessionKey {
+    userId: string;
+    deviceId: string;
+}
+
+interface SessionData {
+    token: string;
+    expiresAt: number;
+}
+
+export const sessions = new StructKeyspace<SessionKey, SessionData>(cluster, {
+    keyPattern: "session/:userId/:deviceId",
+});
+
+-- package.json --
+{
+  "name": "cache-named-test",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}

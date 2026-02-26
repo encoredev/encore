@@ -69,6 +69,11 @@
       "bun": "./storage/objects/mod.ts",
       "default": "./dist/storage/objects/mod.js"
     },
+    "./storage/cache": {
+      "types": "./storage/cache/mod.ts",
+      "bun": "./storage/cache/mod.ts",
+      "default": "./dist/storage/cache/mod.js"
+    },
     "./validate": {
       "types": "./validate/mod.ts",
       "bun": "./validate/mod.ts",

@@ -4,7 +4,7 @@ use bytes::Bytes;
 use hyper::header;
 use pingora::http::ResponseHeader;
 use pingora::protocols::http::error_resp;
-use pingora::proxy::{http_proxy_service, ProxyHttp, Session};
+use pingora::proxy::{http_proxy_service, FailToProxy, ProxyHttp, Session};
 use pingora::server::configuration::{Opt, ServerConf};
 use pingora::services::Service;
 use pingora::upstreams::peer::HttpPeer;
@@ -82,6 +82,7 @@ impl GatewayProxy {
                 #[cfg(unix)]
                 None,
                 rx,
+                1, // listeners_per_fd
             ) => {},
             _ = token.cancelled() => {
                 log::info!("Shutting down pingora proxy");
@@ -215,7 +216,12 @@ impl ProxyHttp for GatewayProxy {
         Ok(Box::new(peer))
     }
 
-    async fn fail_to_proxy(&self, session: &mut Session, e: &Error, _ctx: &mut Self::CTX) -> u16
+    async fn fail_to_proxy(
+        &self,
+        session: &mut Session,
+        e: &Error,
+        _ctx: &mut Self::CTX,
+    ) -> FailToProxy
     where
         Self::CTX: Send + Sync,
     {
@@ -232,7 +238,10 @@ impl ProxyHttp for GatewayProxy {
                             | ErrorType::ReadError
                             | ErrorType::ConnectionClosed => {
                                 /* conn already dead */
-                                return 0;
+                                return FailToProxy {
+                                    error_code: 0,
+                                    can_reuse_downstream: false,
+                                };
                             }
                             _ => 400,
                         }
@@ -264,6 +273,9 @@ impl ProxyHttp for GatewayProxy {
             .await
             .unwrap_or_else(|e| log::error!("failed to write body: {e}"));
 
-        code
+        FailToProxy {
+            error_code: code,
+            can_reuse_downstream: false,
+        }
     }
 }
