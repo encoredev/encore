@@ -1,5 +1,3 @@
-//go:build encore_app
-
 package sqldb
 
 import (
@@ -19,7 +17,7 @@ import (
 // in kebab-case (lowercase alphanumerics and hyphen separated). Once created and deployed never
 // change the database name, or else a new database will be created.
 func NewDatabase(name string, config DatabaseConfig) *Database {
-	return Singleton.GetDB(name)
+	return newDatabase(name, config)
 }
 
 // DatabaseConfig specifies configuration for declaring a new database.
@@ -114,9 +112,5 @@ type constStr string
 //
 // The name must be a string literal constant, to facilitate static analysis.
 func Named(name constStr) *Database {
-	return Singleton.GetDB(string(name))
-}
-
-func getCurrentDB() *Database {
-	return Singleton.GetCurrentDB()
+	return named(name)
 }
