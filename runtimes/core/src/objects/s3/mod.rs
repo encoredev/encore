@@ -78,7 +78,12 @@ impl LazyS3Client {
                 }
 
                 let cfg = builder.load().await;
-                Arc::new(s3::Client::new(&cfg))
+                let mut s3conf = aws_sdk_s3::config::Builder::from(&cfg);
+                if self.cfg.force_path_style {
+                    s3conf = s3conf.force_path_style(true);
+                }
+                let s3client = s3::Client::from_conf(s3conf.build());
+                Arc::new(s3client)
             })
             .await
     }
