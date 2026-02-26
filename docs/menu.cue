@@ -876,6 +876,30 @@
 		},
 		{
 			kind: "section"
+			text: "Resources"
+			items: [{
+				kind: "accordion"
+				text: "Integrations"
+				accordion: [{
+					kind: "basic"
+					text: "Better Auth"
+					path: "/ts/develop/integrations/better-auth"
+					file: "ts/develop/integrations/better-auth"
+				}, {
+					kind: "basic"
+					text: "Polar"
+					path: "/ts/develop/integrations/polar"
+					file: "ts/develop/integrations/polar"
+				}, {
+					kind: "basic"
+					text: "Resend"
+					path: "/ts/develop/integrations/resend"
+					file: "ts/develop/integrations/resend"
+				}]
+			}]
+		},
+		{
+			kind: "section"
 			text: "CLI"
 			items: [{
 				kind: "basic"
@@ -1005,6 +1029,26 @@
 					path: "/ts/self-host/deploy-railway"
 					file: "ts/self-host/deploy-to-railway"
 				}]
+		},
+		{
+			kind: "section"
+			text: "Resources"
+			items: [{
+				kind: "basic"
+				text: "Better Auth"
+				path: "/ts/develop/integrations/better-auth"
+				file: "ts/develop/integrations/better-auth"
+			}, {
+				kind: "basic"
+				text: "Polar"
+				path: "/ts/develop/integrations/polar"
+				file: "ts/develop/integrations/polar"
+			}, {
+				kind: "basic"
+				text: "Resend"
+				path: "/ts/develop/integrations/resend"
+				file: "ts/develop/integrations/resend"
+			}]
 		},
 		{
 			kind: "section"
