@@ -177,6 +177,10 @@ var editors = []DarwinExternalEditor{
 		Name:              ZedPreview,
 		BundleIdentifiers: []string{"dev.zed.Zed-Preview"},
 	},
+	{
+		Name:              Cursor,
+		BundleIdentifiers: []string{"com.todesktop.230313mzl4w4u92"},
+	},
 }
 
 func findApplication(ctx context.Context, editor DarwinExternalEditor, foundEditors chan FoundEditor) error {
