@@ -26,6 +26,7 @@ type Database struct {
 	name     string
 	origName string // original name if this was cloned.
 	mgr      *Manager
+	hooks    *hookList
 
 	noopDB bool // true if this is a dummy database that does nothing and returns errors for all operations
 
@@ -37,6 +38,45 @@ type Database struct {
 	stdlib     *sql.DB
 }
 
+// Hooks defines callbacks that can be registered for database lifecycle events.
+type Hooks struct {
+	// AfterConnect is called whenever a new database connection is established.
+	// Returning an error aborts creation of that connection.
+	AfterConnect func(context.Context, *pgx.Conn) error
+}
+
+type hookList struct {
+	mu    sync.RWMutex
+	hooks []Hooks
+}
+
+// AddHooks registers callbacks to run for this database.
+// Does not have any effect when using the database/sql integration via the (*Database).Stdlib method.
+func (db *Database) AddHooks(h Hooks) {
+	db.hooks.mu.Lock()
+	db.hooks.hooks = append(db.hooks.hooks, h)
+	db.hooks.mu.Unlock()
+}
+
+func (hooks *hookList) runAfterConnectHooks(ctx context.Context, conn *pgx.Conn) error {
+	if hooks == nil {
+		return nil
+	}
+	hooks.mu.RLock()
+	registered := hooks.hooks
+	hooks.mu.RUnlock()
+
+	for _, hook := range registered {
+		if hook.AfterConnect != nil {
+			if err := hook.AfterConnect(ctx, conn); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 var errNoopDB = errors.New("sqldb: this service is not configured to use this database. Use sqldb.Named in this service to get a reference and access to the database from this service")
 
 func (db *Database) init() {
@@ -46,7 +86,7 @@ func (db *Database) init() {
 
 	db.initOnce.Do(func() {
 		if db.pool == nil {
-			pool, found := db.mgr.getPool(db.origName, db.name)
+			pool, found := db.mgr.getPool(db.origName, db.name, db.hooks)
 			db.pool, db.noopDB = pool, !found
 		}
 
