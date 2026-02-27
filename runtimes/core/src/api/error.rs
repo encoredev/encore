@@ -150,6 +150,18 @@ impl From<WebSocketUpgradeRejection> for Error {
     }
 }
 
+impl From<crate::api::reqauth::platform::ValidationError> for Error {
+    fn from(value: crate::api::reqauth::platform::ValidationError) -> Self {
+        Error {
+            code: ErrCode::Unauthenticated,
+            message: "platform authentication failed".into(),
+            internal_message: Some(value.to_string()),
+            stack: None,
+            details: None,
+        }
+    }
+}
+
 impl From<Error> for AppError {
     fn from(val: Error) -> Self {
         let message = match val.internal_message {
