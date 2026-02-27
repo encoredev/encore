@@ -18,6 +18,7 @@ type SecretGroup struct {
 	Description string
 	Etag        string
 	ArchivedAt  *time.Time
+	DestroyedAt *time.Time
 }
 
 type SecretSelector interface {
