@@ -23,6 +23,18 @@ By default, all your services are included and started by the Docker image. If y
 encore build docker --services=service1,service2 --gateways=api-gateway MY-IMAGE:TAG
 ```
 
+You can target a specific architecture with `--arch` (useful when your build machine differs from your deploy target):
+
+```bash
+encore build docker --arch=arm64 MY-IMAGE:TAG
+```
+
+To provide an [infrastructure configuration](/docs/go/self-host/configure-infra) file at build time, use `--config`:
+
+```bash
+encore build docker --config=infra-config.json MY-IMAGE:TAG
+```
+
 The image will default to run on port 8080, but you can customize it by setting the `PORT` environment variable when starting your image.
 
 ```bash
