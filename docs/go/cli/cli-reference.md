@@ -415,7 +415,15 @@ Lists secrets, optionally for a specific key
 $ encore secret list [keys...]
 ```
 
-#### Archive
+#### Delete
+
+Deletes a secret value
+
+```shell
+$ encore secret delete <id>
+```
+
+#### Archive (Deprecated)
 
 Archives a secret value
 
@@ -423,7 +431,7 @@ Archives a secret value
 $ encore secret archive <id>
 ```
 
-#### Unarchive
+#### Unarchive (Deprecated)
 
 Unarchives a secret value
 
