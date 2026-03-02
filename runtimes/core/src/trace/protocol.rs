@@ -966,7 +966,7 @@ pub enum CacheOpResult {
 
 pub struct CacheCallStartData<'a> {
     pub source: &'a Request,
-    pub operation: &'a str,
+    pub operation: &'static str,
     pub is_write: bool,
     pub keys: &'a [&'a str],
 }

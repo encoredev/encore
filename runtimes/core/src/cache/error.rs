@@ -29,15 +29,22 @@ impl OpError {
 }
 
 /// Error type for cache operations.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum Error {
-    /// Key was not found in the cache.
+    /// Miss is the error value reported when a key is missing from the cache.
+    /// It must be checked against with errors.Is.
     #[error("cache miss")]
-    KeyNotFound,
+    Miss,
 
-    /// Key does not exist (used for operations that require existing key).
-    #[error("no such key")]
-    NoSuchKey,
+    /// KeyExists is the error reported when a key already exists
+    /// and the requested operation is specified to only apply to
+    /// keys that do not already exist.
+    /// It must be checked against with errors.Is.
+    #[error("key already exist")]
+    KeyExist,
+
+    #[error("invalid argument: {0}")]
+    InvalidArgument(&'static str),
 
     /// Type mismatch error (e.g., trying to use list operations on a string).
     #[error("type mismatch: {0}")]
@@ -52,6 +59,6 @@ pub enum Error {
     Redis(#[from] redis::RedisError),
 
     /// Connection pool error.
-    #[error("pool error: {0}")]
-    Pool(String),
+    #[error("connection pool timeout")]
+    PoolTimeout,
 }

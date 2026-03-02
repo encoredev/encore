@@ -64,11 +64,11 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const ttlMs = this.resolveTtl(options);
-    const results = await this.cluster.impl.lpop(mappedKey, 1, ttlMs, source);
-    if (results.length === 0) {
+    const result = await this.cluster.impl.lpop(mappedKey, ttlMs, source);
+    if (result === null) {
       return undefined;
     }
-    return this.deserializeItem(results[0]);
+    return this.deserializeItem(result);
   }
 
   /**
@@ -79,11 +79,11 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const ttlMs = this.resolveTtl(options);
-    const results = await this.cluster.impl.rpop(mappedKey, 1, ttlMs, source);
-    if (results.length === 0) {
+    const result = await this.cluster.impl.rpop(mappedKey, ttlMs, source);
+    if (result === null) {
       return undefined;
     }
-    return this.deserializeItem(results[0]);
+    return this.deserializeItem(result);
   }
 
   /**

@@ -1,12 +1,21 @@
 use std::sync::Arc;
 
+use crate::cache::client::{Client, ListDirection};
+use crate::cache::error::Error;
 use crate::cache::memcluster::MemoryStore;
-use crate::cache::pool::{ListDirection, Pool};
 use crate::trace::Tracer;
 
-fn new_test_pool() -> Pool {
+fn new_test_pool() -> Client {
     let store = Arc::new(MemoryStore::new());
-    Pool::in_memory(store, Tracer::noop())
+    Client::in_memory(store, Tracer::noop())
+}
+
+fn is_miss(err: &crate::cache::OpError) -> bool {
+    matches!(err.source, Error::Miss)
+}
+
+fn is_key_exist(err: &crate::cache::OpError) -> bool {
+    matches!(err.source, Error::KeyExist)
 }
 
 #[tokio::test]
@@ -18,15 +27,15 @@ async fn test_set_get_delete() {
 
     // Get it back.
     let v = p.get("k", None).await.unwrap();
-    assert_eq!(v, Some(b"hello".to_vec()));
+    assert_eq!(v, b"hello".to_vec());
 
     // Delete it.
     let deleted = p.delete(&["k"], None).await.unwrap();
     assert_eq!(deleted, 1);
 
     // Should be gone.
-    let v = p.get("k", None).await.unwrap();
-    assert_eq!(v, None);
+    let err = p.get("k", None).await.unwrap_err();
+    assert!(is_miss(&err));
 }
 
 #[tokio::test]
@@ -34,50 +43,55 @@ async fn test_set_if_not_exists() {
     let p = new_test_pool();
 
     // First call succeeds.
-    let ok = p.set_if_not_exists("k", b"v1", None, None).await.unwrap();
-    assert!(ok);
+    p.set_if_not_exists("k", b"v1", None, None).await.unwrap();
 
-    // Second call returns false (key already exists).
-    let ok = p.set_if_not_exists("k", b"v2", None, None).await.unwrap();
-    assert!(!ok);
+    // Second call fails (key already exists).
+    let err = p
+        .set_if_not_exists("k", b"v2", None, None)
+        .await
+        .unwrap_err();
+    assert!(is_key_exist(&err));
 
     // Original value retained.
     let v = p.get("k", None).await.unwrap();
-    assert_eq!(v, Some(b"v1".to_vec()));
+    assert_eq!(v, b"v1".to_vec());
 }
 
 #[tokio::test]
 async fn test_replace() {
     let p = new_test_pool();
 
-    // Replace on missing key returns false.
-    let ok = p.replace("k", b"v1", None, None).await.unwrap();
-    assert!(!ok);
+    // Replace on missing key returns error.
+    let err = p.replace("k", b"v1", None, None).await.unwrap_err();
+    assert!(is_miss(&err));
 
     // Set a value, then replace succeeds.
     p.set("k", b"v1", None, None).await.unwrap();
-    let ok = p.replace("k", b"v2", None, None).await.unwrap();
-    assert!(ok);
+    p.replace("k", b"v2", None, None).await.unwrap();
 
     let v = p.get("k", None).await.unwrap();
-    assert_eq!(v, Some(b"v2".to_vec()));
+    assert_eq!(v, b"v2".to_vec());
 }
 
 #[tokio::test]
 async fn test_get_and_set() {
     let p = new_test_pool();
 
-    // get_and_set on missing key returns None.
-    let old = p.get_and_set("k", b"v1", None, None).await.unwrap();
-    assert_eq!(old, None);
+    // get_and_set on missing key returns Miss.
+    let err = p.get_and_set("k", b"v1", None, None).await.unwrap_err();
+    assert!(is_miss(&err));
+
+    // But the value was still set.
+    let v = p.get("k", None).await.unwrap();
+    assert_eq!(v, b"v1".to_vec());
 
     // Now returns old value.
     let old = p.get_and_set("k", b"v2", None, None).await.unwrap();
-    assert_eq!(old, Some(b"v1".to_vec()));
+    assert_eq!(old, b"v1".to_vec());
 
     // New value stored.
     let v = p.get("k", None).await.unwrap();
-    assert_eq!(v, Some(b"v2".to_vec()));
+    assert_eq!(v, b"v2".to_vec());
 }
 
 #[tokio::test]
@@ -87,11 +101,11 @@ async fn test_get_and_delete() {
     p.set("k", b"val", None, None).await.unwrap();
 
     let old = p.get_and_delete("k", None).await.unwrap();
-    assert_eq!(old, Some(b"val".to_vec()));
+    assert_eq!(old, b"val".to_vec());
 
     // Key is gone.
-    let v = p.get("k", None).await.unwrap();
-    assert_eq!(v, None);
+    let err = p.get("k", None).await.unwrap_err();
+    assert!(is_miss(&err));
 }
 
 #[tokio::test]
@@ -105,7 +119,7 @@ async fn test_append() {
     assert_eq!(len, 11);
 
     let v = p.get("k", None).await.unwrap();
-    assert_eq!(v, Some(b"hello world".to_vec()));
+    assert_eq!(v, b"hello world".to_vec());
 }
 
 #[tokio::test]
@@ -131,7 +145,7 @@ async fn test_set_range() {
     assert_eq!(new_len, 11);
 
     let v = p.get("k", None).await.unwrap();
-    assert_eq!(v, Some(b"hello rust!".to_vec()));
+    assert_eq!(v, b"hello rust!".to_vec());
 }
 
 #[tokio::test]
@@ -169,7 +183,7 @@ async fn test_incr_creates_key() {
     assert_eq!(v, 7);
 
     let v = p.get("k", None).await.unwrap();
-    assert_eq!(v, Some(b"7".to_vec()));
+    assert_eq!(v, b"7".to_vec());
 }
 
 #[tokio::test]
@@ -211,12 +225,12 @@ async fn test_list_push_pop() {
     assert_eq!(len, 3);
 
     // lpop from head returns "a".
-    let vals = p.lpop("l", None, None, None).await.unwrap();
-    assert_eq!(vals, vec![b"a".to_vec()]);
+    let val = p.lpop("l", None, None).await.unwrap();
+    assert_eq!(val, b"a".to_vec());
 
     // rpop from tail returns "c".
-    let vals = p.rpop("l", None, None, None).await.unwrap();
-    assert_eq!(vals, vec![b"c".to_vec()]);
+    let val = p.rpop("l", None, None).await.unwrap();
+    assert_eq!(val, b"c".to_vec());
 }
 
 #[tokio::test]
@@ -231,7 +245,7 @@ async fn test_list_set_trim() {
     p.lset("l", 1, b"B", None, None).await.unwrap();
 
     let v = p.lindex("l", 1, None).await.unwrap();
-    assert_eq!(v, Some(b"B".to_vec()));
+    assert_eq!(v, b"B".to_vec());
 
     // ltrim to keep only indices 1..2.
     p.ltrim("l", 1, 2, None, None).await.unwrap();
@@ -306,7 +320,7 @@ async fn test_list_move() {
         )
         .await
         .unwrap();
-    assert_eq!(moved, Some(b"a".to_vec()));
+    assert_eq!(moved, b"a".to_vec());
 
     let src_items = p.litems("src", None).await.unwrap();
     assert_eq!(src_items, vec![b"b".to_vec(), b"c".to_vec()]);
@@ -386,20 +400,20 @@ async fn test_set_pop_sample() {
 
     // spop_one removes and returns the member.
     let popped = p.spop_one("s", None, None).await.unwrap();
-    assert_eq!(popped, Some(b"only".to_vec()));
+    assert_eq!(popped, b"only".to_vec());
 
-    // Empty set returns None.
-    let popped = p.spop_one("s", None, None).await.unwrap();
-    assert_eq!(popped, None);
+    // Empty set returns Miss.
+    let err = p.spop_one("s", None, None).await.unwrap_err();
+    assert!(is_miss(&err));
 
-    // srandmember_one on empty set returns None.
-    let sampled = p.srandmember_one("s", None).await.unwrap();
-    assert_eq!(sampled, None);
+    // srandmember on empty set returns Miss.
+    let err = p.srandmember("s", None).await.unwrap_err();
+    assert!(is_miss(&err));
 
-    // srandmember_one on non-empty set returns a member.
+    // srandmember on non-empty set returns a member.
     p.sadd("s", &[b"m"], None, None).await.unwrap();
-    let sampled = p.srandmember_one("s", None).await.unwrap();
-    assert_eq!(sampled, Some(b"m".to_vec()));
+    let sampled = p.srandmember("s", None).await.unwrap();
+    assert_eq!(sampled, b"m".to_vec());
 }
 
 #[tokio::test]

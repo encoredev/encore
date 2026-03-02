@@ -8,9 +8,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
+use crate::cache::client::{Client, ListDirection, TtlOp};
 use crate::cache::error::{Error, Result};
 use crate::cache::manager::Cluster;
-use crate::cache::pool::{ListDirection, Pool, TtlOp};
 use crate::names::EncoreName;
 use crate::trace::Tracer;
 
@@ -43,8 +43,8 @@ impl Cluster for MemoryCluster {
         NAME.get_or_init(|| EncoreName::from("memory-cluster".to_string()))
     }
 
-    fn pool(&self) -> anyhow::Result<Pool> {
-        Ok(Pool::in_memory(self.store.clone(), self.tracer.clone()))
+    fn client(&self) -> anyhow::Result<Client> {
+        Ok(Client::in_memory(self.store.clone(), self.tracer.clone()))
     }
 }
 
@@ -138,18 +138,18 @@ impl MemoryStore {
         }
     }
 
-    pub fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
+    pub fn get(&self, key: &str) -> Result<Vec<u8>> {
         self.maybe_cleanup();
         let data = self.data.read().unwrap();
         match data.get(key) {
             Some(entry) if !entry.is_expired() => {
                 if let Value::String(v) = &entry.value {
-                    Ok(Some(v.clone()))
+                    Ok(v.clone())
                 } else {
                     Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
                 }
             }
-            _ => Ok(None),
+            _ => Err(Error::Miss),
         }
     }
 
@@ -174,23 +174,23 @@ impl MemoryStore {
         Ok(())
     }
 
-    pub fn set_if_not_exists(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<bool> {
+    pub fn set_if_not_exists(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<()> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
         // Check if key exists and is not expired
         if let Some(entry) = data.get(key) {
             if !entry.is_expired() {
-                return Ok(false);
+                return Err(Error::KeyExist);
             }
         }
 
         let entry = Entry::new_with_ttl_op(Value::String(value.to_vec()), ttl);
         data.insert(key.to_string(), entry);
-        Ok(true)
+        Ok(())
     }
 
-    pub fn replace(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<bool> {
+    pub fn replace(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<()> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -198,11 +198,11 @@ impl MemoryStore {
         let old_expires = if let Some(entry) = data.get(key) {
             if entry.is_expired() {
                 data.remove(key);
-                return Ok(false);
+                return Err(Error::Miss);
             }
             entry.expires_at
         } else {
-            return Ok(false);
+            return Err(Error::Miss);
         };
 
         match ttl {
@@ -216,15 +216,10 @@ impl MemoryStore {
                 data.insert(key.to_string(), entry);
             }
         }
-        Ok(true)
+        Ok(())
     }
 
-    pub fn get_and_set(
-        &self,
-        key: &str,
-        value: &[u8],
-        ttl: Option<TtlOp>,
-    ) -> Result<Option<Vec<u8>>> {
+    pub fn get_and_set(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<Vec<u8>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -247,22 +242,22 @@ impl MemoryStore {
                 data.insert(key.to_string(), entry);
             }
         }
-        Ok(old_value)
+        old_value.ok_or(Error::Miss)
     }
 
-    pub fn get_and_delete(&self, key: &str) -> Result<Option<Vec<u8>>> {
+    pub fn get_and_delete(&self, key: &str) -> Result<Vec<u8>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
         match data.remove(key) {
             Some(entry) if !entry.is_expired() => {
                 if let Value::String(v) = entry.value {
-                    Ok(Some(v))
+                    Ok(v)
                 } else {
                     Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
                 }
             }
-            _ => Ok(None),
+            _ => Err(Error::Miss),
         }
     }
 
@@ -525,41 +520,17 @@ impl MemoryStore {
         Ok(len)
     }
 
-    pub fn lpop(
-        &self,
-        key: &str,
-        count: Option<usize>,
-        ttl: Option<TtlOp>,
-    ) -> Result<Vec<Vec<u8>>> {
+    pub fn lpop(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
         let entry = match data.get_mut(key) {
             Some(e) if !e.is_expired() => e,
-            _ => {
-                return if count.is_none() {
-                    Err(Error::KeyNotFound)
-                } else {
-                    Ok(Vec::new())
-                };
-            }
+            _ => return Err(Error::Miss),
         };
 
         let result = if let Value::List(list) = &mut entry.value {
-            let n = count.unwrap_or(1);
-            let mut results = Vec::with_capacity(n);
-            for _ in 0..n {
-                if let Some(v) = list.pop_front() {
-                    results.push(v);
-                } else {
-                    break;
-                }
-            }
-            if count.is_none() && results.is_empty() {
-                Err(Error::KeyNotFound)
-            } else {
-                Ok(results)
-            }
+            list.pop_front().ok_or(Error::Miss)
         } else {
             Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         };
@@ -570,41 +541,17 @@ impl MemoryStore {
         result
     }
 
-    pub fn rpop(
-        &self,
-        key: &str,
-        count: Option<usize>,
-        ttl: Option<TtlOp>,
-    ) -> Result<Vec<Vec<u8>>> {
+    pub fn rpop(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
         let entry = match data.get_mut(key) {
             Some(e) if !e.is_expired() => e,
-            _ => {
-                return if count.is_none() {
-                    Err(Error::KeyNotFound)
-                } else {
-                    Ok(Vec::new())
-                };
-            }
+            _ => return Err(Error::Miss),
         };
 
         let result = if let Value::List(list) = &mut entry.value {
-            let n = count.unwrap_or(1);
-            let mut results = Vec::with_capacity(n);
-            for _ in 0..n {
-                if let Some(v) = list.pop_back() {
-                    results.push(v);
-                } else {
-                    break;
-                }
-            }
-            if count.is_none() && results.is_empty() {
-                Err(Error::KeyNotFound)
-            } else {
-                Ok(results)
-            }
+            list.pop_back().ok_or(Error::Miss)
         } else {
             Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
         };
@@ -615,22 +562,22 @@ impl MemoryStore {
         result
     }
 
-    pub fn lindex(&self, key: &str, index: i64) -> Result<Option<Vec<u8>>> {
+    pub fn lindex(&self, key: &str, index: i64) -> Result<Vec<u8>> {
         self.maybe_cleanup();
         let data = self.data.read().unwrap();
 
         let entry = match data.get(key) {
             Some(e) if !e.is_expired() => e,
-            _ => return Ok(None),
+            _ => return Err(Error::Miss),
         };
 
         if let Value::List(list) = &entry.value {
             let len = list.len() as i64;
             let idx = if index < 0 { len + index } else { index };
             if idx < 0 || idx >= len {
-                Ok(None)
+                Err(Error::Miss)
             } else {
-                Ok(list.get(idx as usize).cloned())
+                list.get(idx as usize).cloned().ok_or(Error::Miss)
             }
         } else {
             Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
@@ -643,7 +590,7 @@ impl MemoryStore {
 
         let entry = match data.get_mut(key) {
             Some(e) if !e.is_expired() => e,
-            _ => return Err(Error::NoSuchKey),
+            _ => return Err(Error::Miss),
         };
 
         let result = if let Value::List(list) = &mut entry.value {
@@ -872,7 +819,7 @@ impl MemoryStore {
         src_dir: ListDirection,
         dst_dir: ListDirection,
         ttl: Option<TtlOp>,
-    ) -> Result<Option<Vec<u8>>> {
+    ) -> Result<Vec<u8>> {
         self.maybe_cleanup();
         let mut data = self.data.write().unwrap();
 
@@ -880,7 +827,7 @@ impl MemoryStore {
         let value = {
             let entry = match data.get_mut(src) {
                 Some(e) if !e.is_expired() => e,
-                _ => return Ok(None),
+                _ => return Err(Error::Miss),
             };
 
             if let Value::List(list) = &mut entry.value {
@@ -895,7 +842,7 @@ impl MemoryStore {
 
         let value = match value {
             Some(v) => v,
-            None => return Ok(None),
+            None => return Err(Error::Miss),
         };
 
         // Push to destination
@@ -923,7 +870,7 @@ impl MemoryStore {
         if let Some(entry) = data.get_mut(dst) {
             entry.apply_ttl_op(ttl);
         }
-        Ok(Some(ret))
+        Ok(ret)
     }
 
     pub fn llen(&self, key: &str) -> Result<i64> {

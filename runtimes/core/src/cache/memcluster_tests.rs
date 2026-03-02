@@ -1,5 +1,6 @@
+use crate::cache::client::{ListDirection, TtlOp};
+use crate::cache::error::Error;
 use crate::cache::memcluster::MemoryStore;
-use crate::cache::pool::{ListDirection, TtlOp};
 
 fn new_store() -> MemoryStore {
     MemoryStore::new()
@@ -8,14 +9,14 @@ fn new_store() -> MemoryStore {
 #[test]
 fn test_get_missing_key() {
     let s = new_store();
-    assert_eq!(s.get("missing").unwrap(), None);
+    assert!(matches!(s.get("missing"), Err(Error::Miss)));
 }
 
 #[test]
 fn test_set_and_get() {
     let s = new_store();
     s.set("k", b"hello", None).unwrap();
-    assert_eq!(s.get("k").unwrap(), Some(b"hello".to_vec()));
+    assert_eq!(s.get("k").unwrap(), b"hello".to_vec());
 }
 
 #[test]
@@ -23,7 +24,7 @@ fn test_set_overwrites() {
     let s = new_store();
     s.set("k", b"v1", None).unwrap();
     s.set("k", b"v2", None).unwrap();
-    assert_eq!(s.get("k").unwrap(), Some(b"v2".to_vec()));
+    assert_eq!(s.get("k").unwrap(), b"v2".to_vec());
 }
 
 #[test]
@@ -32,7 +33,7 @@ fn test_set_with_persist_ttl() {
     // Set with a TTL, then overwrite with Persist to remove it
     s.set("k", b"v1", Some(TtlOp::SetMs(100_000))).unwrap();
     s.set("k", b"v2", Some(TtlOp::Persist)).unwrap();
-    assert_eq!(s.get("k").unwrap(), Some(b"v2".to_vec()));
+    assert_eq!(s.get("k").unwrap(), b"v2".to_vec());
 }
 
 #[test]
@@ -44,9 +45,9 @@ fn test_delete() {
 
     let deleted = s.delete(&["a", "c", "missing"]).unwrap();
     assert_eq!(deleted, 2);
-    assert_eq!(s.get("a").unwrap(), None);
-    assert_eq!(s.get("b").unwrap(), Some(b"2".to_vec()));
-    assert_eq!(s.get("c").unwrap(), None);
+    assert!(matches!(s.get("a"), Err(Error::Miss)));
+    assert_eq!(s.get("b").unwrap(), b"2".to_vec());
+    assert!(matches!(s.get("c"), Err(Error::Miss)));
 }
 
 #[test]
@@ -54,41 +55,43 @@ fn test_set_if_not_exists() {
     let s = new_store();
 
     // First call succeeds
-    assert!(s.set_if_not_exists("k", b"v1", None).unwrap());
-    assert_eq!(s.get("k").unwrap(), Some(b"v1".to_vec()));
+    s.set_if_not_exists("k", b"v1", None).unwrap();
+    assert_eq!(s.get("k").unwrap(), b"v1".to_vec());
 
     // Second call fails — key exists
-    assert!(!s.set_if_not_exists("k", b"v2", None).unwrap());
-    assert_eq!(s.get("k").unwrap(), Some(b"v1".to_vec()));
+    assert!(matches!(
+        s.set_if_not_exists("k", b"v2", None),
+        Err(Error::KeyExist)
+    ));
+    assert_eq!(s.get("k").unwrap(), b"v1".to_vec());
 }
 
 #[test]
 fn test_replace_missing_key() {
     let s = new_store();
-    assert!(!s.replace("k", b"v", None).unwrap());
+    assert!(matches!(s.replace("k", b"v", None), Err(Error::Miss)));
 }
 
 #[test]
 fn test_replace_existing_key() {
     let s = new_store();
     s.set("k", b"old", None).unwrap();
-    assert!(s.replace("k", b"new", None).unwrap());
-    assert_eq!(s.get("k").unwrap(), Some(b"new".to_vec()));
+    s.replace("k", b"new", None).unwrap();
+    assert_eq!(s.get("k").unwrap(), b"new".to_vec());
 }
 
 #[test]
 fn test_get_and_set() {
     let s = new_store();
 
-    // First call: key doesn't exist
-    let old = s.get_and_set("k", b"v1", None).unwrap();
-    assert_eq!(old, None);
-    assert_eq!(s.get("k").unwrap(), Some(b"v1".to_vec()));
+    // First call: key doesn't exist — returns Miss but value IS set
+    assert!(matches!(s.get_and_set("k", b"v1", None), Err(Error::Miss)));
+    assert_eq!(s.get("k").unwrap(), b"v1".to_vec());
 
     // Second call: returns old value
     let old = s.get_and_set("k", b"v2", None).unwrap();
-    assert_eq!(old, Some(b"v1".to_vec()));
-    assert_eq!(s.get("k").unwrap(), Some(b"v2".to_vec()));
+    assert_eq!(old, b"v1".to_vec());
+    assert_eq!(s.get("k").unwrap(), b"v2".to_vec());
 }
 
 #[test]
@@ -97,11 +100,11 @@ fn test_get_and_delete() {
     s.set("k", b"val", None).unwrap();
 
     let old = s.get_and_delete("k").unwrap();
-    assert_eq!(old, Some(b"val".to_vec()));
+    assert_eq!(old, b"val".to_vec());
 
     // Key should be gone
-    assert_eq!(s.get("k").unwrap(), None);
-    assert_eq!(s.get_and_delete("k").unwrap(), None);
+    assert!(matches!(s.get("k"), Err(Error::Miss)));
+    assert!(matches!(s.get_and_delete("k"), Err(Error::Miss)));
 }
 
 #[test]
@@ -124,12 +127,12 @@ fn test_append() {
     // Append to non-existent key creates it
     let len = s.append("k", b"hello", None).unwrap();
     assert_eq!(len, 5);
-    assert_eq!(s.get("k").unwrap(), Some(b"hello".to_vec()));
+    assert_eq!(s.get("k").unwrap(), b"hello".to_vec());
 
     // Append to existing key
     let len = s.append("k", b" world", None).unwrap();
     assert_eq!(len, 11);
-    assert_eq!(s.get("k").unwrap(), Some(b"hello world".to_vec()));
+    assert_eq!(s.get("k").unwrap(), b"hello world".to_vec());
 }
 
 #[test]
@@ -152,12 +155,12 @@ fn test_set_range() {
 
     let len = s.set_range("k", 6, b"redis", None).unwrap();
     assert_eq!(len, 11);
-    assert_eq!(s.get("k").unwrap(), Some(b"hello redis".to_vec()));
+    assert_eq!(s.get("k").unwrap(), b"hello redis".to_vec());
 
     // Set range past end extends the string
     let len = s.set_range("k", 11, b"!!", None).unwrap();
     assert_eq!(len, 13);
-    assert_eq!(s.get("k").unwrap(), Some(b"hello redis!!".to_vec()));
+    assert_eq!(s.get("k").unwrap(), b"hello redis!!".to_vec());
 }
 
 #[test]
@@ -166,7 +169,7 @@ fn test_set_range_with_gap() {
     // Setting at offset past current length pads with zeros
     let len = s.set_range("k", 5, b"hi", None).unwrap();
     assert_eq!(len, 7);
-    let val = s.get("k").unwrap().unwrap();
+    let val = s.get("k").unwrap();
     assert_eq!(&val[..5], &[0, 0, 0, 0, 0]);
     assert_eq!(&val[5..], b"hi");
 }
@@ -238,11 +241,14 @@ fn test_lpop_rpop() {
     let s = new_store();
     s.rpush("k", &[b"a", b"b", b"c", b"d"], None).unwrap();
 
-    let popped = s.lpop("k", Some(2), None).unwrap();
-    assert_eq!(popped, vec![b"a".to_vec(), b"b".to_vec()]);
+    let popped = s.lpop("k", None).unwrap();
+    assert_eq!(popped, b"a".to_vec());
 
-    let popped = s.rpop("k", Some(1), None).unwrap();
-    assert_eq!(popped, vec![b"d".to_vec()]);
+    let popped = s.lpop("k", None).unwrap();
+    assert_eq!(popped, b"b".to_vec());
+
+    let popped = s.rpop("k", None).unwrap();
+    assert_eq!(popped, b"d".to_vec());
 
     // Remaining: just "c"
     let items = s.lrange("k", 0, -1).unwrap();
@@ -252,14 +258,8 @@ fn test_lpop_rpop() {
 #[test]
 fn test_lpop_rpop_empty() {
     let s = new_store();
-    assert_eq!(
-        s.lpop("missing", Some(1), None).unwrap(),
-        Vec::<Vec<u8>>::new()
-    );
-    assert_eq!(
-        s.rpop("missing", Some(1), None).unwrap(),
-        Vec::<Vec<u8>>::new()
-    );
+    assert!(matches!(s.lpop("missing", None), Err(Error::Miss)));
+    assert!(matches!(s.rpop("missing", None), Err(Error::Miss)));
 }
 
 #[test]
@@ -267,15 +267,15 @@ fn test_lindex() {
     let s = new_store();
     s.rpush("k", &[b"a", b"b", b"c"], None).unwrap();
 
-    assert_eq!(s.lindex("k", 0).unwrap(), Some(b"a".to_vec()));
-    assert_eq!(s.lindex("k", 2).unwrap(), Some(b"c".to_vec()));
-    assert_eq!(s.lindex("k", -1).unwrap(), Some(b"c".to_vec()));
-    assert_eq!(s.lindex("k", -3).unwrap(), Some(b"a".to_vec()));
+    assert_eq!(s.lindex("k", 0).unwrap(), b"a".to_vec());
+    assert_eq!(s.lindex("k", 2).unwrap(), b"c".to_vec());
+    assert_eq!(s.lindex("k", -1).unwrap(), b"c".to_vec());
+    assert_eq!(s.lindex("k", -3).unwrap(), b"a".to_vec());
     // Out of range
-    assert_eq!(s.lindex("k", 10).unwrap(), None);
-    assert_eq!(s.lindex("k", -10).unwrap(), None);
+    assert!(matches!(s.lindex("k", 10), Err(Error::Miss)));
+    assert!(matches!(s.lindex("k", -10), Err(Error::Miss)));
     // Missing key
-    assert_eq!(s.lindex("missing", 0).unwrap(), None);
+    assert!(matches!(s.lindex("missing", 0), Err(Error::Miss)));
 }
 
 #[test]
@@ -284,11 +284,11 @@ fn test_lset() {
     s.rpush("k", &[b"a", b"b", b"c"], None).unwrap();
 
     s.lset("k", 1, b"B", None).unwrap();
-    assert_eq!(s.lindex("k", 1).unwrap(), Some(b"B".to_vec()));
+    assert_eq!(s.lindex("k", 1).unwrap(), b"B".to_vec());
 
     // Negative index
     s.lset("k", -1, b"C", None).unwrap();
-    assert_eq!(s.lindex("k", 2).unwrap(), Some(b"C".to_vec()));
+    assert_eq!(s.lindex("k", 2).unwrap(), b"C".to_vec());
 }
 
 #[test]
@@ -420,7 +420,7 @@ fn test_lmove() {
             None,
         )
         .unwrap();
-    assert_eq!(val, Some(b"a".to_vec()));
+    assert_eq!(val, b"a".to_vec());
 
     assert_eq!(s.lrange("src", 0, -1).unwrap(), vec![b"b", b"c"]);
     assert_eq!(s.lrange("dst", 0, -1).unwrap(), vec![b"a"]);
@@ -435,7 +435,7 @@ fn test_lmove() {
             None,
         )
         .unwrap();
-    assert_eq!(val, Some(b"c".to_vec()));
+    assert_eq!(val, b"c".to_vec());
 
     assert_eq!(s.lrange("src", 0, -1).unwrap(), vec![b"b"]);
     assert_eq!(s.lrange("dst", 0, -1).unwrap(), vec![b"c", b"a"]);
@@ -444,17 +444,16 @@ fn test_lmove() {
 #[test]
 fn test_lmove_empty_source() {
     let s = new_store();
-    assert_eq!(
+    assert!(matches!(
         s.lmove(
             "missing",
             "dst",
             ListDirection::Left,
             ListDirection::Right,
             None
-        )
-        .unwrap(),
-        None
-    );
+        ),
+        Err(Error::Miss)
+    ));
 }
 
 #[test]
@@ -727,7 +726,7 @@ fn test_ttl_keep_preserves_expiry() {
 
     // Replace with KeepTTL — value changes but TTL stays
     s.set("k", b"v2", Some(TtlOp::Keep)).unwrap();
-    assert_eq!(s.get("k").unwrap(), Some(b"v2".to_vec()));
+    assert_eq!(s.get("k").unwrap(), b"v2".to_vec());
 }
 
 #[test]
@@ -735,8 +734,8 @@ fn test_replace_with_keep_ttl() {
     let s = new_store();
     s.set("k", b"v1", Some(TtlOp::SetMs(100_000))).unwrap();
 
-    assert!(s.replace("k", b"v2", Some(TtlOp::Keep)).unwrap());
-    assert_eq!(s.get("k").unwrap(), Some(b"v2".to_vec()));
+    s.replace("k", b"v2", Some(TtlOp::Keep)).unwrap();
+    assert_eq!(s.get("k").unwrap(), b"v2".to_vec());
 }
 
 #[test]
@@ -748,7 +747,7 @@ fn test_expired_key_not_returned() {
     // Allow a tiny bit of time to pass
     std::thread::sleep(std::time::Duration::from_millis(1));
 
-    assert_eq!(s.get("k").unwrap(), None);
+    assert!(matches!(s.get("k"), Err(Error::Miss)));
 }
 
 #[test]
@@ -758,8 +757,8 @@ fn test_set_if_not_exists_on_expired_key() {
     std::thread::sleep(std::time::Duration::from_millis(1));
 
     // Expired key should allow set_if_not_exists
-    assert!(s.set_if_not_exists("k", b"new", None).unwrap());
-    assert_eq!(s.get("k").unwrap(), Some(b"new".to_vec()));
+    s.set_if_not_exists("k", b"new", None).unwrap();
+    assert_eq!(s.get("k").unwrap(), b"new".to_vec());
 }
 
 #[test]
@@ -768,5 +767,5 @@ fn test_replace_on_expired_key_fails() {
     s.set("k", b"old", Some(TtlOp::SetMs(0))).unwrap();
     std::thread::sleep(std::time::Duration::from_millis(1));
 
-    assert!(!s.replace("k", b"new", None).unwrap());
+    assert!(matches!(s.replace("k", b"new", None), Err(Error::Miss)));
 }

@@ -1,5 +1,5 @@
+use crate::cache::client::Client;
 use crate::cache::manager::Cluster;
-use crate::cache::pool::Pool;
 use crate::names::EncoreName;
 
 /// NoopCluster is returned when a cache cluster is not configured.
@@ -19,7 +19,7 @@ impl Cluster for NoopCluster {
         &self.name
     }
 
-    fn pool(&self) -> anyhow::Result<Pool> {
+    fn client(&self) -> anyhow::Result<Client> {
         anyhow::bail!("cache: this service is not configured to use this cache cluster")
     }
 }

@@ -5,9 +5,9 @@ use anyhow::Context;
 use bb8_redis::redis;
 use redis::{ConnectionAddr, IntoConnectionInfo, RedisConnectionInfo, TlsCertificates};
 
+use crate::cache::client::Client;
 use crate::cache::memcluster::MemoryCluster;
 use crate::cache::noop::NoopCluster;
-use crate::cache::pool::Pool;
 use crate::encore::runtime::v1 as pb;
 use crate::names::EncoreName;
 use crate::secrets;
@@ -82,8 +82,8 @@ pub trait Cluster: Send + Sync {
     /// Returns the name of the cluster.
     fn name(&self) -> &EncoreName;
 
-    /// Creates a new connection pool to this cluster.
-    fn pool(&self) -> anyhow::Result<Pool>;
+    /// Creates a new cache client for this cluster.
+    fn client(&self) -> anyhow::Result<Client>;
 }
 
 /// Implementation of a configured cache cluster.
@@ -121,8 +121,8 @@ impl Cluster for ClusterImpl {
         &self.name
     }
 
-    fn pool(&self) -> anyhow::Result<Pool> {
-        Pool::new(
+    fn client(&self) -> anyhow::Result<Client> {
+        Client::new(
             self.client.clone(),
             self.key_prefix.clone(),
             self.tracer.clone(),
