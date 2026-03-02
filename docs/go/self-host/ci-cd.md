@@ -16,6 +16,8 @@ While every CI/CD pipeline is unique, integrating Encore follows a straightforwa
 3. Push the images to your container registry
 4. Deploy to your infrastructure
 
+If your app is linked with Encore Cloud, you'll need to authenticate the CLI in your CI environment using an [auth key](/docs/platform/integrations/auth-keys). Generate one from **App Settings > Auth Keys** in the Encore Cloud dashboard, store it as a CI secret, and run `encore auth login --auth-key=<KEY>` before building.
+
 Refer to your CI/CD platform's documentation for more details on how to integrate CLI tools like `encore build`.
 
 ### GitHub actions example
@@ -49,6 +51,9 @@ jobs:
       - name: Install Encore CLI
         run: bash install.sh
 
+      - name: Authenticate with Encore
+        run: /home/runner/.encore/bin/encore auth login --auth-key=${{ secrets.ENCORE_AUTH_KEY }}
+
       - name: Log in to DigitalOcean container registry
         run: docker login registry.digitalocean.com -u my-email@gmail.com -p ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
@@ -72,6 +77,9 @@ encore build docker --services=service1,service2 --gateways=api-gateway MY-IMAGE
 
 # Customize the base image
 encore build docker --base=node:18-alpine MY-IMAGE:TAG
+
+# Build for a specific architecture (useful when CI and deploy targets differ)
+encore build docker --arch=arm64 MY-IMAGE:TAG
 ```
 
 The image will default to run on port 8080, but you can customize it by setting the `PORT` environment variable when starting your image.

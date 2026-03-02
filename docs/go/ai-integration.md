@@ -94,7 +94,7 @@ This displays connection information. Keep it running while using your AI tools.
 }
 ```
 
-Find your app ID with `encore app info` or in the [Encore dashboard](https://app.encore.dev).
+Find your app ID in the `encore.app` file or in the [Encore dashboard](https://app.encore.dev).
 
 ### Connect Claude Code
 
