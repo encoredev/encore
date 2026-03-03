@@ -5,7 +5,7 @@ title: Resend
 lang: ts
 ---
 
-[Resend](https://resend.com) provides transactional email with high deliverability and React Email templates. Combined with Encore's [Pub/Sub](https://encore.dev/docs/ts/primitives/pubsub) and [secrets management](https://encore.dev/docs/ts/primitives/secrets), you get reliable email delivery without managing any infrastructure.
+[Resend](https://resend.com) provides transactional email with high deliverability and React Email templates. This guide shows how to use it with Encore's [Pub/Sub](https://encore.dev/docs/ts/primitives/pubsub) and [secrets management](https://encore.dev/docs/ts/primitives/secrets).
 
 To get started quickly, create a new app from the example:
 
@@ -37,8 +37,8 @@ $ npm install resend @react-email/components
 
 Before writing code, you'll need to configure a few things in the [Resend dashboard](https://resend.com):
 
-1. **Create an API key** — Go to [API Keys](https://resend.com/api-keys) and create a new key.
-2. **Verify a domain** (optional for testing) — Go to [Domains](https://resend.com/domains) and add your sending domain. Until you verify a domain, you can use `onboarding@resend.dev` as the `from` address for testing.
+1. **Create an API key.** Go to [API Keys](https://resend.com/api-keys) and create a new key.
+2. **Verify a domain** (optional for testing). Go to [Domains](https://resend.com/domains) and add your sending domain. Until you verify a domain, you can use `onboarding@resend.dev` as the `from` address for testing.
 
 See the [Resend documentation](https://resend.com/docs) for more details on domain verification and sending limits.
 
@@ -162,19 +162,17 @@ await emailTopic.publish({
 
 <Callout type="info">
 
-Locally, Pub/Sub runs in-process — messages are delivered immediately, making it easy to test and debug.
+Locally, Pub/Sub runs in-process so messages are delivered immediately, making it easy to test and debug.
 
 </Callout>
 
 ## Deploy
 
-When you deploy, Encore automatically provisions and manages the infrastructure your app needs. For Resend integrations, this includes:
+When you deploy, Encore automatically provisions and manages the infrastructure your app needs:
 
-- **Secrets** — encrypted per environment (preview, staging, production), never shared between them
-- **Pub/Sub** — GCP Pub/Sub on Google Cloud, SQS/SNS on AWS, with automatic retries and dead-letter queues
-- **Networking** — TLS, load balancing, DNS
-
-Your application code stays the same regardless of where you deploy.
+- **Secrets** encrypted per environment (preview, staging, production), never shared between them.
+- **Pub/Sub** provisioned as GCP Pub/Sub or SQS/SNS on AWS, with automatic retries and dead-letter queues.
+- **Networking** including TLS, load balancing, and DNS.
 
 ### Self-hosting
 
@@ -184,17 +182,17 @@ Build a Docker image and deploy anywhere:
 $ encore build docker my-app:latest
 ```
 
-See [Self-hosting](https://encore.dev/docs/ts/self-host/build) for more details on building and deploying Docker images.
+See the [self-hosting docs](https://encore.dev/docs/ts/self-host/build) for more details.
 
 ### Encore Cloud
 
-Push your code and Encore handles the rest.
+Deploy your application to a free staging environment in Encore's development cloud:
 
 ```shell
 $ git push encore main
 ```
 
-Start free on Encore Cloud, then connect your own AWS or GCP account when you're ready. Your application code stays exactly the same — Encore automatically provisions the right infrastructure in your cloud account, so there's nothing to rewrite or migrate. See [Connect your cloud account](https://encore.dev/docs/platform/deploy/own-cloud) for details.
+You can also connect your own AWS or GCP account and Encore will automatically provision Pub/Sub topics, manage secrets, and handle networking in your cloud. See [Connect your cloud account](https://encore.dev/docs/platform/deploy/own-cloud) for details.
 
 ## Related resources
 

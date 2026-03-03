@@ -5,7 +5,7 @@ title: Polar
 lang: ts
 ---
 
-[Polar](https://polar.sh) handles payments, subscriptions, and license keys as your Merchant of Record. Combined with Encore, you get a full monetization stack with zero infrastructure to manage.
+[Polar](https://polar.sh) handles payments, subscriptions, and license keys as your Merchant of Record. This guide shows how to integrate Polar with an Encore application.
 
 To get started quickly, create a new app from the example:
 
@@ -31,9 +31,9 @@ $ npm install @polar-sh/sdk
 
 Before writing code, you'll need to set up a few things in the [Polar dashboard](https://sandbox.polar.sh) (use the sandbox for development):
 
-1. **Create an access token** — Go to Settings > [Developers > Personal Access Tokens](https://sandbox.polar.sh/settings/developers/pat) and create a new token.
-2. **Create a product** — Go to [Products](https://sandbox.polar.sh/products) and create at least one product. Copy its **price ID** — you'll need it to create checkout sessions.
-3. **Set up a webhook** (optional for local dev) — Go to Settings > [Webhooks](https://sandbox.polar.sh/settings/webhooks) and point it to your API URL followed by `/webhook/polar`. For local development, use a tunnel like [ngrok](https://ngrok.com) to expose your local server.
+1. **Create an access token.** Go to Settings > [Developers > Personal Access Tokens](https://sandbox.polar.sh/settings/developers/pat) and create a new token.
+2. **Create a product.** Go to [Products](https://sandbox.polar.sh/products) and create at least one product. Copy its **product ID**, you'll need it to create checkout sessions.
+3. **Set up a webhook** (optional for local dev). Go to Settings > [Webhooks](https://sandbox.polar.sh/settings/webhooks) and point it to your API URL followed by `/webhooks/polar`. For local development, use a tunnel like [ngrok](https://ngrok.com) to expose your local server.
 
 See the [Polar documentation](https://docs.polar.sh) for more details on products, pricing, and webhooks.
 
@@ -53,7 +53,7 @@ Locally, secrets are stored on your machine and injected when you run `encore ru
 
 ## Initialize the client
 
-Create a file to configure the Polar SDK. Use Encore's [`secret()`](https://encore.dev/docs/ts/primitives/secrets) function to access the token, and `sandbox` for development / `production` when deployed:
+Create a file to configure the Polar SDK. Use Encore's [`secret()`](https://encore.dev/docs/ts/primitives/secrets) function to access the token. Use `sandbox` for development and `production` when deployed:
 
 ```ts
 -- polar.ts --
@@ -83,7 +83,7 @@ import { polar } from "./polar";
 import { getAuthData } from "~encore/auth";
 
 interface CreateCheckoutRequest {
-  productPriceId: string;
+  productId: string;
 }
 
 interface CreateCheckoutResponse {
@@ -96,7 +96,7 @@ export const createCheckout = api(
     const authData = getAuthData()!;
 
     const session = await polar.checkouts.create({
-      productPriceId: req.productPriceId,
+      products: [req.productId],
       customerEmail: authData.email,
       successUrl: `${process.env.ENCORE_API_URL}/?success=true`,
     });
@@ -148,13 +148,11 @@ Register your webhook URL in the [Polar dashboard](https://sandbox.polar.sh/sett
 
 ## Deploy
 
-When you deploy, Encore automatically provisions and manages the infrastructure your app needs. For Polar integrations, this includes:
+When you deploy, Encore automatically provisions and manages the infrastructure your app needs:
 
-- **Secrets** — encrypted per environment (preview, staging, production), never shared between them
-- **Databases** — Cloud SQL on GCP, RDS on AWS
-- **Networking** — TLS, load balancing, DNS
-
-Your application code stays the same regardless of where you deploy.
+- **Secrets** encrypted per environment (preview, staging, production), never shared between them.
+- **Databases** provisioned as Cloud SQL on GCP or RDS on AWS.
+- **Networking** including TLS, load balancing, and DNS.
 
 ### Self-hosting
 
@@ -164,17 +162,17 @@ Build a Docker image and deploy anywhere:
 $ encore build docker my-app:latest
 ```
 
-See [Self-hosting](https://encore.dev/docs/ts/self-host/build) for more details on building and deploying Docker images.
+See the [self-hosting docs](https://encore.dev/docs/ts/self-host/build) for more details.
 
 ### Encore Cloud
 
-Push your code and Encore handles the rest.
+Deploy your application to a free staging environment in Encore's development cloud:
 
 ```shell
 $ git push encore main
 ```
 
-Start free on Encore Cloud, then connect your own AWS or GCP account when you're ready. Your application code stays exactly the same — Encore automatically provisions the right infrastructure in your cloud account, so there's nothing to rewrite or migrate. See [Connect your cloud account](https://encore.dev/docs/platform/deploy/own-cloud) for details.
+You can also connect your own AWS or GCP account and Encore will automatically provision the infrastructure and manage secrets in your cloud. See [Connect your cloud account](https://encore.dev/docs/platform/deploy/own-cloud) for details.
 
 ## Related resources
 

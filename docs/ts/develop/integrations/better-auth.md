@@ -5,7 +5,7 @@ title: Better Auth
 lang: ts
 ---
 
-[Better Auth](https://www.better-auth.com) is a comprehensive TypeScript authentication library that supports email/password, OAuth, two-factor, magic links, and sessions. Combined with Encore's automatic [database provisioning](https://encore.dev/docs/ts/primitives/databases) and [secrets management](https://encore.dev/docs/ts/primitives/secrets), you get production-ready auth without managing any infrastructure.
+[Better Auth](https://www.better-auth.com) is a TypeScript authentication library that supports email/password, OAuth, two-factor, magic links, and sessions. This guide shows how to use it with Encore's [database provisioning](https://encore.dev/docs/ts/primitives/databases) and [secrets management](https://encore.dev/docs/ts/primitives/secrets).
 
 To get started quickly, create a new app from the example:
 
@@ -29,7 +29,7 @@ $ npm install better-auth pg
 
 ## Set up the database
 
-Better Auth needs a database for users and sessions. Encore [provisions and manages databases](https://encore.dev/docs/ts/primitives/databases) for you automatically — just define it in code:
+Better Auth needs a database for users and sessions. Encore [provisions and manages databases](https://encore.dev/docs/ts/primitives/databases) for you automatically, just define it in code:
 
 ```ts
 -- db.ts --
@@ -203,13 +203,11 @@ export const getProfile = api(
 
 ## Deploy
 
-When you deploy, Encore automatically provisions and manages the infrastructure your app needs. For Better Auth integrations, this includes:
+When you deploy, Encore automatically provisions and manages the infrastructure your app needs:
 
-- **Database** — Cloud SQL on GCP, RDS on AWS. Migrations run automatically on deploy
-- **Secrets** — encrypted per environment (preview, staging, production), never shared between them
-- **Networking** — TLS, load balancing, DNS
-
-Your application code stays the same regardless of where you deploy.
+- **Database** provisioned as Cloud SQL on GCP or RDS on AWS. Migrations run automatically on deploy.
+- **Secrets** encrypted per environment (preview, staging, production), never shared between them.
+- **Networking** including TLS, load balancing, and DNS.
 
 ### Self-hosting
 
@@ -219,17 +217,17 @@ Build a Docker image and deploy anywhere:
 $ encore build docker my-app:latest
 ```
 
-See [Self-hosting](https://encore.dev/docs/ts/self-host/build) for more details on building and deploying Docker images.
+See the [self-hosting docs](https://encore.dev/docs/ts/self-host/build) for more details.
 
 ### Encore Cloud
 
-Push your code and Encore handles the rest.
+Deploy your application to a free staging environment in Encore's development cloud:
 
 ```shell
 $ git push encore main
 ```
 
-Start free on Encore Cloud, then connect your own AWS or GCP account when you're ready. Your application code stays exactly the same — Encore automatically provisions the right infrastructure in your cloud account, so there's nothing to rewrite or migrate. See [Connect your cloud account](https://encore.dev/docs/platform/deploy/own-cloud) for details.
+You can also connect your own AWS or GCP account and Encore will automatically provision databases, run migrations, and manage secrets in your cloud. See [Connect your cloud account](https://encore.dev/docs/platform/deploy/own-cloud) for details.
 
 ## Related resources
 
