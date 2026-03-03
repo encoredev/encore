@@ -1301,7 +1301,7 @@
 			text: "Management & Billing"
 			items: [{
 				kind: "basic"
-				text: "Compliance & Security"
+				text: "Security & Compliance"
 				path: "/platform/management/compliance"
 				file: "platform/management/compliance"
 			}, {
