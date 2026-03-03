@@ -148,6 +148,12 @@ Register your webhook URL in the [Polar dashboard](https://sandbox.polar.sh/sett
 
 ## Deploy
 
+When you deploy, Encore automatically provisions and manages the infrastructure your app needs:
+
+- **Secrets** encrypted per environment (preview, staging, production), never shared between them.
+- **Databases** provisioned as Cloud SQL on GCP or RDS on AWS.
+- **Networking** including TLS, load balancing, and DNS.
+
 ### Self-hosting
 
 Build a Docker image and deploy anywhere:

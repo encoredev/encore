@@ -168,6 +168,12 @@ Locally, Pub/Sub runs in-process so messages are delivered immediately, making i
 
 ## Deploy
 
+When you deploy, Encore automatically provisions and manages the infrastructure your app needs:
+
+- **Secrets** encrypted per environment (preview, staging, production), never shared between them.
+- **Pub/Sub** provisioned as GCP Pub/Sub or SQS/SNS on AWS, with automatic retries and dead-letter queues.
+- **Networking** including TLS, load balancing, and DNS.
+
 ### Self-hosting
 
 Build a Docker image and deploy anywhere:

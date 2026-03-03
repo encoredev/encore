@@ -203,6 +203,12 @@ export const getProfile = api(
 
 ## Deploy
 
+When you deploy, Encore automatically provisions and manages the infrastructure your app needs:
+
+- **Database** provisioned as Cloud SQL on GCP or RDS on AWS. Migrations run automatically on deploy.
+- **Secrets** encrypted per environment (preview, staging, production), never shared between them.
+- **Networking** including TLS, load balancing, and DNS.
+
 ### Self-hosting
 
 Build a Docker image and deploy anywhere:
