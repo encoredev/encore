@@ -29,17 +29,6 @@ checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 
 [[package]]
 name = "ahash"
-version = "0.7.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "891477e0c6a8957309ee5c45a6368af3ae14bb510732d2684ffa19af310920f9"
-dependencies = [
- "getrandom 0.2.15",
- "once_cell",
- "version_check",
-]
-
-[[package]]
-name = "ahash"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e89da841a80418a9b391ebaea17f5c112ffaaa96f621d2c285b5174da76b9011"
@@ -1595,6 +1584,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "daggy"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70def8d72740e44d9f676d8dab2c933a236663d86dd24319b57a2bed4d694774"
+dependencies = [
+ "petgraph 0.7.1",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2232,6 +2230,12 @@ name = "fixedbitset"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
+
+[[package]]
+name = "fixedbitset"
+version = "0.5.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
 
 [[package]]
 name = "flate2"
@@ -2902,9 +2906,6 @@ name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
-dependencies = [
- "ahash 0.7.8",
-]
 
 [[package]]
 name = "hashbrown"
@@ -3887,7 +3888,7 @@ version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25dea7ac8057892855ec285c440160265225438c3c45072613c25a4b26e98ef5"
 dependencies = [
- "ahash 0.8.11",
+ "ahash",
  "portable-atomic",
 ]
 
@@ -4456,7 +4457,17 @@ version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
- "fixedbitset",
+ "fixedbitset 0.4.2",
+ "indexmap 2.7.0",
+]
+
+[[package]]
+name = "petgraph"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3672b37090dbd86368a4145bc067582552b29c27377cad4e0a306c97f9bd7772"
+dependencies = [
+ "fixedbitset 0.5.7",
  "indexmap 2.7.0",
 ]
 
@@ -4609,8 +4620,9 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "pingora"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "844a13b16e556293f4ea96dc5ac0923ac6f36855a9dfc13b640d0da183f6b5b7"
 dependencies = [
  "pingora-cache",
  "pingora-core",
@@ -4622,10 +4634,11 @@ dependencies = [
 
 [[package]]
 name = "pingora-cache"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c59d8c4c939a3a193a3da0e061aa7acf7432431f92ee62a26f5a9e5167a0ade2"
 dependencies = [
- "ahash 0.8.11",
+ "ahash",
  "async-trait",
  "blake2",
  "bstr",
@@ -4658,10 +4671,11 @@ dependencies = [
 
 [[package]]
 name = "pingora-core"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08973c4853cef4c682f7a592907e81a32dcad69476c4846e5de079f16448b177"
 dependencies = [
- "ahash 0.8.11",
+ "ahash",
  "async-trait",
  "brotli",
  "bstr",
@@ -4669,6 +4683,7 @@ dependencies = [
  "chrono",
  "clap",
  "daemonize",
+ "daggy",
  "derivative",
  "flate2",
  "futures",
@@ -4695,7 +4710,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "sfv",
- "socket2 0.5.8",
+ "socket2 0.6.0",
  "strum",
  "strum_macros",
  "tokio",
@@ -4708,13 +4723,15 @@ dependencies = [
 
 [[package]]
 name = "pingora-error"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9fa97a500e7e5c27a7b8609b9294c8922c9656322285268bfad9520f12feb38"
 
 [[package]]
 name = "pingora-header-serde"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2705feb8b50d4e734e0c7d3879aa040e655a45656276323ff530e254585dd816"
 dependencies = [
  "bytes",
  "http 1.2.0",
@@ -4728,8 +4745,9 @@ dependencies = [
 
 [[package]]
 name = "pingora-http"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fbb52d4651b687fab6abf669539cfd97b7cd94b301fde8f57c63354f9c9cc5e2"
 dependencies = [
  "bytes",
  "http 1.2.0",
@@ -4738,16 +4756,18 @@ dependencies = [
 
 [[package]]
 name = "pingora-ketama"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0286fb5a0359dca1e2e137dfe14ca4d94f676635a5eae4616bb3d8d4ce06d120"
 dependencies = [
  "crc32fast",
 ]
 
 [[package]]
 name = "pingora-load-balancing"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2606e9e22e72927a69772cefe56b0d41d251c3ffdfcd548a6020fe157fb79ad"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -4767,19 +4787,21 @@ dependencies = [
 
 [[package]]
 name = "pingora-lru"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91bb5030596a3d442c0866ac68afe29c14ba558e77c726dcdf7016b0dbb359d9"
 dependencies = [
  "arrayvec",
- "hashbrown 0.12.3",
- "parking_lot 0.11.2",
+ "hashbrown 0.16.1",
+ "parking_lot 0.12.3",
  "rand 0.8.5",
 ]
 
 [[package]]
 name = "pingora-openssl"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1cb7f135948a5c5a28a634e40fabd40c2588c757372f8a358bfca634a56514a6"
 dependencies = [
  "foreign-types",
  "libc",
@@ -4790,8 +4812,9 @@ dependencies = [
 
 [[package]]
 name = "pingora-pool"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67f034be36772f318370d058913db43dbd22c3763ad974c995ba2e4afb2bb52a"
 dependencies = [
  "crossbeam-queue",
  "log",
@@ -4804,8 +4827,9 @@ dependencies = [
 
 [[package]]
 name = "pingora-proxy"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e1e070a98a70d0d05f2fdcfb706237e06a043b2fbc9261e8772a3459cc2175e"
 dependencies = [
  "async-trait",
  "bytes",
@@ -4826,8 +4850,9 @@ dependencies = [
 
 [[package]]
 name = "pingora-runtime"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e371315b1c44c2e5a8788fdc61577527b785e121e6ff49144755f40d86511430"
 dependencies = [
  "once_cell",
  "rand 0.8.5",
@@ -4837,8 +4862,9 @@ dependencies = [
 
 [[package]]
 name = "pingora-timeout"
-version = "0.7.0"
-source = "git+https://github.com/encoredev/pingora?branch=fredr%2Ffix-windows-compile#b5e3151d246c1b467b13756a5efc53360ef99fd7"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a853fee5ce510a7f5db2561f99c752724112ed13fc3820e70d462d278d704ea"
 dependencies = [
  "once_cell",
  "parking_lot 0.12.3",
@@ -5125,7 +5151,7 @@ dependencies = [
  "log",
  "multimap",
  "once_cell",
- "petgraph",
+ "petgraph 0.6.5",
  "prettyplease",
  "prost 0.12.6",
  "prost-types 0.12.6",
@@ -5145,7 +5171,7 @@ dependencies = [
  "log",
  "multimap",
  "once_cell",
- "petgraph",
+ "petgraph 0.6.5",
  "prettyplease",
  "prost 0.13.5",
  "prost-types 0.13.5",
@@ -6664,7 +6690,7 @@ name = "swc_cached"
 version = "0.3.18"
 source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#3ccddcb7d70380b6952296717b2d9f2056f4c2ac"
 dependencies = [
- "ahash 0.8.11",
+ "ahash",
  "anyhow",
  "dashmap 5.5.3",
  "once_cell",
