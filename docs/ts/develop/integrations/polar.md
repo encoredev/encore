@@ -95,10 +95,12 @@ export const createCheckout = api(
   async (req: CreateCheckoutRequest): Promise<CreateCheckoutResponse> => {
     const authData = getAuthData()!;
 
+    const baseUrl = process.env.ENCORE_API_URL || "http://localhost:4000";
+
     const session = await polar.checkouts.create({
       products: [req.productId],
       customerEmail: authData.email,
-      successUrl: `${process.env.ENCORE_API_URL}/?success=true`,
+      successUrl: `${baseUrl}/?success=true`,
     });
 
     return { checkoutUrl: session.url || "" };
