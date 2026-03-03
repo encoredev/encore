@@ -150,7 +150,13 @@ Register your webhook URL in the [Polar dashboard](https://sandbox.polar.sh/sett
 
 ### Self-hosting
 
-See the [self-hosting instructions](https://encore.dev/docs/ts/self-host/build) for how to use `encore build docker` to create a Docker image and configure it.
+Build a Docker image and deploy anywhere:
+
+```shell
+$ encore build docker my-app:latest
+```
+
+See the [self-hosting docs](https://encore.dev/docs/ts/self-host/build) for more details.
 
 ### Encore Cloud
 
