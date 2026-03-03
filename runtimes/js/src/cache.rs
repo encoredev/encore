@@ -274,22 +274,6 @@ impl CacheCluster {
             .map_err(to_error)
     }
 
-    /// Decrement a float value.
-    #[napi]
-    pub async fn decr_by_float(
-        &self,
-        key: String,
-        delta: f64,
-        ttl_ms: Option<i64>,
-        source: Option<&Request>,
-    ) -> napi::Result<f64> {
-        let source = source.map(|s| s.inner.as_ref());
-        self.client()?
-            .decr_by_float(&key, delta, to_ttl_op(ttl_ms), source)
-            .await
-            .map_err(to_error)
-    }
-
     /// Push values to the left (head) of a list.
     #[napi]
     pub async fn lpush(
@@ -385,11 +369,15 @@ impl CacheCluster {
 
     /// Get all elements of a list (traced as "items").
     #[napi]
-    pub async fn litems(&self, key: String, source: Option<&Request>) -> napi::Result<Vec<Buffer>> {
+    pub async fn lrange_all(
+        &self,
+        key: String,
+        source: Option<&Request>,
+    ) -> napi::Result<Vec<Buffer>> {
         let source = source.map(|s| s.inner.as_ref());
         let result = self
             .client()?
-            .litems(&key, source)
+            .lrange_all(&key, source)
             .await
             .map_err(to_error)?;
         Ok(result.into_iter().map(|v| v.into()).collect())
@@ -472,17 +460,50 @@ impl CacheCluster {
 
     /// Remove elements from list.
     #[napi]
-    pub async fn lrem(
+    pub async fn lrem_all(
         &self,
         key: String,
-        count: i32,
         value: Buffer,
         ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<i64> {
         let source = source.map(|s| s.inner.as_ref());
         self.client()?
-            .lrem(&key, count as i64, &value, to_ttl_op(ttl_ms), source)
+            .lrem_all(&key, &value, to_ttl_op(ttl_ms), source)
+            .await
+            .map_err(to_error)
+    }
+
+    /// Remove elements from list.
+    #[napi]
+    pub async fn lrem_first(
+        &self,
+        key: String,
+        count: u32,
+        value: Buffer,
+        ttl_ms: Option<i64>,
+        source: Option<&Request>,
+    ) -> napi::Result<i64> {
+        let source = source.map(|s| s.inner.as_ref());
+        self.client()?
+            .lrem_first(&key, count as u64, &value, to_ttl_op(ttl_ms), source)
+            .await
+            .map_err(to_error)
+    }
+
+    /// Remove elements from list.
+    #[napi]
+    pub async fn lrem_last(
+        &self,
+        key: String,
+        count: u32,
+        value: Buffer,
+        ttl_ms: Option<i64>,
+        source: Option<&Request>,
+    ) -> napi::Result<i64> {
+        let source = source.map(|s| s.inner.as_ref());
+        self.client()?
+            .lrem_last(&key, count as u64, &value, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)
     }
@@ -596,23 +617,20 @@ impl CacheCluster {
     /// Pop a single random member from a set.
     /// Returns null if the set is empty or doesn't exist.
     #[napi]
-    pub async fn spop_one(
+    pub async fn spop(
         &self,
         key: String,
         ttl_ms: Option<i64>,
         source: Option<&Request>,
     ) -> napi::Result<Option<Buffer>> {
         let source = source.map(|s| s.inner.as_ref());
-        let result = self
-            .client()?
-            .spop_one(&key, to_ttl_op(ttl_ms), source)
-            .await;
+        let result = self.client()?.spop(&key, to_ttl_op(ttl_ms), source).await;
         Ok(miss_as_none(result)?.map(|v| v.into()))
     }
 
     /// Pop random members from a set.
     #[napi]
-    pub async fn spop(
+    pub async fn spop_n(
         &self,
         key: String,
         count: u32,
@@ -622,7 +640,7 @@ impl CacheCluster {
         let source = source.map(|s| s.inner.as_ref());
         let result = self
             .client()?
-            .spop(&key, count as usize, to_ttl_op(ttl_ms), source)
+            .spop_n(&key, count as usize, to_ttl_op(ttl_ms), source)
             .await
             .map_err(to_error)?;
         Ok(result.into_iter().map(|v| v.into()).collect())
@@ -631,7 +649,7 @@ impl CacheCluster {
     /// Get a single random member from a set (without removing).
     /// Returns null if the set is empty or doesn't exist.
     #[napi]
-    pub async fn srandmember_one(
+    pub async fn srandmember(
         &self,
         key: String,
         source: Option<&Request>,
@@ -644,7 +662,7 @@ impl CacheCluster {
     /// Get random members from a set (without removing).
     /// Positive count returns distinct elements, negative count may return duplicates.
     #[napi]
-    pub async fn srandmember(
+    pub async fn srandmember_n(
         &self,
         key: String,
         count: i32,
@@ -653,7 +671,7 @@ impl CacheCluster {
         let source = source.map(|s| s.inner.as_ref());
         let result = self
             .client()?
-            .srandmember_multiple(&key, count as i64, source)
+            .srandmember_n(&key, count as i64, source)
             .await
             .map_err(to_error)?;
         Ok(result.into_iter().map(|v| v.into()).collect())

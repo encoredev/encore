@@ -12,7 +12,6 @@ export {
   FloatKeyspace,
   StructKeyspace
 } from "./basic";
-export type { GetResult } from "./basic";
 
 // List keyspaces
 export { StringListKeyspace, NumberListKeyspace } from "./list";
@@ -23,13 +22,13 @@ export { StringSetKeyspace, NumberSetKeyspace } from "./set";
 
 // Expiry utilities
 export {
-  ExpireIn,
-  ExpireInSeconds,
-  ExpireInMinutes,
-  ExpireInHours,
-  ExpireDailyAt,
-  NeverExpire,
-  KeepTTL
+  expireIn,
+  expireInSeconds,
+  expireInMinutes,
+  expireInHours,
+  expireDailyAt,
+  neverExpire,
+  keepTTL
 } from "./expiry";
 export type { Expiry } from "./expiry";
 

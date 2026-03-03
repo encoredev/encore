@@ -5,48 +5,48 @@
 export type Expiry =
   | { type: "duration"; durationMs: number }
   | { type: "time"; hours: number; minutes: number; seconds: number }
-  | { type: "never" }
-  | { type: "keepTTL" };
+  | "never"
+  | "keepTTL";
 
 /**
- * ExpireIn sets the cache entry to expire after the specified duration.
+ * expireIn sets the cache entry to expire after the specified duration.
  * @param ms - Duration in milliseconds
  */
-export function ExpireIn(ms: number): Expiry {
+export function expireIn(ms: number): Expiry {
   return { type: "duration", durationMs: ms };
 }
 
 /**
- * ExpireInSeconds sets the cache entry to expire after the specified seconds.
+ * expireInSeconds sets the cache entry to expire after the specified seconds.
  * @param seconds - Duration in seconds
  */
-export function ExpireInSeconds(seconds: number): Expiry {
+export function expireInSeconds(seconds: number): Expiry {
   return { type: "duration", durationMs: seconds * 1000 };
 }
 
 /**
- * ExpireInMinutes sets the cache entry to expire after the specified minutes.
+ * expireInMinutes sets the cache entry to expire after the specified minutes.
  * @param minutes - Duration in minutes
  */
-export function ExpireInMinutes(minutes: number): Expiry {
+export function expireInMinutes(minutes: number): Expiry {
   return { type: "duration", durationMs: minutes * 60 * 1000 };
 }
 
 /**
- * ExpireInHours sets the cache entry to expire after the specified hours.
+ * expireInHours sets the cache entry to expire after the specified hours.
  * @param hours - Duration in hours
  */
-export function ExpireInHours(hours: number): Expiry {
+export function expireInHours(hours: number): Expiry {
   return { type: "duration", durationMs: hours * 60 * 60 * 1000 };
 }
 
 /**
- * ExpireDailyAt sets the cache entry to expire at a specific time each day (UTC).
+ * expireDailyAt sets the cache entry to expire at a specific time each day (UTC).
  * @param hours - Hour (0-23)
  * @param minutes - Minutes (0-59)
  * @param seconds - Seconds (0-59)
  */
-export function ExpireDailyAt(
+export function expireDailyAt(
   hours: number,
   minutes: number,
   seconds: number
@@ -55,23 +55,30 @@ export function ExpireDailyAt(
 }
 
 /**
- * NeverExpire sets the cache entry to never expire.
+ * neverExpire sets the cache entry to never expire.
  * Note: Redis may still evict the key based on the eviction policy.
  */
-export const NeverExpire: Expiry = { type: "never" };
+export const neverExpire: Expiry = "never";
 
 /**
- * KeepTTL preserves the existing TTL when updating a cache entry.
+ * keepTTL preserves the existing TTL when updating a cache entry.
  * If the key doesn't exist, no TTL is set.
  */
-export const KeepTTL: Expiry = { type: "keepTTL" };
+export const keepTTL: Expiry = "keepTTL";
 
 /**
  * Resolves an Expiry to milliseconds, or undefined if no TTL should be set.
- * Returns null for KeepTTL to indicate TTL should be preserved.
+ * Returns null for keepTTL to indicate TTL should be preserved.
  * @internal
  */
-export function resolveExpiry(expiry: Expiry): number | null | undefined {
+export function resolveExpiry(expiry: Expiry): number | "never" | "keepTTL" {
+  switch (expiry) {
+    case "never":
+      return "never";
+    case "keepTTL":
+      return "keepTTL";
+  }
+
   switch (expiry.type) {
     case "duration":
       return expiry.durationMs;
@@ -88,11 +95,5 @@ export function resolveExpiry(expiry: Expiry): number | null | undefined {
 
       return target.getTime() - now.getTime();
     }
-
-    case "never":
-      return undefined;
-
-    case "keepTTL":
-      return null;
   }
 }

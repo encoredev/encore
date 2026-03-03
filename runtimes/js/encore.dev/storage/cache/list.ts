@@ -21,8 +21,16 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   protected abstract deserializeItem(data: Buffer): V;
 
   /**
-   * Pushes one or more values to the left (head) of the list.
+   * Pushes one or more values at the head of the list stored at key.
+   * If the key does not already exist, it is first created as an empty list.
+   *
+   * If multiple values are given, they are inserted one after another,
+   * starting with the leftmost value. For instance,
+   * `pushLeft(key, "a", "b", "c")` will result in a list containing
+   * "c" as its first element, "b" as its second, and "a" as its third.
+   *
    * @returns The length of the list after the operation.
+   * @see https://redis.io/commands/lpush/
    */
   async pushLeft(key: K, ...values: V[]): Promise<number> {
     const source = getCurrentRequest();
@@ -39,8 +47,16 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Pushes one or more values to the right (tail) of the list.
+   * Pushes one or more values at the tail of the list stored at key.
+   * If the key does not already exist, it is first created as an empty list.
+   *
+   * If multiple values are given, they are inserted one after another,
+   * starting with the leftmost value. For instance,
+   * `pushRight(key, "a", "b", "c")` will result in a list containing
+   * "a" as its first element, "b" as its second, and "c" as its third.
+   *
    * @returns The length of the list after the operation.
+   * @see https://redis.io/commands/rpush/
    */
   async pushRight(key: K, ...values: V[]): Promise<number> {
     const source = getCurrentRequest();
@@ -57,8 +73,10 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Pops one value from the left (head) of the list.
-   * @returns The popped value, or undefined if the list is empty.
+   * Pops a single element off the head of the list stored at key.
+   *
+   * @returns The popped value, or `undefined` if the key does not exist.
+   * @see https://redis.io/commands/lpop/
    */
   async popLeft(key: K, options?: WriteOptions): Promise<V | undefined> {
     const source = getCurrentRequest();
@@ -72,8 +90,10 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Pops one value from the right (tail) of the list.
-   * @returns The popped value, or undefined if the list is empty.
+   * Pops a single element off the tail of the list stored at key.
+   *
+   * @returns The popped value, or `undefined` if the key does not exist.
+   * @see https://redis.io/commands/rpop/
    */
   async popRight(key: K, options?: WriteOptions): Promise<V | undefined> {
     const source = getCurrentRequest();
@@ -87,70 +107,12 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Gets the element at the specified index.
-   * Negative indices count from the end (-1 is the last element).
-   * @returns The value at the index, or undefined if out of range or key doesn't exist.
-   */
-  async getIndex(key: K, index: number): Promise<V | undefined> {
-    const source = getCurrentRequest();
-    const mappedKey = this.mapKey(key);
-    const result = await this.cluster.impl.lindex(mappedKey, index, source);
-
-    if (result === null) {
-      return undefined;
-    }
-
-    return this.deserializeItem(result);
-  }
-
-  /**
-   * Sets the element at the specified index.
-   * Negative indices count from the end (-1 is the last element).
-   * @throws Error if index is out of range.
-   */
-  async setIndex(
-    key: K,
-    index: number,
-    value: V,
-    options?: WriteOptions
-  ): Promise<void> {
-    const source = getCurrentRequest();
-    const mappedKey = this.mapKey(key);
-    const serialized = this.serializeItem(value);
-    const ttlMs = this.resolveTtl(options);
-    await this.cluster.impl.lset(mappedKey, index, serialized, ttlMs, source);
-  }
-
-  /**
-   * Gets a range of elements from the list.
-   * Negative indices count from the end (-1 is the last element).
-   * @param start - Start index (inclusive)
-   * @param stop - Stop index (inclusive)
-   */
-  async getRange(key: K, start: number, stop: number): Promise<V[]> {
-    const source = getCurrentRequest();
-    const mappedKey = this.mapKey(key);
-    const results = await this.cluster.impl.lrange(
-      mappedKey,
-      start,
-      stop,
-      source
-    );
-    return results.map((r) => this.deserializeItem(r));
-  }
-
-  /**
-   * Gets all elements in the list.
-   */
-  async items(key: K): Promise<V[]> {
-    const source = getCurrentRequest();
-    const mappedKey = this.mapKey(key);
-    const results = await this.cluster.impl.litems(mappedKey, source);
-    return results.map((r) => this.deserializeItem(r));
-  }
-
-  /**
-   * Gets the length of the list.
+   * Returns the length of the list stored at key.
+   *
+   * Non-existing keys are considered as empty lists.
+   *
+   * @returns The list length.
+   * @see https://redis.io/commands/llen/
    */
   async len(key: K): Promise<number> {
     const source = getCurrentRequest();
@@ -160,11 +122,19 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Trims the list to the specified range.
-   * Elements outside the range are removed.
-   * Negative indices count from the end (-1 is the last element).
-   * @param start - Start index (inclusive)
-   * @param stop - Stop index (inclusive)
+   * Trims the list stored at key to only contain the elements between the indices
+   * `start` and `stop` (inclusive). Both are zero-based indices.
+   *
+   * Negative indices can be used to indicate offsets from the end of the list,
+   * where -1 is the last element of the list, -2 the penultimate element, and so on.
+   *
+   * Out of range indices are valid and are treated as if they specify the start or end of the list,
+   * respectively. If `start` > `stop` the end result is an empty list.
+   *
+   * @param key - The cache key.
+   * @param start - Start index (inclusive).
+   * @param stop - Stop index (inclusive).
+   * @see https://redis.io/commands/ltrim/
    */
   async trim(
     key: K,
@@ -179,8 +149,105 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Inserts a value before the first occurrence of the pivot element.
-   * @returns The length of the list after the operation, or -1 if pivot not found.
+   * Updates the list element at the given index.
+   *
+   * Negative indices can be used to indicate offsets from the end of the list,
+   * where -1 is the last element of the list, -2 the penultimate element, and so on.
+   *
+   * @param key - The cache key.
+   * @param index - Zero-based index of the element to update.
+   * @param value - The new value.
+   * @throws {Error} If the index is out of range.
+   * @see https://redis.io/commands/lset/
+   */
+  async set(
+    key: K,
+    index: number,
+    value: V,
+    options?: WriteOptions
+  ): Promise<void> {
+    const source = getCurrentRequest();
+    const mappedKey = this.mapKey(key);
+    const serialized = this.serializeItem(value);
+    const ttlMs = this.resolveTtl(options);
+    await this.cluster.impl.lset(mappedKey, index, serialized, ttlMs, source);
+  }
+
+  /**
+   * Returns the value of the list element at the given index.
+   *
+   * Negative indices can be used to indicate offsets from the end of the list,
+   * where -1 is the last element of the list, -2 the penultimate element, and so on.
+   *
+   * @param key - The cache key.
+   * @param index - Zero-based index of the element to retrieve.
+   * @returns The value at the index, or `undefined` if out of range or the key does not exist.
+   * @see https://redis.io/commands/lindex/
+   */
+  async get(key: K, index: number): Promise<V | undefined> {
+    const source = getCurrentRequest();
+    const mappedKey = this.mapKey(key);
+    const result = await this.cluster.impl.lindex(mappedKey, index, source);
+
+    if (result === null) {
+      return undefined;
+    }
+
+    return this.deserializeItem(result);
+  }
+
+  /**
+   * Returns all the elements in the list stored at key.
+   *
+   * If the key does not exist it returns an empty array.
+   *
+   * @returns All elements in the list.
+   * @see https://redis.io/commands/lrange/
+   */
+  async items(key: K): Promise<V[]> {
+    const source = getCurrentRequest();
+    const mappedKey = this.mapKey(key);
+    const results = await this.cluster.impl.lrangeAll(mappedKey, source);
+    return results.map((r) => this.deserializeItem(r));
+  }
+
+  /**
+   * Returns the elements in the list stored at key between `start` and `stop` (inclusive).
+   * Both are zero-based indices.
+   *
+   * Negative indices can be used to indicate offsets from the end of the list,
+   * where -1 is the last element of the list, -2 the penultimate element, and so on.
+   *
+   * If the key does not exist it returns an empty array.
+   *
+   * @param key - The cache key.
+   * @param start - Start index (inclusive).
+   * @param stop - Stop index (inclusive).
+   * @returns The elements in the specified range.
+   * @see https://redis.io/commands/lrange/
+   */
+  async getRange(key: K, start: number, stop: number): Promise<V[]> {
+    const source = getCurrentRequest();
+    const mappedKey = this.mapKey(key);
+    const results = await this.cluster.impl.lrange(
+      mappedKey,
+      start,
+      stop,
+      source
+    );
+    return results.map((r) => this.deserializeItem(r));
+  }
+
+  /**
+   * Inserts `value` into the list stored at key, at the position just before `pivot`.
+   *
+   * If the list does not contain `pivot`, the value is not inserted and -1 is returned.
+   *
+   * @param key - The cache key.
+   * @param pivot - The existing element to insert before.
+   * @param value - The value to insert.
+   * @returns The new list length, or -1 if `pivot` was not found.
+   * @see https://redis.io/commands/linsert/
    */
   async insertBefore(
     key: K,
@@ -204,8 +271,15 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Inserts a value after the first occurrence of the pivot element.
-   * @returns The length of the list after the operation, or -1 if pivot not found.
+   * Inserts `value` into the list stored at key, at the position just after `pivot`.
+   *
+   * If the list does not contain `pivot`, the value is not inserted and -1 is returned.
+   *
+   * @param key - The cache key.
+   * @param pivot - The existing element to insert after.
+   * @param value - The value to insert.
+   * @returns The new list length, or -1 if `pivot` was not found.
+   * @see https://redis.io/commands/linsert/
    */
   async insertAfter(
     key: K,
@@ -229,17 +303,22 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Removes all occurrences of a value from the list.
+   * Removes all occurrences of `value` in the list stored at key.
+   *
+   * If the list does not contain `value`, or the list does not exist, returns 0.
+   *
+   * @param key - The cache key.
+   * @param value - The value to remove.
    * @returns The number of elements removed.
+   * @see https://redis.io/commands/lrem/
    */
   async removeAll(key: K, value: V, options?: WriteOptions): Promise<number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const valueSerialized = this.serializeItem(value);
     const ttlMs = this.resolveTtl(options);
-    const result = await this.cluster.impl.lrem(
+    const result = await this.cluster.impl.lremAll(
       mappedKey,
-      0,
       valueSerialized,
       ttlMs,
       source
@@ -248,9 +327,16 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Removes the first N occurrences of a value from the list.
+   * Removes the first `count` occurrences of `value` in the list stored at key,
+   * scanning from head to tail.
+   *
+   * If the list does not contain `value`, or the list does not exist, returns 0.
+   *
+   * @param key - The cache key.
    * @param count - Maximum number of occurrences to remove.
+   * @param value - The value to remove.
    * @returns The number of elements removed.
+   * @see https://redis.io/commands/lrem/
    */
   async removeFirst(
     key: K,
@@ -265,7 +351,7 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
     const mappedKey = this.mapKey(key);
     const valueSerialized = this.serializeItem(value);
     const ttlMs = this.resolveTtl(options);
-    const result = await this.cluster.impl.lrem(
+    const result = await this.cluster.impl.lremFirst(
       mappedKey,
       count,
       valueSerialized,
@@ -276,9 +362,16 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Removes the last N occurrences of a value from the list.
+   * Removes the last `count` occurrences of `value` in the list stored at key,
+   * scanning from tail to head.
+   *
+   * If the list does not contain `value`, or the list does not exist, returns 0.
+   *
+   * @param key - The cache key.
    * @param count - Maximum number of occurrences to remove.
+   * @param value - The value to remove.
    * @returns The number of elements removed.
+   * @see https://redis.io/commands/lrem/
    */
   async removeLast(
     key: K,
@@ -294,9 +387,9 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
     const valueSerialized = this.serializeItem(value);
     const ttlMs = this.resolveTtl(options);
     // Negative count means remove from tail to head
-    const result = await this.cluster.impl.lrem(
+    const result = await this.cluster.impl.lremLast(
       mappedKey,
-      -count,
+      count,
       valueSerialized,
       ttlMs,
       source
@@ -305,12 +398,21 @@ abstract class ListKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Atomically moves an element from one list to another.
-   * @param src - Source key
-   * @param dst - Destination key
-   * @param srcPos - Position to pop from in source list
-   * @param dstPos - Position to push to in destination list
-   * @returns The moved element, or undefined if source list is empty.
+   * Atomically moves an element from the list stored at `src` to the list stored at `dst`.
+   *
+   * The value moved can be either the head (`srcPos === "left"`) or tail (`srcPos === "right"`)
+   * of the list at `src`. Similarly, the value can be placed either at the head (`dstPos === "left"`)
+   * or tail (`dstPos === "right"`) of the list at `dst`.
+   *
+   * If `src` and `dst` are the same list, the value is atomically rotated from one end to the other
+   * when `srcPos !== dstPos`, or if `srcPos === dstPos` nothing happens.
+   *
+   * @param src - Source list key.
+   * @param dst - Destination list key.
+   * @param srcPos - Position to pop from in the source list.
+   * @param dstPos - Position to push to in the destination list.
+   * @returns The moved element, or `undefined` if the source list does not exist.
+   * @see https://redis.io/commands/lmove/
    */
   async move(
     src: K,

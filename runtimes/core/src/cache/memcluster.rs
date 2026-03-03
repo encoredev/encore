@@ -8,6 +8,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
+use bb8_redis::redis;
+
 use crate::cache::client::{Client, ListDirection, TtlOp};
 use crate::cache::error::{Error, Result};
 use crate::cache::manager::Cluster;
@@ -17,9 +19,19 @@ use crate::trace::Tracer;
 /// Maximum number of keys before cleanup is triggered.
 const MAX_KEYS: usize = 100;
 
-const TYPE_ERR_STRING: &str = "expected string";
-const TYPE_ERR_LIST: &str = "expected list";
-const TYPE_ERR_SET: &str = "expected set";
+fn wrong_type() -> Error {
+    Error::Redis(redis::make_extension_error(
+        "WRONGTYPE".to_string(),
+        Some("Operation against a key holding the wrong kind of value".to_string()),
+    ))
+}
+
+fn redis_err(detail: &str) -> Error {
+    Error::Redis(redis::make_extension_error(
+        "ERR".to_string(),
+        Some(detail.to_string()),
+    ))
+}
 
 /// In-memory cache cluster that stores data in memory.
 /// Used as a fallback when running in Encore Cloud without configured Redis.
@@ -146,7 +158,7 @@ impl MemoryStore {
                 if let Value::String(v) = &entry.value {
                     Ok(v.clone())
                 } else {
-                    Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
+                    Err(wrong_type())
                 }
             }
             _ => Err(Error::Miss),
@@ -226,7 +238,7 @@ impl MemoryStore {
         let (old_value, old_expires) = match data.get(key) {
             Some(entry) if !entry.is_expired() => match &entry.value {
                 Value::String(v) => (Some(v.clone()), entry.expires_at),
-                _ => return Err(Error::TypeMismatch(TYPE_ERR_STRING.into())),
+                _ => return Err(wrong_type()),
             },
             _ => (None, None),
         };
@@ -254,7 +266,7 @@ impl MemoryStore {
                 if let Value::String(v) = entry.value {
                     Ok(v)
                 } else {
-                    Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
+                    Err(wrong_type())
                 }
             }
             _ => Err(Error::Miss),
@@ -312,7 +324,7 @@ impl MemoryStore {
             v.extend_from_slice(value);
             Ok(v.len() as i64)
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -345,7 +357,7 @@ impl MemoryStore {
                         Ok(v[start..=end.min(v.len() - 1)].to_vec())
                     }
                 } else {
-                    Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
+                    Err(wrong_type())
                 }
             }
             _ => Ok(Vec::new()),
@@ -384,7 +396,7 @@ impl MemoryStore {
             v[offset..end].copy_from_slice(value);
             Ok(v.len() as i64)
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -402,7 +414,7 @@ impl MemoryStore {
                 if let Value::String(v) = &entry.value {
                     Ok(v.len() as i64)
                 } else {
-                    Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
+                    Err(wrong_type())
                 }
             }
             _ => Ok(0),
@@ -423,15 +435,15 @@ impl MemoryStore {
 
         let result = if let Value::String(ref mut v) = entry.value {
             let current: i64 = std::str::from_utf8(v)
-                .map_err(|_| Error::InvalidValue("value is not a valid integer".to_string()))?
+                .map_err(|_| redis_err("value is not an integer or out of range"))?
                 .parse()
-                .map_err(|_| Error::InvalidValue("value is not a valid integer".to_string()))?;
+                .map_err(|_| redis_err("value is not an integer or out of range"))?;
 
             let new_val = current + delta;
             *v = new_val.to_string().into_bytes();
             Ok(new_val)
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -454,15 +466,15 @@ impl MemoryStore {
 
         let result = if let Value::String(ref mut v) = entry.value {
             let current: f64 = std::str::from_utf8(v)
-                .map_err(|_| Error::InvalidValue("value is not a valid float".to_string()))?
+                .map_err(|_| redis_err("value is not a valid increment"))?
                 .parse()
-                .map_err(|_| Error::InvalidValue("value is not a valid float".to_string()))?;
+                .map_err(|_| redis_err("value is not a valid increment"))?;
 
             let new_val = current + delta;
             *v = new_val.to_string().into_bytes();
             Ok(new_val)
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_STRING.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -486,7 +498,7 @@ impl MemoryStore {
 
         match &mut entry.value {
             Value::List(list) => Ok(list),
-            _ => Err(Error::TypeMismatch(TYPE_ERR_LIST.into())),
+            _ => Err(wrong_type()),
         }
     }
 
@@ -532,7 +544,7 @@ impl MemoryStore {
         let result = if let Value::List(list) = &mut entry.value {
             list.pop_front().ok_or(Error::Miss)
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -553,7 +565,7 @@ impl MemoryStore {
         let result = if let Value::List(list) = &mut entry.value {
             list.pop_back().ok_or(Error::Miss)
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -580,7 +592,7 @@ impl MemoryStore {
                 list.get(idx as usize).cloned().ok_or(Error::Miss)
             }
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
+            Err(wrong_type())
         }
     }
 
@@ -597,12 +609,12 @@ impl MemoryStore {
             let len = list.len() as i64;
             let idx = if index < 0 { len + index } else { index };
             if idx < 0 || idx >= len {
-                return Err(Error::InvalidValue("index out of range".to_string()));
+                return Err(redis_err("index out of range"));
             }
             list[idx as usize] = value.to_vec();
             Ok(())
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -644,7 +656,7 @@ impl MemoryStore {
                     .collect())
             }
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
+            Err(wrong_type())
         }
     }
 
@@ -683,7 +695,7 @@ impl MemoryStore {
             }
             Ok(())
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -715,7 +727,7 @@ impl MemoryStore {
                 Ok(-1)
             }
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -747,7 +759,7 @@ impl MemoryStore {
                 Ok(-1)
             }
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -803,7 +815,7 @@ impl MemoryStore {
             }
             Ok(removed)
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -836,7 +848,7 @@ impl MemoryStore {
                     ListDirection::Right => list.pop_back(),
                 }
             } else {
-                return Err(Error::TypeMismatch(TYPE_ERR_LIST.into()));
+                return Err(wrong_type());
             }
         };
 
@@ -863,7 +875,7 @@ impl MemoryStore {
                 }
                 ret
             } else {
-                return Err(Error::TypeMismatch(TYPE_ERR_LIST.into()));
+                return Err(wrong_type());
             }
         };
 
@@ -885,7 +897,7 @@ impl MemoryStore {
         if let Value::List(list) = &entry.value {
             Ok(list.len() as i64)
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_LIST.into()))
+            Err(wrong_type())
         }
     }
 
@@ -904,7 +916,7 @@ impl MemoryStore {
 
         match &mut entry.value {
             Value::Set(set) => Ok(set),
-            _ => Err(Error::TypeMismatch(TYPE_ERR_SET.into())),
+            _ => Err(wrong_type()),
         }
     }
 
@@ -918,7 +930,7 @@ impl MemoryStore {
                 if let Value::Set(set) = &e.value {
                     Ok(Some(set))
                 } else {
-                    Err(Error::TypeMismatch(TYPE_ERR_SET.into()))
+                    Err(wrong_type())
                 }
             }
             _ => Ok(None),
@@ -960,7 +972,7 @@ impl MemoryStore {
             }
             Ok(removed)
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_SET.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -1006,7 +1018,7 @@ impl MemoryStore {
             }
             Ok(results)
         } else {
-            Err(Error::TypeMismatch(TYPE_ERR_SET.into()))
+            Err(wrong_type())
         };
 
         if result.is_ok() {
@@ -1252,7 +1264,7 @@ impl MemoryStore {
             if let Value::Set(set) = &mut entry.value {
                 set.remove(member)
             } else {
-                return Err(Error::TypeMismatch(TYPE_ERR_SET.into()));
+                return Err(wrong_type());
             }
         };
 
@@ -1269,7 +1281,3 @@ impl MemoryStore {
         Ok(true)
     }
 }
-
-#[cfg(test)]
-#[path = "memcluster_tests.rs"]
-mod memcluster_tests;

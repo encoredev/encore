@@ -16,8 +16,12 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
   protected abstract deserializeItem(data: Buffer): V;
 
   /**
-   * Adds one or more members to the set.
-   * @returns The number of members that were added (not already present).
+   * Adds one or more values to the set stored at key.
+   * If the key does not already exist, it is first created as an empty set.
+   *
+   * @returns The number of values that were added to the set,
+   * not including values already present beforehand.
+   * @see https://redis.io/commands/sadd/
    */
   async add(key: K, ...members: V[]): Promise<number> {
     const source = getCurrentRequest();
@@ -34,8 +38,12 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Removes one or more members from the set.
-   * @returns The number of members that were removed.
+   * Removes one or more values from the set stored at key.
+   * Values not present in the set are ignored.
+   * If the key does not already exist, it is a no-op.
+   *
+   * @returns The number of values that were removed from the set.
+   * @see https://redis.io/commands/srem/
    */
   async remove(key: K, ...members: V[]): Promise<number> {
     const source = getCurrentRequest();
@@ -52,52 +60,16 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Checks if a member exists in the set.
+   * Removes a random element from the set stored at key and returns it.
+   *
+   * @returns The removed member, or `undefined` if the set is empty.
+   * @see https://redis.io/commands/spop/
    */
-  async contains(key: K, member: V): Promise<boolean> {
-    const source = getCurrentRequest();
-    const mappedKey = this.mapKey(key);
-    const serialized = this.serializeItem(member);
-    return await this.cluster.impl.sismember(mappedKey, serialized, source);
-  }
-
-  /**
-   * Gets all members of the set.
-   */
-  async members(key: K): Promise<V[]> {
-    const source = getCurrentRequest();
-    const mappedKey = this.mapKey(key);
-    const results = await this.cluster.impl.smembers(mappedKey, source);
-    return results.map((r) => this.deserializeItem(r));
-  }
-
-  /**
-   * Gets all members of the set as a Set object.
-   */
-  async membersSet(key: K): Promise<Set<V>> {
-    const members = await this.members(key);
-    return new Set(members);
-  }
-
-  /**
-   * Gets the number of members in the set.
-   */
-  async len(key: K): Promise<number> {
-    const source = getCurrentRequest();
-    const mappedKey = this.mapKey(key);
-    const result = await this.cluster.impl.scard(mappedKey, source);
-    return Number(result);
-  }
-
-  /**
-   * Removes and returns a random member from the set.
-   * @returns The removed member, or undefined if the set is empty.
-   */
-  async pop(key: K, options?: WriteOptions): Promise<V | undefined> {
+  async popOne(key: K, options?: WriteOptions): Promise<V | undefined> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const ttlMs = this.resolveTtl(options);
-    const result = await this.cluster.impl.spopOne(mappedKey, ttlMs, source);
+    const result = await this.cluster.impl.spop(mappedKey, ttlMs, source);
     if (result === null || result === undefined) {
       return undefined;
     }
@@ -105,15 +77,21 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Removes and returns multiple random members from the set.
+   * Removes up to `count` random elements (bounded by the set's size)
+   * from the set stored at key and returns them.
+   *
+   * If the set is empty it returns an empty array.
+   *
+   * @param key - The cache key.
    * @param count - Number of members to pop.
-   * @returns Array of removed members (may be fewer than count if set is small).
+   * @returns The removed members (may be fewer than `count` if the set is small).
+   * @see https://redis.io/commands/spop/
    */
-  async popMany(key: K, count: number, options?: WriteOptions): Promise<V[]> {
+  async pop(key: K, count: number, options?: WriteOptions): Promise<V[]> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const ttlMs = this.resolveTtl(options);
-    const results = await this.cluster.impl.spop(
+    const results = await this.cluster.impl.spopN(
       mappedKey,
       count,
       ttlMs,
@@ -123,92 +101,75 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Returns a random member from the set without removing it.
-   * @returns A random member, or undefined if the set is empty.
+   * Reports whether the set stored at key contains the given value.
+   *
+   * If the key does not exist it returns `false`.
+   *
+   * @returns `true` if the member exists in the set, `false` otherwise.
+   * @see https://redis.io/commands/sismember/
    */
-  async sample(key: K): Promise<V | undefined> {
+  async contains(key: K, member: V): Promise<boolean> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    const result = await this.cluster.impl.srandmemberOne(mappedKey, source);
-    if (result === null || result === undefined) {
-      return undefined;
-    }
-    return this.deserializeItem(result);
+    const serialized = this.serializeItem(member);
+    return await this.cluster.impl.sismember(mappedKey, serialized, source);
   }
 
   /**
-   * Returns multiple distinct random members from the set without removing them.
-   * @param count - Number of members to return.
-   * @returns Array of random members (may be fewer than count if set is small).
+   * Returns the number of elements in the set stored at key.
+   *
+   * If the key does not exist it returns 0.
+   *
+   * @returns The set cardinality.
+   * @see https://redis.io/commands/scard/
    */
-  async sampleMany(key: K, count: number): Promise<V[]> {
-    if (count < 0) {
-      throw new Error("count must be non-negative");
-    }
+  async len(key: K): Promise<number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
-    const results = await this.cluster.impl.srandmember(
-      mappedKey,
-      count,
-      source
-    );
+    const result = await this.cluster.impl.scard(mappedKey, source);
+    return Number(result);
+  }
+
+  /**
+   * Returns the elements in the set stored at key.
+   *
+   * If the key does not exist it returns an empty array.
+   *
+   * @returns All members of the set.
+   * @see https://redis.io/commands/smembers/
+   */
+  async items(key: K): Promise<V[]> {
+    const source = getCurrentRequest();
+    const mappedKey = this.mapKey(key);
+    const results = await this.cluster.impl.smembers(mappedKey, source);
     return results.map((r) => this.deserializeItem(r));
   }
 
   /**
-   * Returns multiple random members from the set, possibly with duplicates.
-   * @param count - Number of members to return.
-   * @returns Array of random members (may contain duplicates).
+   * Identical to {@link items} except it returns the values as a `Set`.
+   *
+   * If the key does not exist it returns an empty `Set`.
+   *
+   * @returns All members of the set as a `Set`.
+   * @see https://redis.io/commands/smembers/
    */
-  async sampleWithReplacement(key: K, count: number): Promise<V[]> {
-    if (count < 0) {
-      throw new Error("count must be non-negative");
-    }
-    const source = getCurrentRequest();
-    const mappedKey = this.mapKey(key);
-    // Negative count in Redis SRANDMEMBER allows duplicates
-    const results = await this.cluster.impl.srandmember(
-      mappedKey,
-      -count,
-      source
-    );
-    return results.map((r) => this.deserializeItem(r));
+  async itemsSet(key: K): Promise<Set<V>> {
+    const members = await this.items(key);
+    return new Set(members);
   }
 
   /**
-   * Computes the difference between sets (members in the first set but not in others).
-   * @param keys - Keys of sets to compute difference for.
-   * @returns Members that are in the first set but not in any of the other sets.
-   */
-  async diffSet(...keys: K[]): Promise<Set<V>> {
-    const items = await this.diff(...keys);
-    return new Set(items);
-  }
-
-  /**
-   * Computes the intersection of sets (members common to all sets).
-   * @param keys - Keys of sets to compute intersection for.
-   * @returns Members that are in all of the specified sets, as a Set.
-   */
-  async intersectSet(...keys: K[]): Promise<Set<V>> {
-    const items = await this.intersect(...keys);
-    return new Set(items);
-  }
-
-  /**
-   * Computes the union of sets (members in any of the sets).
-   * @param keys - Keys of sets to compute union for.
-   * @returns Members that are in any of the specified sets, as a Set.
-   */
-  async unionSet(...keys: K[]): Promise<Set<V>> {
-    const items = await this.union(...keys);
-    return new Set(items);
-  }
-
-  /**
-   * Computes the difference between sets (members in the first set but not in others).
-   * @param keys - Keys of sets to compute difference for.
-   * @returns Members that are in the first set but not in any of the other sets.
+   * Computes the set difference between the first set and all the consecutive sets.
+   *
+   * Set difference means the values present in the first set that are not present
+   * in any of the other sets.
+   *
+   * Keys that do not exist are considered as empty sets.
+   *
+   * @param keys - Keys of sets to compute difference for. At least one must be provided.
+   * @returns Members in the first set but not in any of the other sets.
+   * @throws {Error} If no keys are provided.
+   * @see https://redis.io/commands/sdiff/
    */
   async diff(...keys: K[]): Promise<V[]> {
     if (keys.length === 0) {
@@ -221,10 +182,23 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Computes the difference between sets and stores the result.
+   * Identical to {@link diff} except it returns the values as a `Set`.
+   *
+   * @see https://redis.io/commands/sdiff/
+   */
+  async diffSet(...keys: K[]): Promise<Set<V>> {
+    const items = await this.diff(...keys);
+    return new Set(items);
+  }
+
+  /**
+   * Computes the set difference between keys (like {@link diff}) and stores the result
+   * in `destination`.
+   *
    * @param destination - Key to store the result.
    * @param keys - Keys of sets to compute difference for.
-   * @returns The number of elements in the resulting set.
+   * @returns The size of the resulting set.
+   * @see https://redis.io/commands/sdiffstore/
    */
   async diffStore(destination: K, ...keys: K[]): Promise<number> {
     if (keys.length === 0) {
@@ -244,9 +218,17 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Computes the intersection of sets (members common to all sets).
-   * @param keys - Keys of sets to compute intersection for.
-   * @returns Members that are in all of the specified sets.
+   * Computes the set intersection between the sets stored at the given keys.
+   *
+   * Set intersection means the values common to all the provided sets.
+   *
+   * Keys that do not exist are considered to be empty sets.
+   * As a result, if any key is missing the final result is the empty set.
+   *
+   * @param keys - Keys of sets to compute intersection for. At least one must be provided.
+   * @returns Members common to all sets.
+   * @throws {Error} If no keys are provided.
+   * @see https://redis.io/commands/sinter/
    */
   async intersect(...keys: K[]): Promise<V[]> {
     if (keys.length === 0) {
@@ -259,10 +241,23 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Computes the intersection of sets and stores the result.
+   * Identical to {@link intersect} except it returns the values as a `Set`.
+   *
+   * @see https://redis.io/commands/sinter/
+   */
+  async intersectSet(...keys: K[]): Promise<Set<V>> {
+    const items = await this.intersect(...keys);
+    return new Set(items);
+  }
+
+  /**
+   * Computes the set intersection between keys (like {@link intersect}) and stores the result
+   * in `destination`.
+   *
    * @param destination - Key to store the result.
    * @param keys - Keys of sets to compute intersection for.
-   * @returns The number of elements in the resulting set.
+   * @returns The size of the resulting set.
+   * @see https://redis.io/commands/sinterstore/
    */
   async intersectStore(destination: K, ...keys: K[]): Promise<number> {
     if (keys.length === 0) {
@@ -282,9 +277,16 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Computes the union of sets (members in any of the sets).
-   * @param keys - Keys of sets to compute union for.
-   * @returns Members that are in any of the specified sets.
+   * Computes the set union between the sets stored at the given keys.
+   *
+   * Set union means the values present in at least one of the provided sets.
+   *
+   * Keys that do not exist are considered to be empty sets.
+   *
+   * @param keys - Keys of sets to compute union for. At least one must be provided.
+   * @returns Members in any of the provided sets.
+   * @throws {Error} If no keys are provided.
+   * @see https://redis.io/commands/sunion/
    */
   async union(...keys: K[]): Promise<V[]> {
     if (keys.length === 0) {
@@ -297,10 +299,23 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Computes the union of sets and stores the result.
+   * Identical to {@link union} except it returns the values as a `Set`.
+   *
+   * @see https://redis.io/commands/sunion/
+   */
+  async unionSet(...keys: K[]): Promise<Set<V>> {
+    const items = await this.union(...keys);
+    return new Set(items);
+  }
+
+  /**
+   * Computes the set union between sets (like {@link union}) and stores the result
+   * in `destination`.
+   *
    * @param destination - Key to store the result.
    * @param keys - Keys of sets to compute union for.
-   * @returns The number of elements in the resulting set.
+   * @returns The size of the resulting set.
+   * @see https://redis.io/commands/sunionstore/
    */
   async unionStore(destination: K, ...keys: K[]): Promise<number> {
     if (keys.length === 0) {
@@ -320,11 +335,83 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Moves a member from one set to another.
+   * Returns a random member from the set stored at key without removing it.
+   *
+   * @returns A random member, or `undefined` if the key does not exist.
+   * @see https://redis.io/commands/srandmember/
+   */
+  async sampleOne(key: K): Promise<V | undefined> {
+    const source = getCurrentRequest();
+    const mappedKey = this.mapKey(key);
+    const result = await this.cluster.impl.srandmember(mappedKey, source);
+    if (result === null || result === undefined) {
+      return undefined;
+    }
+    return this.deserializeItem(result);
+  }
+
+  /**
+   * Returns up to `count` distinct random elements from the set stored at key.
+   * The same element is never returned multiple times.
+   *
+   * If the key does not exist it returns an empty array.
+   *
+   * @param key - The cache key.
+   * @param count - Number of distinct members to return.
+   * @returns Random members (may be fewer than `count` if the set is small).
+   * @see https://redis.io/commands/srandmember/
+   */
+  async sample(key: K, count: number): Promise<V[]> {
+    if (count < 0) {
+      throw new Error("count must be non-negative");
+    }
+    const source = getCurrentRequest();
+    const mappedKey = this.mapKey(key);
+    const results = await this.cluster.impl.srandmemberN(
+      mappedKey,
+      count,
+      source
+    );
+    return results.map((r) => this.deserializeItem(r));
+  }
+
+  /**
+   * Returns `count` random elements from the set stored at key.
+   * The same element may be returned multiple times.
+   *
+   * If the key does not exist it returns an empty array.
+   *
+   * @param key - The cache key.
+   * @param count - Number of members to return (may include duplicates).
+   * @returns Random members, possibly with duplicates.
+   * @see https://redis.io/commands/srandmember/
+   */
+  async sampleWithReplacement(key: K, count: number): Promise<V[]> {
+    if (count < 0) {
+      throw new Error("count must be non-negative");
+    }
+    const source = getCurrentRequest();
+    const mappedKey = this.mapKey(key);
+    // Negative count in Redis SRANDMEMBER allows duplicates
+    const results = await this.cluster.impl.srandmemberN(
+      mappedKey,
+      -count,
+      source
+    );
+    return results.map((r) => this.deserializeItem(r));
+  }
+
+  /**
+   * Atomically moves the given member from the set stored at `src`
+   * to the set stored at `dst`.
+   *
+   * If the element already exists in `dst` it is still removed from `src`.
+   *
    * @param src - Source set key.
    * @param dst - Destination set key.
    * @param member - The member to move.
-   * @returns true if the member was moved, false if not found in source.
+   * @returns `true` if the member was moved, `false` if not found in `src`.
+   * @see https://redis.io/commands/smove/
    */
   async move(
     src: K,
@@ -358,7 +445,8 @@ abstract class SetKeyspace<K, V> extends Keyspace<K> {
  *
  * await tags.add("article1", "typescript", "programming", "web");
  * const hasTech = await tags.contains("article1", "typescript");
- * const allTags = await tags.members("article1");
+ * const allTags = await tags.items("article1");
+ * const tagSet = await tags.itemsSet("article1");
  * ```
  */
 export class StringSetKeyspace<K> extends SetKeyspace<K, string> {

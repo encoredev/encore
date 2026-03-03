@@ -1,6 +1,6 @@
 import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import { CacheCluster } from "./cluster";
-import { Expiry, resolveExpiry } from "./expiry";
+import { Expiry, keepTTL, neverExpire, resolveExpiry } from "./expiry";
 
 /**
  * Configuration for a cache keyspace.
@@ -106,8 +106,8 @@ export abstract class Keyspace<K> {
     if (!expiry) return undefined;
 
     const resolved = resolveExpiry(expiry);
-    if (resolved === null) return -1; // KeepTTL
-    if (resolved === undefined) return -2; // NeverExpire → Persist
+    if (resolved === "keepTTL") return -1; // KeepTTL
+    if (resolved === "never") return -2; // NeverExpire → Persist
     return resolved; // milliseconds
   }
 
@@ -117,7 +117,7 @@ export abstract class Keyspace<K> {
    *
    * @example
    * ```ts
-   * await myKeyspace.with({ expiry: ExpireIn(5000) }).set(key, value);
+   * await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value);
    * ```
    */
   with(options: WriteOptions): this {
@@ -128,8 +128,11 @@ export abstract class Keyspace<K> {
   }
 
   /**
-   * Deletes one or more keys.
+   * Deletes the specified keys.
+   * If a key does not exist it is ignored.
+   *
    * @returns The number of keys that were deleted.
+   * @see https://redis.io/commands/del/
    */
   async delete(...keys: K[]): Promise<number> {
     const source = getCurrentRequest();

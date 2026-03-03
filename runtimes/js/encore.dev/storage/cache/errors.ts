@@ -2,14 +2,21 @@
  * CacheError is the base class for all cache-related errors.
  */
 export class CacheError extends Error {
-  readonly operation: string;
-  readonly key?: string;
+  constructor(msg: string) {
+    // extending errors causes issues after you construct them, unless you apply the following fixes
+    super(msg);
 
-  constructor(operation: string, key: string | undefined, message: string) {
-    super(`cache ${operation}${key ? ` "${key}"` : ""}: ${message}`);
-    this.name = "CacheError";
-    this.operation = operation;
-    this.key = key;
+    // set error name as constructor name, make it not enumerable to keep native Error behavior
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
+    Object.defineProperty(this, "name", {
+      value: "CacheError",
+      enumerable: false,
+      configurable: true
+    });
+
+    // Fix the prototype chain, capture stack trace.
+    Object.setPrototypeOf(this, CacheError.prototype);
+    Error.captureStackTrace(this, this.constructor);
   }
 }
 
@@ -18,8 +25,20 @@ export class CacheError extends Error {
  */
 export class CacheMiss extends CacheError {
   constructor(key: string) {
-    super("get", key, "key not found");
-    this.name = "CacheMiss";
+    // extending errors causes issues after you construct them, unless you apply the following fixes
+    super(`cache key "${key}" not found`);
+
+    // set error name as constructor name, make it not enumerable to keep native Error behavior
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
+    Object.defineProperty(this, "name", {
+      value: "CacheMiss",
+      enumerable: false,
+      configurable: true
+    });
+
+    // Fix the prototype chain, capture stack trace.
+    Object.setPrototypeOf(this, CacheMiss.prototype);
+    Error.captureStackTrace(this, this.constructor);
   }
 }
 
@@ -29,7 +48,19 @@ export class CacheMiss extends CacheError {
  */
 export class CacheKeyExists extends CacheError {
   constructor(key: string) {
-    super("setIfNotExists", key, "key already exists");
-    this.name = "CacheKeyExists";
+    // extending errors causes issues after you construct them, unless you apply the following fixes
+    super(`cache key "${key}" already exists`);
+
+    // set error name as constructor name, make it not enumerable to keep native Error behavior
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
+    Object.defineProperty(this, "name", {
+      value: "CacheKeyExists",
+      enumerable: false,
+      configurable: true
+    });
+
+    // Fix the prototype chain, capture stack trace.
+    Object.setPrototypeOf(this, CacheKeyExists.prototype);
+    Error.captureStackTrace(this, this.constructor);
   }
 }

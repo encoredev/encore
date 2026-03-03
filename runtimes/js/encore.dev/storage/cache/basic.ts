@@ -4,16 +4,6 @@ import { CacheMiss, CacheKeyExists } from "./errors";
 import { Keyspace, KeyspaceConfig, WriteOptions } from "./keyspace";
 
 /**
- * Result of a get operation that may or may not find a value.
- */
-export interface GetResult<V> {
-  /** Whether the key was found */
-  found: boolean;
-  /** The value if found */
-  value?: V;
-}
-
-/**
  * Base class for basic (scalar value) keyspaces.
  * Provides get/set/replace/etc operations.
  * @internal
@@ -34,8 +24,11 @@ abstract class BasicKeyspace<K, V> extends Keyspace<K> {
   protected abstract deserialize(data: Buffer): V;
 
   /**
-   * Gets the value for the given key.
-   * Returns undefined if the key is not found.
+   * Gets the value stored at key.
+   * If the key does not exist, it returns `undefined`.
+   *
+   * @returns The value, or `undefined` if the key does not exist.
+   * @see https://redis.io/commands/get/
    */
   async get(key: K): Promise<V | undefined> {
     const source = getCurrentRequest();
@@ -50,7 +43,25 @@ abstract class BasicKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Sets the value for the given key.
+   * Gets the values stored at multiple keys.
+   *
+   * @returns An array of values in the same order as the provided keys.
+   * Each element is the value or `undefined` if the key was not found.
+   * @see https://redis.io/commands/mget/
+   */
+  async multiGet(...keys: K[]): Promise<(V | undefined)[]> {
+    const source = getCurrentRequest();
+    const mappedKeys = keys.map((k) => this.mapKey(k));
+    const results = await this.cluster.impl.mget(mappedKeys, source);
+    return results.map((r) =>
+      r === null || r === undefined ? undefined : this.deserialize(r)
+    );
+  }
+
+  /**
+   * Updates the value stored at key to val.
+   *
+   * @see https://redis.io/commands/set/
    */
   async set(key: K, value: V, options?: WriteOptions): Promise<void> {
     const source = getCurrentRequest();
@@ -62,8 +73,10 @@ abstract class BasicKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Sets the value only if the key does not already exist.
+   * Sets the value stored at key to val, but only if the key does not exist beforehand.
+   *
    * @throws {CacheKeyExists} If the key already exists.
+   * @see https://redis.io/commands/setnx/
    */
   async setIfNotExists(
     key: K,
@@ -88,8 +101,10 @@ abstract class BasicKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Sets the value only if the key already exists.
-   * @throws {CacheMiss} If the key does not exist.
+   * Replaces the existing value stored at key to val.
+   *
+   * @throws {CacheMiss} If the key does not already exist.
+   * @see https://redis.io/commands/set/
    */
   async replace(key: K, value: V, options?: WriteOptions): Promise<void> {
     const source = getCurrentRequest();
@@ -110,8 +125,11 @@ abstract class BasicKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Gets the current value and sets a new value atomically.
-   * Returns undefined if the key did not exist before.
+   * Updates the value of key to val and returns the previously stored value.
+   * If the key does not already exist, it sets it and returns `undefined`.
+   *
+   * @returns The previous value, or `undefined` if the key did not exist.
+   * @see https://redis.io/commands/getset/
    */
   async getAndSet(
     key: K,
@@ -138,8 +156,11 @@ abstract class BasicKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
-   * Gets the current value and deletes the key atomically.
-   * Returns undefined if the key did not exist.
+   * Deletes the key and returns the previously stored value.
+   * If the key does not already exist, it returns `undefined`.
+   *
+   * @returns The previous value, or `undefined` if the key did not exist.
+   * @see https://redis.io/commands/getdel/
    */
   async getAndDelete(key: K): Promise<V | undefined> {
     const source = getCurrentRequest();
@@ -152,24 +173,6 @@ abstract class BasicKeyspace<K, V> extends Keyspace<K> {
     }
 
     return this.deserialize(value);
-  }
-
-  /**
-   * Gets multiple values in a single batch operation.
-   * @returns An array of results, one for each key in the same order.
-   */
-  async getMulti(...keys: K[]): Promise<GetResult<V>[]> {
-    const source = getCurrentRequest();
-    const mappedKeys = keys.map((k) => this.mapKey(k));
-
-    const results = await this.cluster.impl.mget(mappedKeys, source);
-
-    return results.map((r) => {
-      if (r === null || r === undefined) {
-        return { found: false };
-      }
-      return { found: true, value: this.deserialize(r) };
-    });
   }
 }
 
@@ -201,9 +204,13 @@ export class StringKeyspace<K> extends BasicKeyspace<K, string> {
   }
 
   /**
-   * Appends a string to the existing value.
-   * If the key doesn't exist, creates it with the given value.
-   * @returns The length of the string after appending.
+   * Appends a string to the value stored at key.
+   *
+   * If the key does not exist it is first created and set as the empty string,
+   * causing append to behave like set.
+   *
+   * @returns The new string length.
+   * @see https://redis.io/commands/append/
    */
   async append(key: K, value: string, options?: WriteOptions): Promise<number> {
     const source = getCurrentRequest();
@@ -219,9 +226,21 @@ export class StringKeyspace<K> extends BasicKeyspace<K, string> {
   }
 
   /**
-   * Gets a substring of the stored string value.
-   * @param start - Start index (inclusive, 0-based)
-   * @param end - End index (inclusive, 0-based, use -1 for end of string)
+   * Returns a substring of the string value stored at key.
+   *
+   * The `start` and `end` values are zero-based indices, but unlike typical slicing
+   * the `end` value is inclusive.
+   *
+   * Negative values can be used in order to provide an offset starting
+   * from the end of the string, so -1 means the last character.
+   *
+   * If the string does not exist it returns the empty string.
+   *
+   * @param key - The cache key.
+   * @param start - Start index (inclusive, 0-based).
+   * @param end - End index (inclusive, 0-based). Use -1 for end of string.
+   * @returns The substring.
+   * @see https://redis.io/commands/getrange/
    */
   async getRange(key: K, start: number, end: number): Promise<string> {
     const source = getCurrentRequest();
@@ -236,8 +255,20 @@ export class StringKeyspace<K> extends BasicKeyspace<K, string> {
   }
 
   /**
-   * Overwrites part of the string starting at the specified offset.
+   * Overwrites part of the string stored at key, starting at
+   * the zero-based `offset` and for the entire length of `value`, extending
+   * the string if necessary.
+   *
+   * If the offset is larger than the current string length stored at key,
+   * the string is first padded with zero-bytes to make offset fit.
+   *
+   * Non-existing keys are considered as empty strings.
+   *
+   * @param key - The cache key.
+   * @param offset - Zero-based byte offset to start writing at.
+   * @param value - The string to write.
    * @returns The length of the string after the operation.
+   * @see https://redis.io/commands/setrange/
    */
   async setRange(
     key: K,
@@ -259,9 +290,14 @@ export class StringKeyspace<K> extends BasicKeyspace<K, string> {
   }
 
   /**
-   * Gets the length of the stored string value.
+   * Returns the length of the string value stored at key.
+   *
+   * Non-existing keys are considered as empty strings.
+   *
+   * @returns The string length.
+   * @see https://redis.io/commands/strlen/
    */
-  async strlen(key: K): Promise<number> {
+  async len(key: K): Promise<number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const result = await this.cluster.impl.strlen(mappedKey, source);
@@ -272,7 +308,7 @@ export class StringKeyspace<K> extends BasicKeyspace<K, string> {
 /**
  * IntKeyspace stores 64-bit integer values.
  * Values are floored to integers using `Math.floor`.
- * For fractional values, use `FloatKeyspace` instead.
+ * For fractional values, use {@link FloatKeyspace} instead.
  *
  * @example
  * ```ts
@@ -298,9 +334,18 @@ export class IntKeyspace<K> extends BasicKeyspace<K, number> {
   }
 
   /**
-   * Increments the value by the given delta.
-   * If the key doesn't exist, initializes it to delta.
+   * Increments the number stored at key by `delta`.
+   *
+   * If the key does not exist it is first created with a value of 0
+   * before incrementing.
+   *
+   * Negative values can be used to decrease the value,
+   * but typically you want to use {@link decrement} for that.
+   *
+   * @param key - The cache key.
+   * @param delta - The amount to increment by (default 1).
    * @returns The new value after incrementing.
+   * @see https://redis.io/commands/incrby/
    */
   async increment(
     key: K,
@@ -319,9 +364,18 @@ export class IntKeyspace<K> extends BasicKeyspace<K, number> {
   }
 
   /**
-   * Decrements the value by the given delta.
-   * If the key doesn't exist, initializes it to -delta.
+   * Decrements the number stored at key by `delta`.
+   *
+   * If the key does not exist it is first created with a value of 0
+   * before decrementing.
+   *
+   * Negative values can be used to increase the value,
+   * but typically you want to use {@link increment} for that.
+   *
+   * @param key - The cache key.
+   * @param delta - The amount to decrement by (default 1).
    * @returns The new value after decrementing.
+   * @see https://redis.io/commands/decrby/
    */
   async decrement(
     key: K,
@@ -367,9 +421,18 @@ export class FloatKeyspace<K> extends BasicKeyspace<K, number> {
   }
 
   /**
-   * Increments the value by the given delta.
-   * If the key doesn't exist, initializes it to delta.
+   * Increments the number stored at key by `delta`.
+   *
+   * If the key does not exist it is first created with a value of 0
+   * before incrementing.
+   *
+   * Negative values can be used to decrease the value,
+   * but typically you want to use {@link decrement} for that.
+   *
+   * @param key - The cache key.
+   * @param delta - The amount to increment by (default 1).
    * @returns The new value after incrementing.
+   * @see https://redis.io/commands/incrbyfloat/
    */
   async increment(
     key: K,
@@ -383,9 +446,18 @@ export class FloatKeyspace<K> extends BasicKeyspace<K, number> {
   }
 
   /**
-   * Decrements the value by the given delta.
-   * If the key doesn't exist, initializes it to -delta.
+   * Decrements the number stored at key by `delta`.
+   *
+   * If the key does not exist it is first created with a value of 0
+   * before decrementing.
+   *
+   * Negative values can be used to increase the value,
+   * but typically you want to use {@link increment} for that.
+   *
+   * @param key - The cache key.
+   * @param delta - The amount to decrement by (default 1).
    * @returns The new value after decrementing.
+   * @see https://redis.io/commands/incrbyfloat/
    */
   async decrement(
     key: K,
@@ -395,7 +467,12 @@ export class FloatKeyspace<K> extends BasicKeyspace<K, number> {
     const source = getCurrentRequest();
     const mappedKey = this.mapKey(key);
     const ttlMs = this.resolveTtl(options);
-    return await this.cluster.impl.decrByFloat(mappedKey, delta, ttlMs, source);
+    return await this.cluster.impl.incrByFloat(
+      mappedKey,
+      -delta,
+      ttlMs,
+      source
+    );
   }
 }
 

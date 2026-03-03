@@ -41,8 +41,8 @@ impl From<ListDirection> for redis::Direction {
 
 enum LRemOp {
     All,
-    First(i64),
-    Last(i64),
+    First(u64),
+    Last(u64),
 }
 
 impl LRemOp {
@@ -408,11 +408,11 @@ impl RedisBackend {
         self.query(|pipe| pipe.sismember(key, member)).await
     }
 
-    async fn spop_one(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>> {
+    async fn spop(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>> {
         self.query_with_ttl(key, ttl, |pipe| pipe.spop(key)).await
     }
 
-    async fn spop(&self, key: &str, count: usize, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>> {
+    async fn spop_n(&self, key: &str, count: usize, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>> {
         self.query_with_ttl(key, ttl, |pipe| pipe.spop(key).arg(count))
             .await
     }
@@ -421,7 +421,7 @@ impl RedisBackend {
         self.query(|pipe| pipe.srandmember(key)).await
     }
 
-    async fn srandmember_multiple(&self, key: &str, count: i64) -> Result<Vec<Vec<u8>>> {
+    async fn srandmember_n(&self, key: &str, count: i64) -> Result<Vec<Vec<u8>>> {
         self.query(|pipe| pipe.srandmember_multiple(key, count as isize))
             .await
     }
@@ -611,13 +611,13 @@ impl MemoryBackend {
         self.store.sismember(key, member)
     }
 
-    fn spop_one(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>> {
+    fn spop(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>> {
         self.store
             .spop(key, None, ttl)
             .and_then(|m| m.into_iter().next().ok_or(Error::Miss))
     }
 
-    fn spop(&self, key: &str, count: usize, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>> {
+    fn spop_n(&self, key: &str, count: usize, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>> {
         self.store.spop(key, Some(count), ttl)
     }
 
@@ -627,7 +627,7 @@ impl MemoryBackend {
             .and_then(|m| m.into_iter().next().ok_or(Error::Miss))
     }
 
-    fn srandmember_multiple(&self, key: &str, count: i64) -> Result<Vec<Vec<u8>>> {
+    fn srandmember_n(&self, key: &str, count: i64) -> Result<Vec<Vec<u8>>> {
         self.store.srandmember(key, count)
     }
 
@@ -723,10 +723,10 @@ impl Backend {
         async fn sadd(&self, key: &str, members: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64>;
         async fn srem(&self, key: &str, members: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64>;
         async fn sismember(&self, key: &str, member: &[u8]) -> Result<bool>;
-        async fn spop_one(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>>;
-        async fn spop(&self, key: &str, count: usize, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>>;
+        async fn spop(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>>;
+        async fn spop_n(&self, key: &str, count: usize, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>>;
         async fn srandmember(&self, key: &str) -> Result<Vec<u8>>;
-        async fn srandmember_multiple(&self, key: &str, count: i64) -> Result<Vec<Vec<u8>>>;
+        async fn srandmember_n(&self, key: &str, count: i64) -> Result<Vec<Vec<u8>>>;
         async fn smembers(&self, key: &str) -> Result<Vec<Vec<u8>>>;
         async fn scard(&self, key: &str) -> Result<i64>;
         async fn sdiff(&self, keys: &[&str]) -> Result<Vec<Vec<u8>>>;
@@ -997,22 +997,6 @@ impl Client {
             .await
     }
 
-    /// Decrement a float value.
-    pub async fn decr_by_float(
-        &self,
-        key: &str,
-        delta: f64,
-        ttl: Option<TtlOp>,
-        source: Option<&Request>,
-    ) -> OpResult<f64> {
-        let key = self.prefixed_key(key);
-        self.tracer
-            .trace(source, "decrement", true, &[&key], async || {
-                self.backend.incr_by_float(&key, -delta, ttl).await
-            })
-            .await
-    }
-
     /// Push values to the left (head) of a list.
     pub async fn lpush(
         &self,
@@ -1124,7 +1108,7 @@ impl Client {
     }
 
     /// Get all elements of a list. Equivalent to LRANGE 0 -1 but traced as "items".
-    pub async fn litems(&self, key: &str, source: Option<&Request>) -> OpResult<Vec<Vec<u8>>> {
+    pub async fn lrange_all(&self, key: &str, source: Option<&Request>) -> OpResult<Vec<Vec<u8>>> {
         let key = self.prefixed_key(key);
         self.tracer
             .trace(source, "items", false, &[&key], async || {
@@ -1193,22 +1177,38 @@ impl Client {
     }
 
     /// Remove elements from list.
-    pub async fn lrem(
+    pub async fn lrem_all(
         &self,
         key: &str,
-        count: i64,
         value: &[u8],
         ttl: Option<TtlOp>,
         source: Option<&Request>,
     ) -> OpResult<i64> {
-        let op = if count == 0 {
-            LRemOp::All
-        } else if count > 0 {
-            LRemOp::First(count)
-        } else {
-            LRemOp::Last(-count)
-        };
-        self._lrem(key, op, value, ttl, source).await
+        self._lrem(key, LRemOp::All, value, ttl, source).await
+    }
+    /// Remove elements from list.
+    pub async fn lrem_first(
+        &self,
+        key: &str,
+        count: u64,
+        value: &[u8],
+        ttl: Option<TtlOp>,
+        source: Option<&Request>,
+    ) -> OpResult<i64> {
+        self._lrem(key, LRemOp::First(count), value, ttl, source)
+            .await
+    }
+    /// Remove elements from list.
+    pub async fn lrem_last(
+        &self,
+        key: &str,
+        count: u64,
+        value: &[u8],
+        ttl: Option<TtlOp>,
+        source: Option<&Request>,
+    ) -> OpResult<i64> {
+        self._lrem(key, LRemOp::Last(count), value, ttl, source)
+            .await
     }
 
     async fn _lrem(
@@ -1222,16 +1222,13 @@ impl Client {
         let key = self.prefixed_key(key);
         self.tracer
             .trace(source, op.name(), true, &[&key], async || {
-                let count = {
+                let count: i64 = {
                     use LRemOp::*;
                     match &op {
                         First(0) | Last(0) => return Ok(0),
-                        First(count) | Last(count) if *count < 0 => {
-                            return Err(Error::InvalidArgument("negative count"))
-                        }
                         All => 0,
-                        First(count) => *count,
-                        Last(count) => -*count,
+                        First(count) => *count as i64,
+                        Last(count) => -(*count as i64),
                     }
                 };
                 self.backend.lrem(&key, count, value, ttl).await
@@ -1324,7 +1321,7 @@ impl Client {
     }
 
     /// Pop a single random member from a set (SPOP without count).
-    pub async fn spop_one(
+    pub async fn spop(
         &self,
         key: &str,
         ttl: Option<TtlOp>,
@@ -1333,13 +1330,13 @@ impl Client {
         let key = self.prefixed_key(key);
         self.tracer
             .trace(source, "set pop one", true, &[&key], async || {
-                self.backend.spop_one(&key, ttl).await
+                self.backend.spop(&key, ttl).await
             })
             .await
     }
 
     /// Pop random members from a set (SPOP with count).
-    pub async fn spop(
+    pub async fn spop_n(
         &self,
         key: &str,
         count: usize,
@@ -1349,7 +1346,7 @@ impl Client {
         let key = self.prefixed_key(key);
         self.tracer
             .trace(source, "set pop", true, &[&key], async || {
-                self.backend.spop(&key, count, ttl).await
+                self.backend.spop_n(&key, count, ttl).await
             })
             .await
     }
@@ -1365,7 +1362,7 @@ impl Client {
     }
 
     /// Get random members from a set without removing (SRANDMEMBER).
-    pub async fn srandmember_multiple(
+    pub async fn srandmember_n(
         &self,
         key: &str,
         count: i64,
@@ -1379,7 +1376,7 @@ impl Client {
         };
         self.tracer
             .trace(source, op, false, &[&key], async || {
-                self.backend.srandmember_multiple(&key, count).await
+                self.backend.srandmember_n(&key, count).await
             })
             .await
     }

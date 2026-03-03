@@ -96,7 +96,7 @@ For example, `StringKeyspace` stores `string` values, `IntKeyspace` stores `numb
 For example, if you want to rate limit the number of requests per user ID it looks like this:
 
 ```typescript
-import { CacheCluster, IntKeyspace, ExpireIn } from "encore.dev/storage/cache";
+import { CacheCluster, IntKeyspace, expireIn } from "encore.dev/storage/cache";
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 
@@ -108,7 +108,7 @@ const cluster = new CacheCluster("rate-limit", {
 // The cache items expire after 10 seconds without activity.
 const requestsPerUser = new IntKeyspace<{ userId: string }>(cluster, {
   keyPattern: "requests/:userId",
-  defaultExpiry: ExpireIn(10 * 1000), // 10 seconds in milliseconds
+  defaultExpiry: expireIn(10 * 1000), // 10 seconds in milliseconds
 });
 
 export const myEndpoint = api(
@@ -152,7 +152,7 @@ interface ResourceKey {
 // ResourceRequestsPerUser tracks the number of requests per user and resource.
 const resourceRequestsPerUser = new IntKeyspace<ResourceKey>(cluster, {
   keyPattern: "requests/:userId/:resourcePath",
-  defaultExpiry: ExpireIn(10 * 1000),
+  defaultExpiry: expireIn(10 * 1000),
 });
 
 // Usage:
@@ -175,7 +175,7 @@ import { StringKeyspace } from "encore.dev/storage/cache";
 
 const tokens = new StringKeyspace<{ tokenId: string }>(cluster, {
   keyPattern: "token/:tokenId",
-  defaultExpiry: ExpireIn(3600 * 1000), // 1 hour
+  defaultExpiry: expireIn(3600 * 1000), // 1 hour
 });
 
 // Set a value
@@ -192,7 +192,7 @@ Additional string operations:
 - `append(key, value)` - Appends to the existing value
 - `getRange(key, start, end)` - Gets a substring
 - `setRange(key, offset, value)` - Overwrites part of the string
-- `strlen(key)` - Gets the string length
+- `len(key)` - Gets the string length
 
 ### IntKeyspace
 
@@ -252,7 +252,7 @@ interface UserProfile {
 
 const profiles = new StructKeyspace<{ userId: string }, UserProfile>(cluster, {
   keyPattern: "profile/:userId",
-  defaultExpiry: ExpireIn(3600 * 1000),
+  defaultExpiry: expireIn(3600 * 1000),
 });
 
 // Set a structured value
@@ -326,7 +326,7 @@ await tags.add({ articleId: "post1" }, "typescript", "encore", "backend");
 const hasTag = await tags.contains({ articleId: "post1" }, "typescript");
 
 // Get all members
-const allTags = await tags.members({ articleId: "post1" });
+const allTags = await tags.items({ articleId: "post1" });
 
 // Remove members
 await tags.remove({ articleId: "post1" }, "backend");
@@ -356,35 +356,35 @@ Encore provides several ways to set cache entry expiration:
 
 ```typescript
 import {
-  ExpireIn,
-  ExpireInSeconds,
-  ExpireInMinutes,
-  ExpireInHours,
-  ExpireDailyAt,
-  NeverExpire,
-  KeepTTL,
+  expireIn,
+  expireInSeconds,
+  expireInMinutes,
+  expireInHours,
+  expireDailyAt,
+  neverExpire,
+  keepTTL,
 } from "encore.dev/storage/cache";
 
 // Expire in milliseconds
-const expiry1 = ExpireIn(5000); // 5 seconds
+const expiry1 = expireIn(5000); // 5 seconds
 
 // Expire in seconds
-const expiry2 = ExpireInSeconds(30);
+const expiry2 = expireInSeconds(30);
 
 // Expire in minutes
-const expiry3 = ExpireInMinutes(5);
+const expiry3 = expireInMinutes(5);
 
 // Expire in hours
-const expiry4 = ExpireInHours(24);
+const expiry4 = expireInHours(24);
 
 // Expire at a specific time each day (UTC)
-const expiry5 = ExpireDailyAt(0, 0, 0); // Midnight UTC
+const expiry5 = expireDailyAt(0, 0, 0); // Midnight UTC
 
 // Never expire (Redis may still evict based on eviction policy)
-const expiry6 = NeverExpire;
+const expiry6 = neverExpire;
 
 // Keep existing TTL when updating (for write operations)
-const expiry7 = KeepTTL;
+const expiry7 = keepTTL;
 ```
 
 ## Write options
@@ -393,10 +393,10 @@ When setting values, you can override the default expiry:
 
 ```typescript
 // Set with a specific expiry (overrides default)
-await keyspace.set(key, value, { expiry: ExpireInMinutes(30) });
+await keyspace.set(key, value, { expiry: expireInMinutes(30) });
 
 // Keep existing TTL when updating
-await keyspace.set(key, value, { expiry: KeepTTL });
+await keyspace.set(key, value, { expiry: keepTTL });
 
 // Only set if key doesn't exist (throws CacheKeyExists otherwise)
 await keyspace.setIfNotExists(key, value);
