@@ -1,7 +1,7 @@
 mod client;
 mod error;
 mod manager;
-pub mod memcluster;
+pub mod miniredis;
 mod noop;
 mod tracer;
 

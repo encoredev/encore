@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bb8::{ErrorSink, Pool as Bb8Pool, RunError};
@@ -7,7 +6,6 @@ use bb8_redis::RedisConnectionManager;
 use redis::{FromRedisValue, SetExpiry, ToSingleRedisArg};
 
 use crate::cache::error::{Error, OpResult, Result};
-use crate::cache::memcluster::MemoryStore;
 use crate::cache::tracer::CacheTracer;
 use crate::model::Request;
 use crate::trace::Tracer;
@@ -467,282 +465,10 @@ impl RedisBackend {
     }
 }
 
-struct MemoryBackend {
-    store: Arc<MemoryStore>,
-}
-
-impl MemoryBackend {
-    fn get(&self, key: &str) -> Result<Vec<u8>> {
-        self.store.get(key)
-    }
-
-    fn set(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<()> {
-        self.store.set(key, value, ttl)
-    }
-
-    fn set_if_not_exists(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<()> {
-        self.store.set_if_not_exists(key, value, ttl)
-    }
-
-    fn replace(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<()> {
-        self.store.replace(key, value, ttl)
-    }
-
-    fn get_and_set(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<Vec<u8>> {
-        self.store.get_and_set(key, value, ttl)
-    }
-
-    fn get_and_delete(&self, key: &str) -> Result<Vec<u8>> {
-        self.store.get_and_delete(key)
-    }
-
-    fn delete(&self, keys: &[&str]) -> Result<u64> {
-        self.store.delete(keys)
-    }
-
-    fn mget(&self, keys: &[&str]) -> Result<Vec<Option<Vec<u8>>>> {
-        self.store.mget(keys)
-    }
-
-    fn append(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
-        self.store.append(key, value, ttl)
-    }
-
-    fn get_range(&self, key: &str, start: i64, end: i64) -> Result<Vec<u8>> {
-        self.store.get_range(key, start, end)
-    }
-
-    fn set_range(&self, key: &str, offset: i64, value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
-        self.store.set_range(key, offset, value, ttl)
-    }
-
-    fn strlen(&self, key: &str) -> Result<i64> {
-        self.store.strlen(key)
-    }
-
-    fn incr_by(&self, key: &str, delta: i64, ttl: Option<TtlOp>) -> Result<i64> {
-        self.store.incr_by(key, delta, ttl)
-    }
-
-    fn incr_by_float(&self, key: &str, delta: f64, ttl: Option<TtlOp>) -> Result<f64> {
-        self.store.incr_by_float(key, delta, ttl)
-    }
-
-    fn lpush(&self, key: &str, values: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64> {
-        self.store.lpush(key, values, ttl)
-    }
-
-    fn rpush(&self, key: &str, values: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64> {
-        self.store.rpush(key, values, ttl)
-    }
-
-    fn lpop(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>> {
-        self.store.lpop(key, ttl)
-    }
-
-    fn rpop(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>> {
-        self.store.rpop(key, ttl)
-    }
-
-    fn lindex(&self, key: &str, index: i64) -> Result<Vec<u8>> {
-        self.store.lindex(key, index)
-    }
-
-    fn lset(&self, key: &str, index: i64, value: &[u8], ttl: Option<TtlOp>) -> Result<()> {
-        self.store.lset(key, index, value, ttl)
-    }
-
-    fn lrange(&self, key: &str, start: i64, stop: i64) -> Result<Vec<Vec<u8>>> {
-        self.store.lrange(key, start, stop)
-    }
-
-    fn ltrim(&self, key: &str, start: i64, stop: i64, ttl: Option<TtlOp>) -> Result<()> {
-        self.store.ltrim(key, start, stop, ttl)
-    }
-
-    fn linsert_before(
-        &self,
-        key: &str,
-        pivot: &[u8],
-        value: &[u8],
-        ttl: Option<TtlOp>,
-    ) -> Result<i64> {
-        self.store.linsert_before(key, pivot, value, ttl)
-    }
-
-    fn linsert_after(
-        &self,
-        key: &str,
-        pivot: &[u8],
-        value: &[u8],
-        ttl: Option<TtlOp>,
-    ) -> Result<i64> {
-        self.store.linsert_after(key, pivot, value, ttl)
-    }
-
-    fn lrem(&self, key: &str, count: i64, value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
-        self.store.lrem(key, count, value, ttl)
-    }
-
-    fn lmove(
-        &self,
-        src: &str,
-        dst: &str,
-        src_dir: ListDirection,
-        dst_dir: ListDirection,
-        ttl: Option<TtlOp>,
-    ) -> Result<Vec<u8>> {
-        self.store.lmove(src, dst, src_dir, dst_dir, ttl)
-    }
-
-    fn llen(&self, key: &str) -> Result<i64> {
-        self.store.llen(key)
-    }
-
-    fn sadd(&self, key: &str, members: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64> {
-        self.store.sadd(key, members, ttl)
-    }
-
-    fn srem(&self, key: &str, members: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64> {
-        self.store.srem(key, members, ttl)
-    }
-
-    fn sismember(&self, key: &str, member: &[u8]) -> Result<bool> {
-        self.store.sismember(key, member)
-    }
-
-    fn spop(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>> {
-        self.store
-            .spop(key, None, ttl)
-            .and_then(|m| m.into_iter().next().ok_or(Error::Miss))
-    }
-
-    fn spop_n(&self, key: &str, count: usize, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>> {
-        self.store.spop(key, Some(count), ttl)
-    }
-
-    fn srandmember(&self, key: &str) -> Result<Vec<u8>> {
-        self.store
-            .srandmember(key, 1)
-            .and_then(|m| m.into_iter().next().ok_or(Error::Miss))
-    }
-
-    fn srandmember_n(&self, key: &str, count: i64) -> Result<Vec<Vec<u8>>> {
-        self.store.srandmember(key, count)
-    }
-
-    fn smembers(&self, key: &str) -> Result<Vec<Vec<u8>>> {
-        self.store.smembers(key)
-    }
-
-    fn scard(&self, key: &str) -> Result<i64> {
-        self.store.scard(key)
-    }
-
-    fn sdiff(&self, keys: &[&str]) -> Result<Vec<Vec<u8>>> {
-        self.store.sdiff(keys)
-    }
-
-    fn sdiffstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64> {
-        self.store.sdiffstore(dest, keys, ttl)
-    }
-
-    fn sinter(&self, keys: &[&str]) -> Result<Vec<Vec<u8>>> {
-        self.store.sinter(keys)
-    }
-
-    fn sinterstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64> {
-        self.store.sinterstore(dest, keys, ttl)
-    }
-
-    fn sunion(&self, keys: &[&str]) -> Result<Vec<Vec<u8>>> {
-        self.store.sunion(keys)
-    }
-
-    fn sunionstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64> {
-        self.store.sunionstore(dest, keys, ttl)
-    }
-
-    fn smove(&self, src: &str, dst: &str, member: &[u8], ttl: Option<TtlOp>) -> Result<bool> {
-        self.store.smove(src, dst, member, ttl)
-    }
-}
-
-enum Backend {
-    Redis(RedisBackend),
-    Memory(MemoryBackend),
-}
-
-/// Generates async dispatch methods on `Backend` that delegate to the
-/// appropriate backend variant.
-macro_rules! dispatch {
-    ($(async fn $name:ident(&self $(, $arg:ident: $ty:ty)*) -> $ret:ty;)*) => {
-        $(
-            async fn $name(&self $(, $arg: $ty)*) -> $ret {
-                match self {
-                    Backend::Redis(r) => r.$name($($arg),*).await,
-                    Backend::Memory(m) => m.$name($($arg),*),
-                }
-            }
-        )*
-    };
-}
-
-impl Backend {
-    dispatch! {
-        // String operations
-        async fn get(&self, key: &str) -> Result<Vec<u8>>;
-        async fn set(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<()>;
-        async fn set_if_not_exists(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<()>;
-        async fn replace(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<()>;
-        async fn get_and_set(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<Vec<u8>>;
-        async fn get_and_delete(&self, key: &str) -> Result<Vec<u8>>;
-        async fn delete(&self, keys: &[&str]) -> Result<u64>;
-        async fn mget(&self, keys: &[&str]) -> Result<Vec<Option<Vec<u8>>>>;
-        async fn append(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn get_range(&self, key: &str, start: i64, end: i64) -> Result<Vec<u8>>;
-        async fn set_range(&self, key: &str, offset: i64, value: &[u8], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn strlen(&self, key: &str) -> Result<i64>;
-        async fn incr_by(&self, key: &str, delta: i64, ttl: Option<TtlOp>) -> Result<i64>;
-        async fn incr_by_float(&self, key: &str, delta: f64, ttl: Option<TtlOp>) -> Result<f64>;
-        // List operations
-        async fn lpush(&self, key: &str, values: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn rpush(&self, key: &str, values: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn lpop(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>>;
-        async fn rpop(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>>;
-        async fn lindex(&self, key: &str, index: i64) -> Result<Vec<u8>>;
-        async fn lset(&self, key: &str, index: i64, value: &[u8], ttl: Option<TtlOp>) -> Result<()>;
-        async fn lrange(&self, key: &str, start: i64, stop: i64) -> Result<Vec<Vec<u8>>>;
-        async fn ltrim(&self, key: &str, start: i64, stop: i64, ttl: Option<TtlOp>) -> Result<()>;
-        async fn linsert_before(&self, key: &str, pivot: &[u8], value: &[u8], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn linsert_after(&self, key: &str, pivot: &[u8], value: &[u8], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn lrem(&self, key: &str, count: i64, value: &[u8], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn lmove(&self, src: &str, dst: &str, src_dir: ListDirection, dst_dir: ListDirection, ttl: Option<TtlOp>) -> Result<Vec<u8>>;
-        async fn llen(&self, key: &str) -> Result<i64>;
-        // Set operations
-        async fn sadd(&self, key: &str, members: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn srem(&self, key: &str, members: &[&[u8]], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn sismember(&self, key: &str, member: &[u8]) -> Result<bool>;
-        async fn spop(&self, key: &str, ttl: Option<TtlOp>) -> Result<Vec<u8>>;
-        async fn spop_n(&self, key: &str, count: usize, ttl: Option<TtlOp>) -> Result<Vec<Vec<u8>>>;
-        async fn srandmember(&self, key: &str) -> Result<Vec<u8>>;
-        async fn srandmember_n(&self, key: &str, count: i64) -> Result<Vec<Vec<u8>>>;
-        async fn smembers(&self, key: &str) -> Result<Vec<Vec<u8>>>;
-        async fn scard(&self, key: &str) -> Result<i64>;
-        async fn sdiff(&self, keys: &[&str]) -> Result<Vec<Vec<u8>>>;
-        async fn sdiffstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn sinter(&self, keys: &[&str]) -> Result<Vec<Vec<u8>>>;
-        async fn sinterstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn sunion(&self, keys: &[&str]) -> Result<Vec<Vec<u8>>>;
-        async fn sunionstore(&self, dest: &str, keys: &[&str], ttl: Option<TtlOp>) -> Result<i64>;
-        async fn smove(&self, src: &str, dst: &str, member: &[u8], ttl: Option<TtlOp>) -> Result<bool>;
-    }
-}
-
 /// A cache client for a Redis-compatible cluster.
-/// Handles key prefixing, tracing, and dispatching to the appropriate backend.
+/// Handles key prefixing, tracing, and dispatching to the Redis backend.
 pub struct Client {
-    backend: Backend,
+    backend: RedisBackend,
     tracer: CacheTracer,
     key_prefix: Option<String>,
 }
@@ -758,19 +484,10 @@ impl Client {
         let cluster_name = key_prefix.clone().unwrap_or_else(|| "default".to_string());
         let backend = RedisBackend::new(client, cluster_name, min_conns, max_conns)?;
         Ok(Self {
-            backend: Backend::Redis(backend),
+            backend,
             tracer: CacheTracer::new(tracer),
             key_prefix,
         })
-    }
-
-    /// Creates a client backed by an in-memory store.
-    pub(crate) fn in_memory(store: Arc<MemoryStore>, tracer: Tracer) -> Self {
-        Self {
-            backend: Backend::Memory(MemoryBackend { store }),
-            tracer: CacheTracer::new(tracer),
-            key_prefix: None,
-        }
     }
 
     fn prefixed_key(&self, key: &str) -> String {

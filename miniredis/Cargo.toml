@@ -1,0 +1,47 @@
+[package]
+name = "miniredis-rs"
+version = "0.1.0"
+edition = "2024"
+description = "Pure Rust in-memory Redis test server for use in integration tests"
+license = "MIT"
+
+[features]
+default = []
+tls = ["dep:tokio-rustls", "dep:rustls", "dep:rustls-pemfile"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Byte buffers (zero-copy)
+bytes = "1"
+
+# Ordered floats for BTreeMap keys (sorted sets)
+ordered-float = "5"
+
+# Float formatting (Redis-compatible)
+ryu = "1"
+
+# SHA1 for EVAL script caching
+sha1_smol = "1"
+
+# Regex for KEYS/SCAN pattern matching
+regex = "1"
+
+# Random number generation
+rand = "0.9"
+
+# TLS (optional)
+tokio-rustls = { version = "0.26", optional = true, default-features = false, features = ["ring"] }
+rustls = { version = "0.23", optional = true, default-features = false, features = ["ring", "logging", "std", "tls12"] }
+rustls-pemfile = { version = "2", optional = true }
+
+# Lua scripting
+mlua = { version = "0.11", features = ["lua51", "vendored", "send"] }
+
+[dev-dependencies]
+redis = { version = "1.0", features = ["tokio-comp", "aio"] }
+tokio = { version = "1", features = ["full", "test-util"] }
+futures-lite = "2"
+rcgen = "0.14"
+miniredis-rs = { path = ".", features = ["tls"] }

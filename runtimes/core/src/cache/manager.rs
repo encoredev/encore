@@ -6,7 +6,7 @@ use bb8_redis::redis;
 use redis::{ConnectionAddr, IntoConnectionInfo, RedisConnectionInfo, TlsCertificates};
 
 use crate::cache::client::Client;
-use crate::cache::memcluster::MemoryCluster;
+use crate::cache::miniredis::MiniredisServer;
 use crate::cache::noop::NoopCluster;
 use crate::encore::runtime::v1 as pb;
 use crate::names::EncoreName;
@@ -16,8 +16,10 @@ use crate::trace::Tracer;
 /// Manager manages cache cluster connections.
 pub struct Manager {
     clusters: Arc<HashMap<EncoreName, Arc<ClusterImpl>>>,
-    /// Memory cluster for Encore Cloud fallback.
-    memory_cluster: Option<Arc<MemoryCluster>>,
+    /// Miniredis-backed cluster for testing and Encore Cloud fallback.
+    miniredis_cluster: Option<Arc<ClusterImpl>>,
+    /// Keeps the in-process miniredis server alive for the lifetime of the Manager.
+    _miniredis: Option<MiniredisServer>,
 }
 
 /// Configuration for creating a Manager.
@@ -28,6 +30,7 @@ pub struct ManagerConfig<'a> {
     pub tracer: Tracer,
     pub cloud: pb::environment::Cloud,
     pub testing: bool,
+    pub runtime: tokio::runtime::Handle,
 }
 
 impl ManagerConfig<'_> {
@@ -36,39 +39,56 @@ impl ManagerConfig<'_> {
             clusters_from_cfg(self.clusters, self.creds, self.secrets, self.tracer.clone())
                 .context("failed to parse Redis clusters")?;
 
-        // Use in-memory cache for testing and Encore Cloud.
-        let memory_cluster = if self.testing || self.cloud == pb::environment::Cloud::Encore {
-            log::debug!("cache: enabling in-memory cache");
-            Some(Arc::new(MemoryCluster::new(self.tracer.clone())))
+        // Use miniredis for testing and Encore Cloud.
+        let (miniredis_cluster, miniredis) = if self.testing
+            || self.cloud == pb::environment::Cloud::Encore
+        {
+            log::debug!("cache: starting in-process miniredis server");
+            let server = self
+                .runtime
+                .block_on(MiniredisServer::start())
+                .context("failed to start miniredis server")?;
+            let url = format!("redis://{}", server.addr());
+            let client = redis::Client::open(url).context("failed to create miniredis client")?;
+            let cluster = Arc::new(ClusterImpl::new(
+                EncoreName::from("miniredis".to_string()),
+                client,
+                None, // no key prefix — matches Go runtime behavior
+                self.tracer.clone(),
+                0,  // min_conns
+                10, // max_conns
+            ));
+
+            (Some(cluster), Some(server))
         } else {
-            None
+            (None, None)
         };
 
         Ok(Manager {
             clusters: Arc::new(clusters),
-            memory_cluster,
+            miniredis_cluster,
+            _miniredis: miniredis,
         })
     }
 }
 
 impl Manager {
     /// Returns a cluster by name.
-    /// If the cluster is not configured and running in Encore Cloud,
-    /// returns an in-memory cache cluster. Otherwise, returns a NoopCluster
+    /// If the cluster is not configured and running in test/Encore Cloud mode,
+    /// returns the miniredis-backed cluster. Otherwise, returns a NoopCluster
     /// that errors on all operations.
     pub fn cluster(&self, name: &EncoreName) -> Arc<dyn Cluster> {
         match self.clusters.get(name) {
             Some(cluster) => cluster.clone(),
             None => {
-                // If we're running in Encore Cloud, use the in-memory cluster fallback.
-                // This matches the Go runtime behavior where miniredis is used
-                // when a cluster isn't explicitly configured.
-                if let Some(mem_cluster) = &self.memory_cluster {
+                // If we have a miniredis cluster (testing or Encore Cloud),
+                // use it as a fallback for unconfigured clusters.
+                if let Some(cluster) = &self.miniredis_cluster {
                     log::debug!(
-                        "cache: using in-memory fallback for unconfigured cluster {}",
+                        "cache: using miniredis fallback for unconfigured cluster {}",
                         name
                     );
-                    mem_cluster.clone()
+                    cluster.clone()
                 } else {
                     Arc::new(NoopCluster::new(name.clone()))
                 }

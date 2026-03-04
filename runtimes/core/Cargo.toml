@@ -143,6 +143,7 @@ aws-sdk-cloudwatch = { version = "1.94.0", default-features = false, features = 
 ] }
 datadog-api-client = "0.20.0"
 snap = "1.1.1"
+miniredis-rs = { path = "../../miniredis" }
 
 [build-dependencies]
 prost-build = "0.12.3"

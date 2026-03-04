@@ -376,6 +376,7 @@ impl Runtime {
             tracer: tracer.clone(),
             cloud,
             testing,
+            runtime: tokio_rt.handle().clone(),
         }
         .build()
         .context("unable to initialize cache manager")?;
