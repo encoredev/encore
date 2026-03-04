@@ -23,6 +23,7 @@ import (
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/internal/platform"
+	"encr.dev/internal/conf"
 	"encr.dev/pkg/xos"
 )
 
@@ -160,6 +161,15 @@ func (mgr *Manager) fetch(appSlug string, poll bool) <-chan singleflight.Result 
 	return mgr.group.DoChan(appSlug, func() (any, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
+
+		if _, err := conf.CurrentUser(); err != nil {
+			log.Info().Msg("Not logged into Encore Cloud; skipping cloud secrets fetch")
+			return &Data{
+				Synced: time.Now(),
+				Values: make(map[string]string),
+			}, nil
+		}
+
 		secrets, err := platform.GetLocalSecretValues(ctx, appSlug, poll)
 		if err != nil {
 			return nil, fmt.Errorf("fetch secrets for %s: %v", appSlug, err)
