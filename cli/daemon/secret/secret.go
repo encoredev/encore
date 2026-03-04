@@ -23,6 +23,7 @@ import (
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/internal/platform"
+	"encr.dev/internal/conf"
 	"encr.dev/pkg/xos"
 )
 
@@ -160,8 +161,29 @@ func (mgr *Manager) fetch(appSlug string, poll bool) <-chan singleflight.Result 
 	return mgr.group.DoChan(appSlug, func() (any, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
+		var pErr platform.Error
+		// option 1: for checking access to secrets or app
+		_, err := platform.GetApp(ctx, appSlug)
+		if errors.As(err, &pErr) && (pErr.HTTPCode == 404 || pErr.HTTPCode == 403) {
+			return nil, fmt.Errorf("access denied: you do not have access to the app %q", appSlug)
+		}
+
+		// if the user has access but is not logged in to encore-cloud, we do not fetch the secrets
+		// because they are not going to be able to fetch the cloud secrets
+		if _, err := conf.CurrentUser(); err != nil {
+			log.Info().Msg("Not logged into Encore Cloud; skipping cloud secrets fetch")
+			return &Data{
+				Synced: time.Now(),
+				Values: make(map[string]string),
+			}, nil
+		}
+
 		secrets, err := platform.GetLocalSecretValues(ctx, appSlug, poll)
 		if err != nil {
+			// option 2: for checking access to secrets or app
+			if errors.As(err, &pErr) && (pErr.HTTPCode == 404 || pErr.HTTPCode == 403) {
+				return nil, fmt.Errorf("access denied: you do not have access to the app %q", appSlug)
+			}
 			return nil, fmt.Errorf("fetch secrets for %s: %v", appSlug, err)
 		}
 		data := &Data{
