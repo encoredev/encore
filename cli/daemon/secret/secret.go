@@ -160,15 +160,11 @@ func (mgr *Manager) fetch(appSlug string, poll bool) <-chan singleflight.Result 
 	return mgr.group.DoChan(appSlug, func() (any, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		var pErr platform.Error
-		// option 1: for checking access to secrets or app
-		_, err := platform.GetApp(ctx, appSlug)
-		if errors.As(err, &pErr) && (pErr.HTTPCode == 404 || pErr.HTTPCode == 403) {
-			return nil, fmt.Errorf("access denied: you do not have access to the app %q", appSlug)
-		}
 		secrets, err := platform.GetLocalSecretValues(ctx, appSlug, poll)
 		if err != nil {
-			// option 2: for checking access to secrets or app
+			// check for access to the app before stating that we failed to fetch secrets
+			var pErr platform.Error
+			_, err := platform.GetApp(ctx, appSlug)
 			if errors.As(err, &pErr) && (pErr.HTTPCode == 404 || pErr.HTTPCode == 403) {
 				return nil, fmt.Errorf("access denied: you do not have access to the app %q", appSlug)
 			}
