@@ -164,8 +164,8 @@ func (mgr *Manager) fetch(appSlug string, poll bool) <-chan singleflight.Result 
 		if err != nil {
 			// check for access to the app before stating that we failed to fetch secrets
 			var pErr platform.Error
-			_, err := platform.GetApp(ctx, appSlug)
-			if errors.As(err, &pErr) && (pErr.HTTPCode == 404 || pErr.HTTPCode == 403) {
+			_, appErr := platform.GetApp(ctx, appSlug)
+			if errors.As(appErr, &pErr) && (pErr.HTTPCode == 404 || pErr.HTTPCode == 403) {
 				return nil, fmt.Errorf("access denied: you do not have access to the app %q", appSlug)
 			}
 			return nil, fmt.Errorf("fetch secrets for %s: %v", appSlug, err)
