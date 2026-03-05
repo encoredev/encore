@@ -162,7 +162,10 @@ func (mgr *Manager) fetch(appSlug string, poll bool) <-chan singleflight.Result 
 		defer cancel()
 		secrets, err := platform.GetLocalSecretValues(ctx, appSlug, poll)
 		if err != nil {
-			return nil, fmt.Errorf("fetch secrets for %s: %v", appSlug, err)
+			log.Warn().Err(err).Msg("unable to fetch secrets from app, using override secrets instead")
+			return &Data{
+				Values: make(map[string]string),
+			}, nil
 		}
 		data := &Data{
 			Synced: time.Now(),
