@@ -1,5 +1,6 @@
 import * as runtime from "../internal/runtime/mod";
 import { StringLiteral } from "../internal/utils/constraints";
+import log from "encore.dev/log";
 
 /**
  * Secret represents a single secret value that is loaded
@@ -48,13 +49,19 @@ export type AnySecret = Secret<string>;
  *  const foo = secret<"foo">();
  */
 export function secret<Name extends string>(
-  name: StringLiteral<Name>,
+  name: StringLiteral<Name>
 ): Secret<Name> {
   // Get the secret implementation from the runtime.
   // It reports null if the secret isn't in the runtime config.
   const impl = runtime.RT.secret(name);
   const secretObj = () => {
     if (impl === null) {
+      // in local mode we dont have secrets, so we return an empty string.
+      if (
+        runtime.RT.appMeta().environment.cloud === runtime.CloudProvider.Local
+      ) {
+        return "";
+      }
       throw new Error(`secret ${name} is not set`);
     }
     return impl.cached();
