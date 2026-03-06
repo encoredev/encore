@@ -1,6 +1,5 @@
 import * as runtime from "../internal/runtime/mod";
 import { StringLiteral } from "../internal/utils/constraints";
-import log from "encore.dev/log";
 
 /**
  * Secret represents a single secret value that is loaded
