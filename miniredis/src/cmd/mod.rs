@@ -34,7 +34,7 @@ pub(crate) fn parse_float(bytes: &[u8]) -> Option<f64> {
     }
 }
 
-use crate::dispatch::MSG_SYNTAX_ERROR;
+use crate::dispatch::{MSG_INVALID_INT, MSG_SYNTAX_ERROR};
 use crate::frame::Frame;
 
 pub(crate) struct ScanOpts {
@@ -66,11 +66,13 @@ pub(crate) fn parse_scan_opts(args: &[Vec<u8>], allow_type: bool) -> Result<Scan
                 if i >= args.len() {
                     return Err(Frame::error(MSG_SYNTAX_ERROR));
                 }
-                count = Some(
-                    String::from_utf8_lossy(&args[i])
-                        .parse::<i64>()
-                        .map_err(|_| Frame::error(MSG_SYNTAX_ERROR))?,
-                );
+                let n = String::from_utf8_lossy(&args[i])
+                    .parse::<i64>()
+                    .map_err(|_| Frame::error(MSG_INVALID_INT))?;
+                if n <= 0 {
+                    return Err(Frame::error(MSG_SYNTAX_ERROR));
+                }
+                count = Some(n);
             }
             "TYPE" if allow_type => {
                 i += 1;

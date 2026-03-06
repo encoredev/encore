@@ -1,9 +1,10 @@
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 use crate::connection::ConnCtx;
 use crate::db::SharedState;
-use crate::dispatch::{CommandTable, err_wrong_number};
+use crate::dispatch::{CommandTable, MSG_INVALID_INT, MSG_SYNTAX_ERROR, err_wrong_number};
 use crate::frame::Frame;
 use crate::types::KeyType;
 
@@ -11,14 +12,15 @@ use crate::types::KeyType;
 static COMMAND_RESP: &[u8] = include_bytes!("command_resp.bin");
 
 pub fn register(table: &mut CommandTable) {
-    table.add("DBSIZE", cmd_dbsize, true);
-    table.add("FLUSHDB", cmd_flushdb, false);
-    table.add("FLUSHALL", cmd_flushall, false);
-    table.add("COMMAND", cmd_command, true);
-    table.add("TIME", cmd_time, true);
-    table.add("INFO", cmd_info, true);
-    table.add("SWAPDB", cmd_swapdb, false);
-    table.add("MEMORY", cmd_memory, true);
+    table.add("DBSIZE", cmd_dbsize, true, 1);
+    table.add("FLUSHDB", cmd_flushdb, false, -1);
+    table.add("FLUSHALL", cmd_flushall, false, -1);
+    table.add("COMMAND", cmd_command, true, -1);
+    table.add("TIME", cmd_time, true, 1);
+    table.add("INFO", cmd_info, true, -1);
+    table.add("SWAPDB", cmd_swapdb, false, 3);
+    table.add("MEMORY", cmd_memory, true, -2);
+    table.add("MINIREDIS.FASTFORWARD", cmd_fastforward, false, 2);
 }
 
 /// DBSIZE
@@ -28,15 +30,33 @@ fn cmd_dbsize(state: &Arc<SharedState>, ctx: &mut ConnCtx, _args: &[Vec<u8>]) ->
     Frame::Integer(db.keys.len() as i64)
 }
 
-/// FLUSHDB [ASYNC]
-fn cmd_flushdb(state: &Arc<SharedState>, ctx: &mut ConnCtx, _args: &[Vec<u8>]) -> Frame {
+/// FLUSHDB [ASYNC|SYNC]
+fn cmd_flushdb(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
+    if args.len() > 1 {
+        return Frame::error(MSG_SYNTAX_ERROR);
+    }
+    if args.len() == 1 {
+        let opt = String::from_utf8_lossy(&args[0]).to_uppercase();
+        if opt != "ASYNC" && opt != "SYNC" {
+            return Frame::error(MSG_SYNTAX_ERROR);
+        }
+    }
     let mut inner = state.lock();
     inner.db_mut(ctx.selected_db).flush();
     Frame::ok()
 }
 
-/// FLUSHALL [ASYNC]
-fn cmd_flushall(state: &Arc<SharedState>, _ctx: &mut ConnCtx, _args: &[Vec<u8>]) -> Frame {
+/// FLUSHALL [ASYNC|SYNC]
+fn cmd_flushall(state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
+    if args.len() > 1 {
+        return Frame::error(MSG_SYNTAX_ERROR);
+    }
+    if args.len() == 1 {
+        let opt = String::from_utf8_lossy(&args[0]).to_uppercase();
+        if opt != "ASYNC" && opt != "SYNC" {
+            return Frame::error(MSG_SYNTAX_ERROR);
+        }
+    }
     let mut inner = state.lock();
     for i in 0..16 {
         inner.db_mut(i).flush();
@@ -112,11 +132,7 @@ fn parse_resp_int(data: &[u8], pos: &mut usize) -> i64 {
 }
 
 /// TIME — returns [seconds, microseconds] of server time.
-fn cmd_time(state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if !args.is_empty() {
-        return Frame::error(err_wrong_number("time"));
-    }
-
+fn cmd_time(state: &Arc<SharedState>, _ctx: &mut ConnCtx, _args: &[Vec<u8>]) -> Frame {
     let inner = state.lock();
     let now = inner.effective_now();
     let since_epoch = now
@@ -171,10 +187,6 @@ fn cmd_info(state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// SWAPDB db1 db2
 fn cmd_swapdb(state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("swapdb"));
-    }
-
     let db1 = match String::from_utf8_lossy(&args[0]).parse::<i64>() {
         Ok(n) => n,
         Err(_) => return Frame::error("ERR invalid first DB index"),
@@ -204,15 +216,14 @@ fn cmd_swapdb(state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) ->
 
 /// MEMORY USAGE key
 fn cmd_memory(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("memory"));
-    }
-
     let subcmd = String::from_utf8_lossy(&args[0]).to_uppercase();
     match subcmd.as_str() {
         "USAGE" => {
-            if args.len() != 2 {
+            if args.len() < 2 {
                 return Frame::error("ERR wrong number of arguments for 'memory|usage' command");
+            }
+            if args.len() > 2 {
+                return Frame::error(crate::dispatch::MSG_SYNTAX_ERROR);
             }
 
             let key = String::from_utf8_lossy(&args[1]);
@@ -269,4 +280,19 @@ fn estimate_key_size(db: &crate::db::RedisDB, key: &str, kt: KeyType) -> usize {
         }
     };
     key_overhead + value_size
+}
+
+/// MINIREDIS.FASTFORWARD <ms>
+///
+/// Advance mock time by the given number of milliseconds, expiring any keys
+/// whose TTL falls to zero. Used by the integration test suite.
+fn cmd_fastforward(state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
+    let ms: u64 = match String::from_utf8_lossy(&args[0]).parse() {
+        Ok(n) => n,
+        Err(_) => return Frame::error(MSG_INVALID_INT),
+    };
+
+    let mut inner = state.lock();
+    inner.fast_forward(Duration::from_millis(ms));
+    Frame::ok()
 }

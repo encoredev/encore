@@ -7,9 +7,9 @@ use crate::frame::Frame;
 use crate::types::KeyType;
 
 pub fn register(table: &mut CommandTable) {
-    table.add("PFADD", cmd_pfadd, false);
-    table.add("PFCOUNT", cmd_pfcount, true);
-    table.add("PFMERGE", cmd_pfmerge, false);
+    table.add("PFADD", cmd_pfadd, false, -2);
+    table.add("PFCOUNT", cmd_pfcount, true, -2);
+    table.add("PFMERGE", cmd_pfmerge, false, -2);
 }
 
 /// PFADD key element [element ...]
@@ -41,10 +41,6 @@ fn cmd_pfadd(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// PFCOUNT key [key ...]
 fn cmd_pfcount(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("pfcount"));
-    }
-
     let keys: Vec<&str> = args
         .iter()
         .map(|a| std::str::from_utf8(a).unwrap_or(""))
@@ -61,10 +57,6 @@ fn cmd_pfcount(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) ->
 
 /// PFMERGE destkey [sourcekey ...]
 fn cmd_pfmerge(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("pfmerge"));
-    }
-
     let keys: Vec<&str> = args
         .iter()
         .map(|a| std::str::from_utf8(a).unwrap_or(""))

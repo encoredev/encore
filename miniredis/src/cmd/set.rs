@@ -8,7 +8,7 @@ use crate::connection::ConnCtx;
 use crate::db::SharedState;
 use crate::dispatch::{
     CommandTable, MSG_INVALID_CURSOR, MSG_INVALID_INT, MSG_INVALID_KEYS_NUMBER, MSG_OUT_OF_RANGE,
-    MSG_SYNTAX_ERROR, MSG_WRONG_TYPE, err_wrong_number,
+    MSG_SYNTAX_ERROR, MSG_WRONG_TYPE,
 };
 use crate::frame::Frame;
 use crate::types::KeyType;
@@ -16,31 +16,27 @@ use crate::types::KeyType;
 use super::parse_int;
 
 pub fn register(table: &mut CommandTable) {
-    table.add("SADD", cmd_sadd, false);
-    table.add("SREM", cmd_srem, false);
-    table.add("SCARD", cmd_scard, true);
-    table.add("SMEMBERS", cmd_smembers, true);
-    table.add("SISMEMBER", cmd_sismember, true);
-    table.add("SMISMEMBER", cmd_smismember, true);
-    table.add("SDIFF", cmd_sdiff, true);
-    table.add("SDIFFSTORE", cmd_sdiffstore, false);
-    table.add("SINTER", cmd_sinter, true);
-    table.add("SINTERSTORE", cmd_sinterstore, false);
-    table.add("SINTERCARD", cmd_sintercard, true);
-    table.add("SUNION", cmd_sunion, true);
-    table.add("SUNIONSTORE", cmd_sunionstore, false);
-    table.add("SMOVE", cmd_smove, false);
-    table.add("SPOP", cmd_spop, false);
-    table.add("SRANDMEMBER", cmd_srandmember, true);
-    table.add("SSCAN", cmd_sscan, true);
+    table.add("SADD", cmd_sadd, false, -3);
+    table.add("SREM", cmd_srem, false, -3);
+    table.add("SCARD", cmd_scard, true, 2);
+    table.add("SMEMBERS", cmd_smembers, true, 2);
+    table.add("SISMEMBER", cmd_sismember, true, 3);
+    table.add("SMISMEMBER", cmd_smismember, true, -3);
+    table.add("SDIFF", cmd_sdiff, true, -2);
+    table.add("SDIFFSTORE", cmd_sdiffstore, false, -3);
+    table.add("SINTER", cmd_sinter, true, -2);
+    table.add("SINTERSTORE", cmd_sinterstore, false, -3);
+    table.add("SINTERCARD", cmd_sintercard, true, -3);
+    table.add("SUNION", cmd_sunion, true, -2);
+    table.add("SUNIONSTORE", cmd_sunionstore, false, -3);
+    table.add("SMOVE", cmd_smove, false, 4);
+    table.add("SPOP", cmd_spop, false, -2);
+    table.add("SRANDMEMBER", cmd_srandmember, true, -2);
+    table.add("SSCAN", cmd_sscan, true, -3);
 }
 
 /// SADD key member [member ...]
 fn cmd_sadd(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("sadd"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let mut inner = state.lock();
     let now = inner.effective_now();
@@ -64,10 +60,6 @@ fn cmd_sadd(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// SREM key member [member ...]
 fn cmd_srem(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("srem"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let mut inner = state.lock();
     let now = inner.effective_now();
@@ -95,10 +87,6 @@ fn cmd_srem(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// SCARD key
 fn cmd_scard(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("scard"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -116,10 +104,6 @@ fn cmd_scard(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// SMEMBERS key
 fn cmd_smembers(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("smembers"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -143,10 +127,6 @@ fn cmd_smembers(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -
 
 /// SISMEMBER key member
 fn cmd_sismember(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("sismember"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let member = String::from_utf8_lossy(&args[1]);
 
@@ -169,10 +149,6 @@ fn cmd_sismember(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) 
 
 /// SMISMEMBER key member [member ...]
 fn cmd_smismember(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("smismember"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -279,16 +255,7 @@ fn set_to_frame(set: &HashSet<String>, resp3: bool) -> Frame {
     }
 }
 
-fn cmd_set_op(
-    state: &Arc<SharedState>,
-    ctx: &mut ConnCtx,
-    args: &[Vec<u8>],
-    cmd_name: &str,
-    op: SetOp,
-) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number(cmd_name));
-    }
+fn cmd_set_op(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>], op: SetOp) -> Frame {
     let keys: Vec<String> = args
         .iter()
         .map(|a| String::from_utf8_lossy(a).into_owned())
@@ -303,12 +270,8 @@ fn cmd_set_store(
     state: &Arc<SharedState>,
     ctx: &mut ConnCtx,
     args: &[Vec<u8>],
-    cmd_name: &str,
     op: SetOp,
 ) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number(cmd_name));
-    }
     let dest = String::from_utf8_lossy(&args[0]).into_owned();
     let keys: Vec<String> = args[1..]
         .iter()
@@ -331,40 +294,36 @@ fn cmd_set_store(
 
 /// SDIFF key [key ...]
 fn cmd_sdiff(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    cmd_set_op(state, ctx, args, "sdiff", SetOp::Diff)
+    cmd_set_op(state, ctx, args, SetOp::Diff)
 }
 
 /// SDIFFSTORE destination key [key ...]
 fn cmd_sdiffstore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    cmd_set_store(state, ctx, args, "sdiffstore", SetOp::Diff)
+    cmd_set_store(state, ctx, args, SetOp::Diff)
 }
 
 /// SINTER key [key ...]
 fn cmd_sinter(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    cmd_set_op(state, ctx, args, "sinter", SetOp::Inter)
+    cmd_set_op(state, ctx, args, SetOp::Inter)
 }
 
 /// SINTERSTORE destination key [key ...]
 fn cmd_sinterstore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    cmd_set_store(state, ctx, args, "sinterstore", SetOp::Inter)
+    cmd_set_store(state, ctx, args, SetOp::Inter)
 }
 
 /// SUNION key [key ...]
 fn cmd_sunion(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    cmd_set_op(state, ctx, args, "sunion", SetOp::Union)
+    cmd_set_op(state, ctx, args, SetOp::Union)
 }
 
 /// SUNIONSTORE destination key [key ...]
 fn cmd_sunionstore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    cmd_set_store(state, ctx, args, "sunionstore", SetOp::Union)
+    cmd_set_store(state, ctx, args, SetOp::Union)
 }
 
 /// SMOVE source destination member
 fn cmd_smove(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("smove"));
-    }
-
     let src = String::from_utf8_lossy(&args[0]).into_owned();
     let dst = String::from_utf8_lossy(&args[1]).into_owned();
     let member = String::from_utf8_lossy(&args[2]).into_owned();
@@ -402,10 +361,6 @@ fn cmd_smove(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// SPOP key [count]
 fn cmd_spop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("spop"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let mut with_count = false;
     let mut count: usize = 1;
@@ -469,8 +424,8 @@ fn cmd_spop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// SRANDMEMBER key [count]
 fn cmd_srandmember(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() || args.len() > 2 {
-        return Frame::error(err_wrong_number("srandmember"));
+    if args.len() > 2 {
+        return Frame::error(MSG_SYNTAX_ERROR);
     }
 
     let key = String::from_utf8_lossy(&args[0]).into_owned();
@@ -536,10 +491,6 @@ fn cmd_srandmember(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]
 
 /// SSCAN key cursor [MATCH pattern] [COUNT count]
 fn cmd_sscan(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("sscan"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let cursor: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -604,10 +555,6 @@ fn cmd_sscan(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// SINTERCARD numkeys key [key ...] [LIMIT limit]
 fn cmd_sintercard(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("sintercard"));
-    }
-
     let num_keys = match parse_int(&args[0]) {
         Some(n) if n < 1 => {
             return Frame::error("ERR numkeys should be greater than 0");

@@ -6,14 +6,10 @@ use crate::dispatch::CommandTable;
 use crate::frame::Frame;
 
 pub fn register(table: &mut CommandTable) {
-    table.add("CLUSTER", cmd_cluster, true);
+    table.add("CLUSTER", cmd_cluster, true, -2);
 }
 
 fn cmd_cluster(_state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error("ERR wrong number of arguments for 'cluster' command");
-    }
-
     let subcmd = String::from_utf8_lossy(&args[0]).to_uppercase();
     match subcmd.as_str() {
         "SLOTS" => {

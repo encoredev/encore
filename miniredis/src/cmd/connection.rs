@@ -8,12 +8,12 @@ use crate::dispatch::{
 use crate::frame::Frame;
 
 pub fn register(table: &mut CommandTable) {
-    table.add("PING", cmd_ping, true);
-    table.add("ECHO", cmd_echo, true);
-    table.add("QUIT", cmd_quit, true);
-    table.add("SELECT", cmd_select, true);
-    table.add("AUTH", cmd_auth, false);
-    table.add("HELLO", cmd_hello, false);
+    table.add("PING", cmd_ping, true, -1);
+    table.add("ECHO", cmd_echo, true, 2);
+    table.add("QUIT", cmd_quit, true, 1);
+    table.add("SELECT", cmd_select, true, 2);
+    table.add("AUTH", cmd_auth, false, -2);
+    table.add("HELLO", cmd_hello, false, -1);
 }
 
 /// PING [message]
@@ -27,9 +27,6 @@ fn cmd_ping(_state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// ECHO message
 fn cmd_echo(_state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("echo"));
-    }
     Frame::Bulk(args[0].clone().into())
 }
 
@@ -40,34 +37,27 @@ fn cmd_quit(_state: &Arc<SharedState>, _ctx: &mut ConnCtx, _args: &[Vec<u8>]) ->
 
 /// SELECT db
 fn cmd_select(_state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("select"));
-    }
-
     let db_str = match std::str::from_utf8(&args[0]) {
         Ok(s) => s,
-        Err(_) => return Frame::error(MSG_DB_INDEX_OUT_OF_RANGE),
+        Err(_) => return Frame::error(crate::dispatch::MSG_INVALID_INT),
     };
 
-    let db: usize = match db_str.parse() {
+    let db: i64 = match db_str.parse() {
         Ok(n) => n,
-        Err(_) => return Frame::error(MSG_DB_INDEX_OUT_OF_RANGE),
+        Err(_) => return Frame::error(crate::dispatch::MSG_INVALID_INT),
     };
 
-    if db > 15 {
+    if !(0..16).contains(&db) {
         return Frame::error(MSG_DB_INDEX_OUT_OF_RANGE);
     }
 
-    ctx.selected_db = db;
+    ctx.selected_db = db as usize;
     Frame::ok()
 }
 
 /// AUTH [username] password
 fn cmd_auth(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() || args.len() > 2 {
-        if args.is_empty() {
-            return Frame::error(err_wrong_number("auth"));
-        }
+    if args.len() > 2 {
         return Frame::error(MSG_SYNTAX_ERROR);
     }
 
@@ -191,6 +181,14 @@ fn cmd_hello(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
         (Frame::bulk_string("id"), Frame::Integer(42)),
         (Frame::bulk_string("mode"), Frame::bulk_string("standalone")),
         (Frame::bulk_string("role"), Frame::bulk_string("master")),
-        (Frame::bulk_string("modules"), Frame::Array(vec![])),
+        (
+            Frame::bulk_string("modules"),
+            Frame::Array(vec![Frame::Map(vec![
+                (Frame::bulk_string("name"), Frame::bulk_string("vectorset")),
+                (Frame::bulk_string("ver"), Frame::Integer(1)),
+                (Frame::bulk_string("path"), Frame::bulk_string("")),
+                (Frame::bulk_string("args"), Frame::Array(vec![])),
+            ])]),
+        ),
     ])
 }

@@ -4,34 +4,35 @@ use super::parse_int;
 use crate::connection::ConnCtx;
 use crate::db::SharedState;
 use crate::dispatch::{
-    CommandTable, MSG_INVALID_INT, MSG_KEY_NOT_FOUND, MSG_OUT_OF_RANGE, MSG_SYNTAX_ERROR,
-    MSG_WRONG_TYPE, err_wrong_number,
+    CommandTable, MSG_INVALID_INT, MSG_INVALID_TIMEOUT, MSG_KEY_NOT_FOUND, MSG_OUT_OF_RANGE,
+    MSG_SYNTAX_ERROR, MSG_TIMEOUT_IS_OUT_OF_RANGE, MSG_TIMEOUT_NEGATIVE, MSG_WRONG_TYPE,
+    err_wrong_number,
 };
 use crate::frame::Frame;
 use crate::types::KeyType;
 
 pub fn register(table: &mut CommandTable) {
-    table.add("LPUSH", cmd_lpush, false);
-    table.add("RPUSH", cmd_rpush, false);
-    table.add("LPUSHX", cmd_lpushx, false);
-    table.add("RPUSHX", cmd_rpushx, false);
-    table.add("LPOP", cmd_lpop, false);
-    table.add("RPOP", cmd_rpop, false);
-    table.add("LLEN", cmd_llen, true);
-    table.add("LINDEX", cmd_lindex, true);
-    table.add("LRANGE", cmd_lrange, true);
-    table.add("LSET", cmd_lset, false);
-    table.add("LINSERT", cmd_linsert, false);
-    table.add("LREM", cmd_lrem, false);
-    table.add("LTRIM", cmd_ltrim, false);
-    table.add("RPOPLPUSH", cmd_rpoplpush, false);
-    table.add("LMOVE", cmd_lmove, false);
-    table.add("LPOS", cmd_lpos, true);
+    table.add("LPUSH", cmd_lpush, false, -3);
+    table.add("RPUSH", cmd_rpush, false, -3);
+    table.add("LPUSHX", cmd_lpushx, false, -3);
+    table.add("RPUSHX", cmd_rpushx, false, -3);
+    table.add("LPOP", cmd_lpop, false, -2);
+    table.add("RPOP", cmd_rpop, false, -2);
+    table.add("LLEN", cmd_llen, true, 2);
+    table.add("LINDEX", cmd_lindex, true, 3);
+    table.add("LRANGE", cmd_lrange, true, 4);
+    table.add("LSET", cmd_lset, false, 4);
+    table.add("LINSERT", cmd_linsert, false, 5);
+    table.add("LREM", cmd_lrem, false, 4);
+    table.add("LTRIM", cmd_ltrim, false, 4);
+    table.add("RPOPLPUSH", cmd_rpoplpush, false, 3);
+    table.add("LMOVE", cmd_lmove, false, 5);
+    table.add("LPOS", cmd_lpos, true, -3);
     // Blocking commands: registered for MULTI/EXEC queueing (non-blocking attempt)
-    table.add("BLPOP", cmd_blpop, false);
-    table.add("BRPOP", cmd_brpop, false);
-    table.add("BRPOPLPUSH", cmd_brpoplpush, false);
-    table.add("BLMOVE", cmd_blmove, false);
+    table.add("BLPOP", cmd_blpop, false, -3);
+    table.add("BRPOP", cmd_brpop, false, -3);
+    table.add("BRPOPLPUSH", cmd_brpoplpush, false, 4);
+    table.add("BLMOVE", cmd_blmove, false, 6);
 }
 
 /// LPUSH key element [element ...]
@@ -61,18 +62,6 @@ fn cmd_xpush(
     left: bool,
     only_existing: bool,
 ) -> Frame {
-    let cmd_name = if left {
-        if only_existing { "lpushx" } else { "lpush" }
-    } else if only_existing {
-        "rpushx"
-    } else {
-        "rpush"
-    };
-
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number(cmd_name));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let mut inner = state.lock();
     let now = inner.effective_now();
@@ -113,7 +102,7 @@ fn cmd_rpop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 fn cmd_xpop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>], left: bool) -> Frame {
     let cmd_name = if left { "lpop" } else { "rpop" };
 
-    if args.is_empty() || args.len() > 2 {
+    if args.len() > 2 {
         return Frame::error(err_wrong_number(cmd_name));
     }
 
@@ -140,7 +129,11 @@ fn cmd_xpop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>], left:
     }
 
     if !db.keys.contains_key(&key) {
-        return Frame::Null;
+        return if count.is_some() {
+            Frame::NullArray
+        } else {
+            Frame::Null
+        };
     }
 
     match count {
@@ -175,10 +168,6 @@ fn cmd_xpop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>], left:
 
 /// LLEN key
 fn cmd_llen(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("llen"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -196,11 +185,11 @@ fn cmd_llen(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// LINDEX key index
 fn cmd_lindex(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("lindex"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
+    // Reject "-0" (Go miniredis compat)
+    if args[1] == b"-0" {
+        return Frame::error(MSG_INVALID_INT);
+    }
     let index: i64 = match parse_int(&args[1]) {
         Some(n) => n,
         None => return Frame::error(MSG_INVALID_INT),
@@ -235,10 +224,6 @@ fn cmd_lindex(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// LRANGE key start stop
 fn cmd_lrange(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("lrange"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let start: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -279,10 +264,6 @@ fn cmd_lrange(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// LSET key index element
 fn cmd_lset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("lset"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let index: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -326,10 +307,6 @@ fn cmd_lset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// LINSERT key BEFORE|AFTER pivot element
 fn cmd_linsert(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 4 {
-        return Frame::error(err_wrong_number("linsert"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let position = String::from_utf8_lossy(&args[1]).to_uppercase();
     let before = match position.as_str() {
@@ -376,10 +353,6 @@ fn cmd_linsert(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) ->
 
 /// LREM key count element
 fn cmd_lrem(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("lrem"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let count: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -444,10 +417,6 @@ fn cmd_lrem(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// LTRIM key start stop
 fn cmd_ltrim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("ltrim"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let start: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -505,10 +474,6 @@ fn cmd_ltrim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// RPOPLPUSH source destination
 fn cmd_rpoplpush(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("rpoplpush"));
-    }
-
     let src = String::from_utf8_lossy(&args[0]).into_owned();
     let dst = String::from_utf8_lossy(&args[1]).into_owned();
 
@@ -530,21 +495,30 @@ fn cmd_rpoplpush(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) 
         return Frame::error(MSG_WRONG_TYPE);
     }
 
+    // Save TTL when src == dst so we can restore it after pop+push cycle
+    let saved_ttl = if src == dst {
+        db.ttl.get(&src).cloned()
+    } else {
+        None
+    };
+
     let val = match db.list_rpop(&src, now) {
         Some(v) => v,
         None => return Frame::Null,
     };
 
     db.list_lpush(&dst, std::slice::from_ref(&val), now);
+
+    // Restore TTL if src == dst (pop may have deleted the key and its TTL)
+    if let Some(ttl) = saved_ttl {
+        db.ttl.insert(dst.clone(), ttl);
+    }
+
     Frame::Bulk(val.into())
 }
 
 /// LMOVE source destination LEFT|RIGHT LEFT|RIGHT
 fn cmd_lmove(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 4 {
-        return Frame::error(err_wrong_number("lmove"));
-    }
-
     let src = String::from_utf8_lossy(&args[0]).into_owned();
     let dst = String::from_utf8_lossy(&args[1]).into_owned();
     let src_dir = String::from_utf8_lossy(&args[2]).to_uppercase();
@@ -578,6 +552,13 @@ fn cmd_lmove(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
         return Frame::error(MSG_WRONG_TYPE);
     }
 
+    // Save TTL when src == dst so we can restore it after pop+push cycle
+    let saved_ttl = if src == dst {
+        db.ttl.get(&src).cloned()
+    } else {
+        None
+    };
+
     let val = if pop_left {
         db.list_lpop(&src, now)
     } else {
@@ -591,6 +572,10 @@ fn cmd_lmove(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
             } else {
                 db.list_rpush(&dst, std::slice::from_ref(&v), now);
             }
+            // Restore TTL if src == dst (pop may have deleted the key and its TTL)
+            if let Some(ttl) = saved_ttl {
+                db.ttl.insert(dst.clone(), ttl);
+            }
             Frame::Bulk(v.into())
         }
         None => Frame::Null,
@@ -601,10 +586,6 @@ fn cmd_lmove(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// LPOS key element [RANK rank] [COUNT count] [MAXLEN maxlen]
 fn cmd_lpos(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("lpos"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let element = &args[1];
     let mut rank: i64 = 1;
@@ -638,9 +619,8 @@ fn cmd_lpos(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
                     return Frame::error(MSG_SYNTAX_ERROR);
                 }
                 match parse_int(&args[i]) {
-                    Some(n) if n < 0 => return Frame::error("ERR COUNT can't be negative"),
-                    Some(n) => count = Some(n),
-                    None => return Frame::error(MSG_INVALID_INT),
+                    Some(n) if n >= 0 => count = Some(n),
+                    _ => return Frame::error("ERR COUNT can't be negative"),
                 }
             }
             "MAXLEN" => {
@@ -649,9 +629,8 @@ fn cmd_lpos(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
                     return Frame::error(MSG_SYNTAX_ERROR);
                 }
                 match parse_int(&args[i]) {
-                    Some(n) if n < 0 => return Frame::error("ERR MAXLEN can't be negative"),
-                    Some(n) => maxlen = n,
-                    None => return Frame::error(MSG_INVALID_INT),
+                    Some(n) if n >= 0 => maxlen = n,
+                    _ => return Frame::error("ERR MAXLEN can't be negative"),
                 }
             }
             _ => return Frame::error(MSG_SYNTAX_ERROR),
@@ -736,8 +715,9 @@ fn cmd_lpos(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// BLPOP key [key ...] timeout — non-blocking attempt (for MULTI/EXEC)
 pub fn cmd_blpop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("blpop"));
+    // Last arg is timeout — validate it
+    if let Some(err) = validate_timeout(&args[args.len() - 1]) {
+        return err;
     }
 
     // Last arg is timeout, keys are all but last
@@ -761,13 +741,14 @@ pub fn cmd_blpop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) 
         }
     }
 
-    Frame::Null
+    Frame::NullArray
 }
 
 /// BRPOP key [key ...] timeout — non-blocking attempt (for MULTI/EXEC)
 pub fn cmd_brpop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("brpop"));
+    // Last arg is timeout — validate it
+    if let Some(err) = validate_timeout(&args[args.len() - 1]) {
+        return err;
     }
 
     let keys = &args[..args.len() - 1];
@@ -790,13 +771,14 @@ pub fn cmd_brpop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) 
         }
     }
 
-    Frame::Null
+    Frame::NullArray
 }
 
 /// BRPOPLPUSH source destination timeout — non-blocking attempt
 pub fn cmd_brpoplpush(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("brpoplpush"));
+    // Last arg is timeout — validate it
+    if let Some(err) = validate_timeout(&args[2]) {
+        return err;
     }
 
     let src = String::from_utf8_lossy(&args[0]).into_owned();
@@ -830,10 +812,6 @@ pub fn cmd_brpoplpush(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u
 
 /// BLMOVE source destination LEFT|RIGHT LEFT|RIGHT timeout — non-blocking attempt
 pub fn cmd_blmove(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 5 {
-        return Frame::error(err_wrong_number("blmove"));
-    }
-
     let src = String::from_utf8_lossy(&args[0]).into_owned();
     let dst = String::from_utf8_lossy(&args[1]).into_owned();
     let src_dir = String::from_utf8_lossy(&args[2]).to_uppercase();
@@ -849,6 +827,10 @@ pub fn cmd_blmove(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
         "RIGHT" => false,
         _ => return Frame::error(MSG_SYNTAX_ERROR),
     };
+
+    if let Some(err) = validate_timeout(&args[4]) {
+        return err;
+    }
 
     let mut inner = state.lock();
     let now = inner.effective_now();
@@ -867,6 +849,13 @@ pub fn cmd_blmove(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
         return Frame::error(MSG_WRONG_TYPE);
     }
 
+    // Save TTL when src == dst so we can restore it after pop+push cycle
+    let saved_ttl = if src == dst {
+        db.ttl.get(&src).cloned()
+    } else {
+        None
+    };
+
     let val = if pop_left {
         db.list_lpop(&src, now)
     } else {
@@ -879,6 +868,10 @@ pub fn cmd_blmove(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
                 db.list_lpush(&dst, std::slice::from_ref(&v), now);
             } else {
                 db.list_rpush(&dst, std::slice::from_ref(&v), now);
+            }
+            // Restore TTL if src == dst
+            if let Some(ttl) = saved_ttl {
+                db.ttl.insert(dst.clone(), ttl);
             }
             Frame::Bulk(v.into())
         }
@@ -907,4 +900,19 @@ fn redis_range(start: i64, end: i64, len: i64) -> (i64, i64) {
     }
 
     (s, e)
+}
+
+/// Validate a blocking command timeout argument.
+/// Returns Some(Frame) with error if invalid, None if OK.
+fn validate_timeout(arg: &[u8]) -> Option<Frame> {
+    let s = String::from_utf8_lossy(arg);
+    let s_lower = s.to_lowercase();
+    if s_lower == "inf" || s_lower == "+inf" || s_lower == "-inf" {
+        return Some(Frame::error(MSG_TIMEOUT_IS_OUT_OF_RANGE));
+    }
+    match s.parse::<f64>() {
+        Ok(t) if t < 0.0 => Some(Frame::error(MSG_TIMEOUT_NEGATIVE)),
+        Ok(_) => None,
+        Err(_) => Some(Frame::error(MSG_INVALID_TIMEOUT)),
+    }
 }

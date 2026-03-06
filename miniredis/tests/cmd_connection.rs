@@ -41,7 +41,7 @@ async fn test_select() {
     // SELECT out of range
     must_fail!(c, "SELECT", "16"; "DB index is out of range");
     must_fail!(c, "SELECT", "-1"; "DB index is out of range");
-    must_fail!(c, "SELECT", "notanumber"; "DB index is out of range");
+    must_fail!(c, "SELECT", "notanumber"; "not an integer");
 
     // Wrong number of args
     must_fail!(c, "SELECT"; "wrong number of arguments");

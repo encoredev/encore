@@ -13,32 +13,32 @@ use crate::frame::Frame;
 use crate::types::KeyType;
 
 pub fn register(table: &mut CommandTable) {
-    table.add("GET", cmd_get, true);
-    table.add("SET", cmd_set, false);
-    table.add("SETNX", cmd_setnx, false);
-    table.add("GETSET", cmd_getset, false);
-    table.add("SETEX", cmd_setex, false);
-    table.add("PSETEX", cmd_psetex, false);
-    table.add("MGET", cmd_mget, true);
-    table.add("MSET", cmd_mset, false);
-    table.add("MSETNX", cmd_msetnx, false);
-    table.add("INCR", cmd_incr, false);
-    table.add("INCRBY", cmd_incrby, false);
-    table.add("INCRBYFLOAT", cmd_incrbyfloat, false);
-    table.add("DECR", cmd_decr, false);
-    table.add("DECRBY", cmd_decrby, false);
-    table.add("STRLEN", cmd_strlen, true);
-    table.add("APPEND", cmd_append, false);
-    table.add("GETRANGE", cmd_getrange, true);
-    table.add("SUBSTR", cmd_getrange, true); // alias
-    table.add("SETRANGE", cmd_setrange, false);
-    table.add("GETDEL", cmd_getdel, false);
-    table.add("GETEX", cmd_getex, false);
-    table.add("GETBIT", cmd_getbit, true);
-    table.add("SETBIT", cmd_setbit, false);
-    table.add("BITCOUNT", cmd_bitcount, true);
-    table.add("BITOP", cmd_bitop, false);
-    table.add("BITPOS", cmd_bitpos, true);
+    table.add("GET", cmd_get, true, 2);
+    table.add("SET", cmd_set, false, -3);
+    table.add("SETNX", cmd_setnx, false, 3);
+    table.add("GETSET", cmd_getset, false, 3);
+    table.add("SETEX", cmd_setex, false, 4);
+    table.add("PSETEX", cmd_psetex, false, 4);
+    table.add("MGET", cmd_mget, true, -2);
+    table.add("MSET", cmd_mset, false, -3);
+    table.add("MSETNX", cmd_msetnx, false, -3);
+    table.add("INCR", cmd_incr, false, 2);
+    table.add("INCRBY", cmd_incrby, false, 3);
+    table.add("INCRBYFLOAT", cmd_incrbyfloat, false, 3);
+    table.add("DECR", cmd_decr, false, 2);
+    table.add("DECRBY", cmd_decrby, false, 3);
+    table.add("STRLEN", cmd_strlen, true, 2);
+    table.add("APPEND", cmd_append, false, 3);
+    table.add("GETRANGE", cmd_getrange, true, 4);
+    table.add("SUBSTR", cmd_getrange, true, 4); // alias
+    table.add("SETRANGE", cmd_setrange, false, 4);
+    table.add("GETDEL", cmd_getdel, false, 2);
+    table.add("GETEX", cmd_getex, false, -2);
+    table.add("GETBIT", cmd_getbit, true, 3);
+    table.add("SETBIT", cmd_setbit, false, 4);
+    table.add("BITCOUNT", cmd_bitcount, true, -2);
+    table.add("BITOP", cmd_bitop, false, -4);
+    table.add("BITPOS", cmd_bitpos, true, -3);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -82,10 +82,6 @@ fn string_incr(
 
 /// GET key
 fn cmd_get(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("get"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -105,10 +101,6 @@ fn cmd_get(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fra
 
 /// SET key value [EX seconds] [PX milliseconds] [NX|XX] [KEEPTTL] [GET]
 fn cmd_set(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("set"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let value = args[1].clone();
 
@@ -117,12 +109,17 @@ fn cmd_set(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fra
     let mut xx = false;
     let mut keepttl = false;
     let mut get = false;
+    let mut expire_opt_set = false; // Track if any EX/PX/EXAT/PXAT was already set
 
     let mut i = 2;
     while i < args.len() {
         let opt = String::from_utf8_lossy(&args[i]).to_uppercase();
         match opt.as_str() {
             "EX" => {
+                if expire_opt_set {
+                    return Frame::error(MSG_SYNTAX_ERROR);
+                }
+                expire_opt_set = true;
                 i += 1;
                 if i >= args.len() {
                     return Frame::error(MSG_SYNTAX_ERROR);
@@ -137,6 +134,10 @@ fn cmd_set(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fra
                 ex = Some(Duration::from_secs(secs as u64));
             }
             "PX" => {
+                if expire_opt_set {
+                    return Frame::error(MSG_SYNTAX_ERROR);
+                }
+                expire_opt_set = true;
                 i += 1;
                 if i >= args.len() {
                     return Frame::error(MSG_SYNTAX_ERROR);
@@ -151,6 +152,10 @@ fn cmd_set(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fra
                 ex = Some(Duration::from_millis(ms as u64));
             }
             "EXAT" => {
+                if expire_opt_set {
+                    return Frame::error(MSG_SYNTAX_ERROR);
+                }
+                expire_opt_set = true;
                 i += 1;
                 if i >= args.len() {
                     return Frame::error(MSG_SYNTAX_ERROR);
@@ -172,6 +177,10 @@ fn cmd_set(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fra
                 drop(inner);
             }
             "PXAT" => {
+                if expire_opt_set {
+                    return Frame::error(MSG_SYNTAX_ERROR);
+                }
+                expire_opt_set = true;
                 i += 1;
                 if i >= args.len() {
                     return Frame::error(MSG_SYNTAX_ERROR);
@@ -250,10 +259,6 @@ fn cmd_set(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fra
 
 /// SETNX key value
 fn cmd_setnx(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("setnx"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let value = args[1].clone();
     let mut inner = state.lock();
@@ -272,10 +277,6 @@ fn cmd_setnx(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// SETEX key seconds value
 fn cmd_setex(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("setex"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let secs: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -297,10 +298,6 @@ fn cmd_setex(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// PSETEX key milliseconds value
 fn cmd_psetex(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("psetex"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let ms: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -322,10 +319,6 @@ fn cmd_psetex(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// GETSET key value
 fn cmd_getset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("getset"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let value = args[1].clone();
     let mut inner = state.lock();
@@ -351,10 +344,6 @@ fn cmd_getset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// MGET key [key ...]
 fn cmd_mget(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("mget"));
-    }
-
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
     let mut results = Vec::with_capacity(args.len());
@@ -379,7 +368,7 @@ fn cmd_mget(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// MSET key value [key value ...]
 fn cmd_mset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 || !args.len().is_multiple_of(2) {
+    if !args.len().is_multiple_of(2) {
         return Frame::error(err_wrong_number("mset"));
     }
 
@@ -399,7 +388,7 @@ fn cmd_mset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// MSETNX key value [key value ...]
 fn cmd_msetnx(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 || !args.len().is_multiple_of(2) {
+    if !args.len().is_multiple_of(2) {
         return Frame::error(err_wrong_number("msetnx"));
     }
 
@@ -427,9 +416,6 @@ fn cmd_msetnx(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// INCR key
 fn cmd_incr(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("incr"));
-    }
     let key = String::from_utf8_lossy(&args[0]);
     match string_incr(state, ctx, &key, 1) {
         Ok(n) => Frame::Integer(n),
@@ -439,9 +425,6 @@ fn cmd_incr(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// INCRBY key increment
 fn cmd_incrby(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("incrby"));
-    }
     let key = String::from_utf8_lossy(&args[0]);
     let delta: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -455,16 +438,15 @@ fn cmd_incrby(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// INCRBYFLOAT key increment
 fn cmd_incrbyfloat(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("incrbyfloat"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
-    let delta: f64 = match String::from_utf8_lossy(&args[1]).parse() {
+    let delta_str = String::from_utf8_lossy(&args[1]).into_owned();
+
+    // Validate by parsing as f64 first
+    let delta_f64: f64 = match delta_str.parse() {
         Ok(n) => n,
         Err(_) => return Frame::error(MSG_INVALID_FLOAT),
     };
-    if delta.is_nan() || delta.is_infinite() {
+    if delta_f64.is_nan() || delta_f64.is_infinite() {
         return Frame::error(MSG_INVALID_FLOAT);
     }
 
@@ -479,30 +461,33 @@ fn cmd_incrbyfloat(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]
         return Frame::error(MSG_WRONG_TYPE);
     }
 
-    let current: f64 = match db.string_get(&key) {
-        Some(v) => match String::from_utf8_lossy(v).parse::<f64>() {
-            Ok(n) => n,
-            Err(_) => return Frame::error(MSG_INVALID_FLOAT),
-        },
-        None => 0.0,
+    let current_str = match db.string_get(&key) {
+        Some(v) => {
+            let s = String::from_utf8_lossy(v).into_owned();
+            // Validate it's a float
+            if s.parse::<f64>().is_err() {
+                return Frame::error(MSG_INVALID_FLOAT);
+            }
+            s
+        }
+        None => "0".to_string(),
     };
 
-    let new_val = current + delta;
-    if new_val.is_infinite() {
+    let formatted = decimal_add_format(&current_str, &delta_str);
+
+    // Validate result is not infinite
+    if let Ok(v) = formatted.parse::<f64>()
+        && v.is_infinite()
+    {
         return Frame::error(MSG_INT_OVERFLOW);
     }
 
-    // Format like Redis: remove trailing zeros, but always have at least one decimal
-    let formatted = format_float(new_val);
     db.string_set(&key, formatted.as_bytes().to_vec(), now);
     Frame::Bulk(formatted.into_bytes().into())
 }
 
 /// DECR key
 fn cmd_decr(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("decr"));
-    }
     let key = String::from_utf8_lossy(&args[0]);
     match string_incr(state, ctx, &key, -1) {
         Ok(n) => Frame::Integer(n),
@@ -512,9 +497,6 @@ fn cmd_decr(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// DECRBY key decrement
 fn cmd_decrby(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("decrby"));
-    }
     let key = String::from_utf8_lossy(&args[0]);
     let delta: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -528,10 +510,6 @@ fn cmd_decrby(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// STRLEN key
 fn cmd_strlen(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("strlen"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -551,10 +529,6 @@ fn cmd_strlen(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// APPEND key value
 fn cmd_append(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("append"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let value = &args[1];
 
@@ -578,10 +552,6 @@ fn cmd_append(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// GETRANGE key start end (also aliased as SUBSTR)
 fn cmd_getrange(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("getrange"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let start: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -618,10 +588,6 @@ fn cmd_getrange(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -
 
 /// SETRANGE key offset value
 fn cmd_setrange(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("setrange"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let offset: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -661,10 +627,6 @@ fn cmd_setrange(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -
 
 /// GETDEL key
 fn cmd_getdel(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("getdel"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -691,10 +653,6 @@ fn cmd_getdel(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// GETEX key [PERSIST | EX seconds | PX ms | EXAT ts | PXAT ts]
 fn cmd_getex(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("getex"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
 
     // Parse options
@@ -860,14 +818,118 @@ pub fn format_float(v: f64) -> String {
     s.to_string()
 }
 
+/// Add two decimal numbers (as strings) and format the result like Redis does.
+/// Uses fixed-point i128 arithmetic with 17 decimal places to match
+/// Go miniredis's big.Float(128-bit) + fmt.Sprintf("%.17f") behavior.
+pub fn decimal_add_format(a: &str, b: &str) -> String {
+    const PREC: u32 = 17;
+    let scale: i128 = 10i128.pow(PREC);
+
+    let a_fixed = match parse_decimal_fixed(a, PREC) {
+        Some(v) => v,
+        None => {
+            // Fall back to f64 for values we can't parse (e.g., very large scientific notation)
+            let af: f64 = a.parse().unwrap_or(0.0);
+            let bf: f64 = b.parse().unwrap_or(0.0);
+            return format_float(af + bf);
+        }
+    };
+    let b_fixed = match parse_decimal_fixed(b, PREC) {
+        Some(v) => v,
+        None => {
+            let af: f64 = a.parse().unwrap_or(0.0);
+            let bf: f64 = b.parse().unwrap_or(0.0);
+            return format_float(af + bf);
+        }
+    };
+
+    let sum = a_fixed + b_fixed;
+
+    // Format as decimal with PREC decimal places, then strip trailing zeros
+    let negative = sum < 0;
+    let abs = sum.unsigned_abs();
+    let int_part = abs / scale as u128;
+    let frac_part = abs % scale as u128;
+
+    let mut s = if frac_part == 0 {
+        format!("{}", int_part)
+    } else {
+        let frac_str = format!("{:017}", frac_part);
+        let trimmed = frac_str.trim_end_matches('0');
+        format!("{}.{}", int_part, trimmed)
+    };
+
+    if negative && s != "0" {
+        s.insert(0, '-');
+    }
+    s
+}
+
+/// Parse a decimal string (possibly with scientific notation) into fixed-point i128.
+/// Returns value * 10^prec. Returns None if the value would overflow i128.
+fn parse_decimal_fixed(s: &str, prec: u32) -> Option<i128> {
+    let s = s.trim();
+    let (negative, s) = if let Some(s) = s.strip_prefix('-') {
+        (true, s)
+    } else if let Some(s) = s.strip_prefix('+') {
+        (false, s)
+    } else {
+        (false, s)
+    };
+
+    // Handle scientific notation: split on 'e' or 'E'
+    let (mantissa, exp) = if let Some(pos) = s.find(['e', 'E']) {
+        let exp: i32 = s[pos + 1..].parse().ok()?;
+        (&s[..pos], exp)
+    } else {
+        (s, 0)
+    };
+
+    // Split mantissa into integer and fractional parts
+    let (int_str, frac_str) = if let Some(dot) = mantissa.find('.') {
+        (&mantissa[..dot], &mantissa[dot + 1..])
+    } else {
+        (mantissa, "")
+    };
+
+    // Build the full digit string: integer + fractional digits
+    let mut digits = String::with_capacity(int_str.len() + frac_str.len());
+    digits.push_str(int_str);
+    digits.push_str(frac_str);
+
+    // The implicit decimal point is after int_str.len() digits.
+    // The exponent shifts it by exp positions to the right.
+    // We need prec digits after the decimal point.
+    // Position of decimal point from the left: int_str.len() + exp
+    // We need total_digits = decimal_point_pos + prec digits total (with zero-padding)
+    let decimal_point = int_str.len() as i32 + exp;
+    let total_needed = decimal_point + prec as i32;
+
+    if total_needed < 0 {
+        // Result is too small, rounds to 0
+        return Some(0);
+    }
+
+    // Pad or truncate digits to total_needed length
+    let total_needed = total_needed as usize;
+    while digits.len() < total_needed {
+        digits.push('0');
+    }
+    // If we have more digits than needed, truncate (rounding towards zero)
+    digits.truncate(total_needed);
+
+    if digits.is_empty() {
+        return Some(0);
+    }
+
+    let value: i128 = digits.parse().ok()?;
+    Some(if negative { -value } else { value })
+}
+
 // ── Bit operations ───────────────────────────────────────────────────
 
 /// GETBIT key offset
 fn cmd_getbit(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("getbit"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let offset: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -902,10 +964,6 @@ fn cmd_getbit(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// SETBIT key offset value
 fn cmd_setbit(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("setbit"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let offset: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -958,10 +1016,6 @@ fn cmd_setbit(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// BITCOUNT key [start end [BYTE|BIT]]
 fn cmd_bitcount(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("bitcount"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
 
     let mut inner = state.lock();
@@ -1047,6 +1101,9 @@ fn bitcount_range(start: i64, end: i64, len: i64) -> (i64, i64) {
     if s < 0 {
         s = 0;
     }
+    if e < 0 {
+        e = 0;
+    }
     if e >= len {
         e = len - 1;
     }
@@ -1055,10 +1112,6 @@ fn bitcount_range(start: i64, end: i64, len: i64) -> (i64, i64) {
 
 /// BITOP operation destkey key [key ...]
 fn cmd_bitop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number("bitop"));
-    }
-
     let op = String::from_utf8_lossy(&args[0]).to_uppercase();
     let dest = String::from_utf8_lossy(&args[1]).into_owned();
     let src_keys: Vec<String> = args[2..]
@@ -1067,7 +1120,7 @@ fn cmd_bitop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
         .collect();
 
     if op == "NOT" && src_keys.len() != 1 {
-        return Frame::error("ERR BITOP NOT requires one and only one key");
+        return Frame::error("ERR BITOP NOT must be called with a single source key.");
     }
 
     let mut inner = state.lock();
@@ -1130,16 +1183,17 @@ fn cmd_bitop(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
     }
 
     let len = result.len() as i64;
-    db.string_set(&dest, result, now);
+    if result.is_empty() {
+        // No source data → delete destination key (like Redis)
+        db.del(&dest);
+    } else {
+        db.string_set(&dest, result, now);
+    }
     Frame::Integer(len)
 }
 
 /// BITPOS key bit [start [end [BYTE|BIT]]]
 fn cmd_bitpos(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("bitpos"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let target_bit: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -1160,15 +1214,14 @@ fn cmd_bitpos(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
         return Frame::error(MSG_WRONG_TYPE);
     }
 
+    let key_exists = db.keys.contains_key(key.as_ref());
     let val = db.string_get(&key).cloned().unwrap_or_default();
     if val.is_empty() {
-        // Empty key: if looking for 0, return 0 (Redis returns 0 for BITPOS of 0 on empty).
-        // If looking for 1, return -1.
-        return if target == 0 {
-            Frame::Integer(0)
-        } else {
-            Frame::Integer(-1)
-        };
+        if !key_exists && target == 0 {
+            // Non-existent key: virtual infinite zeros, first 0-bit at position 0
+            return Frame::Integer(0);
+        }
+        return Frame::Integer(-1);
     }
 
     let has_range = args.len() > 2;

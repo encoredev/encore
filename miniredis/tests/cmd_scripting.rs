@@ -421,13 +421,13 @@ async fn test_eval_call_errors() {
     let (_m, mut c) = start().await;
 
     // redis.call() with no args
-    must_fail!(c, "EVAL", "redis.call()", "0"; "Error compiling script");
+    must_fail!(c, "EVAL", "redis.call()", "0"; "Please specify at least one argument");
 
     // redis.call with table arg
-    must_fail!(c, "EVAL", "redis.call({})", "0"; "Error compiling script");
+    must_fail!(c, "EVAL", "redis.call({})", "0"; "must be strings or integers");
 
-    // redis.call with number arg
-    must_fail!(c, "EVAL", "redis.call(1)", "0"; "Error compiling script");
+    // redis.call with number arg (number as command name is treated as string "1")
+    must_fail!(c, "EVAL", "redis.call(1)", "0"; "Unknown Redis command");
 }
 
 // ── redis.log() ──────────────────────────────────────────────────────

@@ -16,28 +16,28 @@ use crate::types::KeyType;
 use super::parse_int;
 
 pub fn register(table: &mut CommandTable) {
-    table.add("HSET", cmd_hset, false);
-    table.add("HSETNX", cmd_hsetnx, false);
-    table.add("HMSET", cmd_hmset, false);
-    table.add("HGET", cmd_hget, true);
-    table.add("HMGET", cmd_hmget, true);
-    table.add("HDEL", cmd_hdel, false);
-    table.add("HEXISTS", cmd_hexists, true);
-    table.add("HGETALL", cmd_hgetall, true);
-    table.add("HKEYS", cmd_hkeys, true);
-    table.add("HVALS", cmd_hvals, true);
-    table.add("HLEN", cmd_hlen, true);
-    table.add("HINCRBY", cmd_hincrby, false);
-    table.add("HINCRBYFLOAT", cmd_hincrbyfloat, false);
-    table.add("HSTRLEN", cmd_hstrlen, true);
-    table.add("HSCAN", cmd_hscan, true);
-    table.add("HRANDFIELD", cmd_hrandfield, true);
-    table.add("HEXPIRE", cmd_hexpire, false);
+    table.add("HSET", cmd_hset, false, -4);
+    table.add("HSETNX", cmd_hsetnx, false, 4);
+    table.add("HMSET", cmd_hmset, false, -4);
+    table.add("HGET", cmd_hget, true, 3);
+    table.add("HMGET", cmd_hmget, true, -3);
+    table.add("HDEL", cmd_hdel, false, -3);
+    table.add("HEXISTS", cmd_hexists, true, 3);
+    table.add("HGETALL", cmd_hgetall, true, 2);
+    table.add("HKEYS", cmd_hkeys, true, 2);
+    table.add("HVALS", cmd_hvals, true, 2);
+    table.add("HLEN", cmd_hlen, true, 2);
+    table.add("HINCRBY", cmd_hincrby, false, 4);
+    table.add("HINCRBYFLOAT", cmd_hincrbyfloat, false, 4);
+    table.add("HSTRLEN", cmd_hstrlen, true, 3);
+    table.add("HSCAN", cmd_hscan, true, -3);
+    table.add("HRANDFIELD", cmd_hrandfield, true, -2);
+    table.add("HEXPIRE", cmd_hexpire, false, -6);
 }
 
 /// HSET key field value [field value ...]
 fn cmd_hset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 3 || args.len().is_multiple_of(2) {
+    if args.len().is_multiple_of(2) {
         return Frame::error(err_wrong_number("hset"));
     }
 
@@ -64,10 +64,6 @@ fn cmd_hset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// HSETNX key field value
 fn cmd_hsetnx(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("hsetnx"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let field = String::from_utf8_lossy(&args[1]).into_owned();
     let value = args[2].clone();
@@ -96,7 +92,7 @@ fn cmd_hsetnx(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// HMSET key field value [field value ...]
 fn cmd_hmset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 3 || args.len().is_multiple_of(2) {
+    if args.len().is_multiple_of(2) {
         return Frame::error(err_wrong_number("hmset"));
     }
 
@@ -123,10 +119,6 @@ fn cmd_hmset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// HGET key field
 fn cmd_hget(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("hget"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let field = String::from_utf8_lossy(&args[1]);
 
@@ -148,10 +140,6 @@ fn cmd_hget(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// HMGET key field [field ...]
 fn cmd_hmget(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("hmget"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -177,10 +165,6 @@ fn cmd_hmget(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// HDEL key field [field ...]
 fn cmd_hdel(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("hdel"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let mut inner = state.lock();
     let now = inner.effective_now();
@@ -208,10 +192,6 @@ fn cmd_hdel(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// HEXISTS key field
 fn cmd_hexists(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("hexists"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let field = String::from_utf8_lossy(&args[1]);
 
@@ -233,10 +213,6 @@ fn cmd_hexists(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) ->
 
 /// HGETALL key
 fn cmd_hgetall(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("hgetall"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -271,10 +247,6 @@ fn cmd_hgetall(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) ->
 
 /// HKEYS key
 fn cmd_hkeys(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("hkeys"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -292,10 +264,6 @@ fn cmd_hkeys(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// HVALS key
 fn cmd_hvals(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("hvals"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -313,10 +281,6 @@ fn cmd_hvals(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// HLEN key
 fn cmd_hlen(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("hlen"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -334,10 +298,6 @@ fn cmd_hlen(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// HINCRBY key field increment
 fn cmd_hincrby(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("hincrby"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let field = String::from_utf8_lossy(&args[1]).into_owned();
     let delta: i64 = match String::from_utf8_lossy(&args[2]).parse() {
@@ -377,17 +337,16 @@ fn cmd_hincrby(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) ->
 
 /// HINCRBYFLOAT key field increment
 fn cmd_hincrbyfloat(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("hincrbyfloat"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let field = String::from_utf8_lossy(&args[1]).into_owned();
-    let delta: f64 = match String::from_utf8_lossy(&args[2]).parse() {
+    let delta_str = String::from_utf8_lossy(&args[2]).into_owned();
+
+    // Validate by parsing as f64
+    let delta_f64: f64 = match delta_str.parse() {
         Ok(n) => n,
         Err(_) => return Frame::error(MSG_INVALID_FLOAT),
     };
-    if delta.is_nan() || delta.is_infinite() {
+    if delta_f64.is_nan() || delta_f64.is_infinite() {
         return Frame::error(MSG_INVALID_FLOAT);
     }
 
@@ -402,26 +361,24 @@ fn cmd_hincrbyfloat(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>
         return Frame::error(MSG_WRONG_TYPE);
     }
 
-    let current: f64 = match db.hash_get(&key, &field) {
-        Some(v) => match String::from_utf8_lossy(v).parse::<f64>() {
-            Ok(n) => n,
-            Err(_) => return Frame::error(MSG_INVALID_FLOAT),
-        },
-        None => 0.0,
+    let current_str = match db.hash_get(&key, &field) {
+        Some(v) => {
+            let s = String::from_utf8_lossy(v).into_owned();
+            if s.parse::<f64>().is_err() {
+                return Frame::error(MSG_INVALID_FLOAT);
+            }
+            s
+        }
+        None => "0".to_string(),
     };
 
-    let new_val = current + delta;
-    let formatted = crate::cmd::string::format_float(new_val);
+    let formatted = crate::cmd::string::decimal_add_format(&current_str, &delta_str);
     db.hash_set(&key, &[(field, formatted.as_bytes().to_vec())], now);
     Frame::Bulk(formatted.into_bytes().into())
 }
 
 /// HSTRLEN key field
 fn cmd_hstrlen(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("hstrlen"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let field = String::from_utf8_lossy(&args[1]);
 
@@ -443,10 +400,6 @@ fn cmd_hstrlen(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) ->
 
 /// HSCAN key cursor [MATCH pattern] [COUNT count]
 fn cmd_hscan(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("hscan"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let _cursor: i64 = match parse_int(&args[1]) {
         Some(n) => n,
@@ -485,7 +438,7 @@ fn cmd_hscan(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// HRANDFIELD key [count [WITHVALUES]]
 fn cmd_hrandfield(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() || args.len() > 3 {
+    if args.len() > 3 {
         return Frame::error(err_wrong_number("hrandfield"));
     }
 
@@ -579,10 +532,6 @@ fn cmd_hrandfield(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
 
 /// HEXPIRE key seconds [NX|XX|GT|LT] FIELDS numfields field [field ...]
 fn cmd_hexpire(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 4 {
-        return Frame::error(err_wrong_number("hexpire"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let ttl_secs: i64 = match parse_int(&args[1]) {
         Some(n) => n,

@@ -85,6 +85,9 @@ pub type CommandHandler =
 pub struct CommandMeta {
     pub handler: CommandHandler,
     pub read_only: bool,
+    /// Redis arity. Positive = exact arg count (including cmd name).
+    /// Negative = minimum arg count. Zero = skip check.
+    pub arity: i32,
 }
 
 /// The command dispatch table.
@@ -126,10 +129,24 @@ impl CommandTable {
         table
     }
 
-    /// Register a command.
-    pub fn add(&mut self, name: &'static str, handler: CommandHandler, read_only: bool) {
-        self.commands
-            .insert(name, CommandMeta { handler, read_only });
+    /// Register a command with arity.
+    /// Arity follows Redis convention: positive = exact arg count (incl. cmd name),
+    /// negative = minimum arg count, zero = skip check.
+    pub fn add(
+        &mut self,
+        name: &'static str,
+        handler: CommandHandler,
+        read_only: bool,
+        arity: i32,
+    ) {
+        self.commands.insert(
+            name,
+            CommandMeta {
+                handler,
+                read_only,
+                arity,
+            },
+        );
     }
 
     /// Look up a command by name (uppercase).
@@ -163,21 +180,80 @@ pub fn dispatch(
     let cmd = String::from_utf8_lossy(&args[0]).to_uppercase();
     let cmd_args = &args[1..];
 
-    // Check auth
-    if !ctx.authenticated {
-        let inner = state.lock();
-        if !inner.passwords.is_empty() && cmd != "AUTH" && cmd != "HELLO" && cmd != "QUIT" {
-            return (Frame::error("NOAUTH Authentication required."), false);
-        }
-    }
-
-    // Handle MULTI/EXEC/DISCARD specially — they're not queued
+    // Handle MULTI/EXEC/DISCARD specially — they're not queued.
+    // Note: the MULTI path only runs when authenticated (you can't enter MULTI
+    // without being authenticated), so no auth check is needed here.
     if ctx.in_tx() && cmd != "EXEC" && cmd != "DISCARD" && cmd != "MULTI" && cmd != "WATCH" {
         // Validate the command exists before queueing
-        if table.get(&cmd).is_none() {
-            ctx.dirty_transaction = true;
-            return (Frame::error(err_unknown_command(&cmd, cmd_args)), false);
+        let meta = match table.get(&cmd) {
+            Some(m) => m,
+            None => {
+                ctx.dirty_transaction = true;
+                return (Frame::error(err_unknown_command(&cmd, cmd_args)), false);
+            }
+        };
+
+        // Validate arity before queueing (Redis checks this before QUEUED)
+        if meta.arity != 0 {
+            let n = args.len() as i32;
+            let bad = if meta.arity > 0 {
+                n != meta.arity
+            } else {
+                n < -meta.arity
+            };
+            if bad {
+                ctx.dirty_transaction = true;
+                return (Frame::error(err_wrong_number(&cmd.to_lowercase())), false);
+            }
         }
+
+        // Special case: validate SCRIPT subcommands before queueing.
+        // Real Redis (and Go miniredis) rejects unknown subcommands immediately.
+        if cmd == "SCRIPT" && !cmd_args.is_empty() {
+            let subcmd = String::from_utf8_lossy(&cmd_args[0]).to_uppercase();
+            if !["LOAD", "EXISTS", "FLUSH"].contains(&subcmd.as_str()) {
+                ctx.dirty_transaction = true;
+                return (
+                    Frame::error(format!(
+                        "ERR unknown subcommand '{}'. Try SCRIPT HELP.",
+                        subcmd
+                    )),
+                    false,
+                );
+            }
+        }
+
+        // Special case: validate OBJECT subcommand arity before queueing.
+        if cmd == "OBJECT" && !cmd_args.is_empty() {
+            let subcmd = String::from_utf8_lossy(&cmd_args[0]).to_uppercase();
+            match subcmd.as_str() {
+                "ENCODING" | "IDLETIME" | "REFCOUNT" | "FREQ" => {
+                    // These subcommands require exactly 1 additional arg (the key)
+                    if cmd_args.len() != 2 {
+                        ctx.dirty_transaction = true;
+                        return (
+                            Frame::error(err_wrong_number(&format!(
+                                "object|{}",
+                                subcmd.to_lowercase()
+                            ))),
+                            false,
+                        );
+                    }
+                }
+                "HELP" => {}
+                _ => {
+                    ctx.dirty_transaction = true;
+                    return (
+                        Frame::error(format!(
+                            "ERR unknown subcommand or wrong number of arguments for 'object|{}' command",
+                            subcmd.to_lowercase()
+                        )),
+                        false,
+                    );
+                }
+            }
+        }
+
         // Queue the command
         if let Some(ref mut tx) = ctx.transaction {
             tx.push(crate::connection::QueuedCommand {
@@ -196,9 +272,37 @@ pub fn dispatch(
     let meta = match table.get(&cmd) {
         Some(m) => m,
         None => {
+            // Unknown commands: check auth before returning unknown error
+            if !ctx.authenticated {
+                let inner = state.lock();
+                if !inner.passwords.is_empty() {
+                    return (Frame::error("NOAUTH Authentication required."), false);
+                }
+            }
             return (Frame::error(err_unknown_command(&cmd, cmd_args)), false);
         }
     };
+
+    // Validate arity before auth (Redis checks arity first)
+    if meta.arity != 0 {
+        let n = args.len() as i32;
+        let bad = if meta.arity > 0 {
+            n != meta.arity
+        } else {
+            n < -meta.arity
+        };
+        if bad {
+            return (Frame::error(err_wrong_number(&cmd.to_lowercase())), false);
+        }
+    }
+
+    // Check auth (after arity validation)
+    if !ctx.authenticated {
+        let inner = state.lock();
+        if !inner.passwords.is_empty() && cmd != "AUTH" && cmd != "HELLO" && cmd != "QUIT" {
+            return (Frame::error("NOAUTH Authentication required."), false);
+        }
+    }
 
     // Execute the command under the lock
     let response = with_lock(state, ctx, meta.handler, cmd_args);
@@ -254,7 +358,7 @@ fn cmd_exec(
                 // WATCH detected a change — abort.
                 ctx.transaction = None;
                 ctx.watch.clear();
-                return Frame::Null;
+                return Frame::NullArray;
             }
         }
     }

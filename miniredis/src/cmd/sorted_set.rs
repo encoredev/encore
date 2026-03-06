@@ -16,33 +16,33 @@ use crate::frame::Frame;
 use crate::types::{Direction, SSElem, SortedSet};
 
 pub fn register(table: &mut CommandTable) {
-    table.add("ZADD", cmd_zadd, false);
-    table.add("ZCARD", cmd_zcard, true);
-    table.add("ZCOUNT", cmd_zcount, true);
-    table.add("ZINCRBY", cmd_zincrby, false);
-    table.add("ZSCORE", cmd_zscore, true);
-    table.add("ZMSCORE", cmd_zmscore, true);
-    table.add("ZRANK", cmd_zrank, true);
-    table.add("ZREVRANK", cmd_zrevrank, true);
-    table.add("ZREM", cmd_zrem, false);
-    table.add("ZRANGE", cmd_zrange, true);
-    table.add("ZREVRANGE", cmd_zrevrange, true);
-    table.add("ZRANGEBYSCORE", cmd_zrangebyscore, true);
-    table.add("ZREVRANGEBYSCORE", cmd_zrevrangebyscore, true);
-    table.add("ZRANGEBYLEX", cmd_zrangebylex, true);
-    table.add("ZREVRANGEBYLEX", cmd_zrevrangebylex, true);
-    table.add("ZLEXCOUNT", cmd_zlexcount, true);
-    table.add("ZREMRANGEBYRANK", cmd_zremrangebyrank, false);
-    table.add("ZREMRANGEBYSCORE", cmd_zremrangebyscore, false);
-    table.add("ZREMRANGEBYLEX", cmd_zremrangebylex, false);
-    table.add("ZUNIONSTORE", cmd_zunionstore, false);
-    table.add("ZINTERSTORE", cmd_zinterstore, false);
-    table.add("ZPOPMIN", cmd_zpopmin, false);
-    table.add("ZPOPMAX", cmd_zpopmax, false);
-    table.add("ZSCAN", cmd_zscan, true);
-    table.add("ZINTER", cmd_zinter, true);
-    table.add("ZUNION", cmd_zunion, true);
-    table.add("ZRANDMEMBER", cmd_zrandmember, true);
+    table.add("ZADD", cmd_zadd, false, -4);
+    table.add("ZCARD", cmd_zcard, true, 2);
+    table.add("ZCOUNT", cmd_zcount, true, 4);
+    table.add("ZINCRBY", cmd_zincrby, false, 4);
+    table.add("ZSCORE", cmd_zscore, true, 3);
+    table.add("ZMSCORE", cmd_zmscore, true, -3);
+    table.add("ZRANK", cmd_zrank, true, -3);
+    table.add("ZREVRANK", cmd_zrevrank, true, -3);
+    table.add("ZREM", cmd_zrem, false, -3);
+    table.add("ZRANGE", cmd_zrange, true, -4);
+    table.add("ZREVRANGE", cmd_zrevrange, true, -4);
+    table.add("ZRANGEBYSCORE", cmd_zrangebyscore, true, -4);
+    table.add("ZREVRANGEBYSCORE", cmd_zrevrangebyscore, true, -4);
+    table.add("ZRANGEBYLEX", cmd_zrangebylex, true, -4);
+    table.add("ZREVRANGEBYLEX", cmd_zrevrangebylex, true, -4);
+    table.add("ZLEXCOUNT", cmd_zlexcount, true, 4);
+    table.add("ZREMRANGEBYRANK", cmd_zremrangebyrank, false, 4);
+    table.add("ZREMRANGEBYSCORE", cmd_zremrangebyscore, false, 4);
+    table.add("ZREMRANGEBYLEX", cmd_zremrangebylex, false, 4);
+    table.add("ZUNIONSTORE", cmd_zunionstore, false, -4);
+    table.add("ZINTERSTORE", cmd_zinterstore, false, -4);
+    table.add("ZPOPMIN", cmd_zpopmin, false, -2);
+    table.add("ZPOPMAX", cmd_zpopmax, false, -2);
+    table.add("ZSCAN", cmd_zscan, true, -3);
+    table.add("ZINTER", cmd_zinter, true, -3);
+    table.add("ZUNION", cmd_zunion, true, -3);
+    table.add("ZRANDMEMBER", cmd_zrandmember, true, -2);
 }
 
 /// Format a float for Redis output (scores).
@@ -168,10 +168,6 @@ fn redis_range(len: usize, start: i64, stop: i64) -> (usize, usize) {
 
 /// ZADD key [NX|XX] [GT|LT] [CH] [INCR] score member [score member ...]
 fn cmd_zadd(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number("zadd"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let mut i = 1;
     let mut nx = false;
@@ -237,7 +233,7 @@ fn cmd_zadd(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
         return Frame::error(MSG_XX_AND_NX);
     }
     if (gt || lt) && (gt && lt || nx) {
-        return Frame::error("ERR GT, LT, and NX options at the same time are not compatible");
+        return Frame::error("ERR GT, LT, and/or NX options at the same time are not compatible");
     }
     if incr && elems.len() > 1 {
         return Frame::error(MSG_SINGLE_ELEMENT_PAIR);
@@ -264,7 +260,11 @@ fn cmd_zadd(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
             return Frame::Null;
         }
         let new_score = db.sset_incrby(&key, member, *delta, now);
-        return Frame::Bulk(write_float(new_score).into());
+        return if ctx.resp3 {
+            Frame::Double(new_score)
+        } else {
+            Frame::Bulk(write_float(new_score).into())
+        };
     }
 
     let mut count = 0i64;
@@ -302,10 +302,6 @@ fn cmd_zadd(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// ZCARD key
 fn cmd_zcard(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("zcard"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -325,10 +321,6 @@ fn cmd_zcard(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// ZCOUNT key min max
 fn cmd_zcount(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("zcount"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let min_s = String::from_utf8_lossy(&args[1]);
     let max_s = String::from_utf8_lossy(&args[2]);
@@ -366,10 +358,6 @@ fn cmd_zcount(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// ZINCRBY key increment member
 fn cmd_zincrby(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("zincrby"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let delta = match parse_float(&args[1]) {
         Some(f) => f,
@@ -394,10 +382,6 @@ fn cmd_zincrby(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) ->
 
 /// ZSCORE key member
 fn cmd_zscore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("zscore"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let member = String::from_utf8_lossy(&args[1]);
 
@@ -415,17 +399,19 @@ fn cmd_zscore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
     }
 
     match db.sset_score(&key, &member) {
-        Some(score) => Frame::Bulk(write_float(score).into()),
+        Some(score) => {
+            if ctx.resp3 {
+                Frame::Double(score)
+            } else {
+                Frame::Bulk(write_float(score).into())
+            }
+        }
         None => Frame::Null,
     }
 }
 
 /// ZMSCORE key member [member ...]
 fn cmd_zmscore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("zmscore"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
 
     let mut inner = state.lock();
@@ -469,7 +455,7 @@ fn zrank_impl(
     dir: Direction,
     cmd: &str,
 ) -> Frame {
-    if args.len() < 2 || args.len() > 3 {
+    if args.len() > 3 {
         return Frame::error(err_wrong_number(cmd));
     }
 
@@ -488,7 +474,11 @@ fn zrank_impl(
     db.check_ttl(&key);
 
     if !db.keys.contains_key(key.as_ref()) {
-        return Frame::Null;
+        return if with_score {
+            Frame::NullArray
+        } else {
+            Frame::Null
+        };
     }
     if let Some(t) = db.key_type(&key)
         && t != crate::types::KeyType::SortedSet
@@ -498,7 +488,13 @@ fn zrank_impl(
 
     let ss = match db.sorted_set_keys.get(key.as_ref()) {
         Some(ss) => ss,
-        None => return Frame::Null,
+        None => {
+            return if with_score {
+                Frame::NullArray
+            } else {
+                Frame::Null
+            };
+        }
     };
 
     match ss.rank(&member, dir) {
@@ -513,16 +509,18 @@ fn zrank_impl(
                 Frame::Integer(rank as i64)
             }
         }
-        None => Frame::Null,
+        None => {
+            if with_score {
+                Frame::NullArray
+            } else {
+                Frame::Null
+            }
+        }
     }
 }
 
 /// ZREM key member [member ...]
 fn cmd_zrem(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("zrem"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let mut inner = state.lock();
     let now = inner.effective_now();
@@ -552,10 +550,6 @@ fn cmd_zrem(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// ZRANGE key min max [BYSCORE|BYLEX] [REV] [LIMIT offset count] [WITHSCORES]
 fn cmd_zrange(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number("zrange"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let min_s = String::from_utf8_lossy(&args[1]).into_owned();
     let max_s = String::from_utf8_lossy(&args[2]).into_owned();
@@ -638,10 +632,6 @@ fn cmd_zrange(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// ZREVRANGE key start stop [WITHSCORES]
 fn cmd_zrevrange(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number("zrevrange"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let min_s = String::from_utf8_lossy(&args[1]).into_owned();
     let max_s = String::from_utf8_lossy(&args[2]).into_owned();
@@ -665,12 +655,12 @@ fn cmd_zrevrange(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) 
 
 /// ZRANGEBYSCORE key min max [WITHSCORES] [LIMIT offset count]
 fn cmd_zrangebyscore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    zrangebyscore_impl(state, ctx, args, false, "zrangebyscore")
+    zrangebyscore_impl(state, ctx, args, false)
 }
 
 /// ZREVRANGEBYSCORE key max min [WITHSCORES] [LIMIT offset count]
 fn cmd_zrevrangebyscore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    zrangebyscore_impl(state, ctx, args, true, "zrevrangebyscore")
+    zrangebyscore_impl(state, ctx, args, true)
 }
 
 fn zrangebyscore_impl(
@@ -678,12 +668,7 @@ fn zrangebyscore_impl(
     ctx: &mut ConnCtx,
     args: &[Vec<u8>],
     reverse: bool,
-    cmd: &str,
 ) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number(cmd));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let min_s = String::from_utf8_lossy(&args[1]).into_owned();
     let max_s = String::from_utf8_lossy(&args[2]).into_owned();
@@ -734,12 +719,12 @@ fn zrangebyscore_impl(
 
 /// ZRANGEBYLEX key min max [LIMIT offset count]
 fn cmd_zrangebylex(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    zrangebylex_impl(state, ctx, args, false, "zrangebylex")
+    zrangebylex_impl(state, ctx, args, false)
 }
 
 /// ZREVRANGEBYLEX key max min [LIMIT offset count]
 fn cmd_zrevrangebylex(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    zrangebylex_impl(state, ctx, args, true, "zrevrangebylex")
+    zrangebylex_impl(state, ctx, args, true)
 }
 
 fn zrangebylex_impl(
@@ -747,12 +732,7 @@ fn zrangebylex_impl(
     ctx: &mut ConnCtx,
     args: &[Vec<u8>],
     reverse: bool,
-    cmd: &str,
 ) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number(cmd));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let min_s = String::from_utf8_lossy(&args[1]).into_owned();
     let max_s = String::from_utf8_lossy(&args[2]).into_owned();
@@ -789,10 +769,6 @@ fn zrangebylex_impl(
 
 /// ZLEXCOUNT key min max
 fn cmd_zlexcount(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("zlexcount"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let min_s = String::from_utf8_lossy(&args[1]);
     let max_s = String::from_utf8_lossy(&args[2]);
@@ -833,10 +809,6 @@ fn cmd_zlexcount(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) 
 
 /// ZREMRANGEBYRANK key start stop
 fn cmd_zremrangebyrank(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("zremrangebyrank"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let start = match parse_int(&args[1]) {
         Some(n) => n,
@@ -877,10 +849,6 @@ fn cmd_zremrangebyrank(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<
 
 /// ZREMRANGEBYSCORE key min max
 fn cmd_zremrangebyscore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("zremrangebyscore"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let min_s = String::from_utf8_lossy(&args[1]);
     let max_s = String::from_utf8_lossy(&args[2]);
@@ -924,10 +892,6 @@ fn cmd_zremrangebyscore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec
 
 /// ZREMRANGEBYLEX key min max
 fn cmd_zremrangebylex(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 3 {
-        return Frame::error(err_wrong_number("zremrangebylex"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let min_s = String::from_utf8_lossy(&args[1]);
     let max_s = String::from_utf8_lossy(&args[2]);
@@ -973,12 +937,12 @@ fn cmd_zremrangebylex(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u
 
 /// ZUNIONSTORE destination numkeys key [key ...] [WEIGHTS w...] [AGGREGATE SUM|MIN|MAX]
 fn cmd_zunionstore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    zstore_impl(state, ctx, args, false, "zunionstore")
+    zstore_impl(state, ctx, args, false)
 }
 
 /// ZINTERSTORE destination numkeys key [key ...] [WEIGHTS w...] [AGGREGATE SUM|MIN|MAX]
 fn cmd_zinterstore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    zstore_impl(state, ctx, args, true, "zinterstore")
+    zstore_impl(state, ctx, args, true)
 }
 
 fn zstore_impl(
@@ -986,12 +950,7 @@ fn zstore_impl(
     ctx: &mut ConnCtx,
     args: &[Vec<u8>],
     intersect: bool,
-    cmd: &str,
 ) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number(cmd));
-    }
-
     let dest = String::from_utf8_lossy(&args[0]).into_owned();
     let num_keys = match parse_int(&args[1]) {
         Some(n) if n > 0 => n as usize,
@@ -1127,12 +1086,12 @@ fn zstore_impl(
 
 /// ZPOPMIN key [count]
 fn cmd_zpopmin(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    zpop_impl(state, ctx, args, false, "zpopmin")
+    zpop_impl(state, ctx, args, false)
 }
 
 /// ZPOPMAX key [count]
 fn cmd_zpopmax(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    zpop_impl(state, ctx, args, true, "zpopmax")
+    zpop_impl(state, ctx, args, true)
 }
 
 fn zpop_impl(
@@ -1140,10 +1099,9 @@ fn zpop_impl(
     ctx: &mut ConnCtx,
     args: &[Vec<u8>],
     reverse: bool,
-    cmd: &str,
 ) -> Frame {
-    if args.is_empty() || args.len() > 2 {
-        return Frame::error(err_wrong_number(cmd));
+    if args.len() > 2 {
+        return Frame::error(MSG_SYNTAX_ERROR);
     }
 
     let key = String::from_utf8_lossy(&args[0]).into_owned();
@@ -1198,10 +1156,6 @@ fn zpop_impl(
 
 /// ZSCAN key cursor [MATCH pattern] [COUNT count]
 fn cmd_zscan(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("zscan"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let _cursor = match parse_int(&args[1]) {
         Some(n) => n,
@@ -1491,12 +1445,7 @@ fn zop_impl(
     ctx: &mut ConnCtx,
     args: &[Vec<u8>],
     intersect: bool,
-    cmd: &str,
 ) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number(cmd));
-    }
-
     let num_keys = match parse_int(&args[0]) {
         Some(n) if n > 0 => n as usize,
         Some(_) => {
@@ -1637,17 +1586,17 @@ fn zop_impl(
 
 /// ZINTER numkeys key [...] [WEIGHTS ...] [AGGREGATE ...] [WITHSCORES]
 fn cmd_zinter(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    zop_impl(state, ctx, args, true, "zinter")
+    zop_impl(state, ctx, args, true)
 }
 
 /// ZUNION numkeys key [...] [WEIGHTS ...] [AGGREGATE ...] [WITHSCORES]
 fn cmd_zunion(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    zop_impl(state, ctx, args, false, "zunion")
+    zop_impl(state, ctx, args, false)
 }
 
 /// ZRANDMEMBER key [count [WITHSCORES]]
 fn cmd_zrandmember(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() || args.len() > 3 {
+    if args.len() > 3 {
         return Frame::error(err_wrong_number("zrandmember"));
     }
 

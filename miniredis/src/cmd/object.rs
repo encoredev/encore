@@ -6,14 +6,10 @@ use crate::dispatch::CommandTable;
 use crate::frame::Frame;
 
 pub fn register(table: &mut CommandTable) {
-    table.add("OBJECT", cmd_object, true);
+    table.add("OBJECT", cmd_object, true, -2);
 }
 
 fn cmd_object(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error("ERR wrong number of arguments for 'object' command");
-    }
-
     let subcmd = String::from_utf8_lossy(&args[0]).to_uppercase();
     match subcmd.as_str() {
         "ENCODING" => {

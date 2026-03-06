@@ -16,7 +16,9 @@ fn glob_match_inner(pat: &[u8], txt: &[u8]) -> bool {
     let mut star_ti = 0;
 
     while ti < txt.len() {
-        if pi < pat.len() && (pat[pi] == b'?' || pat[pi] == txt[ti]) {
+        if pi < pat.len()
+            && (pat[pi] == b'?' || (pat[pi] == txt[ti] && pat[pi] != b'[' && pat[pi] != b'\\'))
+        {
             pi += 1;
             ti += 1;
         } else if pi < pat.len() && pat[pi] == b'*' {
@@ -79,13 +81,27 @@ fn match_char_class(pat: &[u8], ch: u8) -> (bool, usize) {
 
     let mut matched = false;
     while i < pat.len() && pat[i] != b']' {
+        // Handle backslash escape inside char class
+        let c = if pat[i] == b'\\' && i + 1 < pat.len() {
+            i += 1;
+            pat[i]
+        } else {
+            pat[i]
+        };
+
         if i + 2 < pat.len() && pat[i + 1] == b'-' {
-            if ch >= pat[i] && ch <= pat[i + 2] {
+            let end = if pat[i + 2] == b'\\' && i + 3 < pat.len() {
+                i += 1;
+                pat[i + 2]
+            } else {
+                pat[i + 2]
+            };
+            if ch >= c && ch <= end {
                 matched = true;
             }
             i += 3;
         } else {
-            if pat[i] == ch {
+            if c == ch {
                 matched = true;
             }
             i += 1;
@@ -136,5 +152,13 @@ mod tests {
         assert!(!glob_match("event*", "other"));
         assert!(glob_match("*news*", "the-news-today"));
         assert!(glob_match("h[a-z]llo", "hello"));
+    }
+
+    #[test]
+    fn test_glob_match_escape_in_char_class() {
+        // Backslash inside [] should escape the next character
+        assert!(glob_match("[\\[o]*", "[one]"));
+        assert!(!glob_match("[\\[o]*", "two"));
+        assert!(glob_match("[\\[o]*", "other"));
     }
 }

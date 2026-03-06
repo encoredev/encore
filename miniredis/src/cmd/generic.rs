@@ -14,39 +14,35 @@ use crate::frame::Frame;
 use crate::types::KeyType;
 
 pub fn register(table: &mut CommandTable) {
-    table.add("DEL", cmd_del, false);
-    table.add("UNLINK", cmd_del, false); // alias
-    table.add("EXISTS", cmd_exists, true);
-    table.add("TYPE", cmd_type, true);
-    table.add("RENAME", cmd_rename, false);
-    table.add("RENAMENX", cmd_renamenx, false);
-    table.add("EXPIRE", cmd_expire, false);
-    table.add("EXPIREAT", cmd_expireat, false);
-    table.add("PEXPIRE", cmd_pexpire, false);
-    table.add("PEXPIREAT", cmd_pexpireat, false);
-    table.add("PERSIST", cmd_persist, false);
-    table.add("TTL", cmd_ttl, true);
-    table.add("PTTL", cmd_pttl, true);
-    table.add("KEYS", cmd_keys, true);
-    table.add("SCAN", cmd_scan, true);
-    table.add("TOUCH", cmd_touch, true);
-    table.add("WAIT", cmd_wait, true);
-    table.add("RANDOMKEY", cmd_randomkey, true);
-    table.add("OBJECT", cmd_object, true);
-    table.add("EXPIRETIME", cmd_expiretime, true);
-    table.add("PEXPIRETIME", cmd_pexpiretime, true);
-    table.add("COPY", cmd_copy, false);
-    table.add("MOVE", cmd_move, false);
-    table.add("DUMP", cmd_dump, true);
-    table.add("RESTORE", cmd_restore, false);
+    table.add("DEL", cmd_del, false, -2);
+    table.add("UNLINK", cmd_del, false, -2); // alias
+    table.add("EXISTS", cmd_exists, true, -2);
+    table.add("TYPE", cmd_type, true, 2);
+    table.add("RENAME", cmd_rename, false, 3);
+    table.add("RENAMENX", cmd_renamenx, false, 3);
+    table.add("EXPIRE", cmd_expire, false, -3);
+    table.add("EXPIREAT", cmd_expireat, false, -3);
+    table.add("PEXPIRE", cmd_pexpire, false, -3);
+    table.add("PEXPIREAT", cmd_pexpireat, false, -3);
+    table.add("PERSIST", cmd_persist, false, 2);
+    table.add("TTL", cmd_ttl, true, 2);
+    table.add("PTTL", cmd_pttl, true, 2);
+    table.add("KEYS", cmd_keys, true, 2);
+    table.add("SCAN", cmd_scan, true, -2);
+    table.add("TOUCH", cmd_touch, true, -2);
+    table.add("WAIT", cmd_wait, true, 3);
+    table.add("RANDOMKEY", cmd_randomkey, true, 1);
+    table.add("OBJECT", cmd_object, true, -2);
+    table.add("EXPIRETIME", cmd_expiretime, true, 2);
+    table.add("PEXPIRETIME", cmd_pexpiretime, true, 2);
+    table.add("COPY", cmd_copy, false, -3);
+    table.add("MOVE", cmd_move, false, 3);
+    table.add("DUMP", cmd_dump, true, 2);
+    table.add("RESTORE", cmd_restore, false, -4);
 }
 
 /// DEL key [key ...]
 fn cmd_del(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("del"));
-    }
-
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
     let mut count = 0i64;
@@ -64,10 +60,6 @@ fn cmd_del(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fra
 
 /// EXISTS key [key ...]
 fn cmd_exists(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("exists"));
-    }
-
     let mut inner = state.lock();
     let now = inner.effective_now();
     let db = inner.db_mut(ctx.selected_db);
@@ -86,10 +78,6 @@ fn cmd_exists(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// TYPE key
 fn cmd_type(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("type"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -104,10 +92,6 @@ fn cmd_type(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// RENAME key newkey
 fn cmd_rename(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("rename"));
-    }
-
     let from = String::from_utf8_lossy(&args[0]).into_owned();
     let to = String::from_utf8_lossy(&args[1]).into_owned();
 
@@ -125,10 +109,6 @@ fn cmd_rename(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// RENAMENX key newkey
 fn cmd_renamenx(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("renamenx"));
-    }
-
     let from = String::from_utf8_lossy(&args[0]).into_owned();
     let to = String::from_utf8_lossy(&args[1]).into_owned();
 
@@ -150,14 +130,21 @@ fn cmd_renamenx(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -
 
 /// EXPIRE key seconds [NX|XX|GT|LT]
 fn cmd_expire(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    expire_impl(state, ctx, args, "expire", |secs, _| {
-        Duration::from_secs(secs as u64)
+    expire_impl(state, ctx, args, |secs, _| {
+        if secs <= 0 {
+            Duration::ZERO
+        } else {
+            Duration::from_secs(secs as u64)
+        }
     })
 }
 
 /// EXPIREAT key timestamp [NX|XX|GT|LT]
 fn cmd_expireat(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    expire_impl(state, ctx, args, "expireat", |ts, now| {
+    expire_impl(state, ctx, args, |ts, now| {
+        if ts <= 0 {
+            return Duration::ZERO;
+        }
         let target = std::time::UNIX_EPOCH + Duration::from_secs(ts as u64);
         target.duration_since(now).unwrap_or(Duration::ZERO)
     })
@@ -165,14 +152,21 @@ fn cmd_expireat(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -
 
 /// PEXPIRE key milliseconds [NX|XX|GT|LT]
 fn cmd_pexpire(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    expire_impl(state, ctx, args, "pexpire", |ms, _| {
-        Duration::from_millis(ms as u64)
+    expire_impl(state, ctx, args, |ms, _| {
+        if ms <= 0 {
+            Duration::ZERO
+        } else {
+            Duration::from_millis(ms as u64)
+        }
     })
 }
 
 /// PEXPIREAT key timestamp-ms [NX|XX|GT|LT]
 fn cmd_pexpireat(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    expire_impl(state, ctx, args, "pexpireat", |ts, now| {
+    expire_impl(state, ctx, args, |ts, now| {
+        if ts <= 0 {
+            return Duration::ZERO;
+        }
         let target = std::time::UNIX_EPOCH + Duration::from_millis(ts as u64);
         target.duration_since(now).unwrap_or(Duration::ZERO)
     })
@@ -182,33 +176,37 @@ fn expire_impl(
     state: &Arc<SharedState>,
     ctx: &mut ConnCtx,
     args: &[Vec<u8>],
-    cmd: &str,
     to_duration: impl Fn(i64, std::time::SystemTime) -> Duration,
 ) -> Frame {
-    if args.len() < 2 || args.len() > 3 {
-        return Frame::error(err_wrong_number(cmd));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let value: i64 = match parse_int(&args[1]) {
         Some(n) => n,
         None => return Frame::error(MSG_INVALID_INT),
     };
 
-    // Parse optional flag
+    // Parse optional flags (multiple can be combined, e.g. GT XX)
     let mut nx = false;
     let mut xx = false;
     let mut gt = false;
     let mut lt = false;
 
-    if args.len() == 3 {
-        match String::from_utf8_lossy(&args[2]).to_uppercase().as_str() {
+    for arg in &args[2..] {
+        let flag = String::from_utf8_lossy(arg);
+        match flag.to_uppercase().as_str() {
             "NX" => nx = true,
             "XX" => xx = true,
             "GT" => gt = true,
             "LT" => lt = true,
-            _ => return Frame::error(MSG_SYNTAX_ERROR),
+            _ => return Frame::error(format!("ERR Unsupported option {}", flag)),
         }
+    }
+
+    // NX is incompatible with GT/LT; GT and LT are mutually exclusive
+    if nx && (gt || lt) {
+        return Frame::error("ERR NX and XX, GT or LT options at the same time are not compatible");
+    }
+    if gt && lt {
+        return Frame::error("ERR GT and LT options at the same time are not compatible");
     }
 
     let mut inner = state.lock();
@@ -231,12 +229,16 @@ fn expire_impl(
     if xx && !has_ttl {
         return Frame::Integer(0);
     }
-    // GT: only if new TTL is greater
-    if gt
-        && let Some(&old_ttl) = db.ttl.get(&key)
-        && new_ttl <= old_ttl
-    {
-        return Frame::Integer(0);
+    // GT: only if new TTL is greater (no TTL = infinite > any finite TTL)
+    if gt {
+        if let Some(&old_ttl) = db.ttl.get(&key) {
+            if new_ttl <= old_ttl {
+                return Frame::Integer(0);
+            }
+        } else {
+            // No existing TTL means infinite lifetime, which is > any finite TTL
+            return Frame::Integer(0);
+        }
     }
     // LT: only if new TTL is less
     if lt {
@@ -260,10 +262,6 @@ fn expire_impl(
 
 /// PERSIST key
 fn cmd_persist(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("persist"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let mut inner = state.lock();
     let now = inner.effective_now();
@@ -283,10 +281,6 @@ fn cmd_persist(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) ->
 
 /// TTL key
 fn cmd_ttl(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("ttl"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -304,10 +298,6 @@ fn cmd_ttl(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fra
 
 /// PTTL key
 fn cmd_pttl(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("pttl"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -325,10 +315,6 @@ fn cmd_pttl(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// KEYS pattern
 fn cmd_keys(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("keys"));
-    }
-
     let pattern = String::from_utf8_lossy(&args[0]);
     let inner = state.lock();
     let db = inner.db(ctx.selected_db);
@@ -341,10 +327,6 @@ fn cmd_keys(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// SCAN cursor [MATCH pattern] [COUNT count] [TYPE type]
 fn cmd_scan(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("scan"));
-    }
-
     let cursor: i64 = match parse_int(&args[0]) {
         Some(n) => n,
         None => return Frame::error(MSG_INVALID_CURSOR),
@@ -389,10 +371,6 @@ fn cmd_scan(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// TOUCH key [key ...]
 fn cmd_touch(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("touch"));
-    }
-
     let inner = state.lock();
     let db = inner.db(ctx.selected_db);
     let mut count = 0i64;
@@ -409,10 +387,6 @@ fn cmd_touch(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// WAIT numreplicas timeout — always returns 0 (standalone)
 fn cmd_wait(_state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("wait"));
-    }
-
     let _replicas: i64 = match parse_int(&args[0]) {
         Some(n) if n >= 0 => n,
         _ => return Frame::error(MSG_INVALID_INT),
@@ -429,11 +403,7 @@ fn cmd_wait(_state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 }
 
 /// RANDOMKEY
-fn cmd_randomkey(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if !args.is_empty() {
-        return Frame::error(err_wrong_number("randomkey"));
-    }
-
+fn cmd_randomkey(state: &Arc<SharedState>, ctx: &mut ConnCtx, _args: &[Vec<u8>]) -> Frame {
     let mut inner = state.lock();
     let key_count = inner.db(ctx.selected_db).keys.len();
 
@@ -452,18 +422,21 @@ fn cmd_randomkey(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) 
     Frame::Bulk(key.into())
 }
 
-/// OBJECT subcommand ... — stub
-fn cmd_object(_state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("object"));
-    }
-
+/// OBJECT subcommand ...
+fn cmd_object(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
     let sub = String::from_utf8_lossy(&args[0]).to_uppercase();
     match sub.as_str() {
         "HELP" => Frame::Array(vec![Frame::Bulk("OBJECT subcommand [arguments]".into())]),
         "ENCODING" => {
             if args.len() != 2 {
                 return Frame::error(err_wrong_number("object|encoding"));
+            }
+            let key = String::from_utf8_lossy(&args[1]);
+            let mut inner = state.lock();
+            let db = inner.db_mut(ctx.selected_db);
+            db.check_ttl(&key);
+            if !db.keys.contains_key(key.as_ref()) {
+                return Frame::error(MSG_KEY_NOT_FOUND);
             }
             // Stub: always return "raw"
             Frame::Bulk("raw".into())
@@ -472,17 +445,38 @@ fn cmd_object(_state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -
             if args.len() != 2 {
                 return Frame::error(err_wrong_number("object|idletime"));
             }
+            let key = String::from_utf8_lossy(&args[1]);
+            let mut inner = state.lock();
+            let db = inner.db_mut(ctx.selected_db);
+            db.check_ttl(&key);
+            if !db.keys.contains_key(key.as_ref()) {
+                return Frame::error(MSG_KEY_NOT_FOUND);
+            }
             Frame::Integer(0)
         }
         "REFCOUNT" => {
             if args.len() != 2 {
                 return Frame::error(err_wrong_number("object|refcount"));
             }
+            let key = String::from_utf8_lossy(&args[1]);
+            let mut inner = state.lock();
+            let db = inner.db_mut(ctx.selected_db);
+            db.check_ttl(&key);
+            if !db.keys.contains_key(key.as_ref()) {
+                return Frame::error(MSG_KEY_NOT_FOUND);
+            }
             Frame::Integer(1)
         }
         "FREQ" => {
             if args.len() != 2 {
                 return Frame::error(err_wrong_number("object|freq"));
+            }
+            let key = String::from_utf8_lossy(&args[1]);
+            let mut inner = state.lock();
+            let db = inner.db_mut(ctx.selected_db);
+            db.check_ttl(&key);
+            if !db.keys.contains_key(key.as_ref()) {
+                return Frame::error(MSG_KEY_NOT_FOUND);
             }
             Frame::Integer(0)
         }
@@ -495,10 +489,6 @@ fn cmd_object(_state: &Arc<SharedState>, _ctx: &mut ConnCtx, args: &[Vec<u8>]) -
 
 /// EXPIRETIME key
 fn cmd_expiretime(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("expiretime"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let now = inner.effective_now();
@@ -524,10 +514,6 @@ fn cmd_expiretime(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
 
 /// PEXPIRETIME key
 fn cmd_pexpiretime(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("pexpiretime"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let now = inner.effective_now();
@@ -553,10 +539,6 @@ fn cmd_pexpiretime(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]
 
 /// COPY source destination [DB db] [REPLACE]
 fn cmd_copy(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("copy"));
-    }
-
     let src = String::from_utf8_lossy(&args[0]).into_owned();
     let dst = String::from_utf8_lossy(&args[1]).into_owned();
     let mut dest_db = ctx.selected_db;
@@ -566,14 +548,15 @@ fn cmd_copy(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
     while i < args.len() {
         let opt = String::from_utf8_lossy(&args[i]).to_uppercase();
         match opt.as_str() {
-            "DB" => {
+            "DB" | "DESTINATION" => {
                 i += 1;
                 if i >= args.len() {
                     return Frame::error(MSG_SYNTAX_ERROR);
                 }
                 match parse_int(&args[i]) {
                     Some(n) if (0..16).contains(&n) => dest_db = n as usize,
-                    _ => return Frame::error(MSG_DB_INDEX_OUT_OF_RANGE),
+                    Some(_) => return Frame::error(MSG_DB_INDEX_OUT_OF_RANGE),
+                    None => return Frame::error(MSG_INVALID_INT),
                 }
             }
             "REPLACE" => replace = true,
@@ -584,6 +567,11 @@ fn cmd_copy(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
     let mut inner = state.lock();
     let now = inner.effective_now();
+
+    // COPY to self on same DB: error (checked before key existence)
+    if ctx.selected_db == dest_db && src == dst {
+        return Frame::error("ERR source and destination objects are the same");
+    }
 
     // Check source exists
     {
@@ -690,10 +678,6 @@ fn cmd_copy(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// MOVE key db
 fn cmd_move(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 2 {
-        return Frame::error(err_wrong_number("move"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let target_db = match parse_int(&args[1]) {
         Some(n) if (0..16).contains(&n) => n as usize,
@@ -805,10 +789,6 @@ fn cmd_move(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// DUMP key — stub: returns raw string value or null
 fn cmd_dump(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("dump"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let mut inner = state.lock();
     let db = inner.db_mut(ctx.selected_db);
@@ -830,10 +810,6 @@ fn cmd_dump(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// RESTORE key ttl serialized-value [REPLACE]
 fn cmd_restore(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number("restore"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).into_owned();
     let ttl_ms: i64 = match parse_int(&args[1]) {
         Some(n) => n,

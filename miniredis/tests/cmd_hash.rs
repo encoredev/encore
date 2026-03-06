@@ -578,7 +578,7 @@ async fn test_hexpire() {
     must_ok!(c, "SET", "str", "val");
     must_fail!(c, "HEXPIRE", "str", "10", "FIELDS", "1", "f"; "WRONGTYPE");
     must_fail!(c, "HEXPIRE", "myhash", "notanumber", "FIELDS", "1", "f"; "not an integer");
-    must_fail!(c, "HEXPIRE", "myhash", "10", "FIELDS", "0"; "numFields");
+    must_fail!(c, "HEXPIRE", "myhash", "10", "FIELDS", "0"; "wrong number of arguments");
     must_fail!(c, "HEXPIRE", "myhash", "10", "FIELDS", "2", "f"; "numfields");
     must_fail!(c, "HEXPIRE", "myhash", "10", "GT", "LT", "FIELDS", "1", "f"; "GT and LT");
     must_fail!(c, "HEXPIRE", "myhash", "10", "NX", "XX", "FIELDS", "1", "f"; "NX and XX");

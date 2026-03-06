@@ -15,6 +15,8 @@ pub enum Frame {
     Bulk(Bytes),
     /// Null: `$-1\r\n` (RESP2) or `_\r\n` (RESP3)
     Null,
+    /// Null array: `*-1\r\n` (RESP2) or `_\r\n` (RESP3)
+    NullArray,
     /// Array: `*2\r\n...`
     Array(Vec<Frame>),
     // ── RESP3 types ──────────────────────────────────────────────────
@@ -68,6 +70,11 @@ impl Frame {
     /// `$-1\r\n`
     pub fn null() -> Frame {
         Frame::Null
+    }
+
+    /// `*-1\r\n`
+    pub fn null_array() -> Frame {
+        Frame::NullArray
     }
 
     /// Build an Array of bulk strings.
@@ -301,6 +308,13 @@ impl Frame {
                     buf.extend_from_slice(b"$-1\r\n");
                 }
             }
+            Frame::NullArray => {
+                if resp3 {
+                    buf.extend_from_slice(b"_\r\n");
+                } else {
+                    buf.extend_from_slice(b"*-1\r\n");
+                }
+            }
             Frame::Array(frames) => {
                 buf.push(b'*');
                 buf.extend_from_slice(frames.len().to_string().as_bytes());
@@ -379,6 +393,7 @@ impl fmt::Display for Frame {
                 Err(_) => write!(f, "${:?}", data),
             },
             Frame::Null => write!(f, "(nil)"),
+            Frame::NullArray => write!(f, "(nil)"),
             Frame::Array(frames) => {
                 write!(f, "[")?;
                 for (i, frame) in frames.iter().enumerate() {
@@ -434,6 +449,9 @@ fn format_double(f: f64) -> String {
         }
     } else if f.is_nan() {
         "nan".to_string()
+    } else if f.fract() == 0.0 && f.abs() < 1e15 {
+        // Integer doubles: format without decimal point (Redis compat)
+        format!("{:.0}", f)
     } else {
         // Use ryu for shortest representation
         let mut buf = ryu::Buffer::new();

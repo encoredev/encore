@@ -12,21 +12,17 @@ use crate::types::{Direction, KeyType};
 const MSG_UNSUPPORTED_UNIT: &str = "ERR unsupported unit provided. please use M, KM, FT, MI";
 
 pub fn register(table: &mut CommandTable) {
-    table.add("GEOADD", cmd_geoadd, false);
-    table.add("GEODIST", cmd_geodist, true);
-    table.add("GEOPOS", cmd_geopos, true);
-    table.add("GEORADIUS", cmd_georadius, false);
-    table.add("GEORADIUS_RO", cmd_georadius_ro, true);
-    table.add("GEORADIUSBYMEMBER", cmd_georadiusbymember, false);
-    table.add("GEORADIUSBYMEMBER_RO", cmd_georadiusbymember_ro, true);
+    table.add("GEOADD", cmd_geoadd, false, -5);
+    table.add("GEODIST", cmd_geodist, true, -4);
+    table.add("GEOPOS", cmd_geopos, true, -2);
+    table.add("GEORADIUS", cmd_georadius, false, -6);
+    table.add("GEORADIUS_RO", cmd_georadius_ro, true, -6);
+    table.add("GEORADIUSBYMEMBER", cmd_georadiusbymember, false, -5);
+    table.add("GEORADIUSBYMEMBER_RO", cmd_georadiusbymember_ro, true, -5);
 }
 
 /// GEOADD key longitude latitude member [longitude latitude member ...]
 fn cmd_geoadd(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 4 {
-        return Frame::error(err_wrong_number("geoadd"));
-    }
-
     let key = to_str(&args[0]);
     let triplets = &args[1..];
 
@@ -86,10 +82,6 @@ fn cmd_geoadd(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// GEODIST key member1 member2 [unit]
 fn cmd_geodist(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number("geodist"));
-    }
-
     let key = to_str(&args[0]);
     let from = to_str(&args[1]);
     let to = to_str(&args[2]);
@@ -138,10 +130,6 @@ fn cmd_geodist(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) ->
 
 /// GEOPOS key member [member ...]
 fn cmd_geopos(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("geopos"));
-    }
-
     let key = to_str(&args[0]);
     let members = &args[1..];
 
@@ -166,7 +154,7 @@ fn cmd_geopos(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
                 ]));
             }
             None => {
-                results.push(Frame::Null);
+                results.push(Frame::NullArray);
             }
         }
     }
@@ -345,10 +333,6 @@ fn cmd_georadius_impl(
     read_only: bool,
     cmd_name: &str,
 ) -> Frame {
-    if args.len() < 5 {
-        return Frame::error(err_wrong_number(cmd_name));
-    }
-
     let key = to_str(&args[0]);
 
     let longitude: f64 = match to_str(&args[1]).parse() {
@@ -436,10 +420,6 @@ fn cmd_georadiusbymember_impl(
     read_only: bool,
     cmd_name: &str,
 ) -> Frame {
-    if args.len() < 4 {
-        return Frame::error(err_wrong_number(cmd_name));
-    }
-
     let key = to_str(&args[0]);
     let member = to_str(&args[1]);
 

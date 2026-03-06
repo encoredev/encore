@@ -373,7 +373,7 @@ async fn test_blpop() {
     // Errors
     must_fail!(c, "BLPOP"; "wrong number of arguments");
     must_fail!(c, "BLPOP", "key"; "wrong number of arguments");
-    must_fail!(c, "BLPOP", "key", "-1"; "out of range");
+    must_fail!(c, "BLPOP", "key", "-1"; "timeout is negative");
 }
 
 #[tokio::test]
@@ -409,7 +409,7 @@ async fn test_brpop() {
     // Errors
     must_fail!(c, "BRPOP"; "wrong number of arguments");
     must_fail!(c, "BRPOP", "key"; "wrong number of arguments");
-    must_fail!(c, "BRPOP", "key", "-1"; "out of range");
+    must_fail!(c, "BRPOP", "key", "-1"; "timeout is negative");
 }
 
 #[tokio::test]
@@ -449,7 +449,7 @@ async fn test_brpoplpush() {
     must_fail!(c, "BRPOPLPUSH"; "wrong number of arguments");
     must_fail!(c, "BRPOPLPUSH", "key"; "wrong number of arguments");
     must_fail!(c, "BRPOPLPUSH", "key", "bar"; "wrong number of arguments");
-    must_fail!(c, "BRPOPLPUSH", "key", "foo", "-1"; "out of range");
+    must_fail!(c, "BRPOPLPUSH", "key", "foo", "-1"; "timeout is negative");
 }
 
 #[tokio::test]

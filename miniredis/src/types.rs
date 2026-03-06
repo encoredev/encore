@@ -157,6 +157,8 @@ pub struct StreamGroup {
     pub last_id: String,
     pub pending: Vec<PendingEntry>,
     pub consumers: HashMap<String, StreamConsumer>,
+    /// Whether entries-read is known (set to false initially, true once entries are delivered).
+    pub entries_read_known: bool,
 }
 
 /// Redis stream.
@@ -380,12 +382,17 @@ impl Stream {
         } else {
             Self::normalize_id(id)
         };
+        // entries_read_known is true only when the group starts at "0-0"
+        // (meaning we know it has read 0 entries). For "$" or specific IDs,
+        // we don't know the true count.
+        let entries_read_known = last_id == "0-0";
         self.groups.insert(
             name.to_string(),
             StreamGroup {
                 last_id,
                 pending: Vec::new(),
                 consumers: HashMap::new(),
+                entries_read_known,
             },
         );
         Ok(())
@@ -435,19 +442,37 @@ impl Stream {
 
             if let Some(last) = entries.last() {
                 group.last_id = last.id.clone();
+                group.entries_read_known = true;
             }
 
             if !noack {
                 for entry in &entries {
-                    group.pending.push(PendingEntry {
-                        id: entry.id.clone(),
-                        consumer: consumer_name.to_string(),
-                        delivery_count: 1,
-                        last_delivery: now,
-                    });
-                    if let Some(c) = group.consumers.get_mut(consumer_name) {
-                        c.num_pending += 1;
-                        c.last_success = now;
+                    // Check if already in PEL
+                    if let Some(pe) = group.pending.iter_mut().find(|pe| pe.id == entry.id) {
+                        // Already in PEL - update consumer ownership
+                        let old_consumer = pe.consumer.clone();
+                        if old_consumer != consumer_name {
+                            pe.consumer = consumer_name.to_string();
+                            if let Some(c) = group.consumers.get_mut(&old_consumer) {
+                                c.num_pending -= 1;
+                            }
+                            if let Some(c) = group.consumers.get_mut(consumer_name) {
+                                c.num_pending += 1;
+                            }
+                        }
+                        pe.delivery_count += 1;
+                        pe.last_delivery = now;
+                    } else {
+                        group.pending.push(PendingEntry {
+                            id: entry.id.clone(),
+                            consumer: consumer_name.to_string(),
+                            delivery_count: 1,
+                            last_delivery: now,
+                        });
+                        if let Some(c) = group.consumers.get_mut(consumer_name) {
+                            c.num_pending += 1;
+                            c.last_success = now;
+                        }
                     }
                 }
             }
@@ -481,13 +506,12 @@ impl Stream {
     }
 
     /// Acknowledge entries. Returns count acknowledged.
+    /// If the group doesn't exist, returns 0 (not an error).
     pub fn ack(&mut self, group_name: &str, ids: &[&str]) -> Result<i64, String> {
-        let group = self.groups.get_mut(group_name).ok_or_else(|| {
-            format!(
-                "NOGROUP No such consumer group '{}' for key name",
-                group_name
-            )
-        })?;
+        let group = match self.groups.get_mut(group_name) {
+            Some(g) => g,
+            None => return Ok(0),
+        };
 
         let mut count = 0i64;
         for id in ids {
@@ -512,17 +536,73 @@ impl Stream {
 }
 
 /// Format a range bound for XRANGE/XREVRANGE.
-pub fn format_stream_range_bound(id: &str, is_start: bool) -> String {
+/// Returns Ok(formatted_id) or Err(error_message) if the id is invalid.
+pub fn format_stream_range_bound(id: &str, is_start: bool) -> Result<String, &'static str> {
     match id {
-        "-" => "0-0".to_string(),
-        "+" => format!("{}-{}", u64::MAX, u64::MAX),
+        "-" => Ok("0-0".to_string()),
+        "+" => Ok(format!("{}-{}", u64::MAX, u64::MAX)),
         _ => {
-            if id.contains('-') {
-                id.to_string()
-            } else if is_start {
-                format!("{}-0", id)
+            // Handle exclusive prefix '('
+            if let Some(rest) = id.strip_prefix('(') {
+                if rest == "-" || rest == "+" {
+                    return Err("ERR Invalid stream ID specified as stream command argument");
+                }
+                // Normalize using the same rules as non-exclusive bounds first:
+                // - For start: "X" → "X-0"
+                // - For end: "X" → "X-MAX"
+                // Then apply the exclusive adjustment.
+                let normalized = if rest.contains('-') {
+                    rest.to_string()
+                } else if is_start {
+                    format!("{}-0", rest)
+                } else {
+                    format!("{}-{}", rest, u64::MAX)
+                };
+                // Validate the ID
+                let (ms, seq) = Stream::parse_id(&normalized)
+                    .map_err(|_| "ERR Invalid stream ID specified as stream command argument")?;
+                if is_start {
+                    // Exclusive start: we want entries strictly after this ID
+                    // Increment seq (or ms if seq overflows)
+                    if seq == u64::MAX {
+                        Ok(Stream::format_id(ms + 1, 0))
+                    } else {
+                        Ok(Stream::format_id(ms, seq + 1))
+                    }
+                } else {
+                    // Exclusive end: we want entries strictly before this ID
+                    // Decrement seq (or ms if seq is 0)
+                    if seq == 0 {
+                        if ms == 0 {
+                            // Nothing before 0-0
+                            Ok("0-0".to_string())
+                        } else {
+                            Ok(Stream::format_id(ms - 1, u64::MAX))
+                        }
+                    } else {
+                        Ok(Stream::format_id(ms, seq - 1))
+                    }
+                }
             } else {
-                format!("{}-{}", id, u64::MAX)
+                // Validate the ID
+                let base = if id.contains('-') {
+                    id.to_string()
+                } else if is_start {
+                    format!("{}-0", id)
+                } else {
+                    format!("{}-{}", id, u64::MAX)
+                };
+                // Validate
+                let parts: Vec<&str> = base.splitn(2, '-').collect();
+                parts[0]
+                    .parse::<u64>()
+                    .map_err(|_| "ERR Invalid stream ID specified as stream command argument")?;
+                if parts.len() > 1 {
+                    parts[1].parse::<u64>().map_err(
+                        |_| "ERR Invalid stream ID specified as stream command argument",
+                    )?;
+                }
+                Ok(base)
             }
         }
     }

@@ -126,6 +126,10 @@ pub struct ConnCtx {
     pub nested: bool,
     /// SHA of the currently executing Lua script (if nested).
     pub nested_sha: Option<String>,
+    /// Channels to subscribe to after EXEC completes (for SUBSCRIBE inside MULTI).
+    pub pending_subscribe: Vec<String>,
+    /// Patterns to subscribe to after EXEC completes (for PSUBSCRIBE inside MULTI).
+    pub pending_psubscribe: Vec<String>,
 }
 
 /// A command queued inside a MULTI transaction.
@@ -152,6 +156,8 @@ impl ConnCtx {
             client_name: None,
             nested: false,
             nested_sha: None,
+            pending_subscribe: Vec::new(),
+            pending_psubscribe: Vec::new(),
         }
     }
 

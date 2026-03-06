@@ -7,28 +7,24 @@ use crate::frame::Frame;
 use crate::types::{KeyType, Stream, format_stream_range_bound};
 
 pub fn register(table: &mut CommandTable) {
-    table.add("XADD", cmd_xadd, false);
-    table.add("XLEN", cmd_xlen, true);
-    table.add("XRANGE", cmd_xrange, true);
-    table.add("XREVRANGE", cmd_xrevrange, true);
-    table.add("XREAD", cmd_xread, true);
-    table.add("XINFO", cmd_xinfo, true);
-    table.add("XDEL", cmd_xdel, false);
-    table.add("XTRIM", cmd_xtrim, false);
-    table.add("XGROUP", cmd_xgroup, false);
-    table.add("XREADGROUP", cmd_xreadgroup, false);
-    table.add("XACK", cmd_xack, false);
-    table.add("XPENDING", cmd_xpending, true);
-    table.add("XCLAIM", cmd_xclaim, false);
-    table.add("XAUTOCLAIM", cmd_xautoclaim, false);
+    table.add("XADD", cmd_xadd, false, -5);
+    table.add("XLEN", cmd_xlen, true, 2);
+    table.add("XRANGE", cmd_xrange, true, -4);
+    table.add("XREVRANGE", cmd_xrevrange, true, -4);
+    table.add("XREAD", cmd_xread, true, -4);
+    table.add("XINFO", cmd_xinfo, true, -2);
+    table.add("XDEL", cmd_xdel, false, -3);
+    table.add("XTRIM", cmd_xtrim, false, -4);
+    table.add("XGROUP", cmd_xgroup, false, -2);
+    table.add("XREADGROUP", cmd_xreadgroup, false, -7);
+    table.add("XACK", cmd_xack, false, -4);
+    table.add("XPENDING", cmd_xpending, true, -3);
+    table.add("XCLAIM", cmd_xclaim, false, -6);
+    table.add("XAUTOCLAIM", cmd_xautoclaim, false, -6);
 }
 
 /// XADD key [NOMKSTREAM] [MAXLEN|MINID [=|~] threshold] id field value [field value ...]
 fn cmd_xadd(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 4 {
-        return Frame::error(err_wrong_number("xadd"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).to_string();
     let mut i = 1;
     let mut nomkstream = false;
@@ -141,10 +137,6 @@ fn cmd_xadd(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// XLEN key
 fn cmd_xlen(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() != 1 {
-        return Frame::error(err_wrong_number("xlen"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let inner = state.lock();
     let db = inner.db(ctx.selected_db);
@@ -177,11 +169,6 @@ fn cmd_xrange_impl(
     args: &[Vec<u8>],
     reverse: bool,
 ) -> Frame {
-    let cmd_name = if reverse { "xrevrange" } else { "xrange" };
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number(cmd_name));
-    }
-
     let key = String::from_utf8_lossy(&args[0]);
     let arg_start = String::from_utf8_lossy(&args[1]).to_string();
     let arg_end = String::from_utf8_lossy(&args[2]).to_string();
@@ -204,15 +191,25 @@ fn cmd_xrange_impl(
     }
 
     let (start, end) = if reverse {
-        (
-            format_stream_range_bound(&arg_end, true),
-            format_stream_range_bound(&arg_start, false),
-        )
+        let s = match format_stream_range_bound(&arg_end, true) {
+            Ok(s) => s,
+            Err(e) => return Frame::error(e),
+        };
+        let e = match format_stream_range_bound(&arg_start, false) {
+            Ok(e) => e,
+            Err(e) => return Frame::error(e),
+        };
+        (s, e)
     } else {
-        (
-            format_stream_range_bound(&arg_start, true),
-            format_stream_range_bound(&arg_end, false),
-        )
+        let s = match format_stream_range_bound(&arg_start, true) {
+            Ok(s) => s,
+            Err(e) => return Frame::error(e),
+        };
+        let e = match format_stream_range_bound(&arg_end, false) {
+            Ok(e) => e,
+            Err(e) => return Frame::error(e),
+        };
+        (s, e)
     };
 
     let inner = state.lock();
@@ -252,10 +249,6 @@ fn cmd_xrange_impl(
 
 /// XREAD [COUNT count] [BLOCK ms] STREAMS key [key ...] id [id ...]
 fn cmd_xread(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number("xread"));
-    }
-
     let mut i = 0;
     let mut count: Option<usize> = None;
 
@@ -276,8 +269,20 @@ fn cmd_xread(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
                 i += 1;
             }
             "BLOCK" => {
-                // Skip BLOCK for now (non-blocking only)
-                i += 2;
+                i += 1;
+                if i >= args.len() {
+                    return Frame::error("ERR syntax error");
+                }
+                match String::from_utf8_lossy(&args[i]).parse::<i64>() {
+                    Ok(n) if n < 0 => {
+                        return Frame::error("ERR timeout is negative");
+                    }
+                    Ok(_) => {} // Accept but don't actually block
+                    Err(_) => {
+                        return Frame::error("ERR timeout is not an integer or out of range");
+                    }
+                }
+                i += 1;
             }
             "STREAMS" => {
                 i += 1;
@@ -292,7 +297,7 @@ fn cmd_xread(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
     let remaining = &args[i..];
     if remaining.is_empty() || !remaining.len().is_multiple_of(2) {
         return Frame::error(
-            "ERR Unbalanced XREAD list of streams: for each stream key an ID or '$' must be specified.",
+            "ERR Unbalanced 'xread' list of streams: for each stream key an ID or '$' must be specified.",
         );
     }
 
@@ -304,23 +309,26 @@ fn cmd_xread(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
     let inner = state.lock();
 
-    let ids: Vec<String> = remaining[half..]
-        .iter()
-        .enumerate()
-        .map(|(idx, a)| {
-            let s = String::from_utf8_lossy(a).to_string();
-            if s == "$" {
-                // Get current last ID for this stream
-                let db = inner.db(ctx.selected_db);
+    let mut ids = Vec::with_capacity(half);
+    for (idx, a) in remaining[half..].iter().enumerate() {
+        let s = String::from_utf8_lossy(a).to_string();
+        if s == "$" {
+            // Get current last ID for this stream
+            let db = inner.db(ctx.selected_db);
+            ids.push(
                 db.stream_keys
                     .get(&keys[idx])
                     .map(|stream| stream.last_id().to_string())
-                    .unwrap_or_else(|| "0-0".to_string())
-            } else {
-                Stream::normalize_id(&s)
+                    .unwrap_or_else(|| "0-0".to_string()),
+            );
+        } else {
+            let normalized = Stream::normalize_id(&s);
+            if Stream::parse_id(&normalized).is_err() {
+                return Frame::error("ERR Invalid stream ID specified as stream command argument");
             }
-        })
-        .collect();
+            ids.push(normalized);
+        }
+    }
 
     let db = inner.db(ctx.selected_db);
     let mut results = Vec::new();
@@ -344,9 +352,11 @@ fn cmd_xread(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
             None => vec![],
         };
 
-        if !entries.is_empty() {
-            has_data = true;
+        if entries.is_empty() {
+            continue;
         }
+
+        has_data = true;
 
         let entry_frames: Vec<Frame> = entries
             .into_iter()
@@ -367,7 +377,7 @@ fn cmd_xread(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
     }
 
     if !has_data {
-        return Frame::Null;
+        return Frame::NullArray;
     }
 
     Frame::Array(results)
@@ -375,10 +385,6 @@ fn cmd_xread(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// XDEL key id [id ...]
 fn cmd_xdel(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("xdel"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).to_string();
     let ids: Vec<String> = args[1..]
         .iter()
@@ -398,36 +404,82 @@ fn cmd_xdel(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
     match db.stream_keys.get_mut(&key) {
         Some(stream) => {
+            // Validate all IDs before deleting
+            for id in &id_refs {
+                let normalized = Stream::normalize_id(id);
+                if Stream::parse_id(&normalized).is_err() {
+                    return Frame::error(
+                        "ERR Invalid stream ID specified as stream command argument",
+                    );
+                }
+            }
             let count = stream.del(&id_refs);
             db.incr_version(&key, now);
             Frame::Integer(count)
         }
-        None => Frame::Integer(0),
+        None => {
+            // Non-existing key: return 0 even for invalid IDs
+            Frame::Integer(0)
+        }
     }
 }
 
-/// XTRIM key MAXLEN|MINID [=|~] threshold
+/// XTRIM key MAXLEN|MINID [=|~] threshold [LIMIT count]
 fn cmd_xtrim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number("xtrim"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).to_string();
     let strategy = String::from_utf8_lossy(&args[1]).to_uppercase();
 
+    if strategy != "MAXLEN" && strategy != "MINID" {
+        return Frame::error(err_wrong_number("xtrim"));
+    }
+
     let mut i = 2;
+    let mut approx = false;
     if i < args.len() {
         let next = String::from_utf8_lossy(&args[i]).to_string();
-        if next == "~" || next == "=" {
+        if next == "~" {
+            approx = true;
+            i += 1;
+        } else if next == "=" {
             i += 1;
         }
     }
 
     if i >= args.len() {
-        return Frame::error("ERR syntax error");
+        return Frame::error(err_wrong_number("xtrim"));
     }
 
     let threshold = String::from_utf8_lossy(&args[i]).to_string();
+    i += 1;
+
+    // Parse optional LIMIT
+    if i < args.len() {
+        let next = String::from_utf8_lossy(&args[i]).to_uppercase();
+        if next == "LIMIT" {
+            if !approx {
+                return Frame::error(
+                    "ERR syntax error, LIMIT cannot be used without the special ~ flag",
+                );
+            }
+            i += 1;
+            if i >= args.len() {
+                return Frame::error("ERR syntax error");
+            }
+            // Parse the limit value (we accept it but don't use it for exact behavior)
+            match String::from_utf8_lossy(&args[i]).parse::<i64>() {
+                Ok(_) => {
+                    i += 1;
+                }
+                Err(_) => {
+                    return Frame::error("ERR value is not an integer or out of range");
+                }
+            }
+        }
+    }
+
+    if i < args.len() {
+        return Frame::error("ERR syntax error");
+    }
 
     let mut inner = state.lock();
     let now = inner.effective_now();
@@ -466,10 +518,6 @@ fn cmd_xtrim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
 
 /// XGROUP CREATE/DESTROY/CREATECONSUMER/DELCONSUMER
 fn cmd_xgroup(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("xgroup"));
-    }
-
     let subcmd = String::from_utf8_lossy(&args[0]).to_uppercase();
     match subcmd.as_str() {
         "CREATE" => {
@@ -532,7 +580,11 @@ fn cmd_xgroup(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
             let stream = match db.stream_keys.get_mut(&key) {
                 Some(s) => s,
-                None => return Frame::Integer(0),
+                None => {
+                    return Frame::error(
+                        "ERR The XGROUP subcommand requires the key to exist. Note that for CREATE you may want to use the MKSTREAM option to create an empty stream automatically.",
+                    );
+                }
             };
 
             if stream.groups.remove(&group).is_some() {
@@ -635,18 +687,15 @@ fn cmd_xgroup(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
             db.incr_version(&key, now);
             Frame::Integer(pending_count)
         }
-        _ => Frame::error(
-            "ERR unknown subcommand or wrong number of arguments for 'XGROUP' command".to_string(),
-        ),
+        _ => Frame::error(format!(
+            "ERR unknown subcommand '{}'. Try XGROUP HELP.",
+            String::from_utf8_lossy(&args[0])
+        )),
     }
 }
 
 /// XREADGROUP GROUP group consumer [COUNT count] [BLOCK ms] [NOACK] STREAMS key [key ...] id [id ...]
 fn cmd_xreadgroup(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 6 {
-        return Frame::error(err_wrong_number("xreadgroup"));
-    }
-
     let mut i = 0;
     let group_kw = String::from_utf8_lossy(&args[i]).to_uppercase();
     if group_kw != "GROUP" {
@@ -670,8 +719,12 @@ fn cmd_xreadgroup(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
                 if i >= args.len() {
                     return Frame::error("ERR syntax error");
                 }
-                match String::from_utf8_lossy(&args[i]).parse::<usize>() {
-                    Ok(n) => count = Some(n),
+                match String::from_utf8_lossy(&args[i]).parse::<i64>() {
+                    Ok(n) if n > 0 => count = Some(n as usize),
+                    Ok(_) => {
+                        // Negative or zero COUNT: treat as unlimited (no count limit)
+                        count = None;
+                    }
                     Err(_) => {
                         return Frame::error("ERR value is not an integer or out of range");
                     }
@@ -679,7 +732,20 @@ fn cmd_xreadgroup(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
                 i += 1;
             }
             "BLOCK" => {
-                i += 2; // Skip BLOCK timeout (non-blocking only)
+                i += 1;
+                if i >= args.len() {
+                    return Frame::error("ERR syntax error");
+                }
+                match String::from_utf8_lossy(&args[i]).parse::<i64>() {
+                    Ok(n) if n < 0 => {
+                        return Frame::error("ERR timeout is negative");
+                    }
+                    Ok(_) => {} // Accept but don't actually block
+                    Err(_) => {
+                        return Frame::error("ERR timeout is not an integer or out of range");
+                    }
+                }
+                i += 1;
             }
             "NOACK" => {
                 noack = true;
@@ -707,10 +773,12 @@ fn cmd_xreadgroup(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
         .iter()
         .map(|a| String::from_utf8_lossy(a).to_string())
         .collect();
-    let ids: Vec<String> = remaining[half..]
-        .iter()
-        .map(|a| String::from_utf8_lossy(a).to_string())
-        .collect();
+
+    // Collect IDs (validation deferred to per-stream loop, after group check)
+    let mut ids = Vec::with_capacity(half);
+    for a in &remaining[half..] {
+        ids.push(String::from_utf8_lossy(a).to_string());
+    }
 
     let mut inner = state.lock();
     let now = inner.effective_now();
@@ -736,11 +804,32 @@ fn cmd_xreadgroup(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
             }
         };
 
+        // Check group exists before ID validation
+        if !stream.groups.contains_key(&group_name) {
+            return Frame::error(format!(
+                "NOGROUP No such consumer group '{}' for key name '{}'",
+                group_name, key
+            ));
+        }
+
+        // Validate non-">" IDs after confirming the group exists
+        if ids[idx] != ">" && ids[idx] != "$" {
+            let normalized = Stream::normalize_id(&ids[idx]);
+            if Stream::parse_id(&normalized).is_err() {
+                return Frame::error("ERR Invalid stream ID specified as stream command argument");
+            }
+        }
+
         let entries =
             match stream.read_group(&group_name, &consumer_name, &ids[idx], count, noack, now) {
                 Ok(entries) => entries,
                 Err(e) => return Frame::error(e),
             };
+
+        // For ">" IDs, omit streams with no new entries from results
+        if entries.is_empty() && ids[idx] == ">" {
+            continue;
+        }
 
         if !entries.is_empty() {
             has_data = true;
@@ -765,7 +854,7 @@ fn cmd_xreadgroup(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
     }
 
     if !has_data && ids.iter().all(|id| id == ">") {
-        return Frame::Null;
+        return Frame::NullArray;
     }
 
     Frame::Array(results)
@@ -773,16 +862,21 @@ fn cmd_xreadgroup(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
 
 /// XACK key group id [id ...]
 fn cmd_xack(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 3 {
-        return Frame::error(err_wrong_number("xack"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).to_string();
     let group_name = String::from_utf8_lossy(&args[1]).to_string();
     let ids: Vec<String> = args[2..]
         .iter()
         .map(|a| String::from_utf8_lossy(a).to_string())
         .collect();
+
+    // Validate all IDs
+    for id in &ids {
+        let normalized = Stream::normalize_id(id);
+        if Stream::parse_id(&normalized).is_err() {
+            return Frame::error("ERR Invalid stream ID specified as stream command argument");
+        }
+    }
+
     let id_refs: Vec<&str> = ids.iter().map(|s| s.as_str()).collect();
 
     let mut inner = state.lock();
@@ -807,10 +901,6 @@ fn cmd_xack(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
 
 /// XPENDING key group [[IDLE ms] start end count [consumer]]
 fn cmd_xpending(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 2 {
-        return Frame::error(err_wrong_number("xpending"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).to_string();
     let group_name = String::from_utf8_lossy(&args[1]).to_string();
 
@@ -856,7 +946,7 @@ fn cmd_xpending(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -
                 Frame::Integer(0),
                 Frame::Null,
                 Frame::Null,
-                Frame::Array(vec![]),
+                Frame::NullArray,
             ]);
         }
 
@@ -928,8 +1018,14 @@ fn cmd_xpending(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -
         return Frame::error("ERR syntax error");
     }
 
-    let start = format_stream_range_bound(&String::from_utf8_lossy(&args[i]), true);
-    let end = format_stream_range_bound(&String::from_utf8_lossy(&args[i + 1]), false);
+    let start = match format_stream_range_bound(&String::from_utf8_lossy(&args[i]), true) {
+        Ok(s) => s,
+        Err(e) => return Frame::error(e),
+    };
+    let end = match format_stream_range_bound(&String::from_utf8_lossy(&args[i + 1]), false) {
+        Ok(e) => e,
+        Err(e) => return Frame::error(e),
+    };
     let count_val = match String::from_utf8_lossy(&args[i + 2]).parse::<i64>() {
         Ok(n) => n,
         Err(_) => {
@@ -992,40 +1088,84 @@ fn cmd_xpending(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -
 
 /// XCLAIM key group consumer min-idle-ms id [id ...] [IDLE ms] [TIME ms] [RETRYCOUNT count] [FORCE] [JUSTID]
 fn cmd_xclaim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 5 {
-        return Frame::error(err_wrong_number("xclaim"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).to_string();
     let group_name = String::from_utf8_lossy(&args[1]).to_string();
     let consumer_name = String::from_utf8_lossy(&args[2]).to_string();
     let _min_idle_ms = match String::from_utf8_lossy(&args[3]).parse::<u64>() {
         Ok(n) => n,
         Err(_) => {
-            return Frame::error("ERR value is not an integer or out of range");
+            return Frame::error("ERR Invalid min-idle-time argument for XCLAIM");
         }
     };
 
     let mut ids = Vec::new();
     let mut justid = false;
     let mut force = false;
+    let mut in_options = false;
     let mut i = 4;
 
     while i < args.len() {
         let arg = String::from_utf8_lossy(&args[i]).to_uppercase();
         match arg.as_str() {
             "JUSTID" => {
+                in_options = true;
                 justid = true;
                 i += 1;
             }
             "FORCE" => {
+                in_options = true;
                 force = true;
                 i += 1;
             }
-            "IDLE" | "TIME" | "RETRYCOUNT" => {
-                i += 2; // skip option + value
+            "IDLE" => {
+                in_options = true;
+                i += 1;
+                if i >= args.len() {
+                    return Frame::error("ERR syntax error");
+                }
+                match String::from_utf8_lossy(&args[i]).parse::<i64>() {
+                    Ok(_) => {}
+                    Err(_) => {
+                        return Frame::error("ERR Invalid IDLE option argument for XCLAIM");
+                    }
+                }
+                i += 1;
+            }
+            "TIME" => {
+                in_options = true;
+                i += 1;
+                if i >= args.len() {
+                    return Frame::error("ERR syntax error");
+                }
+                match String::from_utf8_lossy(&args[i]).parse::<i64>() {
+                    Ok(_) => {}
+                    Err(_) => {
+                        return Frame::error("ERR Invalid TIME option argument for XCLAIM");
+                    }
+                }
+                i += 1;
+            }
+            "RETRYCOUNT" => {
+                in_options = true;
+                i += 1;
+                if i >= args.len() {
+                    return Frame::error("ERR syntax error");
+                }
+                match String::from_utf8_lossy(&args[i]).parse::<i64>() {
+                    Ok(_) => {}
+                    Err(_) => {
+                        return Frame::error("ERR Invalid RETRYCOUNT option argument for XCLAIM");
+                    }
+                }
+                i += 1;
             }
             _ => {
+                if in_options {
+                    return Frame::error(format!(
+                        "ERR Unrecognized XCLAIM option '{}'",
+                        String::from_utf8_lossy(&args[i])
+                    ));
+                }
                 ids.push(String::from_utf8_lossy(&args[i]).to_string());
                 i += 1;
             }
@@ -1044,15 +1184,20 @@ fn cmd_xclaim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
     let stream = match db.stream_keys.get_mut(&key) {
         Some(s) => s,
-        None => return Frame::Array(vec![]),
+        None => {
+            return Frame::error(format!(
+                "NOGROUP No such key '{}' or consumer group '{}' in XCLAIM for key name '{}'",
+                key, group_name, key
+            ));
+        }
     };
 
     let group = match stream.groups.get_mut(&group_name) {
         Some(g) => g,
         None => {
             return Frame::error(format!(
-                "NOGROUP No such consumer group '{}' for key name '{}'",
-                group_name, key
+                "NOGROUP No such key '{}' or consumer group '{}' in XCLAIM for key name '{}'",
+                key, group_name, key
             ));
         }
     };
@@ -1069,7 +1214,31 @@ fn cmd_xclaim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
     let mut claimed = Vec::new();
     for id in &ids {
-        if !stream.entries.iter().any(|e| e.id == *id) && !force {
+        let entry_exists = stream.entries.iter().any(|e| e.id == *id);
+        let in_pel = group.pending.iter().any(|pe| pe.id == *id);
+
+        if !entry_exists && !force && !in_pel {
+            // Entry doesn't exist, not forced, and not in PEL: skip
+            continue;
+        }
+
+        if !entry_exists && in_pel && !force {
+            // Entry was deleted but is still in PEL: remove from PEL
+            let consumer_name_of_pe = group
+                .pending
+                .iter()
+                .find(|pe| pe.id == *id)
+                .map(|pe| pe.consumer.clone());
+            group.pending.retain(|pe| pe.id != *id);
+            if let Some(cname) = consumer_name_of_pe
+                && let Some(c) = group.consumers.get_mut(&cname)
+            {
+                c.num_pending -= 1;
+            }
+            continue;
+        }
+
+        if !entry_exists && !force {
             continue;
         }
 
@@ -1128,21 +1297,21 @@ fn cmd_xclaim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
 
 /// XAUTOCLAIM key group consumer min-idle-ms start [COUNT count] [JUSTID]
 fn cmd_xautoclaim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.len() < 5 {
-        return Frame::error(err_wrong_number("xautoclaim"));
-    }
-
     let key = String::from_utf8_lossy(&args[0]).to_string();
     let group_name = String::from_utf8_lossy(&args[1]).to_string();
     let consumer_name = String::from_utf8_lossy(&args[2]).to_string();
     let min_idle_ms = match String::from_utf8_lossy(&args[3]).parse::<u64>() {
         Ok(n) => n,
         Err(_) => {
-            return Frame::error("ERR value is not an integer or out of range");
+            return Frame::error("ERR Invalid min-idle-time argument for XAUTOCLAIM");
         }
     };
     let start = String::from_utf8_lossy(&args[4]).to_string();
     let start_id = Stream::normalize_id(&start);
+    // Validate the start ID
+    if Stream::parse_id(&start_id).is_err() {
+        return Frame::error("ERR Invalid stream ID specified as stream command argument");
+    }
 
     let mut count: usize = 100;
     let mut justid = false;
@@ -1187,11 +1356,10 @@ fn cmd_xautoclaim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
     let stream = match db.stream_keys.get_mut(&key) {
         Some(s) => s,
         None => {
-            return Frame::Array(vec![
-                Frame::Bulk("0-0".into()),
-                Frame::Array(vec![]),
-                Frame::Array(vec![]),
-            ]);
+            return Frame::error(format!(
+                "NOGROUP No such key '{}' or consumer group '{}' in XAUTOCLAIM for key name '{}'",
+                key, group_name, key
+            ));
         }
     };
 
@@ -1199,8 +1367,8 @@ fn cmd_xautoclaim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
         Some(g) => g,
         None => {
             return Frame::error(format!(
-                "NOGROUP No such consumer group '{}' for key name '{}'",
-                group_name, key
+                "NOGROUP No such key '{}' or consumer group '{}' in XAUTOCLAIM for key name '{}'",
+                key, group_name, key
             ));
         }
     };
@@ -1216,7 +1384,8 @@ fn cmd_xautoclaim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
         });
 
     let mut claimed = Vec::new();
-    let mut next_id = "0-0".to_string();
+    let mut last_claimed_id: Option<String> = None;
+    let mut hit_count_limit = false;
 
     for pe in group.pending.iter_mut() {
         if Stream::cmp_ids(&pe.id, &start_id) == std::cmp::Ordering::Less {
@@ -1262,17 +1431,30 @@ fn cmd_xautoclaim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
             ]));
         }
 
-        next_id = pe.id.clone();
+        last_claimed_id = Some(pe.id.clone());
 
         if claimed.len() >= count {
+            hit_count_limit = true;
             break;
         }
     }
 
-    // Increment next_id for continuation
-    if let Ok((ms, seq)) = Stream::parse_id(&next_id) {
-        next_id = Stream::format_id(ms, seq + 1);
-    }
+    // Compute next_id: only return a non-zero cursor if we stopped early due to COUNT limit.
+    // If we scanned all eligible entries, return "0-0".
+    let next_id = if hit_count_limit {
+        match last_claimed_id {
+            Some(id) => {
+                if let Ok((ms, seq)) = Stream::parse_id(&id) {
+                    Stream::format_id(ms, seq + 1)
+                } else {
+                    "0-0".to_string()
+                }
+            }
+            None => "0-0".to_string(),
+        }
+    } else {
+        "0-0".to_string()
+    };
 
     Frame::Array(vec![
         Frame::Bulk(next_id.into()),
@@ -1283,10 +1465,6 @@ fn cmd_xautoclaim(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>])
 
 /// XINFO STREAM/GROUPS/CONSUMERS
 fn cmd_xinfo(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Frame {
-    if args.is_empty() {
-        return Frame::error(err_wrong_number("xinfo"));
-    }
-
     let subcmd = String::from_utf8_lossy(&args[0]).to_uppercase();
     match subcmd.as_str() {
         "STREAM" => {
@@ -1340,6 +1518,8 @@ fn cmd_xinfo(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
                 .groups
                 .iter()
                 .map(|(name, group)| {
+                    // Compute entries-read and lag
+                    let (entries_read, lag) = compute_entries_read_lag(stream, group);
                     Frame::Array(vec![
                         Frame::Bulk("name".into()),
                         Frame::Bulk(name.clone().into()),
@@ -1349,6 +1529,10 @@ fn cmd_xinfo(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
                         Frame::Integer(group.pending.len() as i64),
                         Frame::Bulk("last-delivered-id".into()),
                         Frame::Bulk(group.last_id.clone().into()),
+                        Frame::Bulk("entries-read".into()),
+                        entries_read,
+                        Frame::Bulk("lag".into()),
+                        lag,
                     ])
                 })
                 .collect();
@@ -1402,6 +1586,10 @@ fn cmd_xinfo(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
                         .duration_since(consumer.last_seen)
                         .unwrap_or_default()
                         .as_millis() as i64;
+                    let inactive = now
+                        .duration_since(consumer.last_success)
+                        .unwrap_or_default()
+                        .as_millis() as i64;
                     Frame::Array(vec![
                         Frame::Bulk("name".into()),
                         Frame::Bulk(name.clone().into()),
@@ -1409,6 +1597,8 @@ fn cmd_xinfo(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
                         Frame::Integer(consumer.num_pending),
                         Frame::Bulk("idle".into()),
                         Frame::Integer(idle),
+                        Frame::Bulk("inactive".into()),
+                        Frame::Integer(inactive),
                     ])
                 })
                 .collect();
@@ -1419,4 +1609,40 @@ fn cmd_xinfo(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
             "ERR unknown subcommand or wrong number of arguments for 'XINFO' command".to_string(),
         ),
     }
+}
+
+/// Compute `entries-read` and `lag` for XINFO GROUPS output.
+fn compute_entries_read_lag(stream: &Stream, group: &crate::types::StreamGroup) -> (Frame, Frame) {
+    // If last_id is "0-0", the group has never delivered anything.
+    if group.last_id == "0-0" {
+        return (Frame::Null, Frame::Integer(stream.entries.len() as i64));
+    }
+
+    // If entries_read_known is false (group was created with $ or a specific ID
+    // but never actually delivered entries), return nil for entries-read.
+    if !group.entries_read_known {
+        // We still know the lag: number of entries after the group's last_id.
+        let entries_after = stream
+            .entries
+            .iter()
+            .filter(|e| Stream::cmp_ids(&e.id, &group.last_id) == std::cmp::Ordering::Greater)
+            .count() as i64;
+        return (Frame::Null, Frame::Integer(entries_after));
+    }
+
+    // entries-read: number of entries with id <= group.last_id.
+    // Find the position of the first entry after last_id.
+    let pos = stream
+        .entries
+        .iter()
+        .position(|e| Stream::cmp_ids(&e.id, &group.last_id) == std::cmp::Ordering::Greater);
+
+    let entries_read = match pos {
+        Some(p) => p as i64,
+        None => stream.entries.len() as i64, // last_id >= all entries
+    };
+
+    let lag = stream.entries.len() as i64 - entries_read;
+
+    (Frame::Integer(entries_read), Frame::Integer(lag))
 }
