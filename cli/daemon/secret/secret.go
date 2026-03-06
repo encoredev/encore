@@ -162,6 +162,14 @@ func (mgr *Manager) fetch(appSlug string, poll bool) <-chan singleflight.Result 
 		defer cancel()
 		secrets, err := platform.GetLocalSecretValues(ctx, appSlug, poll)
 		if err != nil {
+			// check for access to the app before stating that we failed to fetch secrets
+			var pErr platform.Error
+			_, appErr := platform.GetApp(ctx, appSlug)
+			if errors.As(appErr, &pErr) && (pErr.HTTPCode == 404 || pErr.HTTPCode == 403) {
+				return nil, fmt.Errorf("access denied: you do not have access to the app %q", appSlug)
+			}
+			// log warning that we did not fetch secrets
+			// returning empty values to use the local secrets instead
 			log.Warn().Err(err).Msg("unable to fetch secrets from app, using override secrets instead")
 			return &Data{
 				Values: make(map[string]string),
