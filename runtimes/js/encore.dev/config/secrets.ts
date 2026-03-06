@@ -48,13 +48,19 @@ export type AnySecret = Secret<string>;
  *  const foo = secret<"foo">();
  */
 export function secret<Name extends string>(
-  name: StringLiteral<Name>,
+  name: StringLiteral<Name>
 ): Secret<Name> {
   // Get the secret implementation from the runtime.
   // It reports null if the secret isn't in the runtime config.
   const impl = runtime.RT.secret(name);
   const secretObj = () => {
     if (impl === null) {
+      // During local development we don't consider missing secrets a fatal error.
+      if (
+        runtime.RT.appMeta().environment.cloud === runtime.CloudProvider.Local
+      ) {
+        return "";
+      }
       throw new Error(`secret ${name} is not set`);
     }
     return impl.cached();
