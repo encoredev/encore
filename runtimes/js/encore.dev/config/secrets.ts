@@ -55,7 +55,7 @@ export function secret<Name extends string>(
   const impl = runtime.RT.secret(name);
   const secretObj = () => {
     if (impl === null) {
-      // in local mode we dont have secrets, so we return an empty string.
+      // During local development we don't consider missing secrets a fatal error.
       if (
         runtime.RT.appMeta().environment.cloud === runtime.CloudProvider.Local
       ) {
