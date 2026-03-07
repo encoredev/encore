@@ -1,0 +1,4 @@
+/target
+/testdata/*.key
+/testdata/*.crt
+/testdata/*.srl
