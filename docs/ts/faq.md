@@ -44,7 +44,7 @@ Not right now. Encore currently supports AWS Fargate and EKS (along with CloudRu
 
 Right now Encore.ts officially supports Node and has experimental support for Bun. Deno support is on the way. Note that Encore.ts already provides performance improvements thanks to its Rust-based runtime. [Learn more](https://encore.dev/blog/event-loops).
 
-To enable the Bun experiment, add `"experiments": ["bun-runtime"]` to your `encore.app` file.
+To enable the Bun experiment, add `"experiments": ["bun-runtime"]` to your `encore.app` file, and add `"packageManager": "bun"` to your `package.json` file.
 
 ## IDE Integrations
 
