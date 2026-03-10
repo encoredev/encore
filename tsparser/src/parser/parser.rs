@@ -256,12 +256,8 @@ impl<'a> Parser<'a> {
             a_parent
                 .cmp(&b_parent)
                 .then_with(|| {
-                    let a_svc =
-                        a.0.to_str()
-                            .is_some_and(|s| s.ends_with("encore.service.ts"));
-                    let b_svc =
-                        b.0.to_str()
-                            .is_some_and(|s| s.ends_with("encore.service.ts"));
+                    let a_svc = a.0.ends_with("encore.service.ts");
+                    let b_svc = b.0.ends_with("encore.service.ts");
                     b_svc.cmp(&a_svc) // true > false, so service files come first
                 })
                 .then_with(|| a.0.cmp(&b.0))
@@ -288,9 +284,7 @@ impl<'a> Parser<'a> {
                 }
 
                 let full_path = self.pc.app_root.join(rel_path);
-                let is_service_file = full_path
-                    .to_str()
-                    .is_some_and(|s| s.ends_with("encore.service.ts"));
+                let is_service_file = full_path.ends_with("encore.service.ts");
 
                 // Track current service directory.
                 if let Some((service_dir, _)) = &curr_service {

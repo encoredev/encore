@@ -34,8 +34,8 @@ pub struct ModuleLoader {
     encore_gen_root: PathBuf,
     by_path: RefCell<HashMap<FilePath, Lrc<Module>>>,
 
-    /// In-memory file contents for WASM mode (node_modules files).
-    /// When non-empty, load_fs_file checks here before reading from disk.
+    /// In-memory file contents (used in WASM mode for node_modules files).
+    /// In native mode this stays empty and load_fs_file falls through to the filesystem.
     in_memory_files: RefCell<HashMap<PathBuf, String>>,
 
     // The universe module, if it's been loaded.
@@ -213,17 +213,26 @@ impl ModuleLoader {
             return Ok(module.clone());
         }
 
-        // Try in-memory files first (WASM mode for node_modules).
+        // Try in-memory files first (used in WASM mode for node_modules).
         if let Some(content) = self.in_memory_files.borrow().get(path).cloned() {
             let file = self.file_set.new_source_file(file_name, content);
             let module = self.parse_and_store(file, module_path)?;
             return Ok(module);
         }
 
-        // Fall back to filesystem (native mode).
-        let file = self.file_set.load_file(path).map_err(Error::LoadFile)?;
-        let module = self.parse_and_store(file, module_path)?;
-        Ok(module)
+        // Fall back to filesystem (native mode only).
+        #[cfg(feature = "native")]
+        {
+            let file = self.file_set.load_file(path).map_err(Error::LoadFile)?;
+            let module = self.parse_and_store(file, module_path)?;
+            Ok(module)
+        }
+
+        #[cfg(not(feature = "native"))]
+        Err(Error::LoadFile(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("file not found in memory: {}", path.display()),
+        )))
     }
 
     /// Load a file from the filesystem into the module loader.

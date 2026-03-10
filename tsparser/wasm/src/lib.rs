@@ -135,13 +135,15 @@ fn run_parse(files: Vec<InputFile>, mut nm_files: Vec<InputFile>) -> String {
                 }
             };
 
-            // Register node_modules file contents with the module loader
-            if !nm_files.is_empty() {
-                let nm_contents: HashMap<PathBuf, String> = nm_files
+            // Register all file contents with the module loader so that
+            // import resolution works for both user files and node_modules.
+            {
+                let all_contents: HashMap<PathBuf, String> = files
                     .iter()
+                    .chain(nm_files.iter())
                     .map(|f| (app_root.join(&f.name), f.content.clone()))
                     .collect();
-                pc.loader.register_file_contents(nm_contents);
+                pc.loader.register_file_contents(all_contents);
             }
 
             let pass1 = PassOneParser::new(
