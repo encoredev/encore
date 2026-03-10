@@ -298,8 +298,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-wasm
-      - uses: taiki-e/install-action@wasm-pack
-      - name: Build WASM
-        run: wasm-pack build --target web tsparser/wasm
+      - name: Build
+        run: cargo build --target wasm32-unknown-unknown -p tsparser-wasm
       - name: Run clippy for WASM
         run: cargo clippy --target wasm32-unknown-unknown -p tsparser-wasm -- -D warnings
