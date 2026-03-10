@@ -346,7 +346,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     }
 
                     let assets_dir = dir.with(module_file_path.parent().unwrap().join(&dir.buf));
-                    #[cfg(feature = "native")]
+                    #[cfg(not(target_arch = "wasm32"))]
                     if let Err(err) = std::fs::read_dir(assets_dir.as_path()) {
                         dir.err(&format!("unable to read static assets directory: {err}"));
                     }
@@ -354,7 +354,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     // Ensure the not_found file exists.
                     let not_found_path =
                         not_found.map(|p| p.with(module_file_path.parent().unwrap().join(&p.buf)));
-                    #[cfg(feature = "native")]
+                    #[cfg(not(target_arch = "wasm32"))]
                     if let Some(not_found_path) = &not_found_path {
                         if !not_found_path.is_file() {
                             not_found_path.err("file does not exist");

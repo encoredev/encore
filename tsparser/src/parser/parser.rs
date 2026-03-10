@@ -8,11 +8,11 @@ use swc_common::errors::{Handler, HANDLER};
 use swc_common::sync::Lrc;
 use swc_common::{SourceMap, Spanned, DUMMY_SP};
 use swc_ecma_loader::resolve::Resolve;
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 use swc_ecma_loader::resolvers::node::NodeModulesResolver;
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 use swc_ecma_loader::TargetEnv;
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 use walkdir::WalkDir;
 
 use crate::parser::module_loader::ModuleLoader;
@@ -24,7 +24,7 @@ use crate::parser::service_discovery::{discover_services, DiscoveredService};
 use crate::parser::types::TypeChecker;
 use crate::parser::usageparser::{Usage, UsageResolver};
 use crate::parser::{FilePath, FileSet};
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 use crate::runtimeresolve::{EncoreRuntimeResolver, TsConfigPathResolver};
 use crate::span_err::ErrReporter;
 
@@ -68,7 +68,7 @@ impl std::fmt::Debug for ParseContext {
 }
 
 impl ParseContext {
-    #[cfg(feature = "native")]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new(
         app_root: PathBuf,
         js_runtime_path: Option<PathBuf>,
@@ -84,7 +84,7 @@ impl ParseContext {
         Self::with_resolver(app_root, js_runtime_path, resolver, cm, errs)
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn with_resolver<R>(
         app_root: PathBuf,
         js_runtime_path: Option<PathBuf>,
@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Run the parser by walking the filesystem.
-    #[cfg(feature = "native")]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn parse(mut self) -> ParseResult {
         fn is_service(e: &walkdir::DirEntry) -> bool {
             e.path().ends_with("encore.service.ts")

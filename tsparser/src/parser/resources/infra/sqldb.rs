@@ -3,16 +3,16 @@ use std::str::FromStr;
 
 use itertools::Either;
 use litparser_derive::LitParser;
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 use once_cell::sync::Lazy;
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 use regex::Regex;
 use swc_common::sync::Lrc;
 use swc_common::{Span, Spanned};
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 use swc_ecma_ast as ast;
 
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 use litparser::ToParseErr;
 use litparser::{report_and_continue, LitParser, Sp};
 use litparser::{LocalRelPath, ParseResult};
@@ -208,7 +208,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
     },
 };
 
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 fn visit_dirs(
     span: Span,
     dir: &Path,
@@ -229,7 +229,7 @@ fn visit_dirs(
     Ok(())
 }
 
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 fn parse_default(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
     let mut migrations = vec![];
     static FILENAME_RE: Lazy<Regex> =
@@ -272,7 +272,7 @@ fn parse_default(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
     Ok(migrations)
 }
 
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 fn parse_drizzle(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
     let mut migrations = vec![];
 
@@ -312,7 +312,7 @@ fn parse_drizzle(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
     Ok(migrations)
 }
 
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 fn parse_prisma(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
     let mut migrations = vec![];
 
@@ -370,7 +370,7 @@ fn parse_prisma(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
 /// │   ├── migration.sql
 /// │   └── snapshot.json
 /// └── meta/
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 fn parse_drizzle_v1(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
     let mut migrations = vec![];
 
@@ -430,7 +430,7 @@ fn parse_drizzle_v1(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
     Ok(migrations)
 }
 
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 fn parse_migrations(
     span: Span,
     dir: &Path,
@@ -452,7 +452,7 @@ fn parse_migrations(
     Ok(migrations)
 }
 
-#[cfg(not(feature = "native"))]
+#[cfg(target_arch = "wasm32")]
 fn parse_migrations(
     _span: Span,
     _dir: &Path,
@@ -464,7 +464,7 @@ fn parse_migrations(
 
 pub fn resolve_database_usage(data: &ResolveUsageData, db: Lrc<SQLDatabase>) -> Option<Usage> {
     // Validate database queries, when possible.
-    #[cfg(feature = "native")]
+    #[cfg(not(target_arch = "wasm32"))]
     match &data.expr.kind {
         UsageExprKind::TemplateCall(call) => {
             let method = &call.method.sym;
@@ -532,7 +532,7 @@ pub struct AccessDatabaseUsage {
     pub db: Lrc<SQLDatabase>,
 }
 
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 fn parse_template_query(tpl: &ast::TaggedTpl) -> Option<pg_query::Error> {
     let mut query = String::new();
     for (i, q) in tpl.tpl.quasis.iter().enumerate() {

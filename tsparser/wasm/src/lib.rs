@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt;
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -137,7 +136,9 @@ fn run_parse(files: Vec<InputFile>, mut nm_files: Vec<InputFile>) -> String {
 
             // Register all file contents with the module loader so that
             // import resolution works for both user files and node_modules.
+            #[cfg(target_arch = "wasm32")]
             {
+                use std::collections::HashMap;
                 let all_contents: HashMap<PathBuf, String> = files
                     .iter()
                     .chain(nm_files.iter())

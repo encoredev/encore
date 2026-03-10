@@ -1,5 +1,5 @@
 pub mod app;
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 pub mod builder;
 pub mod exports;
 mod legacymeta;
@@ -24,7 +24,7 @@ pub mod encore {
     }
 }
 
-#[cfg(feature = "native")]
+#[cfg(not(target_arch = "wasm32"))]
 mod runtimeresolve;
 #[cfg(test)]
 pub mod testutil;

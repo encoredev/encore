@@ -18,7 +18,7 @@ pub struct TsConfigPathResolver {
 
 #[derive(Error, Debug)]
 pub enum TsConfigError {
-    #[cfg(feature = "native")]
+    #[cfg(not(target_arch = "wasm32"))]
     #[error("reading {0} failed")]
     Read(PathBuf, #[source] std::io::Error),
     #[error("parsing {0} failed")]
@@ -28,7 +28,7 @@ pub enum TsConfigError {
 }
 
 impl TsConfigPathResolver {
-    #[cfg(feature = "native")]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_file(tsconfig_path: &Path) -> Result<Self, TsConfigError> {
         let tsconfig_dir = tsconfig_path
             .parent()
@@ -142,7 +142,7 @@ impl TsConfigPathResolver {
     }
 
     /// Resolve a tsconfig path alias using filesystem `.exists()` checks.
-    #[cfg(feature = "native")]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn resolve(&self, import: &str) -> Option<Cow<'_, str>> {
         self.resolve_with_checker(import, |p| p.exists())
     }
