@@ -172,11 +172,6 @@ fn file_candidates(base: &Path) -> Vec<PathBuf> {
 
 impl Resolve for InMemoryResolver {
     fn resolve(&self, base: &FileName, target: &str) -> Result<FileName, anyhow::Error> {
-        // Handle encore.dev/* imports -> return custom filename
-        if target.starts_with("encore.dev/") || target == "encore.dev" {
-            return Ok(FileName::Custom(target.to_string()));
-        }
-
         // Try tsconfig path aliases (e.g. "@/*" -> "./src/*")
         if let Some(tsconfig) = &self.tsconfig {
             if let Some(resolved) =
@@ -251,20 +246,28 @@ mod tests {
 
     #[test]
     fn resolve_encore_dev() {
-        let resolver = make_resolver(&[], &[]);
+        let resolver = make_resolver(
+            &["node_modules/encore.dev/api/mod.ts"],
+            &[(
+                "node_modules/encore.dev/package.json",
+                r#"{"name": "encore.dev", "exports": {"./api": {"types": "./api/mod.ts"}}}"#,
+            )],
+        );
         let result = resolver
             .resolve(&FileName::Real("/app/src/foo.ts".into()), "encore.dev/api")
             .unwrap();
-        assert_eq!(result, FileName::Custom("encore.dev/api".into()));
+        assert_eq!(
+            result,
+            FileName::Real("/app/node_modules/encore.dev/api/mod.ts".into())
+        );
     }
 
     #[test]
-    fn resolve_encore_dev_root() {
+    fn resolve_encore_dev_not_found() {
+        // Without encore.dev in node_modules, resolution should fail
         let resolver = make_resolver(&[], &[]);
-        let result = resolver
-            .resolve(&FileName::Real("/app/src/foo.ts".into()), "encore.dev")
-            .unwrap();
-        assert_eq!(result, FileName::Custom("encore.dev".into()));
+        let result = resolver.resolve(&FileName::Real("/app/src/foo.ts".into()), "encore.dev/api");
+        assert!(result.is_err());
     }
 
     #[test]

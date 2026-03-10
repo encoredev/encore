@@ -16,6 +16,9 @@ use encore_tsparser::parser::parser::{ParseContext, Parser};
 use encore_tsparser::parser::resourceparser::PassOneParser;
 use encore_tsparser::tsconfig::TsConfigPathResolver;
 
+// Bundled encore.dev SDK files (package.json + .ts sources).
+include!(concat!(env!("OUT_DIR"), "/encore_dev_files.rs"));
+
 #[wasm_bindgen(start)]
 pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
@@ -56,7 +59,17 @@ pub fn parse(files_json: &str) -> String {
     run_parse(user_files, nm_files)
 }
 
-fn run_parse(files: Vec<InputFile>, nm_files: Vec<InputFile>) -> String {
+fn run_parse(files: Vec<InputFile>, mut nm_files: Vec<InputFile>) -> String {
+    // Filter out any user-provided encore.dev files and use the bundled version instead,
+    // since the parser is coupled to a specific SDK version.
+    nm_files.retain(|f| !f.name.starts_with("node_modules/encore.dev/"));
+    for &(name, content) in ENCORE_DEV_FILES {
+        nm_files.push(InputFile {
+            name: name.to_string(),
+            content: content.to_string(),
+        });
+    }
+
     let globals = Globals::new();
     let cm: Lrc<SourceMap> = Default::default();
     let errors: Arc<Mutex<Vec<String>>> = Default::default();
