@@ -5,21 +5,37 @@ edition = "2021"
 
 [[bin]]
 name = "tsparser-encore"
+required-features = ["native"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["native"]
+native = [
+    "dep:pg_query",
+    "dep:walkdir",
+    "dep:duct",
+    "dep:symlink",
+    "dep:junction",
+    "dep:env_logger",
+    "swc_ecma_loader/node",
+    "swc_ecma_loader/tsc",
+    "swc_common/tty-emitter",
+]
+serde-meta = []
 
 [dependencies]
 swc_ecma_parser = { version = "0.141.21", features = ["typescript"] }
 swc_ecma_ast = "0.110.9"
 swc_ecma_visit = { version = "0.96.9", features = ["path"] }
 swc_ecma_transforms_base = "0.134.30"
-swc_ecma_loader = { version = "0.45.9", features = ["node", "tsc"] }
-swc_common = { version = "0.33.8", features = ["tty-emitter"] }
-walkdir = "2"
+swc_ecma_loader = "0.45.9"
+swc_common = "0.33.8"
+walkdir = { version = "2", optional = true }
 anyhow = { version = "1.0.75", features = ["backtrace"] }
 clean-path = "0.2.1"
 log = "0.4.20"
-env_logger = "0.10.0"
+env_logger = { version = "0.10.0", optional = true }
 txtar = { version = "1.0.0", path = "./txtar" }
 litparser = { version = "0.1.0", path = "./litparser" }
 litparser-derive = { version = "0.1.0", path = "./litparser-derive" }
@@ -35,17 +51,17 @@ serde_json = { version = "1.0.107", features = ["preserve_order"] }
 url = "2.4.1"
 convert_case = "0.6.0"
 itertools = "0.13.0"
-duct = "0.13.6"
+duct = { version = "0.13.6", optional = true }
 indexmap = { version = "2.1.0", features = ["serde"] }
 serde_yaml = "0.9.32"
-symlink = "0.1.0"
+symlink = { version = "0.1.0", optional = true }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-junction = "1.2.0"
+junction = { version = "1.2.0", optional = true }
 thiserror = "1.0.64"
 matchit = "0.7.3"
 semver = "1.0.24"
-pg_query = "6.1.1"
+pg_query = { version = "6.1.1", optional = true }
 
 [build-dependencies]
 prost-build = { version = "0.12.1" }
