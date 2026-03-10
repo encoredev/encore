@@ -298,8 +298,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-wasm
-      - name: Install wasm-pack
-        run: cargo install wasm-pack
+      - uses: taiki-e/install-action@wasm-pack
       - name: Build WASM
         run: wasm-pack build --target web tsparser/wasm
       - name: Run clippy for WASM
