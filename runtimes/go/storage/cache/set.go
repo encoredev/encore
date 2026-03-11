@@ -482,7 +482,7 @@ func (s *SetKeyspace[K, V]) SampleOne(ctx context.Context, key K) (val V, err er
 //
 // See https://redis.io/commands/srandmember/ for more information.
 func (s *SetKeyspace[K, V]) Sample(ctx context.Context, key K, count int) (values []V, err error) {
-	const op = "set sample one"
+	const op = "set sample"
 	k, err := s.key(key, op)
 	endTrace := s.doTrace(op, false, k)
 	defer func() { endTrace(err) }()
