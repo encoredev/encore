@@ -171,6 +171,14 @@ func (m *Manager) callEndpoint(ctx context.Context, request mcp.CallToolRequest)
 		return nil, fmt.Errorf("API call failed: %w", err)
 	}
 
+	// Convert body to string
+	if body, ok := result["body"]; ok {
+		switch v := body.(type) {
+		case []byte:
+			result["body"] = string(v)
+		}
+	}
+
 	// Serialize the response
 	jsonData, err := json.Marshal(result)
 	if err != nil {
