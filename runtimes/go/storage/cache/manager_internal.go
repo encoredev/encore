@@ -81,8 +81,9 @@ func (mgr *Manager) getClient(clusterName string) *redis.Client {
 
 	for _, rdb := range mgr.runtime.RedisDatabases {
 		if rdb.EncoreName == clusterName {
-			// If the cluster is configured for in-memory, use miniredis.
-			if rdb.InMemory {
+			// If the server is configured for in-memory, use miniredis.
+			srv := mgr.runtime.RedisServers[rdb.ServerID]
+			if srv.InMemory {
 				cl, err := mgr.newMiniredisClient()
 				if err != nil {
 					panic(fmt.Sprintf("cache: unable to start redis mock: %v", err))

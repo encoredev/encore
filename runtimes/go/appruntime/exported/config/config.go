@@ -381,6 +381,10 @@ type RedisServer struct {
 	ClientCert string `json:"client_cert,omitempty"`
 	// ClientKey is the PEM-encoded client key, or "" if not required.
 	ClientKey string `json:"client_key,omitempty"`
+
+	// InMemory tells the runtime to use an in-memory store
+	// instead of connecting to this server.
+	InMemory bool `json:"in_memory"`
 }
 
 type RedisDatabase struct {
@@ -403,10 +407,6 @@ type RedisDatabase struct {
 	// to use the same physical Redis database for local development
 	// without having to coordinate and persist database index ids.
 	KeyPrefix string `json:"key_prefix"`
-
-	// InMemory tells the runtime to use an in-memory store
-	// instead of connecting to a real Redis server.
-	InMemory bool `json:"in_memory"`
 }
 
 type BucketProvider struct {
