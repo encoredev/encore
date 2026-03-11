@@ -434,14 +434,6 @@ try {
 }
 ```
 
-## Testing
-
-When running tests, Encore spins up an isolated cache environment for each test.
-
-This way you don't have to think about clearing the cache between tests,
-or worrying about whether one test affects another.
-Each test is automatically fully isolated.
-
 ## Local development
 
 For local development, Encore maintains a local, in-memory implementation of Redis.
