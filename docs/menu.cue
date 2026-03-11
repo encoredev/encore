@@ -782,6 +782,11 @@
 				file: "ts/primitives/pubsub"
 			}, {
 				kind: "basic"
+				text: "Caching"
+				path: "/ts/primitives/caching"
+				file: "ts/primitives/caching"
+			}, {
+				kind: "basic"
 				text: "Secrets"
 				path: "/ts/primitives/secrets"
 				file: "ts/primitives/secrets"
