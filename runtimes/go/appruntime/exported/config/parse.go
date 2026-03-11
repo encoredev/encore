@@ -286,6 +286,7 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 			MinConnections: orDefaultPtr(redis.MinConnections, 0),
 			MaxConnections: orDefaultPtr(redis.MaxConnections, 0),
 			KeyPrefix:      orDefaultPtr(redis.KeyPrefix, ""),
+			InMemory:       redis.InMemory,
 		})
 		i++
 	}

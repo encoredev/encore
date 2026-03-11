@@ -16,7 +16,7 @@ use crate::trace::Tracer;
 /// Manager manages cache cluster connections.
 pub struct Manager {
     clusters: Arc<HashMap<EncoreName, Arc<ClusterImpl>>>,
-    /// Miniredis-backed cluster for testing and Encore Cloud fallback.
+    /// Miniredis-backed cluster for testing and in-memory fallback.
     miniredis_cluster: Option<Arc<ClusterImpl>>,
     /// Keeps the in-process miniredis server alive for the lifetime of the Manager.
     _miniredis: Option<MiniredisServer>,
@@ -28,21 +28,20 @@ pub struct ManagerConfig<'a> {
     pub creds: &'a pb::infrastructure::Credentials,
     pub secrets: &'a secrets::Manager,
     pub tracer: Tracer,
-    pub cloud: pb::environment::Cloud,
     pub testing: bool,
     pub runtime: tokio::runtime::Handle,
 }
 
 impl ManagerConfig<'_> {
     pub fn build(self) -> anyhow::Result<Manager> {
+        // Use miniredis for testing or when any cluster has in_memory set.
+        let needs_miniredis = self.testing || self.clusters.iter().any(|c| c.in_memory);
+
         let clusters =
             clusters_from_cfg(self.clusters, self.creds, self.secrets, self.tracer.clone())
                 .context("failed to parse Redis clusters")?;
 
-        // Use miniredis for testing and Encore Cloud.
-        let (miniredis_cluster, miniredis) = if self.testing
-            || self.cloud == pb::environment::Cloud::Encore
-        {
+        let (miniredis_cluster, miniredis) = if needs_miniredis {
             log::debug!("cache: starting in-process miniredis server");
             let server = self
                 .runtime
@@ -74,14 +73,14 @@ impl ManagerConfig<'_> {
 
 impl Manager {
     /// Returns a cluster by name.
-    /// If the cluster is not configured and running in test/Encore Cloud mode,
+    /// If the cluster is not configured and miniredis is available (testing or in-memory mode),
     /// returns the miniredis-backed cluster. Otherwise, returns a NoopCluster
     /// that errors on all operations.
     pub fn cluster(&self, name: &EncoreName) -> Arc<dyn Cluster> {
         match self.clusters.get(name) {
             Some(cluster) => cluster.clone(),
             None => {
-                // If we have a miniredis cluster (testing or Encore Cloud),
+                // If we have a miniredis cluster (testing or in-memory),
                 // use it as a fallback for unconfigured clusters.
                 if let Some(cluster) = &self.miniredis_cluster {
                     log::debug!(
@@ -169,6 +168,11 @@ fn clusters_from_cfg(
         .collect();
 
     for cluster in clusters {
+        // Skip in-memory clusters; they'll use the miniredis fallback.
+        if cluster.in_memory {
+            continue;
+        }
+
         // Get the primary server
         let server = cluster
             .servers

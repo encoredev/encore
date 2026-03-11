@@ -655,7 +655,8 @@ type RedisCluster struct {
 	Rid       string           `protobuf:"bytes,1,opt,name=rid,proto3" json:"rid,omitempty"`
 	Servers   []*RedisServer   `protobuf:"bytes,2,rep,name=servers,proto3" json:"servers,omitempty"`
 	Databases []*RedisDatabase `protobuf:"bytes,3,rep,name=databases,proto3" json:"databases,omitempty"`
-	// If true, the runtime will spawn a single in-memory store for this cluster.
+	// If true, the runtime will use an in-memory Redis implementation
+	// instead of connecting to the configured servers.
 	InMemory      bool `protobuf:"varint,4,opt,name=in_memory,json=inMemory,proto3" json:"in_memory,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

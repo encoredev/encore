@@ -782,6 +782,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         ),
                     }],
                     databases: vec![database],
+                    in_memory: false,
                 }
             })
             .collect()

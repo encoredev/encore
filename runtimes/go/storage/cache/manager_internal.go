@@ -69,8 +69,8 @@ func (mgr *Manager) getClient(clusterName string) *redis.Client {
 		return cl
 	}
 
-	// Are we in a test or running in Encore Cloud? If so, use the redismock library.
-	if mgr.static.Testing || mgr.runningInEncoreCloud() {
+	// Are we in a test? If so, use the in-memory redis library.
+	if mgr.static.Testing {
 		cl, err := mgr.newMiniredisClient()
 		if err != nil {
 			panic(fmt.Sprintf("cache: unable to start redis mock: %v", err))
@@ -81,6 +81,16 @@ func (mgr *Manager) getClient(clusterName string) *redis.Client {
 
 	for _, rdb := range mgr.runtime.RedisDatabases {
 		if rdb.EncoreName == clusterName {
+			// If the cluster is configured for in-memory, use miniredis.
+			if rdb.InMemory {
+				cl, err := mgr.newMiniredisClient()
+				if err != nil {
+					panic(fmt.Sprintf("cache: unable to start redis mock: %v", err))
+				}
+				mgr.clients[clusterName] = cl
+				return cl
+			}
+
 			cl, err := mgr.newClient(rdb)
 			if err != nil {
 				panic(fmt.Sprintf("cache: unable to create redis client: %v", err))
@@ -91,13 +101,6 @@ func (mgr *Manager) getClient(clusterName string) *redis.Client {
 	}
 
 	return newNoopClient()
-}
-
-func (mgr *Manager) runningInEncoreCloud() bool {
-	if mgr.runtime != nil && mgr.runtime.EnvCloud == "encore" {
-		return true
-	}
-	return false
 }
 
 func (mgr *Manager) newClient(rdb *config.RedisDatabase) (*redis.Client, error) {
@@ -141,8 +144,9 @@ func (mgr *Manager) newMiniredisClient() (*redis.Client, error) {
 		var err error
 		mgr.testSrv, err = miniredis.Run()
 
-		// Periodically clean up cache keys if running in Encore Cloud.
-		if err == nil && mgr.runningInEncoreCloud() {
+		// Periodically clean up cache keys if not running in tests
+		// (i.e. running with in-memory flag set in a long-lived process).
+		if err == nil && !mgr.static.Testing {
 			go miniredisCleanup(mgr.testSrv, 15*time.Second, 100)
 		}
 

@@ -124,7 +124,8 @@ message RedisCluster {
 
   repeated RedisDatabase databases = 3;
 
-  // If true, the runtime will spawn a single in-memory store for this cluster.
+  // If true, the runtime will use an in-memory Redis implementation
+  // instead of connecting to the configured servers.
   bool in_memory = 4;
 }
 

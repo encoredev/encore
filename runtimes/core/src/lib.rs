@@ -367,14 +367,11 @@ impl Runtime {
         .build()
         .context("unable to initialize sqldb proxy")?;
 
-        let cloud = runtimepb::environment::Cloud::try_from(environment.cloud)
-            .unwrap_or(runtimepb::environment::Cloud::Unspecified);
         let cache = cache::ManagerConfig {
             clusters: resources.redis_clusters,
             creds: &creds,
             secrets: &secrets,
             tracer: tracer.clone(),
-            cloud,
             testing,
             runtime: tokio_rt.handle().clone(),
         }
