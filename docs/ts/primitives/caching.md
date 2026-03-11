@@ -120,12 +120,6 @@ export const myEndpoint = api(
     }
 
     const count = await requestsPerUser.increment({ userId: auth.userID }, 1);
-
-    // NOTE: this "fails open", meaning if we can't communicate with the cache
-    // we default to allowing the requests.
-    //
-    // Consider whether that's the correct behavior for your application,
-    // or if you want to return an error to the user in that case.
     if (count > 10) {
       throw APIError.resourceExhausted("rate limit exceeded");
     }
@@ -433,14 +427,6 @@ try {
   throw err;
 }
 ```
-
-## Testing
-
-When running tests, Encore spins up an isolated cache environment for each test.
-
-This way you don't have to think about clearing the cache between tests,
-or worrying about whether one test affects another.
-Each test is automatically fully isolated.
 
 ## Local development
 
