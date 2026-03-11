@@ -123,6 +123,9 @@ message RedisCluster {
   repeated RedisServer servers = 2;
 
   repeated RedisDatabase databases = 3;
+
+  // If true, the runtime will spawn a single in-memory store for this cluster.
+  bool in_memory = 4;
 }
 
 message RedisServer {
