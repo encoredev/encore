@@ -120,12 +120,6 @@ export const myEndpoint = api(
     }
 
     const count = await requestsPerUser.increment({ userId: auth.userID }, 1);
-
-    // NOTE: this "fails open", meaning if we can't communicate with the cache
-    // we default to allowing the requests.
-    //
-    // Consider whether that's the correct behavior for your application,
-    // or if you want to return an error to the user in that case.
     if (count > 10) {
       throw APIError.resourceExhausted("rate limit exceeded");
     }
