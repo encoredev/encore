@@ -6,7 +6,7 @@ export type Expiry =
   | { type: "duration"; durationMs: number }
   | { type: "time"; hours: number; minutes: number; seconds: number }
   | "never"
-  | "keepTTL";
+  | "keep-ttl";
 
 /**
  * expireIn sets the cache entry to expire after the specified duration.
@@ -64,19 +64,18 @@ export const neverExpire: Expiry = "never";
  * keepTTL preserves the existing TTL when updating a cache entry.
  * If the key doesn't exist, no TTL is set.
  */
-export const keepTTL: Expiry = "keepTTL";
+export const keepTTL: Expiry = "keep-ttl";
 
 /**
- * Resolves an Expiry to milliseconds, or undefined if no TTL should be set.
- * Returns null for keepTTL to indicate TTL should be preserved.
+ * Resolves an Expiry to a duration in milliseconds, "never", or "keep-ttl".
  * @internal
  */
-export function resolveExpiry(expiry: Expiry): number | "never" | "keepTTL" {
+export function resolveExpiry(expiry: Expiry): number | "never" | "keep-ttl" {
   switch (expiry) {
     case "never":
       return "never";
-    case "keepTTL":
-      return "keepTTL";
+    case "keep-ttl":
+      return "keep-ttl";
   }
 
   switch (expiry.type) {

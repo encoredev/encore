@@ -106,7 +106,7 @@ export abstract class Keyspace<K> {
     if (!expiry) return undefined;
 
     const resolved = resolveExpiry(expiry);
-    if (resolved === "keepTTL") return -1; // KeepTTL
+    if (resolved === "keep-ttl") return -1; // KeepTTL
     if (resolved === "never") return -2; // NeverExpire → Persist
     return resolved; // milliseconds
   }
