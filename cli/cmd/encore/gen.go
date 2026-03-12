@@ -71,10 +71,11 @@ To further narrow down the services to generate, use the '--services' flag.
 			}
 
 			// Determine the app id, either from the argument or from the current directory.
-			var appID string
+			var appID, appRoot string
 			if len(args) == 0 {
+				var err error
 				// First check the encore.app file.
-				appRoot, _, err := cmdutil.MaybeAppRoot()
+				appRoot, _, err = cmdutil.MaybeAppRoot()
 				if err != nil && !errors.Is(err, cmdutil.ErrNoEncoreApp) {
 					fatal(err)
 				} else if appRoot != "" {
@@ -134,6 +135,7 @@ To further narrow down the services to generate, use the '--services' flag.
 				OpenapiExcludePrivateEndpoints: &openAPIExcludePrivateEndpoints,
 				TsSharedTypes:                  &tsSharedTypes,
 				TsClientTarget:                 &tsDefaultClient,
+				AppRoot:                        appRoot,
 			})
 			if err != nil {
 				fatal(err)
