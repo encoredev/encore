@@ -258,7 +258,8 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 	var i int
 	for name, redis := range infraCfg.Redis {
 		cfg.RedisServers[i] = &RedisServer{
-			Host: redis.Host,
+			Host:     redis.Host,
+			InMemory: redis.InMemory,
 		}
 		if redis.TLSConfig != nil {
 			cfg.RedisServers[i].EnableTLS = true

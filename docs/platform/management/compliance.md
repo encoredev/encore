@@ -1,22 +1,35 @@
 ---
-seotitle: Compliance & Security
-seodesc: Encore is designed to help you build secure, scalable applications. We take the security and reliability of your application very seriously.
-title: Compliance & Security
-subtitle: Encore SOC 2 Self-assessment
+seotitle: Security & Compliance
+seodesc: Learn about Encore's security practices, infrastructure protections, and compliance posture — built on industry-standard controls and trusted cloud providers.
+title: Security & Compliance
+subtitle: How Encore protects your applications, code, and data
 lang: platform
 ---
 
-_Last updated: 17 April, 2025_
+_Last updated: March 3, 2026_
 
-As an organization or engineer who creates applications, your applications, code, and data are among your most important assets. Encore highly prioritizes the security of these assets, allowing you to concentrate on your goal: designing exceptional applications.
+Your applications, code, and data are among your most important assets. Security is foundational to everything we build at Encore — it is embedded in our architecture, our processes, and our culture. This document provides a comprehensive overview of the security controls and practices we have in place today, structured around the SOC 2 trust service criteria.
 
-We are currently preparing for an external review of our security measures in connection with a SOC 2 Type 1 audit. This document provides a summary of our self-evaluation regarding the current implementation of the SOC 2 trust service criteria at Encore.
+### Security at a glance
+
+| Area | What we do |
+| --- | --- |
+| **Infrastructure** | Hosted on GCP (ISO 27001 / SOC 2 certified). All servers are private, accessible only via VPN. |
+| **Encryption** | AES-256 at rest, TLS 1.2+ and WireGuard in transit. Customer secrets additionally encrypted via GCP KMS. |
+| **Zero-trust networking** | All server-to-server communication is authenticated and end-to-end encrypted via Tailscale / WireGuard. |
+| **Access control** | Principle of least privilege, MFA enforced, regular access reviews, VPN-only infrastructure access. |
+| **Authentication** | Managed by Clerk (SOC 2 certified). Passwordless by default — Encore never stores or handles user passwords. |
+| **Monitoring & alerting** | 24/7 monitoring via Grafana, Sentry, Cronitor, and GCP Cloud Monitoring (all SOC 2 certified). |
+| **Vendor security** | All critical vendors are SOC 2 and/or ISO 27001 certified (GCP, Tailscale, Clerk, GitHub, Sentry, Grafana). |
+| **Code quality** | Mandatory code review, CI/CD with automated testing, automated vulnerability scanning. |
+| **Data privacy** | GDPR compliant. Data minimization by design. |
+| **Responsible disclosure** | Active bug bounty program for security researchers. |
 
 ## SOC 2
 
-SOC is short for "System and Organization Controls" – it is the de facto industry standard for software security and privacy. During the SOC 2 audit, an external auditor will carry out an extensive review of our processes (e.g. employee onboarding and offboarding, access review, various policies, disaster recovery exercises, software architecture, physical access, etc.) and ensure that they meet the mark.
+SOC is short for "System and Organization Controls" — it is the de facto industry standard for software security and privacy. We have implemented controls aligned with the SOC 2 framework and are currently preparing for a formal SOC 2 Type 1 audit, during which an external auditor will verify that our controls meet the standard.
 
-The Type 1 audit is a point-in-time audit where the auditor verifies that the controls are satisfied at a specific point in time. After the initial Type 1 audit, we are planning to proceed to Type 2 which is based on continuous monitoring during time periods of varying lengths.
+After the Type 1 audit, we plan to proceed to Type 2, which involves continuous monitoring over an extended period.
 
 ### Trust Service Criteria
 
@@ -46,9 +59,9 @@ The following sections describe in detail how Encore implements each trust servi
 
 ## Security
 
-Encore believes that the best way to achieve a secure system is to follow best practices and industry standards, and not with obscurity (i.e. attempting to "secure" a system only by making it "difficult to understand") or homegrown technology (e.g. custom encryption algorithms).
+We believe security is achieved through proven best practices and industry standards — not through obscurity or homegrown cryptography. Our approach is defense in depth: multiple overlapping layers of protection so that the compromise of any single layer does not result in a breach.
 
-We have a designated individual (Security Officer) responsible for all aspects of security, such as infrastructure, software, and data.
+We have a designated Security Officer responsible for all aspects of security across infrastructure, software, and data.
 
 ### Infrastructure security
 
@@ -62,21 +75,17 @@ The production environment is separated from testing environments, using separat
 
 ### Organizational security
 
-Since an organization is only as good as its people, Encore takes great care when selecting and training its staff. All employees undergo a thorough selection process that has been designed to identify the best talent in the world for the job. Many of Encore's employees have extensive experience working in regulated environments such as Online Banking and large-scale Online Payments.
+An organization is only as strong as its people. All employees undergo a rigorous selection process, and many of Encore's team members bring extensive experience from regulated environments such as online banking and large-scale payment systems.
 
-Individual performance monitoring is carried out by managers on a bi-weekly cadence. Overall organizational performance is tracked continuously and reviewed by management on a monthly cadence using Key Performance Indicators determined by management.
+Employees are required to complete annual security awareness training covering physical security, digital hygiene (strong passwords, two-factor authentication), social engineering ("phishing"), and related topics. Individual performance is reviewed on a bi-weekly cadence, and organizational performance is tracked via KPIs reviewed monthly by management.
 
-Employees are required to complete yearly security awareness training. The training is designed to increase sensitivity to physical security (hardware and media handling, office access control, etc.), digital security (e.g. secure passwords, two-factor authentication), social engineering attacks ("phishing"), and other security-related topics.
-
-Encore employment policy mandates that all hard drives must be encrypted.
+Encore employment policy mandates full-disk encryption on all employee devices.
 
 ### Product security
 
-Encore is aware of how important it is for its customers that all data is handled securely. Therefore, several layers of protection ensure that the data is not accessible to unauthorized persons.
+Multiple layers of protection ensure that customer data is not accessible to unauthorized persons.
 
-An essential part of software security is "defense in depth" which means that there are multiple layers of protection. In case one layer is breached, the next layer helps to contain the breach and mitigate its consequences. This can be achieved by isolating software components from each other, such that the breach of one component does not affect adjacent software.
-
-Encore's service-based architecture provides natural isolation between components, and we have adopted a zero-trust security model with the use of Tailscale. All server-to-server communication is authenticated and end-to-end encrypted with WireGuard. GCP's VPC (Virtual Private Cloud) provides another layer of isolation from the internet on the network level. None of Encore's servers are publicly accessible on the internet.
+Encore's service-based architecture provides natural isolation between components, and we have adopted a zero-trust security model with Tailscale. All server-to-server communication is authenticated and end-to-end encrypted with WireGuard. GCP's VPC (Virtual Private Cloud) provides another layer of isolation from the internet on the network level. None of Encore's servers are publicly accessible on the internet.
 
 As a general principle, all of Encore's data is encrypted while being transported across networks and when stored ("in transit and at rest"). In case of unauthorized access to the data, an attacker would only see undecipherable garbage which cannot be decrypted without the corresponding keys. The encryption methods employed by Encore are industry standard and deemed unbreakable by contemporary standards. Data at rest (virtual filesystems, relational databases, and object storage) is encrypted using GCP's industry-standard AES-256, while data in transit is encrypted with TLS ≥ 1.2 (for Encore's REST API) or WireGuard (for internal communication).
 
@@ -88,11 +97,13 @@ There are two ways for a user to log in to Encore: Single sign-on (SSO) and user
 
 If no SSO is used, the default login method is passwordless login using email and "magic link", also handled by _Clerk_. Encore does not store or in any way handle passwords, neither in plaintext nor cryptographic hash form. This means that Encore does not know the passwords of any users, and no passwords can be reconstructed from our databases.
 
-Encore offers bug bounty incentives to individuals who discover any security discrepancies. The objective of offering bug bounty incentives is to receive security-related bug reports from trusted "white hat hackers" before the vulnerability is actively exploited in a malicious way. This contributes to maintaining Encore's product security.
+Encore uses automated vulnerability scanning across its codebase and dependencies. All teams continuously monitor their services for vulnerabilities and proactively remediate them, supervised by the Security Officer.
 
-All security issues undergo a triaging process by Encore's designated Security Officer and are escalated based on their criticality.
+All security issues undergo a triaging process by the Security Officer and are escalated based on criticality.
 
-Encore uses automated scans to detect software vulnerabilities. All teams are continuously monitoring their services for vulnerabilities and are committed to pro-actively reducing them. The progress is supervised by the Security Officer.
+### Responsible disclosure
+
+We maintain an active bug bounty program to encourage security researchers to report vulnerabilities before they can be exploited. If you discover a security issue, please report it to [security@encore.dev](mailto:security@encore.dev). We are committed to investigating all reports promptly and working with researchers to resolve issues responsibly.
 
 ### Access control
 
@@ -126,7 +137,7 @@ Encore offers a public "Status page" where users and customers can find the curr
 
 To reduce the risk of simultaneous failure, Encore backs up data to multiple US regions in GCP, with very limited access. Relational databases are backed up on a daily schedule.
 
-Encore is currently planning a rehearsal of disaster recovery in Q4 of 2025. In this exercise, a clone of the production environment will be recovered from scratch using backups and tested for soundness.
+Encore is currently planning a rehearsal of disaster recovery in Q4 of 2026. In this exercise, a clone of the production environment will be recovered from scratch using backups and tested for soundness.
 
 ### Incident handling
 
@@ -188,12 +199,12 @@ Regular reviews on different levels (individual, team, company) foster alignment
 
 Encore takes data privacy very seriously and complies with the rules of the European Union's GDPR (General Data Protection Regulation). GDPR grants a wide range of rights to Encore's users, such as the right to be informed, the right to access, the right to rectification, the right to erasure, and others.
 
-One fundamental rule of the GDPR is the principle of "data minimization", which ensures that we are not processing more personal data than necessary. As a result, Encore Cloud uses only minimal personal data for user authentication and essential communication (which is a name, contact email, and a password hash).
+One fundamental rule of the GDPR is the principle of "data minimization", which ensures that we are not processing more personal data than necessary. As a result, Encore Cloud uses only minimal personal data for user authentication and essential communication (a name and contact email). As described above, Encore does not store or handle passwords in any form.
 
 ### Privacy policy
 
 We are aware that confidential handling of your data is essential to establishing trust. Therefore, [Encore's Privacy Policy](https://encore.cloud/legal/privacy) ensures that the data of our users is protected according to the high standards of GDPR.
 
-## Questions and clarifications
+## Questions and further information
 
-If you have any questions regarding Encore's security or compliance strategy, please feel free to contact us [via email](mailto:hello@encore.dev) (hello@encore.dev).
+We are committed to transparency in our security practices. If you have questions about our security or compliance posture, or would like to request additional documentation for your vendor review process, please contact us at [hello@encore.dev](mailto:hello@encore.dev).

@@ -50,3 +50,13 @@ When this file is present the PostgreSQL client library will assume the database
 which will cause the above error.
 
 - Remove or rename the file, then try `encore run` again.
+
+** Resetting databases **
+
+If your local database is in a bad state (e.g. due to a incomplete migration or corrupt data), you can reset it by running:
+
+```shell
+$ encore db reset <database-name>
+```
+
+This drops and recreates the database, re-running all migrations from scratch. Use `--all` to reset all databases at once.

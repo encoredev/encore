@@ -29,6 +29,7 @@ func (mgr *Manager) NewTestDatabase(ctx context.Context, name string) (*Database
 		name:     dbName,
 		origName: db.origName,
 		mgr:      mgr,
+		hooks:    db.hooks,
 	}
 
 	mgr.ts.AddEndCallback(func(t *testing.T) {

@@ -1,0 +1,85 @@
+-- svc/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+export default new Service("svc");
+
+-- svc/cache.ts --
+import {
+    CacheCluster,
+    StringKeyspace,
+    IntKeyspace,
+    FloatKeyspace,
+    StructKeyspace,
+    StringListKeyspace,
+    NumberListKeyspace,
+    StringSetKeyspace,
+    NumberSetKeyspace,
+} from "encore.dev/storage/cache";
+
+// Define a cache cluster
+export const cluster = new CacheCluster("myCluster", {
+    evictionPolicy: "allkeys-lru",
+});
+
+// String keyspace with a simple key pattern
+export const greetings = new StringKeyspace<string>(cluster, {
+    keyPattern: "greeting/:key",
+});
+
+// Int keyspace
+export const counters = new IntKeyspace<{ userId: string }>(cluster, {
+    keyPattern: "counter/:userId",
+});
+
+// Float keyspace
+export const scores = new FloatKeyspace<string>(cluster, {
+    keyPattern: "score/:key",
+});
+
+// Struct keyspace
+interface User {
+    name: string;
+    email: string;
+}
+
+export const users = new StructKeyspace<string, User>(cluster, {
+    keyPattern: "user/:key",
+});
+
+// String list keyspace
+export const recentViews = new StringListKeyspace<string>(cluster, {
+    keyPattern: "recent-views/:key",
+});
+
+// Number list keyspace
+export const scoreHistory = new NumberListKeyspace<string>(cluster, {
+    keyPattern: "score-history/:key",
+});
+
+// String set keyspace
+export const tags = new StringSetKeyspace<string>(cluster, {
+    keyPattern: "tags/:key",
+});
+
+// Number set keyspace
+export const uniqueScores = new NumberSetKeyspace<string>(cluster, {
+    keyPattern: "unique-scores/:key",
+});
+
+// Multiple clusters
+export const cluster2 = new CacheCluster("secondCluster", {
+    evictionPolicy: "volatile-lru",
+});
+
+export const otherData = new StringKeyspace<string>(cluster2, {
+    keyPattern: "other/:key",
+});
+
+-- package.json --
+{
+  "name": "cache-test",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}

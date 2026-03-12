@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 
@@ -61,13 +62,15 @@ func (mgr *Manager) GetDB(dbName string) *Database {
 	if db, ok := mgr.dbs[dbName]; ok {
 		return db
 	}
-	pool, found := mgr.getPool(dbName, "")
+	hooks := &hookList{}
+	pool, found := mgr.getPool(dbName, "", hooks)
 	db = &Database{
 		name:     dbName,
 		origName: dbName,
 		mgr:      mgr,
 		noopDB:   !found,
 		pool:     pool,
+		hooks:    hooks,
 	}
 	mgr.dbs[dbName] = db
 	return db
@@ -75,7 +78,7 @@ func (mgr *Manager) GetDB(dbName string) *Database {
 
 // getPool returns a database connection pool for the given database name.
 // Each time it's called it returns a new pool.
-func (mgr *Manager) getPool(encoreName, dbNameOverride string) (pool *pgxpool.Pool, found bool) {
+func (mgr *Manager) getPool(encoreName, dbNameOverride string, hooks *hookList) (pool *pgxpool.Pool, found bool) {
 	var db *config.SQLDatabase
 	for _, d := range mgr.runtime.SQLDatabases {
 		if d.EncoreName == encoreName {
@@ -94,6 +97,9 @@ func (mgr *Manager) getPool(encoreName, dbNameOverride string) (pool *pgxpool.Po
 	}
 
 	cfg.ConnConfig.Tracer = &pgxTracer{mgr: mgr}
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		return hooks.runAfterConnectHooks(ctx, conn)
+	}
 	pool, err = pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
 		panic("sqldb: setup db: " + err.Error())

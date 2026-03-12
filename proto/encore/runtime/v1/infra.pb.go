@@ -652,9 +652,12 @@ func (x *SQLConnectionPool) GetMaxConnections() int32 {
 type RedisCluster struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The unique resource id for this cluster.
-	Rid           string           `protobuf:"bytes,1,opt,name=rid,proto3" json:"rid,omitempty"`
-	Servers       []*RedisServer   `protobuf:"bytes,2,rep,name=servers,proto3" json:"servers,omitempty"`
-	Databases     []*RedisDatabase `protobuf:"bytes,3,rep,name=databases,proto3" json:"databases,omitempty"`
+	Rid       string           `protobuf:"bytes,1,opt,name=rid,proto3" json:"rid,omitempty"`
+	Servers   []*RedisServer   `protobuf:"bytes,2,rep,name=servers,proto3" json:"servers,omitempty"`
+	Databases []*RedisDatabase `protobuf:"bytes,3,rep,name=databases,proto3" json:"databases,omitempty"`
+	// If true, the runtime will use an in-memory Redis implementation
+	// instead of connecting to the configured servers.
+	InMemory      bool `protobuf:"varint,4,opt,name=in_memory,json=inMemory,proto3" json:"in_memory,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -708,6 +711,13 @@ func (x *RedisCluster) GetDatabases() []*RedisDatabase {
 		return x.Databases
 	}
 	return nil
+}
+
+func (x *RedisCluster) GetInMemory() bool {
+	if x != nil {
+		return x.InMemory
+	}
+	return false
 }
 
 type RedisServer struct {
@@ -2734,11 +2744,12 @@ const file_encore_runtime_v1_infra_proto_rawDesc = "" +
 	"isReadonly\x12\x19\n" +
 	"\brole_rid\x18\x02 \x01(\tR\aroleRid\x12'\n" +
 	"\x0fmin_connections\x18\x03 \x01(\x05R\x0eminConnections\x12'\n" +
-	"\x0fmax_connections\x18\x04 \x01(\x05R\x0emaxConnections\"\x9a\x01\n" +
+	"\x0fmax_connections\x18\x04 \x01(\x05R\x0emaxConnections\"\xb7\x01\n" +
 	"\fRedisCluster\x12\x10\n" +
 	"\x03rid\x18\x01 \x01(\tR\x03rid\x128\n" +
 	"\aservers\x18\x02 \x03(\v2\x1e.encore.runtime.v1.RedisServerR\aservers\x12>\n" +
-	"\tdatabases\x18\x03 \x03(\v2 .encore.runtime.v1.RedisDatabaseR\tdatabases\"\xb7\x01\n" +
+	"\tdatabases\x18\x03 \x03(\v2 .encore.runtime.v1.RedisDatabaseR\tdatabases\x12\x1b\n" +
+	"\tin_memory\x18\x04 \x01(\bR\binMemory\"\xb7\x01\n" +
 	"\vRedisServer\x12\x10\n" +
 	"\x03rid\x18\x01 \x01(\tR\x03rid\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x121\n" +

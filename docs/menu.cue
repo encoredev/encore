@@ -782,6 +782,11 @@
 				file: "ts/primitives/pubsub"
 			}, {
 				kind: "basic"
+				text: "Caching"
+				path: "/ts/primitives/caching"
+				file: "ts/primitives/caching"
+			}, {
+				kind: "basic"
 				text: "Secrets"
 				path: "/ts/primitives/secrets"
 				file: "ts/primitives/secrets"
@@ -871,6 +876,30 @@
 					text: "Nx"
 					path: "/ts/develop/monorepo/nx"
 					file: "ts/develop/monorepo/nx"
+				}]
+			}]
+		},
+		{
+			kind: "section"
+			text: "Resources"
+			items: [{
+				kind: "accordion"
+				text: "Integrations"
+				accordion: [{
+					kind: "basic"
+					text: "Better Auth"
+					path: "/ts/develop/integrations/better-auth"
+					file: "ts/develop/integrations/better-auth"
+				}, {
+					kind: "basic"
+					text: "Polar"
+					path: "/ts/develop/integrations/polar"
+					file: "ts/develop/integrations/polar"
+				}, {
+					kind: "basic"
+					text: "Resend"
+					path: "/ts/develop/integrations/resend"
+					file: "ts/develop/integrations/resend"
 				}]
 			}]
 		},
@@ -1301,7 +1330,7 @@
 			text: "Management & Billing"
 			items: [{
 				kind: "basic"
-				text: "Compliance & Security"
+				text: "Security & Compliance"
 				path: "/platform/management/compliance"
 				file: "platform/management/compliance"
 			}, {
