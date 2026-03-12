@@ -18,18 +18,18 @@ $ encore run [--debug] [--watch=true] [--port=4000] [--listen=<addr>] [flags]
 
 **Flags**
 
-| Flag              | Description                                                            | Default       |
-| ----------------- | ---------------------------------------------------------------------- | ------------- |
-| `-w, --watch`     | Watch for changes and live-reload                                      | `true`        |
-| `--listen`        | Address to listen on (e.g. `0.0.0.0:4000`)                             |               |
-| `-p, --port`      | Port to listen on                                                      | `4000`        |
-| `--json`          | Display logs in JSON format                                            | `false`       |
-| `-n, --namespace` | Namespace to use (defaults to active namespace)                        |               |
-| `--color`         | Whether to display colorized output                                    | auto-detected |
-| `--redact`        | Redact sensitive data in traces when running locally                   | `false`       |
-| `-l, --level`     | Minimum log level to display (`trace\|debug\|info\|warn\|error`)       |               |
-| `--debug`         | Compile for debugging (`enabled\|break`)                               |               |
-| `--browser`       | Open local dev dashboard in browser on startup (`auto\|never\|always`) | `auto`        |
+| Flag | Description | Default |
+| --- | --- | --- |
+| `-w, --watch` | Watch for changes and live-reload | `true` |
+| `--listen` | Address to listen on (e.g. `0.0.0.0:4000`) | |
+| `-p, --port` | Port to listen on | `4000` |
+| `--json` | Display logs in JSON format | `false` |
+| `-n, --namespace` | Namespace to use (defaults to active namespace) | |
+| `--color` | Whether to display colorized output | auto-detected |
+| `--redact` | Redact sensitive data in traces when running locally | `false` |
+| `-l, --level` | Minimum log level to display (`trace\|debug\|info\|warn\|error`) | |
+| `--debug` | Compile for debugging (`enabled\|break`) | |
+| `--browser` | Open local dev dashboard in browser on startup (`auto\|never\|always`) | `auto` |
 
 #### Test
 
@@ -43,12 +43,12 @@ $ encore test [flags]
 
 Additional flags recognized by `encore test`:
 
-| Flag              | Description                                                               |
-| ----------------- | ------------------------------------------------------------------------- |
-| `--codegen-debug` | Dump generated code (for debugging Encore's code generation)              |
-| `--prepare`       | Prepare for running tests without running them                            |
-| `--trace`         | Write trace information about the parse and compilation process to a file |
-| `--no-color`      | Disable colorized output                                                  |
+| Flag | Description |
+| --- | --- |
+| `--codegen-debug` | Dump generated code (for debugging Encore's code generation) |
+| `--prepare` | Prepare for running tests without running them |
+| `--trace` | Write trace information about the parse and compilation process to a file |
+| `--no-color` | Disable colorized output |
 
 #### Check
 
@@ -60,10 +60,10 @@ $ encore check [flags]
 
 **Flags**
 
-| Flag              | Description                                                  |
-| ----------------- | ------------------------------------------------------------ |
+| Flag | Description |
+| --- | --- |
 | `--codegen-debug` | Dump generated code (for debugging Encore's code generation) |
-| `--tests`         | Parse tests as well                                          |
+| `--tests` | Parse tests as well |
 
 #### Exec
 
@@ -77,8 +77,8 @@ $ encore exec -- <command>
 
 **Flags**
 
-| Flag              | Description                                     |
-| ----------------- | ----------------------------------------------- |
+| Flag | Description |
+| --- | --- |
 | `-n, --namespace` | Namespace to use (defaults to active namespace) |
 
 ##### Example
@@ -111,12 +111,12 @@ $ encore app create [name] [flags]
 
 **Flags**
 
-| Flag              | Description                                           | Default |
-| ----------------- | ----------------------------------------------------- | ------- |
-| `--example`       | URL to example code to use                            |         |
-| `-l, --lang`      | Programming language to use for the app               |         |
-| `-r, --llm-rules` | Initialize the app with LLM rules for a specific tool |         |
-| `--platform`      | Whether to create the app with the Encore Platform    | `true`  |
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--example` | URL to example code to use | |
+| `-l, --lang` | Programming language to use for the app | |
+| `-r, --llm-rules` | Initialize the app with LLM rules for a specific tool | |
+| `--platform` | Whether to create the app with the Encore Platform | `true` |
 
 #### Init
 
@@ -128,8 +128,8 @@ $ encore app init [name] [flags]
 
 **Flags**
 
-| Flag         | Description                             |
-| ------------ | --------------------------------------- |
+| Flag | Description |
+| --- | --- |
 | `-l, --lang` | Programming language to use for the app |
 
 #### Link
@@ -142,8 +142,8 @@ $ encore app link [app-id] [flags]
 
 **Flags**
 
-| Flag          | Description                                  |
-| ------------- | -------------------------------------------- |
+| Flag | Description |
+| --- | --- |
 | `-f, --force` | Force link even if the app is already linked |
 
 ## Auth
@@ -160,8 +160,8 @@ $ encore auth login [flags]
 
 **Flags**
 
-| Flag             | Description               |
-| ---------------- | ------------------------- |
+| Flag | Description |
+| --- | --- |
 | `-k, --auth-key` | Auth Key to use for login |
 
 #### Logout
@@ -231,15 +231,15 @@ $ encore db shell [DATABASE_NAME] [--env=<name>] [flags]
 
 **Flags**
 
-| Flag              | Description                                                    | Default |
-| ----------------- | -------------------------------------------------------------- | ------- |
-| `-n, --namespace` | Namespace to use (defaults to active namespace)                |         |
-| `-e, --env`       | Environment name to connect to                                 | `local` |
-| `-t, --test`      | Connect to the integration test database (implies --env=local) | `false` |
-| `--shadow`        | Connect to the shadow database (implies --env=local)           | `false` |
-| `--write`         | Connect with write privileges                                  | `false` |
-| `--admin`         | Connect with admin privileges                                  | `false` |
-| `--superuser`     | Connect as a superuser                                         | `false` |
+| Flag | Description | Default |
+| --- | --- | --- |
+| `-n, --namespace` | Namespace to use (defaults to active namespace) | |
+| `-e, --env` | Environment name to connect to | `local` |
+| `-t, --test` | Connect to the integration test database (implies --env=local) | `false` |
+| `--shadow` | Connect to the shadow database (implies --env=local) | `false` |
+| `--write` | Connect with write privileges | `false` |
+| `--admin` | Connect with admin privileges | `false` |
+| `--superuser` | Connect as a superuser | `false` |
 
 #### Connection URI
 
@@ -251,15 +251,15 @@ $ encore db conn-uri [<db-name>] [--env=<name>] [flags]
 
 **Flags**
 
-| Flag              | Description                                                    | Default |
-| ----------------- | -------------------------------------------------------------- | ------- |
-| `-n, --namespace` | Namespace to use (defaults to active namespace)                |         |
-| `-e, --env`       | Environment name to connect to                                 | `local` |
-| `-t, --test`      | Connect to the integration test database (implies --env=local) | `false` |
-| `--shadow`        | Connect to the shadow database (implies --env=local)           | `false` |
-| `--write`         | Connect with write privileges                                  | `false` |
-| `--admin`         | Connect with admin privileges                                  | `false` |
-| `--superuser`     | Connect as a superuser                                         | `false` |
+| Flag | Description | Default |
+| --- | --- | --- |
+| `-n, --namespace` | Namespace to use (defaults to active namespace) | |
+| `-e, --env` | Environment name to connect to | `local` |
+| `-t, --test` | Connect to the integration test database (implies --env=local) | `false` |
+| `--shadow` | Connect to the shadow database (implies --env=local) | `false` |
+| `--write` | Connect with write privileges | `false` |
+| `--admin` | Connect with admin privileges | `false` |
+| `--superuser` | Connect as a superuser | `false` |
 
 #### Proxy
 
@@ -271,16 +271,16 @@ $ encore db proxy [--env=<name>] [flags]
 
 **Flags**
 
-| Flag              | Description                                                    | Default |
-| ----------------- | -------------------------------------------------------------- | ------- |
-| `-n, --namespace` | Namespace to use (defaults to active namespace)                |         |
-| `-e, --env`       | Environment name to connect to                                 | `local` |
-| `-p, --port`      | Port to listen on (defaults to a random port)                  | `0`     |
-| `-t, --test`      | Connect to the integration test database (implies --env=local) | `false` |
-| `--shadow`        | Connect to the shadow database (implies --env=local)           | `false` |
-| `--write`         | Connect with write privileges                                  | `false` |
-| `--admin`         | Connect with admin privileges                                  | `false` |
-| `--superuser`     | Connect as a superuser                                         | `false` |
+| Flag | Description | Default |
+| --- | --- | --- |
+| `-n, --namespace` | Namespace to use (defaults to active namespace) | |
+| `-e, --env` | Environment name to connect to | `local` |
+| `-p, --port` | Port to listen on (defaults to a random port) | `0` |
+| `-t, --test` | Connect to the integration test database (implies --env=local) | `false` |
+| `--shadow` | Connect to the shadow database (implies --env=local) | `false` |
+| `--write` | Connect with write privileges | `false` |
+| `--admin` | Connect with admin privileges | `false` |
+| `--superuser` | Connect as a superuser | `false` |
 
 #### Reset
 
@@ -292,12 +292,12 @@ $ encore db reset <database-names...|--all> [flags]
 
 **Flags**
 
-| Flag              | Description                                     | Default |
-| ----------------- | ----------------------------------------------- | ------- |
-| `-n, --namespace` | Namespace to use (defaults to active namespace) |         |
-| `--all`           | Reset all services in the application           | `false` |
-| `-t, --test`      | Reset databases in the test cluster instead     | `false` |
-| `--shadow`        | Reset databases in the shadow cluster instead   | `false` |
+| Flag | Description | Default |
+| --- | --- | --- |
+| `-n, --namespace` | Namespace to use (defaults to active namespace) | |
+| `--all` | Reset all services in the application | `false` |
+| `-t, --test` | Reset databases in the test cluster instead | `false` |
+| `--shadow` | Reset databases in the shadow cluster instead | `false` |
 
 ## Code Generation
 
@@ -323,18 +323,18 @@ $ encore gen client [<app-id>] [--env=<name>] [--lang=<lang>] [flags]
 
 **Flags**
 
-| Flag                                  | Description                                              | Default |
-| ------------------------------------- | -------------------------------------------------------- | ------- |
-| `-l, --lang`                          | Language to generate code for                            |         |
-| `-o, --output`                        | Filename to write the generated client code to           |         |
-| `-e, --env`                           | Environment to fetch the API for                         | `local` |
-| `-s, --services`                      | Names of the services to include in the output           |         |
-| `-x, --excluded-services`             | Names of the services to exclude in the output           |         |
-| `-t, --tags`                          | Names of endpoint tags to include in the output          |         |
-| `--excluded-tags`                     | Names of endpoint tags to exclude in the output          |         |
-| `--openapi-exclude-private-endpoints` | Exclude private endpoints from the OpenAPI spec          | `false` |
-| `--ts:shared-types`                   | Import types from ~backend instead of re-generating them | `false` |
-| `--target`                            | An optional target for the client (`leap`)               |         |
+| Flag | Description | Default |
+| --- | --- | --- |
+| `-l, --lang` | Language to generate code for | |
+| `-o, --output` | Filename to write the generated client code to | |
+| `-e, --env` | Environment to fetch the API for | `local` |
+| `-s, --services` | Names of the services to include in the output | |
+| `-x, --excluded-services` | Names of the services to exclude in the output | |
+| `-t, --tags` | Names of endpoint tags to include in the output | |
+| `--excluded-tags` | Names of endpoint tags to exclude in the output | |
+| `--openapi-exclude-private-endpoints` | Exclude private endpoints from the OpenAPI spec | `false` |
+| `--ts:shared-types` | Import types from ~backend instead of re-generating them | `false` |
+| `--target` | An optional target for the client (`leap`) | |
 
 ## Logs
 
@@ -346,11 +346,11 @@ $ encore logs [--env=prod] [--json] [flags]
 
 **Flags**
 
-| Flag          | Description                                                                |
-| ------------- | -------------------------------------------------------------------------- |
-| `-e, --env`   | Environment name to stream logs from (defaults to the primary environment) |
-| `--json`      | Whether to print logs in raw JSON format                                   |
-| `-q, --quiet` | Whether to print initial message when the command is waiting for logs      |
+| Flag | Description |
+| --- | --- |
+| `-e, --env` | Environment name to stream logs from (defaults to the primary environment) |
+| `--json` | Whether to print logs in raw JSON format |
+| `-q, --quiet` | Whether to print initial message when the command is waiting for logs |
 
 ## Kubernetes
 
@@ -459,8 +459,8 @@ $ encore namespace switch [--create] NAME
 
 **Flags**
 
-| Flag           | Description                           |
-| -------------- | ------------------------------------- |
+| Flag | Description |
+| --- | --- |
 | `-c, --create` | Create the namespace before switching |
 
 ## Config
@@ -477,10 +477,10 @@ When running `encore config` within an Encore application, it automatically sets
 
 **Flags**
 
-| Flag       | Description                       |
-| ---------- | --------------------------------- |
-| `--all`    | View all settings                 |
-| `--app`    | Set the value for the current app |
+| Flag | Description |
+| --- | --- |
+| `--all` | View all settings |
+| `--app` | Set the value for the current app |
 | `--global` | Set the value at the global level |
 
 ## Telemetry
@@ -541,12 +541,12 @@ $ encore rand uuid [-1|-4|-6|-7]
 
 **Flags**
 
-| Flag       | Description                         |
-| ---------- | ----------------------------------- |
-| `-1, --v1` | Generate a version 1 UUID           |
+| Flag | Description |
+| --- | --- |
+| `-1, --v1` | Generate a version 1 UUID |
 | `-4, --v4` | Generate a version 4 UUID (default) |
-| `-6, --v6` | Generate a version 6 UUID           |
-| `-7, --v7` | Generate a version 7 UUID           |
+| `-6, --v6` | Generate a version 6 UUID |
+| `-7, --v7` | Generate a version 7 UUID |
 
 #### Bytes
 
@@ -558,10 +558,10 @@ $ encore rand bytes BYTES [-f <format>]
 
 **Flags**
 
-| Flag           | Description                                                                       | Default |
-| -------------- | --------------------------------------------------------------------------------- | ------- |
-| `-f, --format` | Output format (`hex\|base32\|base32hex\|base32crockford\|base64\|base64url\|raw`) | `hex`   |
-| `--no-padding` | Omit padding characters from base32/base64 output                                 | `false` |
+| Flag | Description | Default |
+| --- | --- | --- |
+| `-f, --format` | Output format (`hex\|base32\|base32hex\|base32crockford\|base64\|base64url\|raw`) | `hex` |
+| `--no-padding` | Omit padding characters from base32/base64 output | `false` |
 
 #### Words
 
@@ -573,8 +573,8 @@ $ encore rand words [--sep=SEPARATOR] NUM
 
 **Flags**
 
-| Flag        | Description             | Default     |
-| ----------- | ----------------------- | ----------- |
+| Flag | Description | Default |
+| --- | --- | --- |
 | `-s, --sep` | Separator between words | ` ` (space) |
 
 ## Deploy
@@ -589,13 +589,13 @@ $ encore deploy --env=<env-name> (--commit=<sha> | --branch=<name>) [flags]
 
 **Flags**
 
-| Flag           | Description                                     | Default |
-| -------------- | ----------------------------------------------- | ------- |
-| `--app`        | App slug to deploy to (defaults to current app) |         |
-| `-e, --env`    | Environment to deploy to (required)             |         |
-| `--commit`     | Commit SHA to deploy                            |         |
-| `--branch`     | Branch to deploy                                |         |
-| `-f, --format` | Output format (`text\|json`)                    | `text`  |
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--app` | App slug to deploy to (defaults to current app) | |
+| `-e, --env` | Environment to deploy to (required) | |
+| `--commit` | Commit SHA to deploy | |
+| `--branch` | Branch to deploy | |
+| `-f, --format` | Output format (`text\|json`) | `text` |
 
 ## Version
 
@@ -627,17 +627,17 @@ $ encore build docker IMAGE_TAG [flags]
 
 **Flags**
 
-| Flag            | Description                                         | Default   |
-| --------------- | --------------------------------------------------- | --------- |
-| `--base`        | Base image to build from                            | `scratch` |
-| `-p, --push`    | Push image to remote repository                     | `false`   |
-| `--cgo`         | Enable cgo                                          | `false`   |
-| `--config`      | Infra configuration file path                       |           |
-| `--skip-config` | Do not read or generate an infra configuration file | `false`   |
-| `--services`    | Services to include in the image                    |           |
-| `--gateways`    | Gateways to include in the image                    |           |
-| `--os`          | Target operating system                             | `linux`   |
-| `--arch`        | Target architecture (`amd64\|arm64`)                | `amd64`   |
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--base` | Base image to build from | `scratch` |
+| `-p, --push` | Push image to remote repository | `false` |
+| `--cgo` | Enable cgo | `false` |
+| `--config` | Infra configuration file path | |
+| `--skip-config` | Do not read or generate an infra configuration file | `false` |
+| `--services` | Services to include in the image | |
+| `--gateways` | Gateways to include in the image | |
+| `--os` | Target operating system | `linux` |
+| `--arch` | Target architecture (`amd64\|arm64`) | `amd64` |
 
 ## LLM Rules
 
@@ -653,6 +653,6 @@ $ encore llm-rules init [flags]
 
 **Flags**
 
-| Flag              | Description                                                                                         |
-| ----------------- | --------------------------------------------------------------------------------------------------- |
+| Flag | Description |
+| --- | --- |
 | `-r, --llm-rules` | Initialize the app with LLM rules for a specific tool (`cursor\|claudecode\|vscode\|agentsmd\|zed`) |
