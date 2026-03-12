@@ -428,8 +428,16 @@ impl ProxyHttp for Gateway {
             };
 
             if let Some(auth_handler) = &self.inner.shared.auth {
+                // Use the same trace sampling decision for the auth handler
+                // as for the rest of the request.
                 let auth_response = auth_handler
-                    .authenticate(upstream_request, call_meta.clone())
+                    .authenticate(
+                        upstream_request,
+                        CallMeta {
+                            trace_sampled: Some(desc.traced),
+                            ..call_meta.clone()
+                        },
+                    )
                     .await
                     .or_err(ErrorType::InternalError, "couldn't authenticate request")?;
 
