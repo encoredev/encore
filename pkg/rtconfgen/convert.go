@@ -231,6 +231,23 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 		// Redis Servers & Databases
 		{
 			for _, cluster := range res.RedisClusters {
+				if cluster.InMemory {
+					idx := len(cfg.RedisServers)
+					cfg.RedisServers = append(cfg.RedisServers, &config.RedisServer{
+						InMemory: true,
+					})
+					for i, db := range cluster.Databases {
+						cfg.RedisDatabases = append(cfg.RedisDatabases, &config.RedisDatabase{
+							ServerID:       idx,
+							EncoreName:     db.EncoreName,
+							Database:       i,
+							MinConnections: 0,
+							MaxConnections: 0,
+							KeyPrefix:      "",
+						})
+					}
+					continue
+				}
 				primary, ok := fns.Find(cluster.Servers, func(s *runtimev1.RedisServer) bool {
 					return s.Kind == runtimev1.ServerKind_SERVER_KIND_PRIMARY
 				})
