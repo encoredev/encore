@@ -1,10 +1,8 @@
 package secrets
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -25,9 +23,8 @@ var deleteSecretCmd = &cobra.Command{
 		// Check if --yes / --force flag was passed to skip confirmation
 		if !forceFlag {
 			fmt.Printf("Are you sure you want to delete secret %q? [y/N]: ", args[0])
-			reader := bufio.NewReader(os.Stdin)
-			response, _ := reader.ReadString('\n')
-			response = strings.TrimSpace(strings.ToLower(response))
+			var response string
+			_, _ = fmt.Scanln(&response)
 			if response != "y" && response != "yes" {
 				fmt.Println("Aborted.")
 				return nil

@@ -285,22 +285,6 @@ Deletes a secret value
 $ encore secret delete <id>
 ```
 
-#### Archive (Deprecated)
-
-Archives a secret value
-
-```shell
-$ encore secret archive <id>
-```
-
-#### Unarchive (Deprecated)
-
-Unarchives a secret value
-
-```shell
-$  encore secret unarchive <id>
-```
-
 ## Version
 
 Reports the current version of the encore application
