@@ -123,6 +123,10 @@ message RedisCluster {
   repeated RedisServer servers = 2;
 
   repeated RedisDatabase databases = 3;
+
+  // If true, the runtime will use an in-memory Redis implementation
+  // instead of connecting to the configured servers.
+  bool in_memory = 4;
 }
 
 message RedisServer {
