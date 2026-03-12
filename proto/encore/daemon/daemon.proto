@@ -345,6 +345,10 @@ message GenClientRequest {
   // an instantiated client with the given target. The target can be e.g.
   // a variable, e.g. "import.meta.env.VITE_CLIENT_TARGET" or a string literal.
   optional string ts_client_target = 11;
+
+  // The root directory of the app to generate a client for.
+  // Included to be able to handle multi clone scenarios.
+  string app_root = 12;
 }
 
 message GenClientResponse {
