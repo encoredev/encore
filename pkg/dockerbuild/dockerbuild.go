@@ -109,6 +109,8 @@ func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.
 	imgCfg.Config.WorkingDir = string(spec.WorkingDir)
 	imgCfg.Author = "encore.dev"
 	imgCfg.Created = v1.Time{Time: cfg.BuildTime}
+	imgCfg.Architecture = spec.Arch
+	imgCfg.OS = spec.OS
 
 	img, err = mutate.ConfigFile(img, imgCfg)
 	if err != nil {
