@@ -306,11 +306,11 @@ func (d *Driver) DestroyCluster(ctx context.Context, id sqldb.ClusterID) error {
 func (d *Driver) DestroyNamespaceData(ctx context.Context, ns *namespace.Namespace) error {
 	candidates := clusterVolumeNames(ns)
 	for _, c := range candidates {
-		if err := exec.CommandContext(ctx, "docker", "volume", "rm", "-f", c).Run(); err != nil {
+		if out, err := exec.CommandContext(ctx, "docker", "volume", "rm", "-f", c).CombinedOutput(); err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "no such volume") {
 				continue
 			}
-			return errors.Wrapf(err, "could not delete volume %s", c)
+			return errors.Wrapf(err, "could not delete volume %s: %s", c, string(out))
 		}
 	}
 	return nil
