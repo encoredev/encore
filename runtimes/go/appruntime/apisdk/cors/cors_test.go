@@ -122,6 +122,26 @@ func TestOptions(t *testing.T) {
 			goodHeaders: []string{"Content-Type", "Origin", "X-Static-Test"},
 		},
 		{
+			name: "wildcard_port_creds",
+			cfg: config.CORS{
+				AllowOriginsWithCredentials: []string{"http://localhost:*"},
+			},
+			credsGoodOrigins:   []string{"http://localhost:3000", "http://localhost:8080", "http://localhost:80", "http://localhost"},
+			credsBadOrigins:    []string{"https://localhost:3000", "http://evil.com:3000"},
+			nocredsGoodOrigins: []string{},
+			nocredsBadOrigins:  []string{},
+		},
+		{
+			name: "wildcard_port_without_creds",
+			cfg: config.CORS{
+				AllowOriginsWithoutCredentials: []string{"http://localhost:*"},
+			},
+			credsGoodOrigins:   []string{},
+			credsBadOrigins:    []string{"http://localhost:3000"},
+			nocredsGoodOrigins: []string{"http://localhost:3000", "http://localhost:8080", "http://localhost"},
+			nocredsBadOrigins:  []string{"https://localhost:3000"},
+		},
+		{
 			name: "wildcard_without_creds",
 			cfg: config.CORS{
 				AllowOriginsWithCredentials:    []string{"https://vercel.app"},
