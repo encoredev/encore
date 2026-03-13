@@ -272,3 +272,33 @@ jobs:
         run: cargo fmt --all --check
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
+
+  wasm_build:
+    name: "Build tsparser WASM"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codebase
+        uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+          components: clippy
+      - name: Install Protoc
+        uses: arduino/setup-protoc@a8b67ba40b37d35169e222f3bb352603327985b6 # v2
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-wasm
+      - name: Build
+        run: cargo build --target wasm32-unknown-unknown -p tsparser-wasm
+      - name: Run clippy for WASM
+        run: cargo clippy --target wasm32-unknown-unknown -p tsparser-wasm -- -D warnings

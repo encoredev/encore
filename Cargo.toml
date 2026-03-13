@@ -1,6 +1,13 @@
 [workspace]
 resolver = "2"
-members = ["runtimes/core", "runtimes/js", "tsparser", "supervisor", "miniredis"]
+members = [
+    "runtimes/core",
+    "runtimes/js",
+    "tsparser",
+    "tsparser/wasm",
+    "supervisor",
+    "miniredis",
+]
 
 [profile.dev.package]
 insta.opt-level = 3

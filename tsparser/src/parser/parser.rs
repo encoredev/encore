@@ -8,8 +8,11 @@ use swc_common::errors::{Handler, HANDLER};
 use swc_common::sync::Lrc;
 use swc_common::{SourceMap, Spanned, DUMMY_SP};
 use swc_ecma_loader::resolve::Resolve;
+#[cfg(not(target_arch = "wasm32"))]
 use swc_ecma_loader::resolvers::node::NodeModulesResolver;
+#[cfg(not(target_arch = "wasm32"))]
 use swc_ecma_loader::TargetEnv;
+#[cfg(not(target_arch = "wasm32"))]
 use walkdir::WalkDir;
 
 use crate::parser::module_loader::ModuleLoader;
@@ -21,12 +24,23 @@ use crate::parser::service_discovery::{discover_services, DiscoveredService};
 use crate::parser::types::TypeChecker;
 use crate::parser::usageparser::{Usage, UsageResolver};
 use crate::parser::{FilePath, FileSet};
+#[cfg(not(target_arch = "wasm32"))]
 use crate::runtimeresolve::{EncoreRuntimeResolver, TsConfigPathResolver};
 use crate::span_err::ErrReporter;
 
 use super::resourceparser::bind::ResourceOrPath;
 use super::resourceparser::UnresolvedBind;
 use super::resources::ResourcePath;
+
+/// Whether a file or directory name should be ignored during parsing.
+fn is_ignored_name(name: &str) -> bool {
+    matches!(name, "node_modules" | "encore.gen" | "__tests__")
+        || name.starts_with('.')
+        || name.ends_with(".test.ts")
+        || name.ends_with(".spec.ts")
+        || name.ends_with(".test.js")
+        || name.ends_with(".spec.js")
+}
 
 pub struct ParseContext {
     /// App root to parse for Encore resources.
@@ -54,6 +68,7 @@ impl std::fmt::Debug for ParseContext {
 }
 
 impl ParseContext {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new(
         app_root: PathBuf,
         js_runtime_path: Option<PathBuf>,
@@ -69,6 +84,7 @@ impl ParseContext {
         Self::with_resolver(app_root, js_runtime_path, resolver, cm, errs)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn with_resolver<R>(
         app_root: PathBuf,
         js_runtime_path: Option<PathBuf>,
@@ -91,11 +107,21 @@ impl ParseContext {
             }
         }
 
+        Self::with_boxed_resolver(app_root, Box::new(resolver), cm, errs)
+    }
+
+    /// Create a ParseContext with a pre-boxed resolver. Used by both native and WASM paths.
+    pub fn with_boxed_resolver(
+        app_root: PathBuf,
+        resolver: Box<dyn Resolve>,
+        cm: Lrc<SourceMap>,
+        errs: Lrc<Handler>,
+    ) -> Result<Self> {
         let file_set = FileSet::new(cm.clone());
         let loader = Lrc::new(ModuleLoader::new(
             errs.clone(),
             file_set.clone(),
-            Box::new(resolver),
+            resolver,
             app_root.clone(),
         ));
         let type_checker = Lrc::new(TypeChecker::new(loader.clone()));
@@ -128,22 +154,9 @@ impl<'a> Parser<'a> {
         Self { pc, pass1 }
     }
 
-    /// Run the parser.
+    /// Run the parser by walking the filesystem.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn parse(mut self) -> ParseResult {
-        fn ignored(entry: &walkdir::DirEntry) -> bool {
-            match entry.file_name().to_str().unwrap_or_default() {
-                "node_modules" | "encore.gen" | "__tests__" => true,
-                x => {
-                    // Ignore hidden files and .{test,spec}.{ts,js} files.
-                    x.starts_with('.')
-                        || x.ends_with(".test.ts")
-                        || x.ends_with(".spec.ts")
-                        || x.ends_with(".test.js")
-                        || x.ends_with(".spec.js")
-                }
-            }
-        }
-
         fn is_service(e: &walkdir::DirEntry) -> bool {
             e.path().ends_with("encore.service.ts")
         }
@@ -159,10 +172,10 @@ impl<'a> Parser<'a> {
                 }
             })
             .into_iter()
-            .filter_entry(|e| !ignored(e));
+            .filter_entry(|e| !is_ignored_name(e.file_name().to_str().unwrap_or_default()));
 
         // Parse the modules in the app root.
-        let (mut resources, binds) = {
+        let (resources, binds) = {
             let loader = &self.pc.loader;
             let mut all_resources = Vec::new();
             let mut all_binds = Vec::new();
@@ -217,35 +230,9 @@ impl<'a> Parser<'a> {
                         continue;
                     }
                 };
-                let module_span = module.ast.span();
-                let service_name = curr_service.as_ref().map(|(_, name)| name.as_str());
-                let (resources, binds) = self.pass1.parse(module, service_name);
 
-                // Is this a service file? If so, make sure there was a service defined.
-                if is_service(&entry) {
-                    let found = resources.iter().any(|r| matches!(r, Resource::Service(_)));
-                    if !found {
-                        module_span
-                            .shrink_to_lo()
-                            .err("encore.service.ts must define a Service resource");
-                    }
-                }
-
-                // Check if we should update the service being parsed.
-                for res in &resources {
-                    if let Resource::Service(svc) = res {
-                        let Some(parent) = path.parent() else {
-                            HANDLER.with(|h| {
-                                h.err(&format!("path {path:?} does not have a parent directory"))
-                            });
-                            continue;
-                        };
-
-                        curr_service = Some((parent.to_path_buf(), svc.name.clone()));
-                        break;
-                    }
-                }
-
+                let (resources, binds) =
+                    self.process_module(&module, path, is_service(&entry), &mut curr_service);
                 all_resources.extend(resources);
                 all_binds.extend(binds);
             }
@@ -253,13 +240,129 @@ impl<'a> Parser<'a> {
             (all_resources, all_binds)
         };
 
-        // Resolve the initial binds.
+        self.finalize(resources, binds)
+    }
+
+    /// Parse from pre-loaded file contents (for WASM/in-memory use).
+    /// Files should be provided as (path, content) pairs.
+    /// The paths should be relative to the app root (e.g., "myservice/api.ts").
+    pub fn parse_from_files(mut self, files: Vec<(PathBuf, String)>) -> ParseResult {
+        // Sort files so encore.service.ts files come first within each directory,
+        // matching the behavior of the native parse() method (WalkDir sorts per-directory).
+        let mut sorted_files = files;
+        sorted_files.sort_by(|a, b| {
+            let a_parent = a.0.parent();
+            let b_parent = b.0.parent();
+            a_parent
+                .cmp(&b_parent)
+                .then_with(|| {
+                    let a_svc = a.0.ends_with("encore.service.ts");
+                    let b_svc = b.0.ends_with("encore.service.ts");
+                    b_svc.cmp(&a_svc) // true > false, so service files come first
+                })
+                .then_with(|| a.0.cmp(&b.0))
+        });
+
+        let (resources, binds) = {
+            let mut all_resources = Vec::new();
+            let mut all_binds = Vec::new();
+            let mut curr_service: Option<(PathBuf, String)> = None;
+
+            for (rel_path, content) in &sorted_files {
+                // Skip non-.ts files.
+                let ext = rel_path.extension().and_then(OsStr::to_str);
+                if ext.is_none_or(|ext| ext != "ts") {
+                    continue;
+                }
+
+                // Skip ignored file/directory patterns.
+                let should_skip = rel_path
+                    .components()
+                    .any(|c| c.as_os_str().to_str().is_some_and(is_ignored_name));
+                if should_skip {
+                    continue;
+                }
+
+                let full_path = self.pc.app_root.join(rel_path);
+                let is_service_file = full_path.ends_with("encore.service.ts");
+
+                // Track current service directory.
+                if let Some((service_dir, _)) = &curr_service {
+                    if !full_path.starts_with(service_dir) {
+                        curr_service = None;
+                    }
+                }
+
+                // Create in-memory source file and parse it.
+                let file_path = FilePath::Real(full_path.clone());
+                let file = self.pc.file_set.new_source_file(file_path, content.clone());
+                let module = match self.pc.loader.parse_and_store(file, None) {
+                    Ok(m) => m,
+                    Err(err) => {
+                        HANDLER.with(|handler| {
+                            if let Some(span) = err.span() {
+                                handler.span_err(span, &err.msg());
+                            } else {
+                                handler.err(&err.msg());
+                            }
+                        });
+                        continue;
+                    }
+                };
+
+                let (resources, binds) =
+                    self.process_module(&module, &full_path, is_service_file, &mut curr_service);
+                all_resources.extend(resources);
+                all_binds.extend(binds);
+            }
+
+            (all_resources, all_binds)
+        };
+
+        self.finalize(resources, binds)
+    }
+
+    /// Process a parsed module: run pass1 parsing, validate service files, track service context.
+    fn process_module(
+        &mut self,
+        module: &Lrc<super::module_loader::Module>,
+        full_path: &Path,
+        is_service_file: bool,
+        curr_service: &mut Option<(PathBuf, String)>,
+    ) -> (Vec<Resource>, Vec<UnresolvedBind>) {
+        let module_span = module.ast.span();
+        let service_name = curr_service.as_ref().map(|(_, name)| name.as_str());
+        let (resources, binds) = self.pass1.parse(module.clone(), service_name);
+
+        if is_service_file {
+            let found = resources.iter().any(|r| matches!(r, Resource::Service(_)));
+            if !found {
+                module_span
+                    .shrink_to_lo()
+                    .err("encore.service.ts must define a Service resource");
+            }
+        }
+
+        for res in &resources {
+            if let Resource::Service(svc) = res {
+                if let Some(parent) = full_path.parent() {
+                    *curr_service = Some((parent.to_path_buf(), svc.name.clone()));
+                }
+                break;
+            }
+        }
+
+        (resources, binds)
+    }
+
+    /// Shared post-processing: resolve binds, discover services, resolve usage.
+    fn finalize(
+        &mut self,
+        mut resources: Vec<Resource>,
+        binds: Vec<UnresolvedBind>,
+    ) -> ParseResult {
         let mut binds = resolve_binds(&resources, binds);
-
-        // Discover the services we have.
         let services = discover_services(&self.pc.file_set, &binds);
-
-        // Inject additional binds for the generated services.
         let (additional_resources, additional_binds) =
             self.inject_generated_service_clients(&services);
 

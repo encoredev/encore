@@ -8,7 +8,7 @@ use serde::de::{self, Deserialize, Deserializer, MapAccess, Visitor};
 /// The parsed representation of the "exports" field in a package.json file.
 /// See https://nodejs.org/api/packages.html#package-entry-points for syntax.
 #[derive(Debug)]
-pub(super) struct Exports {
+pub struct Exports {
     subpaths: IndexMap<String, Subpath>,
 }
 
@@ -161,9 +161,11 @@ impl<'de> Deserialize<'de> for Exports {
                 };
 
                 if !key.starts_with('.') {
-                    let mut conditions: IndexMap<String, Subpath> =
-                        Deserialize::deserialize(de::value::MapAccessDeserializer::new(access))?;
+                    let mut conditions: IndexMap<String, Subpath> = IndexMap::new();
                     conditions.insert(key, value);
+                    let rest: IndexMap<String, Subpath> =
+                        Deserialize::deserialize(de::value::MapAccessDeserializer::new(access))?;
+                    conditions.extend(rest);
                     subpaths.insert(".".to_string(), Subpath::Conditions(conditions));
                     return Ok(Exports { subpaths });
                 }
@@ -296,5 +298,22 @@ mod tests {
                 map
             })
         );
+    }
+
+    #[test]
+    fn toplevel_condition_priority_order() {
+        let exports: Exports = serde_json::from_str(
+            r#"{
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "default": "./dist/index.js"
+        }"#,
+        )
+        .unwrap();
+
+        let conditions: HashSet<&str> = ["types", "import", "default"].into_iter().collect();
+        let resolved = exports.resolve_import_path("", &conditions).unwrap();
+        // "types" must win because it appears first in the JSON.
+        assert_eq!(resolved, PathBuf::from("./dist/index.d.ts"));
     }
 }

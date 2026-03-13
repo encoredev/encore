@@ -1,8 +1,12 @@
 pub mod app;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod builder;
+pub mod exports;
 mod legacymeta;
 pub mod parser;
+pub mod resolve_utils;
 mod span_err;
+pub mod tsconfig;
 
 pub mod encore {
     pub mod parser {
@@ -20,6 +24,7 @@ pub mod encore {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 mod runtimeresolve;
 #[cfg(test)]
 pub mod testutil;

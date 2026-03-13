@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::ffi::OsStr;
 use std::{
     fs::File,
     io::BufReader,
@@ -13,7 +12,8 @@ use swc_common::sync::Lrc;
 use swc_common::FileName;
 use swc_ecma_loader::resolve::Resolve;
 
-use crate::runtimeresolve::exports::Exports;
+use crate::exports::Exports;
+use crate::resolve_utils;
 use crate::runtimeresolve::tsconfig::TsConfigPathResolver;
 
 static PACKAGE: &str = "package.json";
@@ -90,29 +90,8 @@ impl<R> EncoreRuntimeResolver<R> {
         Ok(result.map(|p| pkg_dir.join(p)))
     }
 
-    /// Resolve the package name from a target import path, e.g.:
-    /// - "foo" => ("foo", "")
-    /// - "foo/bar" => ("foo", "bar")
-    /// - "@foo/bar" => ("@foo/bar", "")
-    /// - "@foo/bar/baz" => ("@foo/bar", "baz")
     fn pkg_name_from_target<'b>(&self, target: &'b str) -> (&'b str, &'b str) {
-        match target.find('/') {
-            None => (target, ""),
-            Some(idx) => {
-                if target.starts_with('@') {
-                    let rem = &target[idx + 1..];
-                    match rem.find('/') {
-                        None => (target, ""),
-                        Some(rem_idx) => {
-                            let sep = idx + rem_idx + 1;
-                            (&target[..sep], &target[sep + 1..])
-                        }
-                    }
-                } else {
-                    (&target[..idx], &target[(idx + 1)..])
-                }
-            }
-        }
+        resolve_utils::split_package_name(target)
     }
 
     fn resolve_encore_module(&self, target: &str) -> Result<Option<PathBuf>, Error> {
@@ -165,18 +144,7 @@ where
 }
 
 fn declaration_file(path: &Path) -> Option<PathBuf> {
-    let ext = path.extension().and_then(OsStr::to_str)?;
-
-    let new_ext = match ext {
-        "js" => "d.ts",
-        "mjs" => "d.mts",
-        "cjs" => "d.cts",
-        _ => return None,
-    };
-
-    let mut dts = path.to_path_buf();
-    dts.set_extension(new_ext);
-
+    let dts = resolve_utils::dts_counterpart(path)?;
     if dts.exists() {
         Some(dts)
     } else {

@@ -1,5 +1,6 @@
 mod doc_comments;
 mod fileset;
+pub mod memory_resolver;
 pub mod module_loader;
 #[allow(clippy::module_inception)]
 pub mod parser;

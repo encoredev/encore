@@ -34,6 +34,10 @@ pub struct ModuleLoader {
     encore_gen_root: PathBuf,
     by_path: RefCell<HashMap<FilePath, Lrc<Module>>>,
 
+    /// In-memory file contents. In WASM mode all files are registered here since
+    /// filesystem access is unavailable. In native mode this is unused.
+    in_memory_files: RefCell<HashMap<PathBuf, String>>,
+
     // The universe module, if it's been loaded.
     universe: OnceCell<Lrc<Module>>,
 
@@ -97,10 +101,16 @@ impl ModuleLoader {
             resolver,
             encore_gen_root,
             by_path: RefCell::new(HashMap::new()),
+            in_memory_files: RefCell::new(HashMap::new()),
             universe: OnceCell::new(),
             encore_app_clients: OnceCell::new(),
             encore_auth: OnceCell::new(),
         }
+    }
+
+    /// Register in-memory file contents for import resolution.
+    pub fn register_file_contents(&self, files: HashMap<PathBuf, String>) {
+        self.in_memory_files.borrow_mut().extend(files);
     }
 
     pub fn modules(&self) -> Vec<Lrc<Module>> {
@@ -203,9 +213,28 @@ impl ModuleLoader {
             return Ok(module.clone());
         }
 
-        let file = self.file_set.load_file(path).map_err(Error::LoadFile)?;
-        let module = self.parse_and_store(file, module_path)?;
-        Ok(module)
+        // Try in-memory files first.
+        if let Some(content) = self.in_memory_files.borrow().get(path).cloned() {
+            return self.parse_and_store(
+                self.file_set.new_source_file(file_name, content),
+                module_path,
+            );
+        }
+
+        // Use file system for non-wasm targets
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.parse_and_store(
+                self.file_set.load_file(path).map_err(Error::LoadFile)?,
+                module_path,
+            )
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        Err(Error::LoadFile(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("file not found in memory: {}", path.display()),
+        )))
     }
 
     /// Load a file from the filesystem into the module loader.
@@ -263,7 +292,7 @@ impl ModuleLoader {
     }
 
     /// Parse and store a file.
-    fn parse_and_store(
+    pub fn parse_and_store(
         &self,
         file: Lrc<SourceFile>,
         module_path: Option<String>,
