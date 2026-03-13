@@ -127,19 +127,13 @@ func buildAndValidateInfraConfig(params EmbeddedInfraConfigParams) (*infra.Infra
 		}
 	}
 
-	// Make sure we have service discovery for all services that are not private
-	// if we are hosting gateways.
+	// Make sure we have service discovery for all services if we are hosting gateways.
 	if len(gateways) > 0 {
 		for _, svc := range md.Svcs {
 			if _, ok := hostedSvcs[svc.Name]; ok {
 				continue
 			}
-			for _, rpc := range svc.Rpcs {
-				if rpc.AccessType != meta.RPC_PRIVATE {
-					svcDeps[svc.Name] = struct{}{}
-					break
-				}
-			}
+			svcDeps[svc.Name] = struct{}{}
 		}
 	}
 
