@@ -51,6 +51,8 @@ pub struct S3 {
     pub endpoint: Option<String>,
     pub access_key_id: Option<String>,
     pub secret_access_key: Option<EnvString>,
+    #[serde(default)]
+    pub force_path_style: bool,
     pub buckets: HashMap<String, Bucket>,
 }
 
@@ -482,6 +484,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                                 .secret_access_key
                                 .as_ref()
                                 .map(map_env_string_to_secret_data),
+                            force_path_style: s3.force_path_style,
                         },
                     )),
                     buckets: s3
