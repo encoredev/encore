@@ -411,20 +411,12 @@ Lists secrets, optionally for a specific key
 $ encore secret list [keys...]
 ```
 
-#### Archive
+#### Delete
 
-Archives a secret value
-
-```shell
-$ encore secret archive <id>
-```
-
-#### Unarchive
-
-Unarchives a secret value
+Deletes a secret value
 
 ```shell
-$ encore secret unarchive <id>
+$ encore secret delete <id>
 ```
 
 ## Namespaces
