@@ -2,7 +2,6 @@ package cors
 
 import (
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -126,63 +125,69 @@ func sortedSliceCopy(src []string) []string {
 	return dst
 }
 
-type globOriginSet []*url.URL
+// globOrigin represents a parsed origin pattern with glob support.
+type globOrigin struct {
+	scheme, hostname, port string
+}
+
+type globOriginSet []globOrigin
 
 func (s globOriginSet) Matches(origin string) bool {
-	if u, err := url.Parse(origin); err == nil {
-		for _, allow := range s {
-			if globMatch(allow, u) {
-				return true
-			}
+	o, ok := parseOrigin(origin)
+	if !ok {
+		return false
+	}
+	for _, pattern := range s {
+		if pattern.matches(o) {
+			return true
 		}
 	}
 	return false
 }
 
-func globMatch(pattern, origin *url.URL) bool {
-	// For it to be a match, the schemes, hostname and port must all match.
-	if pattern.Scheme != origin.Scheme {
+func (pattern globOrigin) matches(origin globOrigin) bool {
+	if pattern.scheme != origin.scheme {
 		return false
 	}
+	if matched, _ := filepath.Match(pattern.port, origin.port); !matched {
+		return false
+	}
+	matched, _ := filepath.Match(pattern.hostname, origin.hostname)
+	return matched
+}
 
-	// Make sure the port matches. If there is no port, the port is
-	// the standard port for the scheme. See https://developer.mozilla.org/en-US/docs/Glossary/Origin.
-	normalizedPort := func(u *url.URL) string {
-		if u.Port() == "" {
-			switch u.Scheme {
-			case "http":
-				return "80"
-			case "https":
-				return "443"
-			default:
-				return ""
-			}
+// parseOrigin splits an origin string into scheme, hostname, and port.
+// The port is normalized to the default port for the scheme if not specified.
+// See https://developer.mozilla.org/en-US/docs/Glossary/Origin.
+func parseOrigin(origin string) (globOrigin, bool) {
+	scheme, rest, ok := strings.Cut(origin, "://")
+	if !ok {
+		return globOrigin{}, false
+	}
+	// Strip any path component.
+	if idx := strings.Index(rest, "/"); idx != -1 {
+		rest = rest[:idx]
+	}
+	hostname, port, hasPort := strings.Cut(rest, ":")
+	if !hasPort {
+		switch scheme {
+		case "http":
+			port = "80"
+		case "https":
+			port = "443"
 		}
-		return u.Port()
 	}
-	if normalizedPort(pattern) != normalizedPort(origin) {
-		return false
-	}
-
-	// Make sure the hostname matches. Since we are only checking the hostname,
-	// it's fine to use filepath.Match
-	matched, err := filepath.Match(pattern.Hostname(), origin.Hostname())
-	return matched && err == nil
+	return globOrigin{scheme, hostname, port}, true
 }
 
 func getGlobOrigins(origins []string) globOriginSet {
-	var globs []*url.URL
+	var globs []globOrigin
 	for _, o := range origins {
-		if o == "*" {
-			// The literal "*" string means something else and is not
-			// covered by the glob-matching support.
+		if o == "*" || !strings.Contains(o, "*") {
 			continue
 		}
-
-		if o != "*" && strings.Contains(o, "*") {
-			if u, err := url.Parse(o); err == nil {
-				globs = append(globs, u)
-			}
+		if parsed, ok := parseOrigin(o); ok {
+			globs = append(globs, parsed)
 		}
 	}
 	return globs
