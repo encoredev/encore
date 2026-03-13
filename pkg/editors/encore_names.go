@@ -63,4 +63,5 @@ const (
 	XCode               EditorName = "XCode"
 	Zed                 EditorName = "Zed"
 	ZedPreview          EditorName = "Zed (Preview)"
+	Cursor              EditorName = "Cursor"
 )
