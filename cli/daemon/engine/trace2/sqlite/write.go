@@ -90,6 +90,10 @@ func (s *Store) DoClean(ctx context.Context, triggerAt, eventsToKeep, batchSize 
 			continue
 		}
 		traceIDs, err := scanRows[string](rows)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to scan trace ids")
+			continue
+		}
 		if len(traceIDs) == 0 {
 			continue
 		}
