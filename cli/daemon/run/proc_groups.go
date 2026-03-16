@@ -2,6 +2,7 @@ package run
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -379,6 +380,11 @@ type Proc struct {
 	listenAddr netip.AddrPort         // The port the HTTP server of the process should listen on
 	httpProxy  *httputil.ReverseProxy // The reverse proxy for the HTTP server of the process
 
+	// parentPipeW is the write end of the liveness pipe. Kept open for
+	// the lifetime of the process; when closed (or when this process dies),
+	// the child detects EOF and exits.
+	parentPipeW *os.File
+
 	// The following fields are only valid after Start() has been called.
 	Started   atomic.Bool // whether the process has started
 	StartedAt time.Time   // when the process started
@@ -403,9 +409,29 @@ func (p *Proc) start() error {
 		return nil
 	}
 
+	// Create a liveness pipe. The read end is passed to the child process;
+	// when this (parent) process dies for any reason, the OS closes the write end,
+	// and the child detects EOF and exits. This works cross-platform and handles
+	// cases where the parent is killed without a chance to run cleanup (e.g. SIGKILL).
+	pipeR, pipeW, err := os.Pipe()
+	if err != nil {
+		return errors.Wrap(err, "could not create liveness pipe")
+	}
+	p.cmd.ExtraFiles = append(p.cmd.ExtraFiles, pipeR)
+	// The fd number is 3 + index in ExtraFiles (0=stdin, 1=stdout, 2=stderr).
+	fd := 3 + len(p.cmd.ExtraFiles) - 1
+	p.cmd.Env = append(p.cmd.Env, fmt.Sprintf("ENCORE_PARENT_FD=%d", fd))
+
 	if err := p.cmd.Start(); err != nil {
+		pipeR.Close()
+		pipeW.Close()
 		return errors.Wrap(err, "could not start process")
 	}
+
+	// Close the read end in the parent; only the child needs it.
+	// Keep pipeW open — it closes when this process exits (or is killed).
+	pipeR.Close()
+	p.parentPipeW = pipeW
 	p.log.Info().Str("addr", p.listenAddr.String()).Msg("process started")
 	p.group.runningProcs++
 
@@ -449,6 +475,11 @@ func (p *Proc) start() error {
 // Close closes the process and waits for it to exit.
 // It is safe to call Close multiple times.
 func (p *Proc) Close() {
+	// Close the liveness pipe to signal the child that we're shutting down.
+	if p.parentPipeW != nil {
+		p.parentPipeW.Close()
+	}
+
 	if err := p.cmd.Process.Signal(os.Interrupt); err != nil {
 		// If there's an error sending the signal, just kill the process.
 		// This might happen because Interrupt is not supported on Windows.

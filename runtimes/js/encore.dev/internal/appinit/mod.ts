@@ -1,3 +1,4 @@
+import { Socket } from "node:net";
 import { isMainThread, Worker, workerData } from "node:worker_threads";
 import { Gateway } from "../../api/gateway";
 import { Middleware, MiddlewareRequest, HandlerResponse } from "../../api/mod";
@@ -32,6 +33,11 @@ export function registerGateways(gateways: Gateway[]) {
 
 export async function run(entrypoint: string) {
   if (isMainThread) {
+    // Watch the liveness pipe from the parent process. When the parent dies
+    // (for any reason, including SIGKILL), the OS closes the write end of the
+    // pipe and we get EOF, triggering a clean exit. This is cross-platform.
+    watchParentLiveness();
+
     const metricsBuffer = initGlobalMetricsBuffer();
     const extraWorkers = runtime.RT.numWorkerThreads() - 1;
     if (extraWorkers > 0) {
@@ -236,4 +242,21 @@ function toResponse(
   } else {
     return new HandlerResponse(payload).__internalToResponse();
   }
+}
+
+function watchParentLiveness() {
+  const fdStr = process.env.ENCORE_PARENT_FD;
+  if (!fdStr) return;
+
+  const fd = parseInt(fdStr, 10);
+  if (isNaN(fd)) return;
+
+  const sock = new Socket({ fd, readable: true, writable: false });
+  // Prevent the socket from keeping the event loop alive on its own,
+  // so it doesn't block normal shutdown.
+  sock.unref();
+  sock.on("close", () => {
+    process.exit(0);
+  });
+  sock.resume();
 }
