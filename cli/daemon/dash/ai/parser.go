@@ -56,6 +56,7 @@ func parseDocList(doc, section string) (string, []docListItem) {
 	lines := strings.Split(doc, "\n")
 	start := -1
 	end := -1
+loop:
 	for i, line := range lines {
 		end = i
 		if strings.HasPrefix(strings.TrimSpace(line), section+":") {
@@ -68,7 +69,7 @@ func parseDocList(doc, section string) (string, []docListItem) {
 			case "-", "":
 			default:
 				end = i - 1
-				break
+				break loop
 			}
 		}
 		lines[i] = strings.TrimSpace(line)
