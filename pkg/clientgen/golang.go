@@ -1443,12 +1443,12 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 			for _, field := range auth.QueryParameters {
 				if field.Type.GetList() != nil {
 					// If we have a slice, we need to encode each bit
-					slice, err := enc.ToStringSlice(
+					slice, errConv := enc.ToStringSlice(
 						field.Type,
 						Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase)),
 					)
-					if err != nil {
-						err = errors.Wrapf(err, "unable to encode query fields %s", field.SrcName)
+					if errConv != nil {
+						err = errors.Wrapf(errConv, "unable to encode query fields %s", field.SrcName)
 						return
 					}
 
@@ -1464,12 +1464,12 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 						Id("val").Op(":=").Add(Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase))),
 						Id("val").Op("!=").Nil(),
 					).BlockFunc(func(g *Group) {
-						val, err := enc.ToString(
+						val, errConv := enc.ToString(
 							field.Type,
 							Id("val"),
 						)
-						if err != nil {
-							err = errors.Wrapf(err, "unable to encode query field %s", field.SrcName)
+						if errConv != nil {
+							err = errors.Wrapf(errConv, "unable to encode query field %s", field.SrcName)
 							return
 						}
 						g.Add(Id("query").Dot("Set").Call(
@@ -1479,12 +1479,12 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 					}))
 				} else {
 					// Otherwise, we can just append the field
-					val, err := enc.ToString(
+					val, errConv := enc.ToString(
 						field.Type,
 						Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase)),
 					)
-					if err != nil {
-						err = errors.Wrapf(err, "unable to encode query field %s", field.SrcName)
+					if errConv != nil {
+						err = errors.Wrapf(errConv, "unable to encode query field %s", field.SrcName)
 						return
 					}
 
@@ -1506,12 +1506,12 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 			for _, field := range auth.HeaderParameters {
 				if field.Type.GetList() != nil {
 					// If we have a slice, we need to encode each bit
-					slice, err := enc.ToStringSlice(
+					slice, errConv := enc.ToStringSlice(
 						field.Type,
 						Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase)),
 					)
-					if err != nil {
-						err = errors.Wrapf(err, "unable to encode header fields %s", field.SrcName)
+					if errConv != nil {
+						err = errors.Wrapf(errConv, "unable to encode header fields %s", field.SrcName)
 						return
 					}
 
@@ -1527,12 +1527,12 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 						Id("val").Op(":=").Add(Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase))),
 						Id("val").Op("!=").Nil(),
 					).BlockFunc(func(g *Group) {
-						val, err := enc.ToString(
+						val, errConv := enc.ToString(
 							field.Type,
 							Id("val"),
 						)
-						if err != nil {
-							err = errors.Wrapf(err, "unable to encode header field %s", field.SrcName)
+						if errConv != nil {
+							err = errors.Wrapf(errConv, "unable to encode header field %s", field.SrcName)
 							return
 						}
 						enc.Add(Id("req").Dot("Header").Dot("Set").Call(
@@ -1542,12 +1542,12 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 					}))
 				} else {
 					// Otherwise, we can just append the field
-					val, err := enc.ToString(
+					val, errConv := enc.ToString(
 						field.Type,
 						Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase)),
 					)
-					if err != nil {
-						err = errors.Wrapf(err, "unable to encode header field %s", field.SrcName)
+					if errConv != nil {
+						err = errors.Wrapf(errConv, "unable to encode header field %s", field.SrcName)
 						return
 					}
 
