@@ -184,8 +184,8 @@ func parseCode(ctx context.Context, app *apps.Instance, services []Service) (rtn
 				}
 				e := overlay.endpoint
 
-				pathDocs := map[string]string{}
 				e.Doc, e.Errors = parseErrorList(r.Doc)
+				var pathDocs map[string]string
 				e.Doc, pathDocs = parsePathList(e.Doc)
 				e.Name = r.Name
 				e.Method = r.HTTPMethods[0]
