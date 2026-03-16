@@ -345,6 +345,76 @@ import { Uploader } from "encore.dev/storage/objects";
 const ref = profilePictures.ref<Uploader>();
 Must be called from within a service for proper permission tracking.
 </object_storage>
+<caching>
+Type-safe caching layer backed by Redis with automatic infrastructure provisioning.
+
+Cache cluster definition:
+import { CacheCluster } from "encore.dev/storage/cache";
+
+const cluster = new CacheCluster("my-cache", {
+  evictionPolicy: "allkeys-lru",
+});
+
+Reference existing cluster from another service: const cluster = CacheCluster.named("my-cache");
+
+Eviction policies: "allkeys-lru" (default), "noeviction", "allkeys-lfu", "allkeys-random", "volatile-lru", "volatile-lfu", "volatile-ttl", "volatile-random"
+
+Keyspaces (type-safe storage, Key type combines with keyPattern to generate Redis keys):
+
+Example with StringKeyspace:
+import { CacheCluster, StringKeyspace, expireIn } from "encore.dev/storage/cache";
+
+const cluster = new CacheCluster("my-cache", { evictionPolicy: "allkeys-lru" });
+
+const tokens = new StringKeyspace<{ tokenId: string }>(cluster, {
+  keyPattern: "token/:tokenId",
+  defaultExpiry: expireIn(3600 * 1000),
+});
+
+await tokens.set({ tokenId: "abc123" }, "value");
+const token = await tokens.get({ tokenId: "abc123" }); // undefined on miss
+await tokens.delete({ tokenId: "abc123" });
+
+Example with IntKeyspace:
+import { IntKeyspace } from "encore.dev/storage/cache";
+
+const counters = new IntKeyspace<{ id: string }>(cluster, {
+  keyPattern: "counter/:id",
+});
+
+await counters.increment({ id: "visits" }, 1);
+await counters.decrement({ id: "visits" }, 1);
+
+Example with StructKeyspace:
+import { StructKeyspace } from "encore.dev/storage/cache";
+
+interface UserProfile { name: string; email: string; }
+
+const profiles = new StructKeyspace<{ userId: string }, UserProfile>(cluster, {
+  keyPattern: "profile/:userId",
+  defaultExpiry: expireIn(3600 * 1000),
+});
+
+await profiles.set({ userId: "user123" }, { name: "Alice", email: "alice@example.com" });
+
+Other keyspaces (all from "encore.dev/storage/cache"):
+- FloatKeyspace<Key>: Float values. Has increment().
+- StringListKeyspace<Key>: String lists. Has pushRight, pushLeft, popRight, popLeft, getRange, items.
+- NumberListKeyspace<Key>: Number lists. Has pushRight, pushLeft, popRight, popLeft, items.
+- StringSetKeyspace<Key>: String sets. Has add, remove, contains, items.
+- NumberSetKeyspace<Key>: Number sets. Has add, remove, contains, items.
+
+Expiry helpers (from "encore.dev/storage/cache"): expireIn(ms), expireInSeconds(s), expireInMinutes(m), expireInHours(h), expireDailyAt(hour, min, sec), neverExpire, keepTTL
+
+Write options:
+await keyspace.set(key, value, { expiry: expireInMinutes(30) }); // override default
+await keyspace.setIfNotExists(key, value); // only if not exists
+await keyspace.replace(key, value); // only if exists, throws CacheMiss if absent
+
+Error types: CacheMiss, CacheKeyExists (from "encore.dev/storage/cache"). get() returns undefined on miss.
+
+Local development uses an in-memory Redis implementation with ~100 key limit.
+</caching>
 <secrets_management>
 Built-in secrets manager for secure storage of API keys, passwords, and private keys.
 
