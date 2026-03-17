@@ -61,6 +61,8 @@ npx add-skill encoredev/skills --list
 npx add-skill encoredev/skills -a cursor -a claude-code
 ```
 
+The skills package includes a migration skill that can automatically migrate your existing backend to Encore.ts. See the [Migrate using AI agent](/docs/ts/migration/ai-migration) guide to learn more.
+
 ## MCP Server
 
 Encore's [Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction) server gives AI agents deep introspection into your application: querying databases, calling APIs, inspecting services, and analyzing traces.
