@@ -2,7 +2,10 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::sync::{Arc, OnceLock};
 
+use std::io::Read as _;
+
 use base64::{engine::general_purpose, Engine as _};
+use flate2::read::GzDecoder;
 
 use crate::encore::runtime::v1 as pb;
 use encore::runtime::v1::secret_data::{Source, SubPath};
@@ -79,6 +82,7 @@ pub enum ResolveError {
     InvalidBase64,
     InvalidJSON,
     InvalidJSONValue,
+    InvalidGzip,
     InvalidSecretSource,
     UnknownEncoding,
 }
@@ -92,6 +96,7 @@ impl Display for ResolveError {
             ResolveError::JsonKeyNotFound => write!(f, "JSON key not found"),
             ResolveError::JsonValueNotString => write!(f, "JSON value is not a string"),
             ResolveError::InvalidBase64 => write!(f, "invalid base64"),
+            ResolveError::InvalidGzip => write!(f, "invalid gzip data"),
             ResolveError::InvalidJSON => write!(f, "invalid JSON"),
             ResolveError::InvalidJSONValue => write!(f, "invalid JSON value encoding"),
             ResolveError::InvalidSecretSource => write!(f, "invalid secret source"),
@@ -116,6 +121,17 @@ fn resolve(data: &SecretData) -> ResolveResult<Vec<u8>> {
     let encoding = Encoding::try_from(data.encoding).map_err(|_| ResolveError::UnknownEncoding)?;
     let value = match encoding {
         Encoding::None => value,
+        Encoding::Gzip => {
+            let compressed = BASE64
+                .decode(value)
+                .map_err(|_| ResolveError::InvalidBase64)?;
+            let mut decoder = GzDecoder::new(&compressed[..]);
+            let mut decompressed = Vec::new();
+            decoder
+                .read_to_end(&mut decompressed)
+                .map_err(|_| ResolveError::InvalidGzip)?;
+            decompressed
+        }
         Encoding::Base64 => BASE64
             .decode(&value)
             .map_err(|_| ResolveError::InvalidBase64)?,
