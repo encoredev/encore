@@ -28,6 +28,8 @@ const (
 	SecretData_ENCODING_NONE SecretData_Encoding = 0
 	// Indicates the value is base64-encoded.
 	SecretData_ENCODING_BASE64 SecretData_Encoding = 1
+	// Indicates the value is gzip-compressed and then base64-encoded.
+	SecretData_ENCODING_GZIP SecretData_Encoding = 2
 )
 
 // Enum value maps for SecretData_Encoding.
@@ -35,10 +37,12 @@ var (
 	SecretData_Encoding_name = map[int32]string{
 		0: "ENCODING_NONE",
 		1: "ENCODING_BASE64",
+		2: "ENCODING_GZIP",
 	}
 	SecretData_Encoding_value = map[string]int32{
 		"ENCODING_NONE":   0,
 		"ENCODING_BASE64": 1,
+		"ENCODING_GZIP":   2,
 	}
 )
 
@@ -214,17 +218,18 @@ var File_encore_runtime_v1_secretdata_proto protoreflect.FileDescriptor
 
 const file_encore_runtime_v1_secretdata_proto_rawDesc = "" +
 	"\n" +
-	"\"encore/runtime/v1/secretdata.proto\x12\x11encore.runtime.v1\"\xf5\x01\n" +
+	"\"encore/runtime/v1/secretdata.proto\x12\x11encore.runtime.v1\"\x88\x02\n" +
 	"\n" +
 	"SecretData\x12\x1c\n" +
 	"\bembedded\x18\x01 \x01(\fH\x00R\bembedded\x12\x12\n" +
 	"\x03env\x18\x02 \x01(\tH\x00R\x03env\x12B\n" +
 	"\bencoding\x18\x14 \x01(\x0e2&.encore.runtime.v1.SecretData.EncodingR\bencoding\x12\x1b\n" +
 	"\bjson_key\x18\n" +
-	" \x01(\tH\x01R\ajsonKey\"2\n" +
+	" \x01(\tH\x01R\ajsonKey\"E\n" +
 	"\bEncoding\x12\x11\n" +
 	"\rENCODING_NONE\x10\x00\x12\x13\n" +
-	"\x0fENCODING_BASE64\x10\x01B\b\n" +
+	"\x0fENCODING_BASE64\x10\x01\x12\x11\n" +
+	"\rENCODING_GZIP\x10\x02B\b\n" +
 	"\x06sourceB\n" +
 	"\n" +
 	"\bsub_pathJ\x04\b\x03\x10\n" +
