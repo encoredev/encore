@@ -96,6 +96,24 @@ impl Tracer {
         }
     }
 
+    /// Determines whether a new pubsub subscription trace should be sampled.
+    /// Returns false if this is a noop tracer (no sender).
+    ///
+    /// Looks up the sampling rate: subscription → topic → service → default.
+    /// If no match is found, always sample.
+    pub fn should_sample_pubsub(&self, service: &str, topic: &str, subscription: &str) -> bool {
+        if self.tx.is_none() {
+            return false;
+        }
+        match self
+            .sampling_rate_config
+            .lookup_pubsub(service, topic, subscription)
+        {
+            None => true,
+            Some(rate) => rand::random::<f64>() < rate,
+        }
+    }
+
     /// Determines whether a new trace should be sampled based on the default sampling rate.
     /// Returns false if this is a noop tracer (no sender).
     ///

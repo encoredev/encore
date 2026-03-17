@@ -3,7 +3,6 @@ package pubsub
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -172,12 +171,7 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 			logCtx = logCtx.Str("x_correlation_id", parentTraceID.String())
 		}
 
-		traced := false
-		if val, ok := attrs[parentSampledAttribute]; ok {
-			traced, _ = strconv.ParseBool(val)
-		} else {
-			traced = mgr.rt.SampleDefault()
-		}
+		traced := mgr.rt.SamplePubSub(staticCfg.Service, topic.runtimeCfg.EncoreName, subscription.EncoreName)
 
 		// Start the request tracing span
 		req := &model.Request{

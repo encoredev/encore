@@ -10,6 +10,7 @@ import (
 type Factory interface {
 	NewLogger() trace2.Logger
 	SampleTrace(service, endpoint string) bool
+	SamplePubSub(service, topic, subscription string) bool
 	SampleDefault() bool
 }
 
@@ -19,6 +20,10 @@ type samplingRates struct {
 	endpoint map[string]float64
 	// service holds rates keyed by service name.
 	service map[string]float64
+	// subscription holds rates keyed by "topic.subscription" for pubsub subscriptions.
+	subscription map[string]float64
+	// topic holds rates keyed by topic name.
+	topic map[string]float64
 	// defaultRate is the default rate, or -1 if unset.
 	defaultRate float64
 }
@@ -34,19 +39,28 @@ func NewDefaultFactory(cfg map[string]float64) *DefaultFactory {
 
 	r := &samplingRates{defaultRate: -1}
 	for key, rate := range cfg {
-		switch {
-		case key == "_":
+		if key == "_" {
 			r.defaultRate = rate
-		case strings.HasPrefix(key, "service:"):
+		} else if name, ok := strings.CutPrefix(key, "service:"); ok {
 			if r.service == nil {
 				r.service = make(map[string]float64)
 			}
-			r.service[key[len("service:"):]] = rate
-		case strings.HasPrefix(key, "endpoint:"):
+			r.service[name] = rate
+		} else if name, ok := strings.CutPrefix(key, "endpoint:"); ok {
 			if r.endpoint == nil {
 				r.endpoint = make(map[string]float64)
 			}
-			r.endpoint[key[len("endpoint:"):]] = rate
+			r.endpoint[name] = rate
+		} else if name, ok := strings.CutPrefix(key, "topic:"); ok {
+			if r.topic == nil {
+				r.topic = make(map[string]float64)
+			}
+			r.topic[name] = rate
+		} else if name, ok := strings.CutPrefix(key, "subscription:"); ok {
+			if r.subscription == nil {
+				r.subscription = make(map[string]float64)
+			}
+			r.subscription[name] = rate
 		}
 	}
 	return &DefaultFactory{rates: r}
@@ -67,6 +81,30 @@ func (f *DefaultFactory) SampleTrace(service, endpoint string) bool {
 		if rate, ok := r.endpoint[service+"."+endpoint]; ok {
 			return rand.Float64() < rate
 		}
+	}
+	if rate, ok := r.service[service]; ok {
+		return rand.Float64() < rate
+	}
+	if r.defaultRate >= 0 {
+		return rand.Float64() < r.defaultRate
+	}
+	return true
+}
+
+// SamplePubSub determines whether to sample a pubsub subscription trace.
+// Lookup order: subscription → topic → service → default.
+func (f *DefaultFactory) SamplePubSub(service, topic, subscription string) bool {
+	r := f.rates
+	if r == nil {
+		return true
+	}
+	if len(r.subscription) > 0 {
+		if rate, ok := r.subscription[topic+"."+subscription]; ok {
+			return rand.Float64() < rate
+		}
+	}
+	if rate, ok := r.topic[topic]; ok {
+		return rand.Float64() < rate
 	}
 	if rate, ok := r.service[service]; ok {
 		return rand.Float64() < rate
