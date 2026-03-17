@@ -569,6 +569,11 @@
 			text: "Migration guides"
 			items: [{
 				kind: "basic"
+				text: "Migrate using AI agent"
+				path: "/go/migration/ai-migration"
+				file: "go/migration/ai-migration"
+			}, {
+				kind: "basic"
 				text: "Migrate away from Encore"
 				path: "/go/migration/migrate-away"
 				file: "go/migration/migrate-away"
@@ -1053,6 +1058,11 @@
 			kind: "section"
 			text: "Migration guides"
 			items: [{
+				kind: "basic"
+				text: "Migrate using AI agent"
+				path: "/ts/migration/ai-migration"
+				file: "ts/migration/ai-migration"
+			}, {
 				kind: "basic"
 				text: "Migrate away from Encore"
 				path: "/ts/migration/migrate-away"
