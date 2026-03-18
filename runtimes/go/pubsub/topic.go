@@ -161,7 +161,7 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 		// If this is a platform request, propagate the sampled flag so that
 		// subscribers always trace platform-initiated messages.
 		if req.RPCData != nil && req.RPCData.FromEncorePlatform {
-			attrs[parentSampledAttribute] = "true"
+			attrs[forceTraceAttribute] = "true"
 		}
 	}
 
