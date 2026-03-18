@@ -147,18 +147,34 @@ type DeployConclusion = "unknown" | "canceled" | "failure" | "success";
 | **ENV_NAME** | The name of the environment to trigger a rollout for.      |
 
 #### JSON Request Body
-A rollout can be triggered either with a commit sha or the name of a branch,
-depending on the JSON field passed in. Exactly one of these must be provided.
 
-```typescript
+A rollout can be triggered either by commit SHA or by branch name.
+
+**By commit SHA:**
+```json
 {
   // The commit hash to trigger a deploy for.
-  "sha": string;
-} | {
-  // Name of the branch to trigger a deploy from.
-  "branch": string;
+  "sha": "abc123...",
+  // Optional. Set to skip running tests during build.
+  "skip_tests": false,
+  // Optional. Set to force a rebuild instead of reusing a cached build.
+  "force_rebuild": false
 }
 ```
+
+**By branch name:**
+```json
+{
+  // The name of the branch to deploy the latest commit from.
+  "branch": "main",
+  // Optional. Set to skip running tests during build.
+  "skip_tests": false,
+  // Optional. Set to force a rebuild instead of reusing a cached build.
+  "force_rebuild": false
+}
+```
+
+Exactly one of `sha` or `branch` must be provided. `skip_tests` and `force_rebuild` are optional and default to `false`.
 
 #### Response
 
