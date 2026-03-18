@@ -191,6 +191,7 @@ impl ManagerConfig<'_> {
                     own_api_address,
                     self.proxied_push_subs.clone(),
                     self.tracer.clone(),
+                    inbound_svc_auth.clone(),
                 )
                 .context("couldn't create gateway")?,
             );
