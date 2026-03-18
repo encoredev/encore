@@ -35,6 +35,10 @@ struct SamplingRates {
     endpoint: HashMap<String, f64>,
     /// Rates keyed by service name for API services.
     service: HashMap<String, f64>,
+    /// Rates keyed by "topic.subscription" for pubsub subscriptions.
+    subscription: HashMap<String, f64>,
+    /// Rates keyed by topic name for pubsub topics.
+    topic: HashMap<String, f64>,
     /// Default rate.
     default: Option<f64>,
 }
@@ -53,6 +57,8 @@ impl TraceSamplingConfig {
         let mut default_rate = None;
         let mut endpoint = HashMap::new();
         let mut service = HashMap::new();
+        let mut subscription = HashMap::new();
+        let mut topic = HashMap::new();
 
         for entry in &config {
             let rate = entry.rate;
@@ -65,6 +71,13 @@ impl TraceSamplingConfig {
                     let key = format!("{}.{}", ep.service, ep.endpoint);
                     endpoint.insert(key, rate);
                 }
+                Some(Scope::Topic(t)) => {
+                    topic.insert(t.clone(), rate);
+                }
+                Some(Scope::PubsubSubscription(sub)) => {
+                    let key = format!("{}.{}", sub.topic, sub.subscription);
+                    subscription.insert(key, rate);
+                }
                 None => {}
             }
         }
@@ -76,7 +89,12 @@ impl TraceSamplingConfig {
             }
         }
 
-        if default_rate.is_none() && endpoint.is_empty() && service.is_empty() {
+        if default_rate.is_none()
+            && endpoint.is_empty()
+            && service.is_empty()
+            && subscription.is_empty()
+            && topic.is_empty()
+        {
             return Self { inner: None };
         }
 
@@ -84,6 +102,8 @@ impl TraceSamplingConfig {
             inner: Some(Arc::new(SamplingRates {
                 endpoint,
                 service,
+                subscription,
+                topic,
                 default: default_rate,
             })),
         }
@@ -98,6 +118,21 @@ impl TraceSamplingConfig {
             .endpoint
             .get(&**name)
             .or_else(|| rates.service.get(name.service()))
+            .or_else(|| rates.default.as_ref())
+            .copied()
+    }
+
+    /// Look up the sampling rate for a pubsub subscription.
+    /// Falls back: subscription → topic → service → default.
+    /// Returns None if no config matches (meaning: always sample).
+    pub fn lookup_pubsub(&self, service: &str, topic: &str, subscription: &str) -> Option<f64> {
+        let rates = self.inner.as_ref()?;
+        let key = format!("{}.{}", topic, subscription);
+        rates
+            .subscription
+            .get(&key)
+            .or_else(|| rates.topic.get(topic))
+            .or_else(|| rates.service.get(service))
             .or_else(|| rates.default.as_ref())
             .copied()
     }

@@ -3,7 +3,6 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
@@ -159,7 +158,11 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 			attrs[extCorrelationIDAttribute] = req.TraceID.String()
 		}
 
-		attrs[parentSampledAttribute] = strconv.FormatBool(req.Traced)
+		// If this is a platform request, propagate the sampled flag so that
+		// subscribers always trace platform-initiated messages.
+		if req.RPCData != nil && req.RPCData.FromEncorePlatform {
+			attrs[forceTraceAttribute] = "true"
+		}
 	}
 
 	// Start the trace span

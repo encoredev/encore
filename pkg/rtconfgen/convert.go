@@ -539,6 +539,8 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 //   - "_" for the global default
 //   - "service:<name>" for service-level
 //   - "endpoint:<service>.<endpoint>" for endpoint-level
+//   - "topic:<name>" for topic-level
+//   - "subscription:<topic>.<subscription>" for subscription-level
 func convertSamplingConfig(configs []*runtimev1.TracingProvider_SamplingConfig) map[string]float64 {
 	if len(configs) == 0 {
 		return nil
@@ -552,6 +554,10 @@ func convertSamplingConfig(configs []*runtimev1.TracingProvider_SamplingConfig) 
 			m["service:"+s.Service] = sc.Rate
 		case *runtimev1.TracingProvider_SamplingConfig_Endpoint_:
 			m["endpoint:"+s.Endpoint.Service+"."+s.Endpoint.Endpoint] = sc.Rate
+		case *runtimev1.TracingProvider_SamplingConfig_Topic:
+			m["topic:"+s.Topic] = sc.Rate
+		case *runtimev1.TracingProvider_SamplingConfig_PubsubSubscription:
+			m["subscription:"+s.PubsubSubscription.Topic+"."+s.PubsubSubscription.Subscription] = sc.Rate
 		}
 	}
 	return m

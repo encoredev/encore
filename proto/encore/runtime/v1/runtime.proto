@@ -148,11 +148,20 @@ message TracingProvider {
       string service = 3;
       // Applies to a specific API endpoint.
       Endpoint endpoint = 4;
+      // Applies to all subscriptions within the named topic.
+      string topic = 5;
+      // Applies to a specific pubsub subscription.
+      PubSubSubscription pubsub_subscription = 6;
     }
 
     message Endpoint {
       string service = 1;
       string endpoint = 2;
+    }
+
+    message PubSubSubscription {
+      string topic = 1;
+      string subscription = 2;
     }
   }
 }
