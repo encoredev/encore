@@ -157,6 +157,12 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 			// Otherwise this is the first request in the event chain, so this trace ID becomes the correlation ID
 			attrs[extCorrelationIDAttribute] = req.TraceID.String()
 		}
+
+		// If this is a platform request, propagate the sampled flag so that
+		// subscribers always trace platform-initiated messages.
+		if req.RPCData != nil && req.RPCData.FromEncorePlatform {
+			attrs[parentSampledAttribute] = "true"
+		}
 	}
 
 	// Start the trace span

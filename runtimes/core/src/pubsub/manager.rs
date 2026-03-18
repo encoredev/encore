@@ -109,6 +109,12 @@ impl TopicInner {
                         ext_correlation_id.clone(),
                     );
                 }
+                // If this is a platform request, propagate the sampled flag so that
+                // subscribers always trace platform-initiated messages.
+                if source.is_platform_request {
+                    msg.attrs
+                        .insert(ATTR_PARENT_SAMPLED.to_string(), "true".to_string());
+                }
                 let start_id = tracer.pubsub_publish_start(protocol::PublishStartData {
                     source,
                     topic: &name,
@@ -173,6 +179,7 @@ pub struct SubHandler {
 
 const ATTR_PARENT_TRACE_ID: &str = "encore_parent_trace_id";
 const ATTR_EXT_CORRELATION_ID: &str = "encore_ext_correlation_id";
+const ATTR_PARENT_SAMPLED: &str = "encore_parent_sampled";
 
 impl SubHandler {
     fn add_handler(&self, h: Arc<dyn SubscriptionHandler>) {
@@ -193,11 +200,16 @@ impl SubHandler {
                 .and_then(|s| TraceId::parse_encore(s).ok());
             let ext_correlation_id = msg.data.attrs.get(ATTR_EXT_CORRELATION_ID);
 
-            let traced = self.obj.tracer.should_sample_pubsub(
-                &self.obj.service,
-                &self.obj.topic,
-                &self.obj.subscription,
-            );
+            // If the parent explicitly set the sampling attribute, respect it.
+            // Otherwise, make an independent sampling decision.
+            let traced = match msg.data.attrs.get(ATTR_PARENT_SAMPLED) {
+                Some(v) => v == "true",
+                None => self.obj.tracer.should_sample_pubsub(
+                    &self.obj.service,
+                    &self.obj.topic,
+                    &self.obj.subscription,
+                ),
+            };
 
             let mut de = serde_json::Deserializer::from_slice(&msg.data.raw_body);
             let parsed_payload = self.obj.schema.deserialize(
