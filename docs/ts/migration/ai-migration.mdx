@@ -1,0 +1,108 @@
+---
+seotitle: Migrate to Encore.ts Using an AI Agent
+seodesc: Learn how to use Encore's AI migration skill to automatically migrate your existing backend to Encore.ts, with validation at every step.
+title: Migrate using AI agent
+lang: ts
+---
+
+Encore's AI migration skill analyzes your existing backend, builds a dependency-aware migration plan, and converts your code to Encore.ts — one unit at a time, with validation at every step.
+
+It works with any source framework: Express, Fastify, Hono, Koa, NestJS, and more.
+
+<Callout type="info">
+
+The skill has been tested with Claude Code but should work with other agents as well.
+
+</Callout>
+
+## Prerequisites
+
+Install the Encore skills package in your AI coding tool:
+
+```bash
+npx add-skill encoredev/skills
+```
+
+You'll also need:
+- The source codebase accessible on your local machine
+- An Encore project to migrate into (the skill can help create one)
+- Your source application running locally (optional — enables HTTP comparison validation)
+
+## Starting a migration
+
+Create a new Encore app from the "Empty app" template by running:
+
+```bash
+encore app create
+```
+
+From inside your Encore app, open your AI coding tool and ask it to migrate your existing app:
+
+```
+Migrate ../path/to/existing/project to Encore.ts by using the encore-migrate skill
+```
+
+The skill walks you through four phases: **Discover**, **Plan**, **Migrate**, and **Complete**.
+
+## How it works
+
+### Phase 1 — Discover
+
+The AI reads your source codebase and inventories everything: API endpoints, databases, Pub/Sub topics, cron jobs, auth middleware, secrets, and tests. It groups related entities into **migration units** — typically aligned with your existing service boundaries or URL path prefixes — and presents a summary for you to review.
+
+You can adjust the groupings before moving on. Split units that are too large, merge ones that are too small, or rename them to match your domain.
+
+### Phase 2 — Plan
+
+The AI creates a `migration-plan.md` file and a `migration-plan/` directory in your Encore project. The summary file tracks overall progress and dependency order. Each migration unit gets its own detail file listing every endpoint, database table, and test to migrate.
+
+Dependencies determine the order. Secrets and config go first, then databases, auth, leaf services, dependent services, Pub/Sub, and finally cron jobs.
+
+### Phase 3 — Migrate
+
+The AI works through one migration unit at a time. For each entity it:
+
+1. **Implements** the Encore equivalent — [API endpoints](/docs/ts/primitives/defining-apis), [database schemas](/docs/ts/primitives/databases), [infrastructure declarations](/docs/ts/primitives/services)
+2. **Migrates tests** from the source framework to Encore's [testing patterns](/docs/ts/develop/testing)
+3. **Validates** the result using up to three layers (see [Validation](#validation))
+4. **Updates the plan** files to track progress
+
+After completing a unit, it suggests the next one based on the dependency order. You can also pick a different unit or tell it to keep going through multiple units.
+
+### Phase 4 — Complete
+
+When all units are done, the AI presents a final summary: what was migrated, what was skipped, and what needs manual attention. It suggests a final test suite run and, if your source system has a frontend, recommends reconnecting it to the new Encore backend using the [Request Client](/docs/ts/frontend/request-client).
+
+## Full-stack and monorepo support
+
+When the source codebase contains frontend code (React, Vue, Angular, Next.js, etc.), the AI identifies it and marks it as out of scope — only backend code is migrated.
+
+For full-stack frameworks like **Next.js**, **Remix**, **Nuxt**, **SvelteKit**, and **Astro**, the AI detects server-side routes (e.g., Next.js `pages/api/` or Remix `loader` functions) and asks what you want to do with them:
+
+1. **Migrate all** server-side routes to Encore
+2. **Migrate some** — you pick which ones move
+3. **Keep all in the frontend framework** — only migrate standalone backend code
+
+This is useful when you want an Encore backend but prefer to keep a thin BFF or SSR data-fetching layer in your frontend framework.
+
+## Validation
+
+Every entity is validated before it's marked as migrated. The AI uses three layers:
+
+**Test migration** — Source tests are converted to Encore's [testing patterns](/docs/ts/develop/testing) and run. They must pass before the entity is marked as done.
+
+**HTTP comparison** — When both systems are running locally, the AI calls the same endpoint on both and compares the HTTP status code and response body structure. This layer is skipped for endpoints with side effects or that require auth credentials the AI can't obtain.
+
+**Verification gate** — No entity is marked as `migrated` without concrete evidence from the current session: test output, HTTP comparison results, or your explicit approval to skip.
+
+## Resuming across sessions
+
+The migration plan is persisted to files in your Encore project, so you can close your editor and come back later. When you resume, the AI reads `migration-plan.md`, reports the current status, and suggests the next unit to work on.
+
+```
+Resume the migration
+```
+
+```
+What's left to migrate?
+```
