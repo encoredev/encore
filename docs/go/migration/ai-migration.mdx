@@ -30,16 +30,16 @@ You'll also need:
 
 ## Starting a migration
 
-Open your AI coding tool and ask it to migrate your existing app. If you already have an Encore project, open the tool in that directory and point to where your source app lives:
+Create a new Encore app from the "Empty app" template by running:
+
+```bash
+encore app create
+```
+
+From inside your Encore app, open your AI coding tool and ask it to migrate your existing app:
 
 ```
-Migrate my Go API at ../my-api to Encore.go
-```
-
-If you don't have an Encore project yet, you can start from your source app's directory — the skill will help you create one:
-
-```
-Migrate this app to Encore Go
+Migrate ../path/to/existing/project to Encore.ts by using the encore-migrate skill
 ```
 
 The skill walks you through four phases: **Discover**, **Plan**, **Migrate**, and **Complete**.
