@@ -1,5 +1,3 @@
-//go:build !encore_app
-
 // Note this file is only included by the CLI and not by the app runtime.
 
 package experiments

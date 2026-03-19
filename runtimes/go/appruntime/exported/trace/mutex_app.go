@@ -2,15 +2,20 @@
 
 package trace
 
-import _ "unsafe" // for go:linkname
+import (
+	"sync"
+	_ "unsafe" // for go:linkname
+)
 
-// mutex must exactly match implementation in the runtime.
+// mutex wraps sync.Mutex for compatibility
 type mutex struct {
-	key uintptr
+	sync.Mutex
 }
 
-//go:linkname mutexLock runtime.lock
-func mutexLock(mut *mutex)
+func mutexLock(mut *mutex) {
+	mut.Lock()
+}
 
-//go:linkname mutexUnlock runtime.unlock
-func mutexUnlock(mut *mutex)
+func mutexUnlock(mut *mutex) {
+	mut.Unlock()
+}
