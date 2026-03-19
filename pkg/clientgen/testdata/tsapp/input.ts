@@ -13,6 +13,12 @@ export interface ImportedResponse {
   message: string;
 }
 
+-- svc/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+// Svc is a service for testing the client generator.
+export default new Service("svc");
+
 -- svc/svc.ts --
 import { Header, Query, api, Gateway, Cookie } from "encore.dev/api";
 import { authHandler } from "encore.dev/auth";

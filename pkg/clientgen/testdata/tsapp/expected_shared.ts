@@ -103,6 +103,9 @@ import {
     root as api_svc_svc_root
 } from "~backend/svc/svc";
 
+/**
+ * Svc is a service for testing the client generator.
+ */
 export namespace svc {
 
     export class ServiceClient {

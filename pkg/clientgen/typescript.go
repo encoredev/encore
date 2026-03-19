@@ -241,6 +241,19 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 	}
 
 	ns := svc.Name
+
+	// Service doc string
+	if doc := getServiceDoc(ts.md, svc); doc != "" {
+		scanner := bufio.NewScanner(strings.NewReader(doc))
+		ts.WriteString("/**\n")
+		for scanner.Scan() {
+			ts.WriteString(" * ")
+			ts.WriteString(scanner.Text())
+			ts.WriteByte('\n')
+		}
+		ts.WriteString(" */\n")
+	}
+
 	fmt.Fprintf(ts, "export namespace %s {\n", ts.typeName(ns))
 
 	sort.Slice(decls, func(i, j int) bool {

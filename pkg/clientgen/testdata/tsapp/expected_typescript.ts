@@ -85,6 +85,9 @@ export interface ClientOptions {
     auth?: svc.AuthParams | AuthDataGenerator
 }
 
+/**
+ * Svc is a service for testing the client generator.
+ */
 export namespace svc {
     export interface AuthParams {
         cookie?: string

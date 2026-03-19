@@ -94,6 +94,9 @@ export const products = {
     ServiceClient: ProductsServiceClient
 }
 
+/**
+ * Svc is a service for testing the client generator.
+ */
 class SvcServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
