@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -56,11 +57,16 @@ struct RustLoggerSink {
 
 impl ErrorSink<tokio_postgres::Error> for RustLoggerSink {
     fn sink(&self, err: tokio_postgres::Error) {
-        log::error!(
+        let mut msg = format!(
             "database {}: connection pool error: {:?}",
-            self.db_name,
-            err
+            self.db_name, err
         );
+        let mut source = std::error::Error::source(&err);
+        while let Some(cause) = source {
+            let _ = write!(msg, "\n  caused by: {cause}");
+            source = std::error::Error::source(cause);
+        }
+        log::error!("{msg}");
     }
 
     fn boxed_clone(&self) -> Box<dyn ErrorSink<tokio_postgres::Error>> {

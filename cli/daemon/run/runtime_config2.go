@@ -324,7 +324,7 @@ func (g *RuntimeConfigGenerator) initialize() error {
 					cluster.SQLServer(&runtimev1.SQLServer{
 						Rid:  newRid(),
 						Kind: runtimev1.ServerKind_SERVER_KIND_PRIMARY,
-						Host: pCfg.Host,
+						Host: net.JoinHostPort(pCfg.Host, strconv.Itoa(int(pCfg.Port))),
 						TlsConfig: &runtimev1.TLSConfig{
 							DisableCaValidation: true,
 						},
