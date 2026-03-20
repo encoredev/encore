@@ -9,6 +9,7 @@ require (
 {"id": ""}
 
 -- svc/svc.go --
+// Svc is a service for testing the client generator.
 package svc
 
 import (

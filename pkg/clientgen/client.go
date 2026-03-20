@@ -100,6 +100,17 @@ func Client(
 	return buf.Bytes(), nil
 }
 
+// getServiceDoc returns the documentation for a service by looking up the
+// root package matching the service's rel_path
+func getServiceDoc(md *meta.Data, svc *meta.Service) string {
+	for _, pkg := range md.Pkgs {
+		if pkg.RelPath == svc.RelPath {
+			return pkg.Doc
+		}
+	}
+	return ""
+}
+
 // GetLang returns the language specified by the given string, allowing for case insensitivity and common aliases.
 func GetLang(lang string) (Lang, error) {
 	switch strings.TrimSpace(strings.ToLower(lang)) {

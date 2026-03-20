@@ -153,6 +153,18 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 		js.WriteString(strings.Repeat("    ", numIndent))
 	}
 
+	// Service doc string
+	if doc := getServiceDoc(js.md, svc); doc != "" {
+		scanner := bufio.NewScanner(strings.NewReader(doc))
+		js.WriteString("/**\n")
+		for scanner.Scan() {
+			js.WriteString(" * ")
+			js.WriteString(scanner.Text())
+			js.WriteByte('\n')
+		}
+		js.WriteString(" */\n")
+	}
+
 	fmt.Fprintf(js, "class %sServiceClient {\n", cases.Title(language.English, cases.Compact).String(js.typeName(ns)))
 	numIndent++
 

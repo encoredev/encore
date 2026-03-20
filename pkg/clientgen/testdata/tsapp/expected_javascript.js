@@ -42,6 +42,9 @@ export default class Client {
     }
 }
 
+/**
+ * Svc is a service for testing the client generator.
+ */
 class SvcServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient

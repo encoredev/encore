@@ -199,6 +199,9 @@ export namespace products {
     }
 }
 
+/**
+ * Svc is a service for testing the client generator.
+ */
 export namespace svc {
     export interface AllInputTypes<A> {
         /**

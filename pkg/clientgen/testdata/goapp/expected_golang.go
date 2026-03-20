@@ -296,6 +296,8 @@ type SvcWrapper[T any] struct {
 	Value T
 }
 
+// Svc is a service for testing the client generator.
+//
 // SvcClient Provides you access to call public and authenticated APIs on svc. The concrete implementation is svcClient.
 // It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
 type SvcClient interface {

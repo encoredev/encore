@@ -330,6 +330,12 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service, tags c
 	structName := fmt.Sprintf("%sClient", strings.ToLower(name))
 
 	// The interface
+	if doc := getServiceDoc(g.md, service); doc != "" && !g.skipDocs {
+		for _, line := range strings.Split(strings.TrimSpace(doc), "\n") {
+			file.Comment(line)
+		}
+		file.Comment("")
+	}
 	file.Commentf("%s Provides you access to call public and authenticated APIs on %s. The concrete implementation is %s.", interfaceName, service.Name, structName)
 	file.Comment("It is setup as an interface allowing you to use GoMock to create mock implementations during tests.")
 	var interfaceMethods []Code
