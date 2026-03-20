@@ -139,7 +139,7 @@ when using tools like Prisma.
 			Role:        getDBRole(),
 		})
 		if err != nil {
-			fatalf("could not connect to the database for service %s: %v", dbName, err)
+			fatalf("could not connect to db  %s: %v", dbName, err)
 		}
 
 		// If we have the psql binary, use that.
