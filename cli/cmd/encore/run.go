@@ -7,12 +7,14 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/cli/cmd/encore/llm_rules"
 	"encr.dev/cli/cmd/encore/root"
 	"encr.dev/cli/internal/onboarding"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -124,6 +126,9 @@ func runApp(appRoot, wd string) {
 		debugMode = daemonpb.RunRequest_DEBUG_BREAK
 	}
 
+	// Prompt to set up LLM rules if not already done.
+	promptLLMRulesSetup(appRoot)
+
 	daemon := setupDaemon(ctx)
 	stream, err := daemon.Run(ctx, &daemonpb.RunRequest{
 		AppRoot:            appRoot,
@@ -159,6 +164,52 @@ func runApp(appRoot, wd string) {
 		}
 	}
 	os.Exit(code)
+}
+
+// promptLLMRulesSetup prompts the user to set up LLM rules if they haven't been
+// initialized for this app and we haven't prompted before.
+func promptLLMRulesSetup(appRoot string) {
+	// Only prompt in interactive terminals.
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return
+	}
+
+	// Check if LLM rules are already set up.
+	if llm_rules.HasLLMRules(appRoot) {
+		return
+	}
+
+	// Check if we've already prompted about this app.
+	state, err := onboarding.Load()
+	if err != nil {
+		return
+	}
+	prop := state.Property("llm_rules_hint:" + appRoot)
+	if prop.IsSet() {
+		return
+	}
+
+	// Mark that we've prompted, regardless of the answer.
+	prop.Set()
+	_ = state.Write()
+
+	fmt.Println(aurora.Sprintf("Hint: You can add LLM instructions to improve AI code generation for your Encore app."))
+	fmt.Print(aurora.Sprintf("Set up LLM instructions now? (Y/n): "))
+
+	var input string
+	_, _ = fmt.Scanln(&input)
+	input = strings.TrimSpace(input)
+
+	switch input {
+	case "Y", "y", "yes", "":
+		if err := llm_rules.RunInit(); err != nil {
+			fmt.Fprintln(os.Stderr, aurora.Sprintf(aurora.Yellow("Warning: failed to set up LLM rules: %v"), err))
+		}
+		fmt.Println()
+	default:
+		fmt.Println(aurora.Sprintf(aurora.Faint("Skipped. You can run %s later to set up LLM instructions."), aurora.Cyan("encore llm-rules init")))
+		fmt.Println()
+	}
 }
 
 func init() {
