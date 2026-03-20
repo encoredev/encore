@@ -19,6 +19,11 @@ The app will use an event-driven architecture and the final result will look lik
    <Editor projectName="uptimeTS" />
 </div>
 
+<div className="not-prose flex items-center gap-3 mb-6">
+   <a href="https://app.encore.cloud/create-app/clone/ts-uptime"><img className="noshadow m-0" src="https://encore.cloud/assets/img/deploy.svg" alt="Deploy to Encore" height="30" /></a>
+   <span>Deploy this app to a free dev environment</span>
+</div>
+
 ## 1. Create your Encore application
 
 <Callout type="info">
