@@ -15,6 +15,9 @@ service Daemon {
   rpc TestSpec(TestSpecRequest) returns (TestSpecResponse);
   // ExecScript executes a one-off script.
   rpc ExecScript(ExecScriptRequest) returns (stream CommandMessage);
+  // ExecSpec returns the specification for how to run an exec command.
+  // It streams progress messages during setup, then sends the spec as the final message.
+  rpc ExecSpec(ExecSpecRequest) returns (stream ExecSpecMessage);
   // Check checks the app for compilation errors.
   rpc Check(CheckRequest) returns (stream CommandMessage);
   // Export exports the app in various formats.
@@ -194,6 +197,37 @@ message ExecScriptRequest {
   // namespace is the infrastructure namespace to use.
   // If empty the active namespace is used.
   optional string namespace = 7;
+}
+
+message ExecSpecRequest {
+  string app_root = 1;
+  string working_dir = 2;
+
+  repeated string script_args = 4;
+  // environ is the environment to set for the running command.
+  // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
+  repeated string environ = 5;
+
+  // namespace is the infrastructure namespace to use.
+  // If empty the active namespace is used.
+  optional string namespace = 7;
+
+  // temp_dir is a temp dir that will be cleaned up by the CLI after the command
+  // has been executed, to write things like app meta and runtime config etc.
+  string temp_dir = 8;
+}
+
+message ExecSpecMessage {
+  oneof msg {
+    CommandOutput output = 1;
+    ExecSpecResponse spec = 2;
+  }
+}
+
+message ExecSpecResponse {
+  string command = 1;
+  repeated string args = 2;
+  repeated string environ = 3;
 }
 
 message CheckRequest {

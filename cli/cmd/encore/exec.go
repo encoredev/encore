@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"os/signal"
 
 	"github.com/spf13/cobra"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
+	"encr.dev/pkg/appfile"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -48,6 +51,74 @@ func execScript(appRoot, relWD string, args []string) {
 	}()
 
 	daemon := setupDaemon(ctx)
+
+	// For TypeScript apps, use ExecSpec to get the command spec and run it
+	// locally. This allows interactive commands (stdin) to work properly.
+	lang, err := appfile.AppLang(appRoot)
+	if err != nil {
+		fatal(err)
+	}
+	if lang == appfile.LangTS {
+		tempDir, err := os.MkdirTemp("", "encore-exec")
+		if err != nil {
+			fatal(err)
+		}
+		defer func() { _ = os.RemoveAll(tempDir) }()
+
+		stream, err := daemon.ExecSpec(ctx, &daemonpb.ExecSpecRequest{
+			AppRoot:    appRoot,
+			WorkingDir: relWD,
+			ScriptArgs: args,
+			Environ:    os.Environ(),
+			Namespace:  nonZeroPtr(nsName),
+			TempDir:    tempDir,
+		})
+		if err != nil {
+			fatal(err)
+		}
+
+		cmdutil.ClearTerminalExceptFirstNLines(1)
+
+		// Read progress messages until we get the spec.
+		var spec *daemonpb.ExecSpecResponse
+		for {
+			msg, err := stream.Recv()
+			if err != nil {
+				fatal(err)
+			}
+			switch m := msg.Msg.(type) {
+			case *daemonpb.ExecSpecMessage_Output:
+				if len(m.Output.Stdout) > 0 {
+					os.Stdout.Write(m.Output.Stdout)
+				}
+				if len(m.Output.Stderr) > 0 {
+					os.Stderr.Write(m.Output.Stderr)
+				}
+			case *daemonpb.ExecSpecMessage_Spec:
+				spec = m.Spec
+			}
+			if spec != nil {
+				break
+			}
+		}
+
+		cmd := exec.Command(spec.Command, spec.Args...)
+		cmd.Env = spec.Environ
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+
+		if err := cmd.Run(); err != nil {
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				os.Exit(exitErr.ExitCode())
+			}
+			fatal(err)
+		}
+		return
+	}
+
+	// For Go apps, use the streaming ExecScript RPC.
 	stream, err := daemon.ExecScript(ctx, &daemonpb.ExecScriptRequest{
 		AppRoot:    appRoot,
 		WorkingDir: relWD,
