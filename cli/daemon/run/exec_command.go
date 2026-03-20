@@ -3,9 +3,6 @@ package run
 import (
 	"context"
 	"fmt"
-	"io"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -26,8 +23,8 @@ import (
 	"encr.dev/pkg/vcs"
 )
 
-// ExecCommandParams groups the parameters for the ExecCommand method.
-type ExecCommandParams struct {
+// ExecSpecParams groups the parameters for the ExecSpec method.
+type ExecSpecParams struct {
 	// App is the app to execute the script for.
 	App *apps.Instance
 
@@ -44,25 +41,33 @@ type ExecCommandParams struct {
 	// It's relative to the app root.
 	WorkingDir string
 
-	// Environ are the environment variables to set when running the tests,
+	// Environ are the environment variables to set when running the command,
 	// in the same format as os.Environ().
 	Environ []string
 
-	// Stdout and Stderr are where "go test" output should be written.
-	Stdout, Stderr io.Writer
+	// TempDir is a path to a temp dir that will be cleaned up by the CLI.
+	TempDir string
 
 	OpTracker *optracker.OpTracker
 }
 
-// ExecCommand executes the script.
-func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err error) {
+// ExecSpecResponse contains the specification for how to run an exec command.
+type ExecSpecResponse struct {
+	Command string
+	Args    []string
+	Environ []string
+}
+
+// ExecSpec returns the specification for how to run an exec command,
+// without actually executing it. This allows the CLI to run the command
+// directly with stdin attached for interactive support.
+func (mgr *Manager) ExecSpec(ctx context.Context, p ExecSpecParams) (*ExecSpecResponse, error) {
 	expSet, err := p.App.Experiments(p.Environ)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	rm := infra.NewResourceManager(p.App, mgr.ClusterMgr, mgr.ObjectsMgr, mgr.PublicBuckets, p.NS, p.Environ, mgr.DBProxyPort, false)
-	defer rm.StopAll()
 
 	tracker := p.OpTracker
 	jobs := optracker.NewAsyncBuildJobs(ctx, p.App.PlatformOrLocalID(), tracker)
@@ -98,7 +103,7 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 	})
 	if err != nil {
 		tracker.Fail(parseOp, errors.New("prepare error"))
-		return err
+		return nil, err
 	}
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
@@ -109,12 +114,11 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 		Prepare:     prepareResult,
 	})
 	if err != nil {
-		// Don't use the error itself in tracker.Fail, as it will lead to duplicate error output.
 		tracker.Fail(parseOp, errors.New("parse error"))
-		return err
+		return nil, err
 	}
 	if err := p.App.CacheMetadata(parse.Meta); err != nil {
-		return errors.Wrap(err, "cache metadata")
+		return nil, errors.Wrap(err, "cache metadata")
 	}
 	tracker.Done(parseOp, 500*time.Millisecond)
 	tracker.Done(topoOp, 300*time.Millisecond)
@@ -148,7 +152,7 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 	})
 
 	if err := jobs.Wait(); err != nil {
-		return err
+		return nil, err
 	}
 
 	gateways := make(map[string]GatewayConfig)
@@ -161,16 +165,8 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 
 	cfg, err := configProm.Get(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	tempDir, err := os.MkdirTemp("", "encore-exec")
-	if err != nil {
-		return errors.Wrap(err, "couldn't create temp dir")
-	}
-	defer func() {
-		_ = os.RemoveAll(tempDir)
-	}()
 
 	authKey := genAuthKey()
 	configGen := &RuntimeConfigGenerator{
@@ -185,16 +181,16 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 		DefinedSecrets:    secrets,
 		SvcConfigs:        cfg.Configs,
 		IncludeMeta:       bld.NeedsMeta(),
-		MetaPath:          option.Some(filepath.Join(tempDir, "meta.pb")),
-		RuntimeConfigPath: option.Some(filepath.Join(tempDir, "runtime_config.pb")),
+		MetaPath:          option.Some(filepath.Join(p.TempDir, "meta.pb")),
+		RuntimeConfigPath: option.Some(filepath.Join(p.TempDir, "runtime_config.pb")),
 	}
 	procConf, err := configGen.AllInOneProc(bld.UseNewRuntimeConfig())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	procEnv, err := configGen.ProcEnvs(procConf, bld.UseNewRuntimeConfig())
 	if err != nil {
-		return errors.Wrap(err, "compute proc envs")
+		return nil, errors.Wrap(err, "compute proc envs")
 	}
 
 	defaultEnv := []string{"ENCORE_RUNTIME_LOG=error"}
@@ -204,11 +200,9 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 
 	tracker.AllDone()
 
-	// nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd := exec.CommandContext(ctx, p.Command, p.ScriptArgs...)
-	cmd.Dir = filepath.Join(p.App.Root(), p.WorkingDir)
-	cmd.Stdout = p.Stdout
-	cmd.Stderr = p.Stderr
-	cmd.Env = env
-	return cmd.Run()
+	return &ExecSpecResponse{
+		Command: p.Command,
+		Args:    p.ScriptArgs,
+		Environ: env,
+	}, nil
 }
