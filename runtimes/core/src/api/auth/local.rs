@@ -100,7 +100,13 @@ impl AuthHandler for LocalAuthHandler {
             let duration = tokio::time::Instant::now().duration_since(req.start);
 
             if let Err(e) = &auth_response {
-                logger.error(Some(&req), "auth handler failed", Some(e), None);
+                let logger = logger.with_error(e);
+
+                if e.code == api::ErrCode::Unauthenticated {
+                    logger.debug(Some(&req), "auth handler failed", None);
+                } else {
+                    logger.error(Some(&req), "auth handler failed", None);
+                }
             }
             logger.info(Some(&req), "auth handler completed", {
                 let mut fields = crate::log::Fields::new();

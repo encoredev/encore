@@ -22,6 +22,7 @@ pub struct Logger {
     writer: Arc<dyn Writer>,
     extra_fields: Fields,
     tracer: Arc<RwLock<Tracer>>,
+    error: Option<AppError>,
 }
 
 impl Logger {
@@ -38,6 +39,7 @@ impl Logger {
             writer: default_writer(field_config),
             extra_fields: Fields::new(),
             tracer: Arc::new(RwLock::new(Tracer::noop())),
+            error: None,
         }
     }
 
@@ -75,6 +77,15 @@ impl Logger {
         }
 
         replacement
+    }
+
+    /// Returns a new logger with the given error attached.
+    /// The error will be included in subsequent log calls.
+    pub fn with_error<Err: Into<AppError>>(&self, error: Err) -> Self {
+        Self {
+            error: Some(error.into()),
+            ..self.clone()
+        }
     }
 
     /// Returns the current log level as expected by the `log` crate.
@@ -332,24 +343,9 @@ impl Logger {
 pub trait LogFromRust<T: std::fmt::Display> {
     fn trace(&self, req: Option<&model::Request>, msg: T, fields: Option<Fields>);
     fn debug(&self, req: Option<&model::Request>, msg: T, fields: Option<Fields>);
-
     fn info(&self, req: Option<&model::Request>, msg: T, fields: Option<Fields>);
-
-    fn warn<Err: Into<AppError>>(
-        &self,
-        req: Option<&model::Request>,
-        msg: T,
-        error: Option<Err>,
-        fields: Option<Fields>,
-    );
-
-    fn error<Err: Into<AppError>>(
-        &self,
-        req: Option<&model::Request>,
-        msg: T,
-        error: Option<Err>,
-        fields: Option<Fields>,
-    );
+    fn warn(&self, req: Option<&model::Request>, msg: T, fields: Option<Fields>);
+    fn error(&self, req: Option<&model::Request>, msg: T, fields: Option<Fields>);
 }
 
 /// This trait defines the logging functions that are available on the `Logger` type.
@@ -407,8 +403,15 @@ where
             return;
         }
 
-        self.try_log(req, log::Level::Trace, msg.to_string(), None, None, fields)
-            .expect("failed to log");
+        self.try_log(
+            req,
+            log::Level::Trace,
+            msg.to_string(),
+            self.error.clone(),
+            None,
+            fields,
+        )
+        .expect("failed to log");
     }
 
     #[track_caller]
@@ -417,8 +420,15 @@ where
             return;
         }
 
-        self.try_log(req, log::Level::Debug, msg.to_string(), None, None, fields)
-            .expect("failed to log");
+        self.try_log(
+            req,
+            log::Level::Debug,
+            msg.to_string(),
+            self.error.clone(),
+            None,
+            fields,
+        )
+        .expect("failed to log");
     }
 
     #[track_caller]
@@ -427,18 +437,19 @@ where
             return;
         }
 
-        self.try_log(req, log::Level::Info, msg.to_string(), None, None, fields)
-            .expect("failed to log");
+        self.try_log(
+            req,
+            log::Level::Info,
+            msg.to_string(),
+            self.error.clone(),
+            None,
+            fields,
+        )
+        .expect("failed to log");
     }
 
     #[track_caller]
-    fn warn<Err: Into<AppError>>(
-        &self,
-        req: Option<&model::Request>,
-        msg: T,
-        error: Option<Err>,
-        fields: Option<Fields>,
-    ) {
+    fn warn(&self, req: Option<&model::Request>, msg: T, fields: Option<Fields>) {
         if log::Level::Warn > self.app_level {
             return;
         }
@@ -447,7 +458,7 @@ where
             req,
             log::Level::Warn,
             msg.to_string(),
-            error.map(|e| e.into().trim_stack(file!(), line!(), 1)),
+            self.error.clone(),
             None,
             fields,
         )
@@ -455,13 +466,7 @@ where
     }
 
     #[track_caller]
-    fn error<Err: Into<AppError>>(
-        &self,
-        req: Option<&model::Request>,
-        msg: T,
-        error: Option<Err>,
-        fields: Option<Fields>,
-    ) {
+    fn error(&self, req: Option<&model::Request>, msg: T, fields: Option<Fields>) {
         if log::Level::Error > self.app_level {
             return;
         }
@@ -470,7 +475,7 @@ where
             req,
             log::Level::Error,
             msg.to_string(),
-            error.map(|e| e.into().trim_stack(file!(), line!(), 1)),
+            self.error.clone(),
             None,
             fields,
         )

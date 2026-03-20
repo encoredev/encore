@@ -188,7 +188,11 @@ func (s *Server) finishRequest(resp *model.Response) {
 	if resp.Err != nil {
 		switch req.Type {
 		case model.AuthHandler:
-			req.Logger.Error().Err(resp.Err).Msg("auth handler failed")
+			if errs.Code(resp.Err) == errs.Unauthenticated {
+				req.Logger.Debug().Err(resp.Err).Msg("auth handler failed")
+			} else {
+				req.Logger.Error().Err(resp.Err).Msg("auth handler failed")
+			}
 		default:
 			e := errs.Convert(resp.Err).(*errs.Error)
 			ev := req.Logger.Error()
