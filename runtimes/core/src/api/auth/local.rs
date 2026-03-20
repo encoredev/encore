@@ -100,12 +100,12 @@ impl AuthHandler for LocalAuthHandler {
             let duration = tokio::time::Instant::now().duration_since(req.start);
 
             if let Err(e) = &auth_response {
-                let logger = logger.with_error(e);
-
                 if e.code == api::ErrCode::Unauthenticated {
-                    logger.debug(Some(&req), "auth handler failed", None);
+                    logger.debug(Some(&req), "auth handler returned unauthenticated", None);
                 } else {
-                    logger.error(Some(&req), "auth handler failed", None);
+                    logger
+                        .with_error(e)
+                        .error(Some(&req), "auth handler failed", None);
                 }
             }
             logger.info(Some(&req), "auth handler completed", {
