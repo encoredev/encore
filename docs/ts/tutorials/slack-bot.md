@@ -15,7 +15,7 @@ This is the end result:
    <Editor projectName="slackBotTS" />
 </div>
 
-<a href="https://app.encore.cloud/create-app/clone/ts-slack-bot"><img src="https://encore.cloud/assets/img/deploy.svg" alt="Deploy to Encore" /></a>
+<a href="https://app.encore.cloud/create-app/clone/ts-slack-bot"><img src="https://encore.cloud/assets/img/deploy.svg" alt="Deploy to Encore" height="30" /></a>
 
 <Callout type="info">
 
