@@ -15,3 +15,5 @@ The API docs are available both in your [Local Development Dashboard](/docs/go/o
 <video autoPlay playsInline loop controls muted className="w-full h-full">
 	<source src="/assets/docs/servicecatalogvideo.mp4" className="w-full h-full" type="video/mp4" />
 </video>
+
+To learn how to write doc comments that are surfaced in the Service Catalog, generated clients, and OpenAPI specs, see the [API Documentation](/docs/go/develop/api-docs) guide.

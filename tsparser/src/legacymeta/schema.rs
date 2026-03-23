@@ -455,12 +455,19 @@ impl BuilderCtx<'_, '_> {
         // We'll add the underlying type afterwards to properly handle recursive types.
         let loc = loc_from_range(self.builder.app_root, &self.builder.pc.file_set, obj.range)?;
 
+        let doc = self
+            .builder
+            .pc
+            .loader
+            .module_containing_pos(obj.range.start)
+            .and_then(|module| module.preceding_comments(obj.range.start))
+            .unwrap_or_default();
         let decl = schema::Decl {
             id,
             name: name.clone(),
             r#type: None,        // computed below
             type_params: vec![], // TODO
-            doc: "".into(),      // TODO
+            doc,
             loc: Some(loc),
         };
         self.builder.decls.push(decl);
@@ -499,12 +506,19 @@ impl BuilderCtx<'_, '_> {
         // Allocate the object and add it to the list without the underlying type.
         // We'll add the underlying type afterwards to properly handle recursive types.
         let loc = loc_from_range(self.builder.app_root, &self.builder.pc.file_set, range)?;
+        let doc = self
+            .builder
+            .pc
+            .loader
+            .module_containing_pos(range.start)
+            .and_then(|module| module.preceding_comments(range.start))
+            .unwrap_or_default();
         let decl = schema::Decl {
             id,
             name: name.clone(),
             r#type: Some(underlying),
             type_params: vec![], // TODO
-            doc: "".into(),      // TODO
+            doc,
             loc: Some(loc),
         };
         self.builder.decls.push(decl);

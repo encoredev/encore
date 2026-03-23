@@ -390,6 +390,11 @@
 				text: "Environment Variables"
 				path: "/go/develop/env-vars"
 				file: "go/develop/env-vars"
+			}, {
+				kind: "basic"
+				text: "API Documentation"
+				path: "/go/develop/api-docs"
+				file: "go/develop/api-docs"
 			}]
 		},
 		{
@@ -882,6 +887,11 @@
 					path: "/ts/develop/monorepo/nx"
 					file: "ts/develop/monorepo/nx"
 				}]
+			}, {
+				kind: "basic"
+				text: "API Documentation"
+				path: "/ts/develop/api-docs"
+				file: "ts/develop/api-docs"
 			}]
 		},
 		{

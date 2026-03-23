@@ -28,11 +28,14 @@ interface UnusedType {
   foo: Foo;
 }
 
+// Root is a basic POST endpoint.
 export const root = api(
   { expose: true, method: "POST", path: "/" },
   async (req: Request) => { },
 );
 
+// Imported tests the usage of imported types
+// and this comment is also multiline.
 export const imported = api(
   { expose: true, method: "POST", path: "/imported" },
   async (req: ImportedRequest) : Promise<ImportedResponse> => { },
@@ -86,6 +89,7 @@ export const gw = new Gateway({
   authHandler: auth,
 })
 
+// Request is the request type for testing doc comments on interfaces.
 interface Request {
   // Foo is good
   foo?: number;
