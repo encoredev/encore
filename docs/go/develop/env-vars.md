@@ -67,6 +67,34 @@ Overrides the listen address for the object storage service endpoint.
 export ENCORE_OBJECTSTORAGE_LISTEN_ADDR=localhost:9402
 ```
 
+## Logging Configuration
+
+### ENCORE_LOG
+
+Sets the log level for your application code. This is especially useful when running `encore test`, where the `--level` flag is not available.
+
+**Default:** `trace` (log everything)
+
+**Valid values:** `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `panic`, `disabled`
+
+**Example:**
+
+```bash
+# Only show warnings and above during tests
+ENCORE_LOG=warn encore test ./...
+```
+
+```bash
+# Show debug logs during local development
+ENCORE_LOG=debug encore run
+```
+
+<Callout type="info">
+
+`ENCORE_LOG` takes precedence over the log level set via the `--level` flag or the `log_level` field in `encore.app`. This makes it useful as a per-invocation override.
+
+</Callout>
+
 ## Advanced Development
 
 These variables are primarily useful for advanced development scenarios, such as contributing to Encore itself or using custom builds.
