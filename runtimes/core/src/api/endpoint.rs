@@ -613,30 +613,32 @@ impl EndpointHandler {
 
             // If we had a request failure, log that separately.
             if let ResponseData::Typed(Err(err)) = &resp {
-                logger.error(Some(&request), "request failed", Some(err), {
-                    let mut fields = crate::log::Fields::new();
-                    fields.insert(
-                        "code".into(),
-                        serde_json::Value::String(err.code.to_string()),
-                    );
-
-                    if let Some(internal_message) = &err.internal_message {
+                logger
+                    .with_error(err)
+                    .error(Some(&request), "request failed", {
+                        let mut fields = crate::log::Fields::new();
                         fields.insert(
-                            "internal_message".into(),
-                            serde_json::Value::String(internal_message.clone()),
+                            "code".into(),
+                            serde_json::Value::String(err.code.to_string()),
                         );
-                    }
 
-                    if *ENCORE_LOG_INCLUDE_ERROR_STACK {
-                        if let Some(stack) = &err.stack {
-                            if let Ok(value) = serde_json::to_value(stack) {
-                                fields.insert("stack".into(), value);
+                        if let Some(internal_message) = &err.internal_message {
+                            fields.insert(
+                                "internal_message".into(),
+                                serde_json::Value::String(internal_message.clone()),
+                            );
+                        }
+
+                        if *ENCORE_LOG_INCLUDE_ERROR_STACK {
+                            if let Some(stack) = &err.stack {
+                                if let Ok(value) = serde_json::to_value(stack) {
+                                    fields.insert("stack".into(), value);
+                                }
                             }
                         }
-                    }
 
-                    Some(fields)
-                });
+                        Some(fields)
+                    });
             }
 
             let code = match &resp {
