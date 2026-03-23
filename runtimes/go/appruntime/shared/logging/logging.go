@@ -12,6 +12,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/shared/appconf"
 	"encore.dev/appruntime/shared/cloud"
+	"encore.dev/appruntime/shared/encoreenv"
 )
 
 var RootLogger = configure(appconf.Static, appconf.Runtime)
@@ -27,6 +28,13 @@ func configure(static *config.Static, runtime *config.Runtime) zerolog.Logger {
 	level := zerolog.TraceLevel
 	if runtime.LogConfig != "" {
 		if l, err := zerolog.ParseLevel(runtime.LogConfig); err == nil {
+			level = l
+		}
+	}
+
+	// Allow overriding the log level via the ENCORE_LOG environment variable.
+	if envLevel := encoreenv.Get("ENCORE_LOG"); envLevel != "" {
+		if l, err := zerolog.ParseLevel(envLevel); err == nil {
 			level = l
 		}
 	}
