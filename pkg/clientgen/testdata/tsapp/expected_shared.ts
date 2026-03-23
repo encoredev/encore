@@ -174,6 +174,10 @@ export namespace svc {
             await this.baseClient.callTypedAPI(`/dummy`, {headers, query, method: "POST", body: JSON.stringify(body)})
         }
 
+        /**
+         * Imported tests the usage of imported types
+         * and this comment is also multiline.
+         */
         public async imported(params: RequestType<typeof api_svc_svc_imported>): Promise<ResponseType<typeof api_svc_svc_imported>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/imported`, {method: "POST", body: JSON.stringify(params)})
@@ -190,6 +194,9 @@ export namespace svc {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_svc_svc_onlyPathParams>
         }
 
+        /**
+         * Root is a basic POST endpoint.
+         */
         public async root(params: RequestType<typeof api_svc_svc_root>): Promise<void> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({

@@ -134,7 +134,8 @@
           "default": {
             "$ref": "#/components/responses/APIError"
           }
-        }
+        },
+        "summary": "Root is a basic POST endpoint.\n"
       }
     },
     "/cookie-dummy": {
@@ -332,6 +333,7 @@
     },
     "/imported": {
       "post": {
+        "description": "and this comment is also multiline.\n",
         "operationId": "POST:svc.imported",
         "requestBody": {
           "content": {
@@ -372,7 +374,8 @@
           "default": {
             "$ref": "#/components/responses/APIError"
           }
-        }
+        },
+        "summary": "Imported tests the usage of imported types\n"
       }
     },
     "/path/{pathParam}/{pathParam2}": {
