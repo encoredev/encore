@@ -265,9 +265,9 @@ func (tc *tarCopier) MkdirAll(dstPath ImagePath, mode fs.FileMode) (err error) {
 		dstPath = dstPath.Dir()
 	}
 
-	// Sort by depth (number of separators) so parent directories appear before children.
+	// Sort by name so parent directories appear before children.
 	sort.Slice(dirs, func(i, j int) bool {
-		return strings.Count(string(dirs[i]), "/") < strings.Count(string(dirs[j]), "/")
+		return dirs[i] < dirs[j]
 	})
 
 	for _, d := range dirs {
