@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -266,9 +267,7 @@ func (tc *tarCopier) MkdirAll(dstPath ImagePath, mode fs.FileMode) (err error) {
 	}
 
 	// Sort by name so parent directories appear before children.
-	sort.Slice(dirs, func(i, j int) bool {
-		return dirs[i] < dirs[j]
-	})
+	slices.Sort(dirs)
 
 	for _, d := range dirs {
 		modTime := time.Time{}
