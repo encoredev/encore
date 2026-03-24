@@ -326,7 +326,11 @@ func (js *javascript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 			dict := make(map[string]string)
 			for _, field := range handshakeEnc.HeaderParameters {
 				ref := js.Dot("params", field.SrcName)
-				dict[field.WireFormat] = js.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
+				builtin := field.Type.GetBuiltin()
+				if list := field.Type.GetList(); list != nil {
+					builtin = list.Elem.GetBuiltin()
+				}
+				dict[field.WireFormat] = js.convertBuiltinToString(builtin, ref, field.Optional)
 			}
 
 			w.WriteString("const headers = makeRecord(")
@@ -431,7 +435,11 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 			dict := make(map[string]string)
 			for _, field := range reqEnc.HeaderParameters {
 				ref := js.Dot("params", field.SrcName)
-				dict[field.WireFormat] = js.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
+				builtin := field.Type.GetBuiltin()
+				if list := field.Type.GetList(); list != nil {
+					builtin = list.Elem.GetBuiltin()
+				}
+				dict[field.WireFormat] = js.convertBuiltinToString(builtin, ref, field.Optional)
 			}
 
 			w.WriteString("const headers = makeRecord(")
@@ -534,24 +542,34 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 	w.WriteString("\n//Populate the return object from the JSON body and received headers\nconst rtn = await resp.json()\n")
 
 	for _, headerField := range respEnc.HeaderParameters {
-		isSetCookie := strings.ToLower(headerField.WireFormat) == "set-cookie"
-		if isSetCookie {
-			w.WriteString("// Skip set-cookie header in browser context as browsers doesn't have access to read it\n")
-			w.WriteString("if (!BROWSER) {\n")
-			w = w.Indent()
-		}
-
 		js.seenHeaderResponse = true
-		fieldValue := fmt.Sprintf("resp.headers.get(\"%s\")", headerField.WireFormat)
-		if !headerField.Optional {
-			fieldValue = fmt.Sprintf("mustBeSet(\"Header `%s`\", %s)", headerField.WireFormat, fieldValue)
-		}
-
-		w.WriteStringf("%s = %s\n", js.Dot("rtn", headerField.SrcName), js.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
+		isSetCookie := strings.ToLower(headerField.WireFormat) == "set-cookie"
 
 		if isSetCookie {
-			w = w.Dedent()
-			w.WriteString("}\n")
+			// Use getSetCookie() which correctly returns individual cookie values.
+			// In browsers getSetCookie() returns an empty array since Set-Cookie
+			// is a forbidden response header.
+			if headerField.Type.GetList() != nil {
+				w.WriteStringf("%s = resp.headers.getSetCookie()\n", js.Dot("rtn", headerField.SrcName))
+			} else {
+				fieldValue := "resp.headers.getSetCookie()[0]"
+				if !headerField.Optional {
+					fieldValue = fmt.Sprintf("mustBeSet(\"Header `%s`\", %s)", headerField.WireFormat, fieldValue)
+				}
+				w.WriteStringf("%s = %s\n", js.Dot("rtn", headerField.SrcName), js.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
+			}
+		} else {
+			// For list types, the type is flattened to the element type (e.g. string)
+			// since the Fetch API joins multiple header values with ", ".
+			builtin := headerField.Type.GetBuiltin()
+			if list := headerField.Type.GetList(); list != nil {
+				builtin = list.Elem.GetBuiltin()
+			}
+			fieldValue := fmt.Sprintf("resp.headers.get(\"%s\")", headerField.WireFormat)
+			if !headerField.Optional {
+				fieldValue = fmt.Sprintf("mustBeSet(\"Header `%s`\", %s)", headerField.WireFormat, fieldValue)
+			}
+			w.WriteStringf("%s = %s\n", js.Dot("rtn", headerField.SrcName), js.convertStringToBuiltin(builtin, fieldValue))
 		}
 	}
 	w.WriteString("return rtn\n")
@@ -896,7 +914,11 @@ class BaseClient {`)
 				dict := make(map[string]string)
 				for _, field := range authData.HeaderParameters {
 					ref := js.Dot("authData", field.SrcName)
-					dict[field.WireFormat] = js.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
+					builtin := field.Type.GetBuiltin()
+					if list := field.Type.GetList(); list != nil {
+						builtin = list.Elem.GetBuiltin()
+					}
+					dict[field.WireFormat] = js.convertBuiltinToString(builtin, ref, field.Optional)
 				}
 
 				w.WriteString("data.headers = makeRecord(")
