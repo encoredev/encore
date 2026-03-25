@@ -69,7 +69,8 @@
         "username": "encoreredis",
         "password": {"$env": "REDIS_PASSWORD"}
       },
-      "host": "my-redis-host"
+      "host": "my-redis-host",
+      "in_memory": false
     }
   },
   "metrics": {
