@@ -130,7 +130,7 @@ class SvcServiceClient {
         const headers = makeRecord({
             baz:   params.HeaderBaz,
             int:   params.HeaderInt === undefined ? undefined : String(params.HeaderInt),
-            slice: params.HeaderSlice,
+            slice: params.HeaderSlice.map((v) => v).join(", "),
         })
 
         const query = makeRecord({
@@ -263,7 +263,7 @@ class SvcServiceClient {
 
         //Populate the return object from the JSON body and received headers
         const rtn = await resp.json()
-        rtn.HeaderSlice = mustBeSet("Header `slice`", resp.headers.get("slice"))
+        rtn.HeaderSlice = [mustBeSet("Header `slice`", resp.headers.get("slice"))]
         rtn.SetCookie = resp.headers.getSetCookie()
         return rtn
     }

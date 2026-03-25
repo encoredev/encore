@@ -524,11 +524,16 @@ func (ts *typescript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 			dict := make(map[string]string)
 			for _, field := range handshakeEnc.HeaderParameters {
 				ref := ts.Dot("params", field.SrcName)
-				builtin := field.Type.GetBuiltin()
 				if list := field.Type.GetList(); list != nil {
-					builtin = list.Elem.GetBuiltin()
+					dot := ref
+					if field.Optional || ts.isRecursive(field.Type) {
+						dot += "?"
+					}
+					dict[field.WireFormat] = dot +
+						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", false) + ").join(\", \")"
+				} else {
+					dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
 				}
-				dict[field.WireFormat] = ts.convertBuiltinToString(builtin, ref, field.Optional)
 			}
 
 			w.WriteString("const headers = makeRecord<string, string>(")
@@ -650,11 +655,16 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			dict := make(map[string]string)
 			for _, field := range reqEnc.HeaderParameters {
 				ref := ts.Dot("params", field.SrcName)
-				builtin := field.Type.GetBuiltin()
 				if list := field.Type.GetList(); list != nil {
-					builtin = list.Elem.GetBuiltin()
+					dot := ref
+					if field.Optional || ts.isRecursive(field.Type) {
+						dot += "?"
+					}
+					dict[field.WireFormat] = dot +
+						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", false) + ").join(\", \")"
+				} else {
+					dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
 				}
-				dict[field.WireFormat] = ts.convertBuiltinToString(builtin, ref, field.Optional)
 			}
 
 			w.WriteString("const headers = makeRecord<string, string>(")
@@ -794,15 +804,14 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 				fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.getSetCookie()[0])", headerField.WireFormat)
 				w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 			}
-		} else {
-			// For list types, the type is flattened to the element type (e.g. string)
-			// since the Fetch API joins multiple header values with ", ".
-			builtin := headerField.Type.GetBuiltin()
-			if list := headerField.Type.GetList(); list != nil {
-				builtin = list.Elem.GetBuiltin()
-			}
+		} else if headerField.Type.GetList() != nil {
+			// The Fetch API joins multiple header values with ", " so we get a single string.
+			// Wrap it in an array to match the list type.
 			fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
-			w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(builtin, fieldValue))
+			w.WriteStringf("%s = [%s]\n", ts.Dot("rtn", headerField.SrcName), fieldValue)
+		} else {
+			fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
+			w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 		}
 	}
 
@@ -1405,11 +1414,16 @@ class BaseClient {
 				dict := make(map[string]string)
 				for _, field := range authData.HeaderParameters {
 					ref := ts.Dot("authData", field.SrcName)
-					builtin := field.Type.GetBuiltin()
 					if list := field.Type.GetList(); list != nil {
-						builtin = list.Elem.GetBuiltin()
+						dot := ref
+						if field.Optional || ts.isRecursive(field.Type) {
+							dot += "?"
+						}
+						dict[field.WireFormat] = dot +
+							".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", false) + ").join(\", \")"
+					} else {
+						dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
 					}
-					dict[field.WireFormat] = ts.convertBuiltinToString(builtin, ref, field.Optional)
 				}
 
 				w.WriteString("data.headers = makeRecord<string, string>(")
@@ -1883,18 +1897,7 @@ func (ts *typescript) renderTyp(buf *bytes.Buffer, ns string, tt *schema.Type, n
 				buf.WriteString("?")
 			}
 			buf.WriteString(": ")
-			// Flatten header array fields to their element type since the
-			// Fetch API joins multiple header values with ", ".
-			// Set-Cookie is excluded since getSetCookie() returns proper arrays.
-			fieldTyp := field.Typ
-			if h := field.Wire.GetHeader(); h != nil {
-				if list := field.Typ.GetList(); list != nil {
-					if !strings.EqualFold(h.GetName(), "set-cookie") {
-						fieldTyp = list.Elem
-					}
-				}
-			}
-			ts.renderTyp(buf, ns, fieldTyp, numIndents+1)
+			ts.renderTyp(buf, ns, field.Typ, numIndents+1)
 			buf.WriteString("\n")
 
 			// Add another empty line if we have a doc comment

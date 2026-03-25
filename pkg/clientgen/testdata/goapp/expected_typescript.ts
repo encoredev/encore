@@ -300,7 +300,7 @@ export namespace svc {
         QueryBar?: string
         HeaderBaz?: string
         HeaderInt?: number
-        HeaderSlice: string
+        HeaderSlice: string[]
         /**
          * This is a multiline
          * comment on the raw message!
@@ -313,7 +313,7 @@ export namespace svc {
         /**
          * header with a slice value
          */
-        HeaderSlice: string
+        HeaderSlice: string[]
 
         /**
          * set-cookie header
@@ -375,7 +375,7 @@ export namespace svc {
             const headers = makeRecord<string, string>({
                 baz:   params.HeaderBaz,
                 int:   params.HeaderInt === undefined ? undefined : String(params.HeaderInt),
-                slice: params.HeaderSlice,
+                slice: params.HeaderSlice.map((v) => v).join(", "),
             })
 
             const query = makeRecord<string, string | string[]>({
@@ -508,7 +508,7 @@ export namespace svc {
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as ResponseWithSetCookie
-            rtn.HeaderSlice = mustBeSet("Header `slice`", resp.headers.get("slice"))
+            rtn.HeaderSlice = [mustBeSet("Header `slice`", resp.headers.get("slice"))]
             rtn.SetCookie = resp.headers.getSetCookie()
             return rtn
         }
