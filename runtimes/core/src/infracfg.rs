@@ -99,7 +99,6 @@ pub enum Auth {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct KeyAuth {
-    #[serde(default)]
     pub id: i32,
     pub key: EnvString,
 }
@@ -210,7 +209,6 @@ pub struct SQLDatabase {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Redis {
     pub host: String,
-    #[serde(default)]
     pub database_index: i32,
 
     pub auth: Option<RedisAuth>,

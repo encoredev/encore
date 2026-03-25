@@ -181,7 +181,7 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 				Method: "encore-auth",
 			}
 			cfg.AuthKeys = append(cfg.AuthKeys, EncoreAuthKey{
-				KeyID: uint32(orDefaultPtr(auth.ID, 0)),
+				KeyID: uint32(auth.ID),
 				Data:  []byte(auth.Key.Value()),
 			})
 		default:
@@ -283,7 +283,7 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 		cfg.RedisDatabases = append(cfg.RedisDatabases, &RedisDatabase{
 			ServerID:       i,
 			EncoreName:     name,
-			Database:       orDefaultPtr(redis.DatabaseIndex, 0),
+			Database:       redis.DatabaseIndex,
 			MinConnections: orDefaultPtr(redis.MinConnections, 0),
 			MaxConnections: orDefaultPtr(redis.MaxConnections, 0),
 			KeyPrefix:      orDefaultPtr(redis.KeyPrefix, ""),

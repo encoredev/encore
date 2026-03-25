@@ -284,7 +284,7 @@ func (g *GracefulShutdown) Validate(v *validator) {
 
 type Auth struct {
 	Type string    `json:"type,omitempty"`
-	ID   *int      `json:"id,omitempty"`
+	ID   int       `json:"id"`
 	Key  EnvString `json:"key,omitempty"`
 }
 
@@ -500,7 +500,7 @@ func (s *SQLDatabase) Validate(v *validator) {
 
 type Redis struct {
 	Host           string     `json:"host,omitempty"`
-	DatabaseIndex  *int       `json:"database_index,omitempty"`
+	DatabaseIndex  int        `json:"database_index"`
 	Auth           *RedisAuth `json:"auth,omitempty"`
 	KeyPrefix      *string    `json:"key_prefix,omitempty"`
 	TLSConfig      *TLSConfig `json:"tls_config,omitempty"`
@@ -511,7 +511,7 @@ type Redis struct {
 
 func (r *Redis) Validate(v *validator) {
 	v.ValidateField("host", NotZero(r.Host))
-	v.ValidateField("database_index", NilOr(r.DatabaseIndex, Between(0, 15)))
+	v.ValidateField("database_index", Between(0, 15)(r.DatabaseIndex))
 	v.ValidateChild("auth", r.Auth)
 	v.ValidateChild("tls_config", r.TLSConfig)
 	v.ValidateField("max_connections", NilOr(r.MaxConnections, GreaterOrEqual(0)))
