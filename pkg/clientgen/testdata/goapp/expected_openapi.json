@@ -180,6 +180,12 @@
             "format": "int64",
             "type": "integer"
           },
+          "HeaderSlice": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "QueryBar": {
             "type": "string"
           },
@@ -198,6 +204,7 @@
         },
         "required": [
           "boo",
+          "HeaderSlice",
           "Raw"
         ],
         "type": "object"
@@ -640,6 +647,20 @@
             "schema": {
               "format": "int64",
               "type": "integer"
+            },
+            "style": "simple"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": true,
+            "in": "header",
+            "name": "slice",
+            "required": true,
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             },
             "style": "simple"
           },
@@ -1284,6 +1305,76 @@
                 "schema": {
                   "format": "date-time",
                   "type": "string"
+                },
+                "style": "simple"
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
+    "/svc.SetCookie": {
+      "post": {
+        "operationId": "POST:svc.SetCookie",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "explode": true,
+            "in": "query",
+            "name": "boo",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "Message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "Message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success response",
+            "headers": {
+              "set-cookie": {
+                "allowEmptyValue": true,
+                "description": "set-cookie header\n",
+                "explode": true,
+                "required": true,
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "style": "simple"
+              },
+              "slice": {
+                "allowEmptyValue": true,
+                "description": "header with a slice value\n",
+                "explode": true,
+                "required": true,
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
                 },
                 "style": "simple"
               }

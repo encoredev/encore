@@ -267,16 +267,23 @@ type SvcRecursive struct {
 }
 
 type SvcRequest struct {
-	Foo       SvcFoo `encore:"optional"` // Foo is good
-	Baz       string `json:"boo"`        // Baz is better
-	QueryFoo  bool   `encore:"optional" query:"foo"`
-	QueryBar  string `encore:"optional" query:"bar"`
-	HeaderBaz string `encore:"optional" header:"baz"`
-	HeaderInt int    `encore:"optional" header:"int"`
+	Foo         SvcFoo   `encore:"optional"` // Foo is good
+	Baz         string   `json:"boo"`        // Baz is better
+	QueryFoo    bool     `encore:"optional" query:"foo"`
+	QueryBar    string   `encore:"optional" query:"bar"`
+	HeaderBaz   string   `encore:"optional" header:"baz"`
+	HeaderInt   int      `encore:"optional" header:"int"`
+	HeaderSlice []string `header:"slice"`
 
 	// This is a multiline
 	// comment on the raw message!
 	Raw json.RawMessage
+}
+
+type SvcResponseWithSetCookie struct {
+	Message     string
+	HeaderSlice []string `header:"slice"`      // header with a slice value
+	SetCookie   []string `header:"set-cookie"` // set-cookie header
 }
 
 // Tuple is a generic type which allows us to
@@ -313,6 +320,7 @@ type SvcClient interface {
 	RESTPath(ctx context.Context, a string, b int) error
 	Rec(ctx context.Context, params SvcRecursive) (SvcRecursive, error)
 	RequestWithAllInputTypes(ctx context.Context, params SvcAllInputTypes[string]) (SvcAllInputTypes[float64], error)
+	SetCookie(ctx context.Context, params SvcGetRequest) (SvcResponseWithSetCookie, error)
 
 	// TupleInputOutput tests the usage of generics in the client generator
 	// and this comment is also multiline, so multiline comments get tested as well.
@@ -343,8 +351,9 @@ func (c *svcClient) DummyAPI(ctx context.Context, params SvcRequest) error {
 	reqEncoder := &serde{}
 
 	headers := http.Header{
-		"baz": {reqEncoder.FromString(params.HeaderBaz)},
-		"int": {reqEncoder.FromInt(params.HeaderInt)},
+		"baz":   {reqEncoder.FromString(params.HeaderBaz)},
+		"int":   {reqEncoder.FromInt(params.HeaderInt)},
+		"slice": reqEncoder.FromStringList(params.HeaderSlice),
 	}
 
 	queryString := url.Values{
@@ -535,6 +544,45 @@ func (c *svcClient) RequestWithAllInputTypes(ctx context.Context, params SvcAllI
 	resp.C = respBody.C
 	resp.Dave = respBody.Dave
 	resp.Optional = respBody.Optional
+
+	if respDecoder.LastError != nil {
+		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
+		return
+	}
+
+	return
+}
+
+func (c *svcClient) SetCookie(ctx context.Context, params SvcGetRequest) (resp SvcResponseWithSetCookie, err error) {
+	// Convert our params into the objects we need for the request
+	reqEncoder := &serde{}
+
+	queryString := url.Values{"boo": {reqEncoder.FromInt(params.Baz)}}
+
+	if reqEncoder.LastError != nil {
+		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
+		return
+	}
+
+	// We only want the response body to marshal into these fields and none of the header fields,
+	// so we'll construct a new struct with only those fields.
+	respBody := struct {
+		Message string `json:"Message"`
+	}{}
+
+	// Now make the actual call to the API
+	var respHeaders http.Header
+	respHeaders, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/svc.SetCookie?%s", queryString.Encode()), nil, nil, &respBody)
+	if err != nil {
+		return
+	}
+
+	// Copy the unmarshalled response body into our response struct
+	respDecoder := &serde{}
+
+	resp.HeaderSlice = respDecoder.ToStringList("HeaderSlice", respHeaders.Values("slice"), true)
+	resp.SetCookie = respDecoder.ToStringList("SetCookie", respHeaders.Values("set-cookie"), true)
+	resp.Message = respBody.Message
 
 	if respDecoder.LastError != nil {
 		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
@@ -987,6 +1035,14 @@ func (e *serde) FromInt(s int) (v string) {
 	return strconv.FormatInt(int64(s), 10)
 }
 
+func (e *serde) FromStringList(s []string) (v []string) {
+	e.NonEmptyValues++
+	for _, x := range s {
+		v = append(v, e.FromString(x))
+	}
+	return v
+}
+
 func (e *serde) FromBool(s bool) (v string) {
 	e.NonEmptyValues++
 	return strconv.FormatBool(s)
@@ -1109,6 +1165,17 @@ func (e *serde) FromStringOption(s *string) (v []string) {
 	}
 	e.NonEmptyValues++
 	return []string{e.FromString(*s)}
+}
+
+func (e *serde) ToStringList(field string, s []string, required bool) (v []string) {
+	if !required && len(s) == 0 {
+		return
+	}
+	e.NonEmptyValues++
+	for _, x := range s {
+		v = append(v, e.ToString(field, x, required))
+	}
+	return v
 }
 
 // setErr sets the last error within the object if one is not already set
