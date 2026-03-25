@@ -221,7 +221,6 @@ pub struct Redis {
 
     pub min_connections: Option<i32>,
 
-    #[serde(default)]
     pub in_memory: bool,
 }
 

@@ -506,7 +506,7 @@ type Redis struct {
 	TLSConfig      *TLSConfig `json:"tls_config,omitempty"`
 	MaxConnections *int       `json:"max_connections,omitempty"`
 	MinConnections *int       `json:"min_connections,omitempty"`
-	InMemory       bool       `json:"in_memory,omitempty"`
+	InMemory       bool       `json:"in_memory"`
 }
 
 func (r *Redis) Validate(v *validator) {
