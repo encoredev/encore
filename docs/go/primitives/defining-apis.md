@@ -206,7 +206,7 @@ Headers also support slice types (e.g. `[]string`), which map to multiple HTTP h
 
 <Callout type="info">
 
-When generating TypeScript/JavaScript clients, header arrays keep their array type but will only contain a single comma-joined element because the [Fetch API](https://fetch.spec.whatwg.org/#concept-header-list-combine) combines multiple header values into a single string. The exception is `Set-Cookie`, which the Fetch API preserves as separate values.
+Generated TypeScript/JavaScript clients use the Fetch API which [combines multiple header values](https://fetch.spec.whatwg.org/#concept-header-list-combine) into a single comma-joined string. This means header arrays will contain a single element with the joined value. The exception is `Set-Cookie`, which the Fetch API preserves as separate values.
 
 </Callout>
 
