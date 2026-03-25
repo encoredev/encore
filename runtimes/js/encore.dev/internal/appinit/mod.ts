@@ -32,6 +32,12 @@ export function registerGateways(gateways: Gateway[]) {
 
 export async function run(entrypoint: string) {
   if (isMainThread) {
+    // Register signal handlers so the process exits on SIGINT/SIGTERM.
+    // This is necessary when running as PID 1 in Docker, where the kernel
+    // ignores signals that don't have explicit handlers installed.
+    process.on("SIGINT", () => process.exit(0));
+    process.on("SIGTERM", () => process.exit(0));
+
     const metricsBuffer = initGlobalMetricsBuffer();
     const extraWorkers = runtime.RT.numWorkerThreads() - 1;
     if (extraWorkers > 0) {
