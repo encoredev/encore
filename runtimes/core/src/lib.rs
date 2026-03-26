@@ -508,6 +508,21 @@ impl Runtime {
         self.runtime.block_on(async move {
             let api_handle = self.api().start_serving();
 
+            // Register signal handlers
+            tokio::spawn(async {
+                use tokio::signal::unix::{signal, SignalKind};
+                let mut sigint =
+                    signal(SignalKind::interrupt()).expect("failed to install SIGINT handler");
+                let mut sigterm =
+                    signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
+
+                tokio::select! {
+                    _ = sigint.recv() => {},
+                    _ = sigterm.recv() => {},
+                }
+                std::process::exit(0);
+            });
+
             if let Err(err) = api_handle.await {
                 ::log::error!("failed to start serving: {:?}", err);
             }
