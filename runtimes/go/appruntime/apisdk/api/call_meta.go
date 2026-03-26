@@ -146,8 +146,6 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 			} else {
 				req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%s,%s=%s", eventTraceStateEventIDKey, eventID, eventTraceStateSampledKey, sampledTS))
 			}
-		} else {
-			req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%s", eventTraceStateSampledKey, sampledTS))
 		}
 	}
 

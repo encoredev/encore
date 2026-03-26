@@ -207,11 +207,13 @@ impl CallMeta {
                         meta.trace_sampled = Some(sampled);
                     }
 
-                    // If the caller is a gateway, ignore the parent span id as gateways don't currently record a span.
-                    // If we include it the root request won't be tagged as such.
+                    // If the caller is a gateway, ignore the parent span id and trace sampling
+                    // decision as gateways don't record a span. The endpoint will make its own
+                    // sampling decision instead.
                     if let Some(internal) = &meta.internal {
                         if matches!(internal.caller, Caller::Gateway { .. }) {
                             meta.parent_span_id = None;
+                            meta.trace_sampled = None;
                         }
                     }
 
