@@ -42,6 +42,7 @@ pub enum ObjectStorage {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GCS {
     pub endpoint: Option<String>,
+    #[serde(default)]
     pub buckets: HashMap<String, Bucket>,
 }
 
@@ -51,6 +52,7 @@ pub struct S3 {
     pub endpoint: Option<String>,
     pub access_key_id: Option<String>,
     pub secret_access_key: Option<EnvString>,
+    #[serde(default)]
     pub buckets: HashMap<String, Bucket>,
 }
 
@@ -218,6 +220,8 @@ pub struct Redis {
     pub max_connections: Option<i32>,
 
     pub min_connections: Option<i32>,
+
+    pub in_memory: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -782,7 +786,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         ),
                     }],
                     databases: vec![database],
-                    in_memory: false,
+                    in_memory: redis.in_memory,
                 }
             })
             .collect()

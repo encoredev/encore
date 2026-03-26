@@ -23,7 +23,7 @@ type InfraConfig struct {
 
 	// Log configuration for the application.
 	// If empty it defaults to "trace".
-	LogConfig string `json:"log_config,omitemty"`
+	LogConfig string `json:"log_config,omitempty"`
 
 	// Number of worker threads to use for the application.
 	// If unset it defaults to a single worker thread.
@@ -284,7 +284,7 @@ func (g *GracefulShutdown) Validate(v *validator) {
 
 type Auth struct {
 	Type string    `json:"type,omitempty"`
-	ID   int       `json:"id,omitempty"`
+	ID   int       `json:"id"`
 	Key  EnvString `json:"key,omitempty"`
 }
 
@@ -500,13 +500,13 @@ func (s *SQLDatabase) Validate(v *validator) {
 
 type Redis struct {
 	Host           string     `json:"host,omitempty"`
-	DatabaseIndex  int        `json:"database_index,omitempty"`
+	DatabaseIndex  int        `json:"database_index"`
 	Auth           *RedisAuth `json:"auth,omitempty"`
 	KeyPrefix      *string    `json:"key_prefix,omitempty"`
 	TLSConfig      *TLSConfig `json:"tls_config,omitempty"`
 	MaxConnections *int       `json:"max_connections,omitempty"`
 	MinConnections *int       `json:"min_connections,omitempty"`
-	InMemory       bool       `json:"in_memory,omitempty"`
+	InMemory       bool       `json:"in_memory"`
 }
 
 func (r *Redis) Validate(v *validator) {
