@@ -537,6 +537,12 @@ where
                 trace_state.push_str(",encore/event-id=");
                 trace_state.push_str(event_id.to_string().as_str());
             }
+
+            // Propagate our sampling decision via tracestate since GCP Cloud Run
+            // can modify the traceparent sampled flag between services.
+            trace_state.push_str(",encore/sampled=");
+            trace_state.push_str(if self.traced { "1" } else { "0" });
+
             headers.set(MetaKey::TraceState, trace_state)?;
         }
 

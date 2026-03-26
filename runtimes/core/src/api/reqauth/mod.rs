@@ -205,27 +205,34 @@ impl CallMeta {
                         meta.caller_trace_id = Some(trace_id);
                         meta.parent_span_id = Some(parent_span_id);
                         meta.trace_sampled = Some(sampled);
-                    };
+                    }
 
-                    // If the caller is a gateway, ignore the parent span id as gateways don't currently record a span.
-                    // If we include it the root request won't be tagged as such.
+                    // If the caller is a gateway, ignore the parent span id and trace sampling
+                    // decision as gateways don't record a span. The endpoint will make its own
+                    // sampling decision instead.
                     if let Some(internal) = &meta.internal {
                         if matches!(internal.caller, Caller::Gateway { .. }) {
                             meta.parent_span_id = None;
+                            meta.trace_sampled = None;
                         }
                     }
 
                     // Parse the trace state.
-                    if let (Some(event_id), parent_span) =
-                        parse_tracestate(headers.meta_values(MetaKey::TraceState))
-                    {
+                    let tracestate = parse_tracestate(headers.meta_values(MetaKey::TraceState));
+
+                    if let Some(event_id) = tracestate.event_id {
                         meta.parent_event_id = Some(event_id);
-                        // If we where given a parent span ID, use that instead of the one from the traceparent header
-                        // This is because GCP Cloud Run will add it's own spans in before the application code is run
-                        // and thus we lose the parent span ID from the traceparent header
-                        if let Some(parent_span) = parent_span {
-                            meta.parent_span_id = Some(parent_span);
-                        }
+                    }
+                    // If we were given a parent span ID, use that instead of the one from the traceparent header.
+                    // This is because GCP Cloud Run will add its own spans in before the application code is run
+                    // and thus we lose the parent span ID from the traceparent header.
+                    if let Some(parent_span) = tracestate.span_id {
+                        meta.parent_span_id = Some(parent_span);
+                    }
+                    // Use the sampling decision from tracestate (set by Encore) rather than
+                    // the traceparent header since it might be tampered by GCP infra.
+                    if let Some(sampled) = tracestate.sampled {
+                        meta.trace_sampled = Some(sampled);
                     }
                 }
             }
@@ -290,12 +297,20 @@ fn parse_traceparent(s: &str) -> anyhow::Result<(model::TraceId, model::SpanId, 
     Ok((trace_id, span_id, sampled))
 }
 
-fn parse_tracestate<'a>(
-    vals: impl Iterator<Item = &'a str>,
-) -> (Option<model::TraceEventId>, Option<model::SpanId>) {
+struct TracestateData {
+    event_id: Option<model::TraceEventId>,
+    span_id: Option<model::SpanId>,
+    /// The sampling decision from the Encore caller, if present.
+    /// This is trusted over the traceparent sampled flag because
+    /// GCP Cloud Run can modify the traceparent header between services.
+    sampled: Option<bool>,
+}
+
+fn parse_tracestate<'a>(vals: impl Iterator<Item = &'a str>) -> TracestateData {
     enum Data {
         EventId(model::TraceEventId),
         SpanId(model::SpanId),
+        Sampled(bool),
     }
 
     let parse_entry = |val: &str| -> Option<Data> {
@@ -304,22 +319,29 @@ fn parse_tracestate<'a>(
         match key {
             "encore/event-id" => Some(Data::EventId(val.parse().ok()?)),
             "encore/span-id" => Some(Data::SpanId(model::SpanId::parse_std(val).ok()?)),
+            "encore/sampled" => Some(Data::Sampled(val == "1")),
             _ => None,
         }
     };
 
     let mut event_id = None;
     let mut span_id = None;
+    let mut sampled = None;
 
     for val in vals {
         for field in val.split(',') {
             match parse_entry(field) {
                 Some(Data::EventId(id)) => event_id = Some(id),
                 Some(Data::SpanId(id)) => span_id = Some(id),
+                Some(Data::Sampled(s)) => sampled = Some(s),
                 None => (),
             }
         }
     }
 
-    (event_id, span_id)
+    TracestateData {
+        event_id,
+        span_id,
+        sampled,
+    }
 }

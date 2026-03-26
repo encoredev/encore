@@ -57,6 +57,11 @@ const (
 	// (I suspect for the load balancers) and so the span ID in the traceparent is not the same as the span ID
 	// need to create a child span.
 	eventTraceStateSpanIDKey = "encore/span-id"
+
+	// eventTraceStateSampledKey propagates the sampling decision via tracestate.
+	// This is needed because GCP Cloud Run can modify the traceparent sampled flag
+	// between Cloud Run instances, overriding our sampling decision.
+	eventTraceStateSampledKey = "encore/sampled"
 )
 
 // execContext contains the data needed for executing a request.

@@ -128,6 +128,13 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 		}
 		req.SetMeta(transport.TraceParentKey, fmt.Sprintf("00-%x-%x-%s", meta.TraceID[:], meta.ParentSpanID[:], sampled))
 
+		// Propagate the sampling decision via tracestate as well, since GCP Cloud Run
+		// can modify the traceparent sampled flag between Cloud Run instances.
+		sampledTS := "0"
+		if meta.TraceSampled {
+			sampledTS = "1"
+		}
+
 		if !meta.ParentSpanID.IsZero() {
 			// Because Encore does not count an RPC call as a span, but rather a set of events within a span
 			// we also need to pass the event ID which started the RPC call in the tracestate header
@@ -135,10 +142,9 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 			if server.runtime.EnvCloud == cloud.GCP || server.runtime.EnvCloud == cloud.Encore {
 				// In GCP they add their own span's into the "trace", which breaks our parent span link
 				// so we need to add the parent span ID to the tracestate header so we can track our own parent span
-				req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%x,%s=%s", eventTraceStateSpanIDKey, meta.ParentSpanID[:], eventTraceStateEventIDKey, eventID))
+				req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%x,%s=%s,%s=%s", eventTraceStateSpanIDKey, meta.ParentSpanID[:], eventTraceStateEventIDKey, eventID, eventTraceStateSampledKey, sampledTS))
 			} else {
-				// Otherwise all we need to know is our event ID
-				req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%s", eventTraceStateEventIDKey, eventID))
+				req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%s,%s=%s", eventTraceStateEventIDKey, eventID, eventTraceStateSampledKey, sampledTS))
 			}
 		}
 	}
@@ -229,7 +235,7 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 		}
 	}
 
-	// If we where tracing read the trace ID, span ID
+	// If we were tracing read the trace ID, span ID
 	if traceParent, found := req.ReadMeta(transport.TraceParentKey); found &&
 		// For now we only read the traceparent for internal-to-internal calls, this is because CloudRun
 		// is adding a traceparent header to all requests, which is causing our trace system to get confused
@@ -239,7 +245,8 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 		// to interopt with other tracing systems.
 		meta.Internal != nil {
 
-		meta.TraceID, meta.ParentSpanID, meta.TraceSampled, _ = parseTraceParent(traceParent)
+		var sampledFromTraceParent bool
+		meta.TraceID, meta.ParentSpanID, sampledFromTraceParent, _ = parseTraceParent(traceParent)
 
 		// If the caller is a gateway, ignore the parent span id as gateways don't currently record a span.
 		// If we include it the root request won't be tagged as such.
@@ -247,17 +254,26 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 			meta.ParentSpanID = model.SpanID{}
 		}
 
+		// Default to the traceparent sampled flag.
+		meta.TraceSampled = sampledFromTraceParent
+
 		if traceState, found := req.ReadMetaValues(transport.TraceStateKey); found {
-			parentEventID, parentSpanID, ok := parseTraceState(traceState)
+			parentEventID, parentSpanID, sampledFromTraceState, ok := parseTraceState(traceState)
 			if ok {
 				meta.ParentEventID = parentEventID
 
-				// If we where given a parent span ID, use that instead of the one from the traceparent header
-				// This is because GCP Cloud Run will add it's own spans in before the application code is run
-				// and thus we lose the parent span ID from the traceparent header
+				// If we were given a parent span ID, use that instead of the one from the traceparent header.
+				// This is because GCP Cloud Run will add its own spans in before the application code is run
+				// and thus we lose the parent span ID from the traceparent header.
 				if !parentSpanID.IsZero() {
 					meta.ParentSpanID = parentSpanID
 				}
+			}
+
+			// Use the sampling decision from tracestate (set by Encore) rather than
+			// the traceparent header since it might be tampered by GCP infra
+			if sampledFromTraceState != nil {
+				meta.TraceSampled = *sampledFromTraceState
 			}
 		}
 	}
@@ -323,11 +339,12 @@ func parseTraceParent(s string) (traceID model.TraceID, spanID model.SpanID, sam
 	return traceID, spanID, sampled, true
 }
 
-// parseTraceState parses the trace event id from the tracestate header (see https://www.w3.org/TR/trace-context/).
-// If no valid Encore event ID can be parsed it returns zero and ok == false.
+// parseTraceState parses Encore-specific fields from the tracestate header (see https://www.w3.org/TR/trace-context/).
+// sampled is non-nil if the encore/sampled key was found in the tracestate.
+// ok is true if any Encore-specific field was found.
 //
 // Note the spec allows for multiple `tracestate` headers to be sent, so we need to check all of them.
-func parseTraceState(headerValues []string) (eventID model.TraceEventID, parentSpanID model.SpanID, ok bool) {
+func parseTraceState(headerValues []string) (eventID model.TraceEventID, parentSpanID model.SpanID, sampled *bool, ok bool) {
 	for _, thisHeader := range headerValues {
 		theseFields := strings.Split(thisHeader, ",")
 		for _, field := range theseFields {
@@ -340,22 +357,25 @@ func parseTraceState(headerValues []string) (eventID model.TraceEventID, parentS
 			case eventTraceStateSpanIDKey:
 				spanIDBytes, err := hex.DecodeString(parts[1])
 				if err != nil || len(spanIDBytes) != 8 {
-					return 0, model.SpanID{}, false
+					return 0, model.SpanID{}, nil, false
 				}
 				copy(parentSpanID[:], spanIDBytes)
 
 			case eventTraceStateEventIDKey:
 				eventIDUint, err := strconv.ParseUint(parts[1], 36, 64)
 				if err != nil {
-					return 0, model.SpanID{}, false
+					return 0, model.SpanID{}, nil, false
 				}
-
 				eventID = model.TraceEventID(eventIDUint)
+
+			case eventTraceStateSampledKey:
+				s := parts[1] == "1"
+				sampled = &s
 			}
 		}
 	}
 
-	return eventID, parentSpanID, eventID != 0
+	return eventID, parentSpanID, sampled, eventID != 0 || sampled != nil
 }
 
 func SetCallMetaInContext(ctx context.Context, meta CallMeta) context.Context {
