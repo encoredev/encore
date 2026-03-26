@@ -199,16 +199,13 @@ impl CallMeta {
             if meta.internal.is_some() {
                 if let Some(traceparent) = headers.get_meta(MetaKey::TraceParent) {
                     // Parse the traceparent.
-                    let sampled_from_traceparent = if let Ok((trace_id, parent_span_id, sampled)) =
-                        parse_traceparent(traceparent)
+                    if let Ok((trace_id, parent_span_id, sampled)) = parse_traceparent(traceparent)
                     {
                         meta.trace_id = trace_id;
                         meta.caller_trace_id = Some(trace_id);
                         meta.parent_span_id = Some(parent_span_id);
-                        Some(sampled)
-                    } else {
-                        None
-                    };
+                        meta.trace_sampled = Some(sampled);
+                    }
 
                     // If the caller is a gateway, ignore the parent span id as gateways don't currently record a span.
                     // If we include it the root request won't be tagged as such.
@@ -230,12 +227,11 @@ impl CallMeta {
                     if let Some(parent_span) = tracestate.span_id {
                         meta.parent_span_id = Some(parent_span);
                     }
-
                     // Use the sampling decision from tracestate (set by Encore) rather than
-                    // the traceparent header since it might be tampered by GCP infra
-                    // Fall back to the traceparent flag for backward compatibility with older
-                    // runtimes that don't set encore/sampled in tracestate.
-                    meta.trace_sampled = tracestate.sampled.or(sampled_from_traceparent);
+                    // the traceparent header since it might be tampered by GCP infra.
+                    if let Some(sampled) = tracestate.sampled {
+                        meta.trace_sampled = Some(sampled);
+                    }
                 }
             }
 

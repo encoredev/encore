@@ -274,8 +274,6 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 
 			// Use the sampling decision from tracestate (set by Encore) rather than
 			// the traceparent header since it might be tampered by GCP infra
-			// Fall back to the traceparent flag for backward compatibility with older
-			// runtimes that don't set encore/sampled in tracestate.
 			if sampledFromTraceState != nil {
 				meta.TraceSampled = *sampledFromTraceState
 			}
