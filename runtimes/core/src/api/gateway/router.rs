@@ -119,7 +119,11 @@ impl Router {
 #[derive(Clone, Debug)]
 pub enum SamplingTarget {
     Api(EndpointName),
-    PubSub,
+    PubSub {
+        service: EncoreName,
+        topic: EncoreName,
+        subscription: EncoreName,
+    },
 }
 
 #[derive(Clone, Debug)]
