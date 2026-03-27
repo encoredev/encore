@@ -15,10 +15,7 @@ This is the end result:
    <Editor projectName="slackBotTS" />
 </div>
 
-<div className="not-prose flex items-center gap-3 mb-6">
-   <a href="https://app.encore.cloud/create-app/clone/ts-slack-bot"><img className="noshadow m-0" src="https://encore.cloud/assets/img/deploy.svg" alt="Deploy to Encore" height="30" /></a>
-   <span>Deploy this app to a free dev environment</span>
-</div>
+<DeployButton slug="ts-slack-bot" title="Deploy to Encore" description="Deploy this app to a free development environment." />
 
 <Callout type="info">
 
