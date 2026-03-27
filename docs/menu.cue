@@ -227,7 +227,6 @@
 				text:   "Building an Incident Management tool"
 				path:   "/go/tutorials/incident-management-tool"
 				file:   "go/tutorials/incident-management-tool"
-				hidden: true
 			}]
 		},
 		{
