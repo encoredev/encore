@@ -99,7 +99,7 @@ Commands to create and link Encore apps
 
 #### Clone
 
-Clone an Encore app to your computer
+Clone an existing Encore app from Encore Cloud to your computer
 
 ```shell
 $ encore app clone [app-id] [directory]
@@ -124,7 +124,7 @@ $ encore app create [name] [flags]
 
 #### Init
 
-Create a new Encore app from an existing repository
+Register an existing local repo as a new app on Encore Cloud
 
 ```shell
 $ encore app init [name] [flags]
@@ -138,7 +138,7 @@ $ encore app init [name] [flags]
 
 #### Link
 
-Link an Encore app with the server
+Link an existing local repo to an existing Encore Cloud app
 
 ```shell
 $ encore app link [app-id] [flags]
