@@ -410,6 +410,66 @@ pub(super) struct EndpointHandler {
     pub requests_total: counter::Schema<u64>,
 }
 
+/// Guard that ensures `request_span_end` is emitted even if the handler
+/// future is cancelled (e.g. due to client disconnect or infrastructure timeout).
+///
+/// On the normal path, call `finish()` which emits the real end span.
+/// If the future is cancelled and `finish()` was never called, the Drop impl
+/// emits an end span with status 499 (cancelled).
+struct RequestSpanGuard {
+    inner: Option<RequestSpanGuardInner>,
+}
+
+struct RequestSpanGuardInner {
+    tracer: trace::Tracer,
+    request: Arc<model::Request>,
+    sensitive: bool,
+    requests_total: counter::Schema<u64>,
+}
+
+impl RequestSpanGuard {
+    /// Emit the real end span with the actual response data. Consumes the guard
+    /// so Drop becomes a no-op.
+    fn finish(&mut self, model_resp: &model::Response, code: &str) {
+        if let Some(inner) = self.inner.take() {
+            inner.tracer.request_span_end(model_resp, inner.sensitive);
+            inner.requests_total.with([("code", code)]).increment();
+        }
+    }
+}
+
+impl Drop for RequestSpanGuard {
+    fn drop(&mut self) {
+        let Some(inner) = self.inner.take() else {
+            return;
+        };
+        log::info!("request handler was cancelled, emitting span end");
+        let duration = tokio::time::Instant::now().duration_since(inner.request.start);
+        let error = Error {
+            code: ErrCode::Canceled,
+            message: "request canceled".to_string(),
+            internal_message: Some("request handler was cancelled before completion".to_string()),
+            details: None,
+            stack: None,
+        };
+        let resp = model::Response {
+            request: inner.request.clone(),
+            duration,
+            data: model::ResponseData::RPC(model::RPCResponseData {
+                status_code: 499,
+                resp_payload: None,
+                error: Some(error),
+                resp_headers: Default::default(),
+            }),
+        };
+        inner.tracer.request_span_end(&resp, inner.sensitive);
+        inner
+            .requests_total
+            .with([("code", "canceled")])
+            .increment();
+    }
+}
+
 #[derive(Debug)]
 pub(super) struct SharedEndpointData {
     pub tracer: trace::Tracer,
@@ -611,6 +671,14 @@ impl EndpointHandler {
             logger.info(Some(&request), "starting request", None);
 
             self.shared.tracer.request_span_start(&request, sensitive);
+            let mut span_guard = RequestSpanGuard {
+                inner: Some(RequestSpanGuardInner {
+                    tracer: self.shared.tracer.clone(),
+                    request: request.clone(),
+                    sensitive,
+                    requests_total: self.requests_total.clone(),
+                }),
+            };
 
             let resp: ResponseData = self.handler.call(request.clone()).await;
 
@@ -701,8 +769,7 @@ impl EndpointHandler {
                         resp_headers: encoded_resp.headers().clone(),
                     }),
                 };
-                self.shared.tracer.request_span_end(&model_resp, sensitive);
-                self.requests_total.with([("code", code)]).increment();
+                span_guard.finish(&model_resp, &code);
             }
 
             if let Ok(val) = HeaderValue::from_str(request.span.0.serialize_encore().as_str()) {

@@ -179,6 +179,50 @@ pub struct SubHandler {
     counter: AtomicUsize,
 }
 
+/// Guard that ensures `request_span_end` is emitted for pubsub message handlers
+/// even if the handler future is cancelled.
+struct PubSubSpanGuard {
+    inner: Option<PubSubSpanGuardInner>,
+}
+
+struct PubSubSpanGuardInner {
+    tracer: Tracer,
+    request: Arc<model::Request>,
+    start: tokio::time::Instant,
+}
+
+impl PubSubSpanGuard {
+    fn finish(&mut self, resp: &model::Response) {
+        if let Some(inner) = self.inner.take() {
+            inner.tracer.request_span_end(resp, false);
+        }
+    }
+}
+
+impl Drop for PubSubSpanGuard {
+    fn drop(&mut self) {
+        let Some(inner) = self.inner.take() else {
+            return;
+        };
+        log::info!("pubsub message handler was cancelled, emitting span end");
+        let duration = tokio::time::Instant::now().duration_since(inner.start);
+        let resp = model::Response {
+            request: inner.request.clone(),
+            duration,
+            data: ResponseData::PubSub(Err(api::Error {
+                code: api::ErrCode::Canceled,
+                message: "request canceled".to_string(),
+                internal_message: Some(
+                    "pubsub message handler was cancelled before completion".to_string(),
+                ),
+                details: None,
+                stack: None,
+            })),
+        };
+        inner.tracer.request_span_end(&resp, false);
+    }
+}
+
 const ATTR_PARENT_TRACE_ID: &str = "encore_parent_trace_id";
 const ATTR_EXT_CORRELATION_ID: &str = "encore_ext_correlation_id";
 const ATTR_FORCE_TRACE: &str = "encore_force_trace";
@@ -262,6 +306,13 @@ impl SubHandler {
             logger.info(Some(&req), "starting request", None);
 
             self.obj.tracer.request_span_start(&req, false);
+            let mut span_guard = PubSubSpanGuard {
+                inner: Some(PubSubSpanGuardInner {
+                    tracer: self.obj.tracer.clone(),
+                    request: req.clone(),
+                    start,
+                }),
+            };
 
             let result = {
                 // If we have a parse error, use that as the result immediately.
@@ -280,7 +331,7 @@ impl SubHandler {
                 duration: tokio::time::Instant::now().duration_since(start),
                 data: ResponseData::PubSub(result.clone()),
             };
-            self.obj.tracer.request_span_end(&resp, false);
+            span_guard.finish(&resp);
             result
         })
     }
