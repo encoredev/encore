@@ -504,7 +504,12 @@ impl EndpointHandler {
         let span = trace_id.with_span(span_id);
         let parent_span = meta.parent_span_id.map(|sp| trace_id.with_span(sp));
 
-        let traced = if platform_seal_of_approval.is_some() {
+        let is_cron_scheduled = parts
+            .headers
+            .get("x-encore-cron-trigger")
+            .is_some_and(|v| v == "scheduled");
+
+        let traced = if platform_seal_of_approval.is_some() && !is_cron_scheduled {
             true
         } else {
             meta.trace_sampled

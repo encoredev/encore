@@ -84,8 +84,10 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		spanID = id
 	}
 
+	isCronScheduled := p.Data.RequestHeaders.Get("X-Encore-Cron-Trigger") == "scheduled"
+
 	var traced bool
-	if p.Data.FromEncorePlatform {
+	if p.Data.FromEncorePlatform && !isCronScheduled {
 		traced = true
 	} else if p.ParentSpanID.IsZero() {
 		traced = s.rt.SampleTrace(p.Data.Desc.Service, p.Data.Desc.Endpoint)
