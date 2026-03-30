@@ -22,7 +22,7 @@ import (
 var forceLink bool
 var linkAppCmd = &cobra.Command{
 	Use:   "link [app-id]",
-	Short: "Link an Encore app with the server",
+	Short: "Link an existing local repo to an existing Encore Cloud app",
 	Args:  cobra.MaximumNArgs(1),
 
 	DisableFlagsInUseLine: true,
