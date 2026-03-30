@@ -10,6 +10,8 @@ In this guide you will learn how to set up an Encore [auth handler](/docs/go/dev
 
 For all the code and instructions of how to clone and run this example locally, see the [Clerk Example](https://github.com/encoredev/examples/tree/main/clerk) in our examples repo.
 
+<DeployButton slug="clerk" title="Deploy to Encore" description="Deploy this app to a free development environment." />
+
 ## Set up the auth handler
 
 In your Encore app, install the following module:
