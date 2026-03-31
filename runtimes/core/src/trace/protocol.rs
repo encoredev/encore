@@ -157,6 +157,9 @@ impl Tracer {
         let Some(source) = data.source else {
             return;
         };
+        if !source.traced {
+            return;
+        }
 
         let fields_count = data.fields.as_ref().map(|fields| fields.len()).unwrap_or(0);
 
