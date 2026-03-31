@@ -205,8 +205,7 @@ jobs:
   # Run static analysis on the PR
   static-analysis:
     name: "Static Analysis"
-    # We're using buildjet for this as it's very slow on Github's own runners
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
 
     # Skip any PR created by dependabot to avoid permission issues:
     if: (github.actor != 'dependabot[bot]')
