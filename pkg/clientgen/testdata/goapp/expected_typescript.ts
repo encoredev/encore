@@ -509,7 +509,9 @@ export namespace svc {
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as ResponseWithSetCookie
             rtn.HeaderSlice = [mustBeSet("Header `slice`", resp.headers.get("slice"))]
-            rtn.SetCookie = resp.headers.getSetCookie()
+            if (!BROWSER) {
+                rtn.SetCookie = resp.headers.getSetCookie()
+            }
             return rtn
         }
 
