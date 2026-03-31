@@ -217,7 +217,7 @@ func (db *Database) Exec(ctx context.Context, query string, args ...interface{})
 	)
 
 	curr := db.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
@@ -259,7 +259,7 @@ func (db *Database) Query(ctx context.Context, query string, args ...interface{}
 	)
 
 	curr := db.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
@@ -302,7 +302,7 @@ func (db *Database) QueryRow(ctx context.Context, query string, args ...interfac
 	)
 
 	curr := db.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
@@ -344,7 +344,7 @@ func (db *Database) Begin(ctx context.Context) (*Tx, error) {
 
 	var startID model.TraceEventID
 	curr := db.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		startID = curr.Trace.DBTransactionStart(trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,

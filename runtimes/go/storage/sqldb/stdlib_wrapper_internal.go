@@ -65,7 +65,7 @@ func (i *interceptor) ConnQuery(ctx context.Context, conn driver.QueryerContext,
 		eventParams  trace2.EventParams
 	)
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
@@ -81,7 +81,7 @@ func (i *interceptor) ConnQuery(ctx context.Context, conn driver.QueryerContext,
 
 	rows, err := conn.QueryContext(markTraced(ctx), query, args)
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
@@ -96,7 +96,7 @@ func (i *interceptor) ConnExec(ctx context.Context, conn driver.ExecerContext, q
 		eventParams  trace2.EventParams
 	)
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
@@ -113,7 +113,7 @@ func (i *interceptor) ConnExec(ctx context.Context, conn driver.ExecerContext, q
 
 	res, err := conn.ExecContext(markTraced(ctx), query, args)
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
@@ -128,7 +128,7 @@ func (i *interceptor) StmtQuery(ctx context.Context, conn driver.StmtQueryContex
 		eventParams  trace2.EventParams
 	)
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
@@ -144,7 +144,7 @@ func (i *interceptor) StmtQuery(ctx context.Context, conn driver.StmtQueryContex
 
 	rows, err := conn.QueryContext(markTraced(ctx), args)
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
@@ -159,7 +159,7 @@ func (i *interceptor) StmtExec(ctx context.Context, conn driver.StmtExecContext,
 		eventParams  trace2.EventParams
 	)
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
@@ -175,7 +175,7 @@ func (i *interceptor) StmtExec(ctx context.Context, conn driver.StmtExecContext,
 
 	res, err := conn.ExecContext(markTraced(ctx), args)
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
 	}
 
@@ -187,7 +187,7 @@ func (i *interceptor) ConnBegin(tx driver.Tx) (driver.Tx, error) {
 
 	var startEventID model.TraceEventID
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams := trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
@@ -210,7 +210,7 @@ func (i *interceptor) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx, 
 
 	var startEventID model.TraceEventID
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams := trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
@@ -234,7 +234,7 @@ func (i *interceptor) TxCommit(ctx context.Context, tx driver.Tx) error {
 
 	if s, ok := tx.(stdlibTx); ok {
 		curr := i.mgr.rt.Current()
-		if curr.Req != nil && curr.Trace != nil {
+		if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 			eventParams := trace2.EventParams{
 				TraceID: curr.Req.TraceID,
 				SpanID:  curr.Req.SpanID,
@@ -259,7 +259,7 @@ func (i *interceptor) TxRollback(ctx context.Context, tx driver.Tx) error {
 
 	if s, ok := tx.(stdlibTx); ok {
 		curr := i.mgr.rt.Current()
-		if curr.Req != nil && curr.Trace != nil {
+		if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 			eventParams := trace2.EventParams{
 				TraceID: curr.Req.TraceID,
 				SpanID:  curr.Req.SpanID,

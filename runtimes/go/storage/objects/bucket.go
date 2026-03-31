@@ -110,7 +110,7 @@ func (b *Bucket) Upload(ctx context.Context, object string, options ...UploadOpt
 	}
 
 	curr := b.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		w.curr = curr
 		w.startEventID = curr.Trace.BucketObjectUploadStart(trace2.BucketObjectUploadStartParams{
 			EventParams: trace2.EventParams{
@@ -254,7 +254,7 @@ func (b *Bucket) Download(ctx context.Context, object string, options ...Downloa
 
 	var startEventID trace2.EventID
 	curr := b.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		startEventID = curr.Trace.BucketObjectDownloadStart(trace2.BucketObjectDownloadStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
@@ -422,7 +422,7 @@ func (b *Bucket) List(ctx context.Context, query *Query, options ...ListOption) 
 		)
 
 		curr := b.mgr.rt.Current()
-		if curr.Req != nil && curr.Trace != nil {
+		if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 			startEventID := curr.Trace.BucketListObjectsStart(trace2.BucketListObjectsStartParams{
 				EventParams: trace2.EventParams{
 					TraceID: curr.Req.TraceID,
@@ -475,7 +475,7 @@ func (b *Bucket) Remove(ctx context.Context, object string, options ...RemoveOpt
 
 	var removeErr error
 	curr := b.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		startEventID := curr.Trace.BucketDeleteObjectsStart(trace2.BucketDeleteObjectsStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
@@ -539,7 +539,7 @@ func (b *Bucket) Attrs(ctx context.Context, object string, options ...AttrsOptio
 	)
 
 	curr := b.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		startEventID := curr.Trace.BucketObjectGetAttrsStart(trace2.BucketObjectGetAttrsStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
@@ -652,7 +652,7 @@ func (b *Bucket) Exists(ctx context.Context, object string, options ...ExistsOpt
 	)
 
 	curr := b.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		startEventID := curr.Trace.BucketObjectGetAttrsStart(trace2.BucketObjectGetAttrsStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,

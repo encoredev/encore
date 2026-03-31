@@ -50,7 +50,7 @@ func (tx *Tx) commit() error {
 	err := tx.std.Commit(markTraced(context.Background()))
 	err = convertErr(err)
 
-	if curr := tx.mgr.rt.Current(); curr.Req != nil && curr.Trace != nil {
+	if curr := tx.mgr.rt.Current(); curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		curr.Trace.DBTransactionEnd(trace2.DBTransactionEndParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
@@ -72,7 +72,7 @@ func (tx *Tx) rollback() error {
 	err := tx.std.Rollback(markTraced(context.Background()))
 	err = convertErr(err)
 
-	if curr := tx.mgr.rt.Current(); curr.Req != nil && curr.Trace != nil {
+	if curr := tx.mgr.rt.Current(); curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		curr.Trace.DBTransactionEnd(trace2.DBTransactionEndParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
@@ -102,7 +102,7 @@ func (tx *Tx) exec(ctx context.Context, query string, args ...interface{}) (Exec
 		eventParams  trace2.EventParams
 	)
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
@@ -135,7 +135,7 @@ func (tx *Tx) Query(ctx context.Context, query string, args ...interface{}) (*Ro
 		eventParams  trace2.EventParams
 	)
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,
@@ -171,7 +171,7 @@ func (tx *Tx) QueryRow(ctx context.Context, query string, args ...interface{}) *
 		eventParams  trace2.EventParams
 	)
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams = trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,

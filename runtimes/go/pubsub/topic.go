@@ -170,7 +170,7 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 	// Start the trace span
 	curr := t.mgr.rt.Current()
 	var startEventID trace2.EventID
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		desc := &model.PubSubTopicDesc{
 			Topic: t.runtimeCfg.EncoreName,
 		}
@@ -196,7 +196,7 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 	}
 
 	// End the trace span
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		curr.Trace.PubsubPublishEnd(trace2.PubsubPublishEndParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,

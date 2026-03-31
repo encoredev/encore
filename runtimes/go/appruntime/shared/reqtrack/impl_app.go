@@ -73,7 +73,7 @@ func beginHTTPRoundTrip(req *http.Request) (context.Context, error) {
 
 //go:linkname finishHTTPRoundTrip net/http.encoreFinishRoundTrip
 func finishHTTPRoundTrip(req *http.Request, resp *http.Response, err error) {
-	if g := getEncoreG(); g != nil && g.req != nil {
+	if g := getEncoreG(); g != nil && g.req != nil && g.req.data.Traced {
 		if trace := g.op.trace.Load(); trace != nil {
 			trace.Logger().HTTPCompleteRoundTrip(req, resp, g.goctr, err)
 		}

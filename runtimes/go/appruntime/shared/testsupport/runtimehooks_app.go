@@ -58,7 +58,7 @@ func encoreEndTest(t *testing.T) {
 //go:linkname encoreTestLog testing.encoreTestLog
 func encoreTestLog(line string, frameSkip int) {
 	curr := Singleton.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		curr.Trace.LogMessage(trace2.LogMessageParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,

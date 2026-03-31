@@ -216,13 +216,13 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 
 		mgr.rt.BeginRequest(req)
 		curr := mgr.rt.Current()
-		if curr.Trace != nil {
+		if curr.Trace != nil && req.Traced {
 			curr.Trace.PubsubMessageSpanStart(req, curr.Goctr)
 		}
 
 		err = panicCatchWrapper(ctx, msg)
 
-		if curr.Trace != nil {
+		if curr.Trace != nil && req.Traced {
 			resp := &model.Response{
 				Duration:   time.Since(req.Start),
 				Err:        err,

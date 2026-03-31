@@ -136,7 +136,7 @@ func (l *Manager) doLog(level model.LogLevel, ev *zerolog.Event, msg string, ctx
 	curr := l.rt.Current()
 	numFields := len(ctxFields)/2 + len(logFields)/2
 
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		traced = true
 		tp = trace2.LogMessageParams{
 			EventParams: trace2.EventParams{

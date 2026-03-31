@@ -60,7 +60,7 @@ func (g *Decl[T]) ServiceName() string {
 
 func doSetupService[T any](mgr *Manager, decl *Decl[T], holder *InstanceHolder[T]) (err error) {
 	curr := mgr.rt.Current()
-	if curr.Trace != nil && curr.Req != nil && decl.SetupDefLoc != 0 {
+	if curr.Trace != nil && curr.Req != nil && curr.Req.Traced && decl.SetupDefLoc != 0 {
 		eventParams := trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,

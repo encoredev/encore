@@ -335,7 +335,7 @@ func (c *client[K, V]) doTrace(op string, write bool, keys ...string) func(error
 }
 
 func (c *client[K, V]) traceStart(op string, write bool, keys ...string) (eventID model.TraceEventID) {
-	if curr := c.rt.Current(); curr.Trace != nil && curr.Req != nil {
+	if curr := c.rt.Current(); curr.Trace != nil && curr.Req != nil && curr.Req.Traced {
 		eventID = curr.Trace.CacheCallStart(trace2.CacheCallStartParams{
 			EventParams: trace2.EventParams{
 				TraceID: curr.Req.TraceID,
@@ -358,7 +358,7 @@ func (c *client[K, V]) traceEnd(startEventID model.TraceEventID, err error, valu
 		return
 	}
 
-	if curr := c.rt.Current(); curr.Trace != nil && curr.Req != nil {
+	if curr := c.rt.Current(); curr.Trace != nil && curr.Req != nil && curr.Req.Traced {
 		var cacheErr error
 		var res trace2.CacheCallResult
 		switch {

@@ -125,7 +125,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 
 	// Begin the request, copying data over from the previous request.
 	s.rt.BeginRequest(req)
-	if curr := s.rt.Current(); curr.Trace != nil {
+	if curr := s.rt.Current(); curr.Trace != nil && req.Traced {
 		switch req.Type {
 		case model.RPCCall:
 			curr.Trace.RequestSpanStart(req, curr.Goctr)
@@ -232,7 +232,7 @@ func (s *Server) finishRequest(resp *model.Response) {
 		}
 	}
 
-	if curr.Trace != nil {
+	if curr.Trace != nil && req.Traced {
 		// Capture the recorded bytes from the request and response body, if any.
 		if len(resp.RawRequestPayload) > 0 {
 			curr.Trace.BodyStream(trace2.BodyStreamParams{
@@ -373,7 +373,7 @@ func (s *Server) beginCall(ctx context.Context, serviceName, endpointName string
 		}
 	}
 
-	if curr.Trace != nil {
+	if curr.Trace != nil && curr.Req != nil && curr.Req.Traced {
 		call.StartEventID = curr.Trace.RPCCallStart(call, curr.Goctr)
 	}
 

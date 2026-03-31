@@ -40,7 +40,7 @@ func (t *pgxTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pg
 	}
 
 	curr := t.mgr.rt.Current()
-	if curr.Req != nil && curr.Trace != nil {
+	if curr.Req != nil && curr.Req.Traced && curr.Trace != nil {
 		eventParams := trace2.EventParams{
 			TraceID: curr.Req.TraceID,
 			SpanID:  curr.Req.SpanID,

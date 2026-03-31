@@ -107,7 +107,7 @@ func (mgr *Manager) StartTest(t *testing.T, fn func(*testing.T)) {
 		SvcNum: svcNum,
 	}
 	mgr.rt.BeginRequest(req)
-	if curr := mgr.rt.Current(); curr.Trace != nil {
+	if curr := mgr.rt.Current(); curr.Trace != nil && req.Traced {
 		curr.Trace.TestSpanStart(req, curr.Goctr)
 	}
 }
@@ -176,7 +176,7 @@ func (mgr *Manager) EndTest(t *testing.T) {
 		}
 	})()
 
-	if curr.Trace != nil {
+	if curr.Trace != nil && req.Traced {
 		curr.Trace.TestSpanEnd(trace2.TestSpanEndParams{
 			EventParams: trace2.EventParams{TraceID: req.TraceID, SpanID: req.SpanID},
 			Req:         req,
