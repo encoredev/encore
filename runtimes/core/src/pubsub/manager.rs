@@ -109,9 +109,11 @@ impl TopicInner {
                         ext_correlation_id.clone(),
                     );
                 }
-                // If this is a platform request, propagate the sampled flag so that
+                // If this is a traced platform request, propagate the sampled flag so that
                 // subscribers always trace platform-initiated messages.
-                if source.is_platform_request {
+                // We check both is_platform_request and traced so that scheduled cron jobs
+                // that were sampled out don't force-trace their downstream subscribers.
+                if source.is_platform_request && source.traced {
                     msg.attrs
                         .insert(ATTR_FORCE_TRACE.to_string(), "true".to_string());
                 }

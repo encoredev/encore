@@ -158,9 +158,11 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 			attrs[extCorrelationIDAttribute] = req.TraceID.String()
 		}
 
-		// If this is a platform request, propagate the sampled flag so that
+		// If this is a traced platform request, propagate the sampled flag so that
 		// subscribers always trace platform-initiated messages.
-		if req.RPCData != nil && req.RPCData.FromEncorePlatform {
+		// We check both FromEncorePlatform and Traced so that scheduled cron jobs
+		// that were sampled out don't force-trace their downstream subscribers.
+		if req.RPCData != nil && req.RPCData.FromEncorePlatform && req.Traced {
 			attrs[forceTraceAttribute] = "true"
 		}
 	}
