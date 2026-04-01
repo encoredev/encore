@@ -11,7 +11,7 @@ use encore_runtime_core::{api, model, pubsub};
 
 use crate::api::Request;
 use crate::error::coerce_to_api_error;
-use crate::napi_util::{await_promise, PromiseHandler};
+use crate::napi_util::{await_promise, OnceSender, PromiseHandler};
 use crate::pvalue::parse_pvalues;
 use crate::threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction};
 
@@ -104,7 +104,7 @@ impl PubSubSubscription {
 
 struct PubSubMessageRequest {
     req: Request,
-    tx: tokio::sync::mpsc::UnboundedSender<Result<(), api::Error>>,
+    tx: OnceSender<Result<(), api::Error>>,
 }
 
 #[derive(Debug)]
@@ -116,20 +116,21 @@ impl pubsub::SubscriptionHandler for JSSubscriptionHandler {
     fn handle_message(
         &self,
         msg: Arc<model::Request>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + 'static>> {
         let handler = self.handler.clone();
         Box::pin(async move {
-            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            let tx = OnceSender::new(tx);
             let req = Request::new(msg);
             handler.call(
                 PubSubMessageRequest { req, tx },
                 crate::threadsafe_function::ThreadsafeFunctionCallMode::Blocking,
             );
 
-            match rx.recv().await {
-                Some(Ok(())) => Ok(()),
-                Some(Err(err)) => Err(err),
-                None => Err(api::Error::internal(anyhow::anyhow!(
+            match rx.await {
+                Ok(Ok(())) => Ok(()),
+                Ok(Err(err)) => Err(err),
+                Err(_) => Err(api::Error::internal(anyhow::anyhow!(
                     "subscription handler did not respond",
                 ))),
             }
@@ -172,7 +173,7 @@ fn resolve_on_js_thread(ctx: ThreadSafeCallContext<PubSubMessageRequest>) -> nap
         }
         Err(err) => {
             let res = handler.error(ctx.env, err);
-            _ = ctx.value.tx.send(res);
+            ctx.value.tx.send(res);
             Ok(())
         }
     }

@@ -75,7 +75,7 @@ pub trait SubscriptionHandler: Debug + Send + Sync {
     fn handle_message(
         &self,
         msg: Arc<model::Request>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + '_>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + 'static>>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

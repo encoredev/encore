@@ -9,12 +9,37 @@ pub trait PromiseHandler: Clone + Send + Sync + 'static {
     fn error(&self, env: Env, err: napi::Error) -> Self::Output;
 }
 
-pub fn await_promise<T, H>(
-    env: Env,
-    result: JsUnknown,
-    tx: tokio::sync::mpsc::UnboundedSender<T>,
-    handler: H,
-) where
+/// A clonable oneshot sender. Uses `Arc<Mutex<Option<oneshot::Sender>>>` so it
+/// can be shared between resolve and reject `.then()` callbacks, with only the
+/// first one to fire actually sending.
+pub struct OnceSender<T> {
+    inner: std::sync::Arc<std::sync::Mutex<Option<tokio::sync::oneshot::Sender<T>>>>,
+}
+
+impl<T> OnceSender<T> {
+    pub fn new(tx: tokio::sync::oneshot::Sender<T>) -> Self {
+        Self {
+            inner: std::sync::Arc::new(std::sync::Mutex::new(Some(tx))),
+        }
+    }
+
+    pub fn send(&self, val: T) {
+        if let Some(tx) = self.inner.lock().expect("OnceSender mutex poisoned").take() {
+            _ = tx.send(val);
+        }
+    }
+}
+
+impl<T> Clone for OnceSender<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+pub fn await_promise<T, H>(env: Env, result: JsUnknown, tx: OnceSender<T>, handler: H)
+where
     H: PromiseHandler<Output = T>,
     T: Send + 'static,
 {
@@ -38,7 +63,7 @@ pub fn await_promise<T, H>(
                         Err(err) => handler.error(env, err),
                     };
 
-                    _ = tx.send(res);
+                    tx.send(res);
                     ctx.env.get_undefined()
                 })?
             };
@@ -51,7 +76,7 @@ pub fn await_promise<T, H>(
                         Err(err) => handler.error(env, err),
                     };
 
-                    _ = tx.send(res);
+                    tx.send(res);
                     ctx.env.get_undefined()
                 })?
             };
@@ -59,7 +84,7 @@ pub fn await_promise<T, H>(
             then.call(Some(&result), &[cb, eb])?;
         } else {
             let res = handler.resolve(env, Some(result));
-            _ = tx.send(res);
+            tx.send(res);
         }
 
         Ok(())
@@ -67,7 +92,7 @@ pub fn await_promise<T, H>(
 
     inner().unwrap_or_else(move |err| {
         let res = outer_handler.error(env, err);
-        _ = outer_tx.send(res);
+        outer_tx.send(res);
     });
 }
 

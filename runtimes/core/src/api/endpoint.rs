@@ -131,15 +131,166 @@ pub trait TypedHandler: Send + Sync + 'static {
 
 /// A trait for handlers that accept a request and return a response.
 pub trait BoxedHandler: Send + Sync + 'static {
-    fn call(
-        self: Arc<Self>,
-        req: HandlerRequest,
-    ) -> Pin<Box<dyn Future<Output = ResponseData> + Send + 'static>>;
+    fn call(self: Arc<Self>, req: HandlerRequest) -> HandlerCall;
 }
 
 pub enum ResponseData {
     Typed(HandlerResponse),
     Raw(axum::http::Response<axum::body::Body>),
+}
+
+/// Represents an in-flight handler call. Can be awaited for the result.
+///
+/// The `Channel` variant exposes the receiver, allowing external code to
+/// take ownership of it on cancellation (e.g. to spawn a background task
+/// that waits for the real result). The `Inline` variant wraps a boxed
+/// future for handlers that do their work inline.
+pub struct HandlerCall {
+    inner: HandlerCallInner,
+}
+
+enum HandlerCallInner {
+    /// Result delivered via a oneshot channel. The receiver can be extracted
+    /// on cancellation to spawn a background task.
+    Channel(tokio::sync::oneshot::Receiver<ResponseData>),
+    /// Handler work runs inline in a boxed future.
+    Inline(Pin<Box<dyn Future<Output = ResponseData> + Send + 'static>>),
+    /// The call has completed or been taken for background processing.
+    Done,
+}
+
+impl HandlerCall {
+    /// Create a HandlerCall backed by a oneshot receiver.
+    pub fn from_receiver(rx: tokio::sync::oneshot::Receiver<ResponseData>) -> Self {
+        Self {
+            inner: HandlerCallInner::Channel(rx),
+        }
+    }
+
+    /// Create a HandlerCall backed by a boxed future.
+    pub fn inline(fut: Pin<Box<dyn Future<Output = ResponseData> + Send + 'static>>) -> Self {
+        Self {
+            inner: HandlerCallInner::Inline(fut),
+        }
+    }
+
+    /// Extract the inner state for use in a background task.
+    /// Returns `None` if the call has already completed.
+    pub fn take_for_background(
+        &mut self,
+    ) -> Option<Pin<Box<dyn Future<Output = ResponseData> + Send + 'static>>> {
+        match std::mem::replace(&mut self.inner, HandlerCallInner::Done) {
+            HandlerCallInner::Channel(rx) => Some(Box::pin(async move {
+                rx.await.unwrap_or_else(|_| Self::no_response_error())
+            })),
+            HandlerCallInner::Inline(fut) => Some(fut),
+            HandlerCallInner::Done => None,
+        }
+    }
+
+    fn no_response_error() -> ResponseData {
+        ResponseData::Typed(Err(Error::internal(anyhow::anyhow!(
+            "handler did not respond"
+        ))))
+    }
+}
+
+impl Future for HandlerCall {
+    type Output = ResponseData;
+
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let this = self.get_mut();
+        match &mut this.inner {
+            HandlerCallInner::Channel(rx) => Pin::new(rx).poll(cx).map(|r| {
+                this.inner = HandlerCallInner::Done;
+                r.unwrap_or_else(|_| Self::no_response_error())
+            }),
+            HandlerCallInner::Inline(fut) => fut.as_mut().poll(cx).map(|r| {
+                this.inner = HandlerCallInner::Done;
+                r
+            }),
+            HandlerCallInner::Done => std::task::Poll::Ready(Self::no_response_error()),
+        }
+    }
+}
+
+/// Guard that spawns the handler into a background task on cancellation,
+/// ensuring `request_span_end` is always emitted. On the normal path (handler
+/// completes before cancellation), this is a no-op — zero overhead.
+struct CancellationGuard<'a> {
+    call: &'a mut HandlerCall,
+    info: Option<CancellationGuardInfo>,
+}
+
+struct CancellationGuardInfo {
+    tracer: trace::Tracer,
+    request: Arc<model::Request>,
+    sensitive: bool,
+    requests_total: Arc<counter::Schema<u64>>,
+}
+
+impl CancellationGuard<'_> {
+    /// Await the handler result. If this future is cancelled, the guard's Drop
+    /// impl takes over and spawns the handler into a background task.
+    async fn run(&mut self) -> ResponseData {
+        let resp = std::future::poll_fn(|cx| Pin::new(&mut *self.call).poll(cx)).await;
+        self.info = None; // disarm
+        resp
+    }
+}
+
+impl Drop for CancellationGuard<'_> {
+    fn drop(&mut self) {
+        let Some(info) = self.info.take() else {
+            return; // Normal completion, nothing to do.
+        };
+        // Handler was cancelled. Spawn a background task to wait for the
+        // handler to complete and emit the end span with the real result.
+        if let Some(bg_fut) = self.call.take_for_background() {
+            tokio::spawn(async move {
+                let resp = bg_fut.await;
+                let duration = tokio::time::Instant::now().duration_since(info.request.start);
+
+                let (status_code, resp_payload, error, code) = match resp {
+                    ResponseData::Typed(Ok(response)) => (
+                        response.status.unwrap_or(200),
+                        Some(response.payload),
+                        None,
+                        "ok".to_string(),
+                    ),
+                    ResponseData::Typed(Err(err)) => {
+                        let code = err.code.to_string();
+                        (
+                            u16::from(axum::http::StatusCode::from(err.code)),
+                            None,
+                            Some(err),
+                            code,
+                        )
+                    }
+                    ResponseData::Raw(ref r) => {
+                        let code = ErrCode::from(r.status()).to_string();
+                        (r.status().as_u16(), None, None, code)
+                    }
+                };
+
+                let model_resp = model::Response {
+                    request: info.request.clone(),
+                    duration,
+                    data: model::ResponseData::RPC(model::RPCResponseData {
+                        status_code,
+                        resp_payload,
+                        error,
+                        resp_headers: Default::default(),
+                    }),
+                };
+                info.tracer.request_span_end(&model_resp, info.sensitive);
+                info.requests_total.with([("code", code)]).increment();
+            });
+        }
+    }
 }
 
 /// Schema variations for stream handshake
@@ -407,7 +558,7 @@ pub(super) struct EndpointHandler {
     pub endpoint: Arc<Endpoint>,
     pub handler: Arc<dyn BoxedHandler>,
     pub shared: Arc<SharedEndpointData>,
-    pub requests_total: counter::Schema<u64>,
+    pub requests_total: Arc<counter::Schema<u64>>,
 }
 
 #[derive(Debug)]
@@ -612,7 +763,22 @@ impl EndpointHandler {
 
             self.shared.tracer.request_span_start(&request, sensitive);
 
-            let resp: ResponseData = self.handler.call(request.clone()).await;
+            // Call the handler inline. The HandlerCall is pollable in-place,
+            // and if this future is cancelled (e.g. by client disconnect),
+            // the CancellationGuard spawns the remaining work into a background
+            // task to ensure request_span_end is emitted.
+            let mut handler_call = self.handler.call(request.clone());
+            let mut cancellation_guard = CancellationGuard {
+                call: &mut handler_call,
+                info: Some(CancellationGuardInfo {
+                    tracer: self.shared.tracer.clone(),
+                    request: request.clone(),
+                    sensitive,
+                    requests_total: self.requests_total.clone(),
+                }),
+            };
+
+            let resp = cancellation_guard.run().await;
 
             let duration = tokio::time::Instant::now().duration_since(request.start);
 

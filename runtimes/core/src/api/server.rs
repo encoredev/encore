@@ -106,7 +106,7 @@ impl Server {
                                 endpoint: ep.clone(),
                                 handler: Arc::new(static_handler),
                                 shared: shared.clone(),
-                                requests_total,
+                                requests_total: Arc::new(requests_total),
                             };
                             server_handler.set(handler);
                         }
@@ -174,7 +174,7 @@ impl Server {
                     endpoint,
                     handler,
                     shared: self.shared.clone(),
-                    requests_total,
+                    requests_total: Arc::new(requests_total),
                 };
 
                 h.add(handler);
