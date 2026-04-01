@@ -1,8 +1,6 @@
 #![allow(clippy::result_large_err)]
 
 use std::collections::HashMap;
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use axum::body::Body;
@@ -11,13 +9,13 @@ use bytes::Bytes;
 use napi::bindgen_prelude::{Buffer, Either3};
 use napi::{Either, Env, JsFunction, JsUnknown, NapiRaw};
 use napi_derive::napi;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::oneshot;
 
 use encore_runtime_core::api::{self, ToResponse};
 
 use crate::api::Request;
 use crate::error::coerce_to_api_error;
-use crate::napi_util::{await_promise, call_function, CallError, PromiseHandler};
+use crate::napi_util::{await_promise, call_function, CallError, OnceSender, PromiseHandler};
 use crate::stream;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
@@ -42,7 +40,7 @@ struct RawRequestMessage {
     req: Request,
     resp: ResponseWriter,
     body: BodyReader,
-    err_tx: mpsc::UnboundedSender<Result<(), api::Error>>,
+    err_tx: OnceSender<Result<(), api::Error>>,
 }
 
 #[derive(Debug)]
@@ -342,11 +340,8 @@ impl BodyReader {
 }
 
 impl api::BoxedHandler for JSRawHandler {
-    fn call(
-        self: Arc<Self>,
-        req: api::HandlerRequest,
-    ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
-        Box::pin(async move {
+    fn call(self: Arc<Self>, req: api::HandlerRequest) -> api::HandlerCall {
+        api::HandlerCall::inline(Box::pin(async move {
             let (body_tx, mut body_rx) = oneshot::channel();
 
             let internal_caller = req.internal_caller.clone();
@@ -363,7 +358,8 @@ impl api::BoxedHandler for JSRawHandler {
             };
             let body = BodyReader::new(body.into_data_stream());
 
-            let (err_tx, mut err_rx) = mpsc::unbounded_channel();
+            let (err_tx, err_rx) = tokio::sync::oneshot::channel();
+            let err_tx = OnceSender::new(err_tx);
 
             self.handler.call(
                 RawRequestMessage {
@@ -386,9 +382,9 @@ impl api::BoxedHandler for JSRawHandler {
                         }
                     }
                 }
-                err = err_rx.recv() => {
+                err = err_rx => {
                     match err {
-                        Some(Err(err)) => err.to_response(internal_caller),
+                        Ok(Err(err)) => err.to_response(internal_caller),
                         _ => {
                             // We didn't get an error. Wait for the response body instead.
                             match body_rx.await {
@@ -404,7 +400,7 @@ impl api::BoxedHandler for JSRawHandler {
             };
 
             api::ResponseData::Raw(resp)
-        })
+        }))
     }
 }
 
@@ -472,11 +468,11 @@ fn raw_resolve_on_js_thread(ctx: ThreadSafeCallContext<RawRequestMessage>) -> na
         }
         Err(CallError::Exception(exception)) => {
             let res = handler.reject(ctx.env, exception);
-            _ = ctx.value.err_tx.send(res);
+            ctx.value.err_tx.send(res);
         }
         Err(CallError::Error(err)) => {
             let res = handler.error(ctx.env, err);
-            _ = ctx.value.err_tx.send(res);
+            ctx.value.err_tx.send(res);
         }
     }
     Ok(())

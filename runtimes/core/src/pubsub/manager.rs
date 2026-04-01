@@ -179,47 +179,52 @@ pub struct SubHandler {
     counter: AtomicUsize,
 }
 
-/// Guard that ensures `request_span_end` is emitted for pubsub message handlers
-/// even if the handler future is cancelled.
-struct PubSubSpanGuard {
-    inner: Option<PubSubSpanGuardInner>,
+type PubSubHandlerFuture = Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send>>;
+
+/// Guard that spawns the pubsub handler into a background task on cancellation,
+/// ensuring `request_span_end` is always emitted. On the normal path this is a no-op.
+struct PubSubCancellationGuard {
+    fut: Option<PubSubHandlerFuture>,
+    info: Option<PubSubCancellationGuardInfo>,
 }
 
-struct PubSubSpanGuardInner {
+struct PubSubCancellationGuardInfo {
     tracer: Tracer,
     request: Arc<model::Request>,
     start: tokio::time::Instant,
 }
 
-impl PubSubSpanGuard {
-    fn finish(&mut self, resp: &model::Response) {
-        if let Some(inner) = self.inner.take() {
-            inner.tracer.request_span_end(resp, false);
-        }
+impl PubSubCancellationGuard {
+    async fn run(&mut self) -> Result<(), api::Error> {
+        let result = match self.fut.as_mut() {
+            Some(fut) => std::future::poll_fn(|cx| fut.as_mut().poll(cx)).await,
+            None => Err(api::Error::internal(anyhow::anyhow!(
+                "handler already completed"
+            ))),
+        };
+        self.fut = None;
+        self.info = None; // disarm
+        result
     }
 }
 
-impl Drop for PubSubSpanGuard {
+impl Drop for PubSubCancellationGuard {
     fn drop(&mut self) {
-        let Some(inner) = self.inner.take() else {
+        let Some(info) = self.info.take() else {
             return;
         };
-        log::info!("pubsub message handler was cancelled, emitting span end");
-        let duration = tokio::time::Instant::now().duration_since(inner.start);
-        let resp = model::Response {
-            request: inner.request.clone(),
-            duration,
-            data: ResponseData::PubSub(Err(api::Error {
-                code: api::ErrCode::Canceled,
-                message: "request canceled".to_string(),
-                internal_message: Some(
-                    "pubsub message handler was cancelled before completion".to_string(),
-                ),
-                details: None,
-                stack: None,
-            })),
-        };
-        inner.tracer.request_span_end(&resp, false);
+        if let Some(fut) = self.fut.take() {
+            tokio::spawn(async move {
+                let result = fut.await;
+                let duration = tokio::time::Instant::now().duration_since(info.start);
+                let resp = model::Response {
+                    request: info.request,
+                    duration,
+                    data: ResponseData::PubSub(result),
+                };
+                info.tracer.request_span_end(&resp, false);
+            });
+        }
     }
 }
 
@@ -235,7 +240,9 @@ impl SubHandler {
     pub(super) fn handle_message(
         &self,
         msg: Message,
-    ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + 'static>> {
+        let obj = self.obj.clone();
+        let next_handler = self.next_handler();
         Box::pin(async move {
             let span = SpanKey(TraceId::generate(), SpanId::generate());
 
@@ -252,14 +259,12 @@ impl SubHandler {
                 .attrs
                 .get(ATTR_FORCE_TRACE)
                 .is_some_and(|s| s == "true")
-                || self.obj.tracer.should_sample_pubsub(
-                    &self.obj.service,
-                    &self.obj.topic,
-                    &self.obj.subscription,
-                );
+                || obj
+                    .tracer
+                    .should_sample_pubsub(&obj.service, &obj.topic, &obj.subscription);
 
             let mut de = serde_json::Deserializer::from_slice(&msg.data.raw_body);
-            let parsed_payload = self.obj.schema.deserialize(
+            let parsed_payload = obj.schema.deserialize(
                 &mut de,
                 jsonschema::DecodeConfig {
                     coerce_strings: false,
@@ -290,9 +295,9 @@ impl SubHandler {
                 start,
                 start_time,
                 data: RequestData::PubSub(PubSubRequestData {
-                    service: self.obj.service.clone(),
-                    topic: self.obj.topic.clone(),
-                    subscription: self.obj.subscription.clone(),
+                    service: obj.service.clone(),
+                    topic: obj.topic.clone(),
+                    subscription: obj.subscription.clone(),
                     message_id: msg.id.to_string(),
                     published: msg.publish_time.unwrap_or_else(Utc::now),
                     attempt: msg.attempt,
@@ -305,33 +310,39 @@ impl SubHandler {
             let logger = crate::log::root();
             logger.info(Some(&req), "starting request", None);
 
-            self.obj.tracer.request_span_start(&req, false);
-            let mut span_guard = PubSubSpanGuard {
-                inner: Some(PubSubSpanGuardInner {
-                    tracer: self.obj.tracer.clone(),
+            obj.tracer.request_span_start(&req, false);
+
+            // Build the handler future and wrap it in a HandlerCall so the
+            // cancellation guard can spawn it into a background task if
+            // this future is cancelled.
+            let handler_fut: Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send>> =
+                if let Some(parse_error) = parse_error {
+                    Box::pin(std::future::ready(Err(parse_error)))
+                } else {
+                    next_handler.handle_message(req.clone())
+                };
+
+            let mut guard = PubSubCancellationGuard {
+                fut: Some(handler_fut),
+                info: Some(PubSubCancellationGuardInfo {
+                    tracer: obj.tracer.clone(),
                     request: req.clone(),
                     start,
                 }),
             };
 
-            let result = {
-                // If we have a parse error, use that as the result immediately.
-                if let Some(parse_error) = parse_error {
-                    Err(parse_error)
-                } else {
-                    let handler = self.next_handler();
-                    handler.handle_message(req.clone()).await
-                }
-            };
+            let result = guard.run().await;
+
+            let duration = tokio::time::Instant::now().duration_since(start);
 
             logger.info(Some(&req), "request completed", None);
 
             let resp = model::Response {
                 request: req,
-                duration: tokio::time::Instant::now().duration_since(start),
+                duration,
                 data: ResponseData::PubSub(result.clone()),
             };
-            span_guard.finish(&resp);
+            obj.tracer.request_span_end(&resp, false);
             result
         })
     }
