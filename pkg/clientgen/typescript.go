@@ -797,12 +797,14 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		if isSetCookie {
 			// In browsers Set-Cookie is a forbidden response header,
 			// so we can only read it in non-browser environments.
+			// Use getSetCookie() which correctly returns individual cookie values
+			// without joining them like .get() does.
 			w.WriteString("if (!BROWSER) {\n")
 			inner := w.Indent()
 			if headerField.Type.GetList() != nil {
 				inner.WriteStringf("%s = resp.headers.getSetCookie()\n", ts.Dot("rtn", headerField.SrcName))
 			} else {
-				fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
+				fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.getSetCookie()[0])", headerField.WireFormat)
 				inner.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 			}
 			w.WriteString("}\n")

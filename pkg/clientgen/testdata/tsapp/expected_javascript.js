@@ -175,7 +175,7 @@ class SvcServiceClient {
         //Populate the return object from the JSON body and received headers
         const rtn = await resp.json()
         if (!BROWSER) {
-            rtn.token = mustBeSet("Header `set-cookie`", resp.headers.get("set-cookie"))
+            rtn.token = mustBeSet("Header `set-cookie`", resp.headers.getSetCookie()[0])
         }
         return rtn
     }

@@ -536,7 +536,7 @@ export namespace svc {
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as ResponseWithSingleSetCookie
             if (!BROWSER) {
-                rtn.SetCookie = mustBeSet("Header `set-cookie`", resp.headers.get("set-cookie"))
+                rtn.SetCookie = mustBeSet("Header `set-cookie`", resp.headers.getSetCookie()[0])
             }
             return rtn
         }

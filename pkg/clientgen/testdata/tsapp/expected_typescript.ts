@@ -306,7 +306,7 @@ export namespace svc {
     token: string
 }
             if (!BROWSER) {
-                rtn.token = mustBeSet("Header `set-cookie`", resp.headers.get("set-cookie"))
+                rtn.token = mustBeSet("Header `set-cookie`", resp.headers.getSetCookie()[0])
             }
             return rtn
         }

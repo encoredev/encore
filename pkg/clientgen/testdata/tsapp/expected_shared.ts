@@ -242,7 +242,7 @@ export namespace svc {
             //Populate the return object from the JSON body and received headers
             const rtn = JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_svc_svc_singleSetCookie>
             if (!BROWSER) {
-                rtn.token = mustBeSet("Header `set-cookie`", resp.headers.get("set-cookie"))
+                rtn.token = mustBeSet("Header `set-cookie`", resp.headers.getSetCookie()[0])
             }
             return rtn
         }

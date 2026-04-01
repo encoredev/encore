@@ -558,12 +558,14 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 		if isSetCookie {
 			// In browsers Set-Cookie is a forbidden response header,
 			// so we can only read it in non-browser environments.
+			// Use getSetCookie() which correctly returns individual cookie values
+			// without joining them like .get() does.
 			w.WriteString("if (!BROWSER) {\n")
 			inner := w.Indent()
 			if headerField.Type.GetList() != nil {
 				inner.WriteStringf("%s = resp.headers.getSetCookie()\n", js.Dot("rtn", headerField.SrcName))
 			} else {
-				fieldValue := fmt.Sprintf("resp.headers.get(\"%s\")", headerField.WireFormat)
+				fieldValue := "resp.headers.getSetCookie()[0]"
 				if !headerField.Optional {
 					fieldValue = fmt.Sprintf("mustBeSet(\"Header `%s`\", %s)", headerField.WireFormat, fieldValue)
 				}
