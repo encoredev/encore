@@ -321,6 +321,14 @@ export namespace svc {
         SetCookie: string[]
     }
 
+    export interface ResponseWithSingleSetCookie {
+        Message: string
+        /**
+         * single set-cookie header value
+         */
+        SetCookie: string
+    }
+
     /**
      * Tuple is a generic type which allows us to
      * return two values of two different types
@@ -356,6 +364,7 @@ export namespace svc {
             this.Rec = this.Rec.bind(this)
             this.RequestWithAllInputTypes = this.RequestWithAllInputTypes.bind(this)
             this.SetCookie = this.SetCookie.bind(this)
+            this.SingleSetCookie = this.SingleSetCookie.bind(this)
             this.TupleInputOutput = this.TupleInputOutput.bind(this)
             this.Webhook = this.Webhook.bind(this)
             this.Webhook2 = this.Webhook2.bind(this)
@@ -511,6 +520,23 @@ export namespace svc {
             rtn.HeaderSlice = [mustBeSet("Header `slice`", resp.headers.get("slice"))]
             if (!BROWSER) {
                 rtn.SetCookie = resp.headers.getSetCookie()
+            }
+            return rtn
+        }
+
+        public async SingleSetCookie(params: GetRequest): Promise<ResponseWithSingleSetCookie> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                boo: String(params.Baz),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI("POST", `/svc.SingleSetCookie`, undefined, {query})
+
+            //Populate the return object from the JSON body and received headers
+            const rtn = await resp.json() as ResponseWithSingleSetCookie
+            if (!BROWSER) {
+                rtn.SetCookie = mustBeSet("Header `set-cookie`", resp.headers.get("set-cookie"))
             }
             return rtn
         }
