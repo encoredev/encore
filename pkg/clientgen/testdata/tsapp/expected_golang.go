@@ -153,11 +153,19 @@ type SvcClient interface {
 	// Imported tests the usage of imported types
 	// and this comment is also multiline.
 	Imported(ctx context.Context, params Common_StuffImportedRequest) (Common_StuffImportedResponse, error)
+	MultiSetCookie(ctx context.Context) (struct {
+		Message string
+		Tokens  []string `header:"set-cookie"`
+	}, error)
 	NoTypes(ctx context.Context) error
 	OnlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (Common_StuffImportedResponse, error)
 
 	// Root is a basic POST endpoint.
 	Root(ctx context.Context, params SvcRequest) error
+	SingleSetCookie(ctx context.Context) (struct {
+		Message string
+		Token   string `header:"set-cookie"`
+	}, error)
 }
 
 type svcClient struct {
@@ -264,6 +272,37 @@ func (c *svcClient) Imported(ctx context.Context, params Common_StuffImportedReq
 	return
 }
 
+func (c *svcClient) MultiSetCookie(ctx context.Context) (resp struct {
+	Message string
+	Tokens  []string `header:"set-cookie"`
+}, err error) {
+	// We only want the response body to marshal into these fields and none of the header fields,
+	// so we'll construct a new struct with only those fields.
+	respBody := struct {
+		Message string `json:"message"`
+	}{}
+
+	// Now make the actual call to the API
+	var respHeaders http.Header
+	respHeaders, err = callAPI(ctx, c.base, "POST", "/multi-set-cookie", nil, nil, &respBody)
+	if err != nil {
+		return
+	}
+
+	// Copy the unmarshalled response body into our response struct
+	respDecoder := &serde{}
+
+	resp.tokens = respDecoder.ToStringList("tokens", respHeaders.Values("set-cookie"), true)
+	resp.message = respBody.message
+
+	if respDecoder.LastError != nil {
+		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
+		return
+	}
+
+	return
+}
+
 func (c *svcClient) NoTypes(ctx context.Context) error {
 	_, err := callAPI(ctx, c.base, "POST", "/type-less", nil, nil, nil)
 	return err
@@ -310,6 +349,37 @@ func (c *svcClient) Root(ctx context.Context, params SvcRequest) error {
 
 	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/?%s", queryString.Encode()), headers, body, nil)
 	return err
+}
+
+func (c *svcClient) SingleSetCookie(ctx context.Context) (resp struct {
+	Message string
+	Token   string `header:"set-cookie"`
+}, err error) {
+	// We only want the response body to marshal into these fields and none of the header fields,
+	// so we'll construct a new struct with only those fields.
+	respBody := struct {
+		Message string `json:"message"`
+	}{}
+
+	// Now make the actual call to the API
+	var respHeaders http.Header
+	respHeaders, err = callAPI(ctx, c.base, "POST", "/single-set-cookie", nil, nil, &respBody)
+	if err != nil {
+		return
+	}
+
+	// Copy the unmarshalled response body into our response struct
+	respDecoder := &serde{}
+
+	resp.token = respDecoder.ToString("token", respHeaders.Get("set-cookie"), true)
+	resp.message = respBody.message
+
+	if respDecoder.LastError != nil {
+		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
+		return
+	}
+
+	return
 }
 
 type Common_StuffImportedRequest struct {
@@ -714,6 +784,25 @@ func (e *serde) FromBoolList(s []bool) (v []string) {
 	e.NonEmptyValues++
 	for _, x := range s {
 		v = append(v, e.FromBool(x))
+	}
+	return v
+}
+
+func (e *serde) ToString(field string, s string, required bool) (v string) {
+	if !required && s == "" {
+		return
+	}
+	e.NonEmptyValues++
+	return s
+}
+
+func (e *serde) ToStringList(field string, s []string, required bool) (v []string) {
+	if !required && len(s) == 0 {
+		return
+	}
+	e.NonEmptyValues++
+	for _, x := range s {
+		v = append(v, e.ToString(field, x, required))
 	}
 	return v
 }

@@ -378,6 +378,48 @@
         "summary": "Imported tests the usage of imported types\n"
       }
     },
+    "/multi-set-cookie": {
+      "post": {
+        "operationId": "POST:svc.multiSetCookie",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success response",
+            "headers": {
+              "set-cookie": {
+                "allowEmptyValue": true,
+                "explode": true,
+                "required": true,
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "style": "simple"
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
     "/path/{pathParam}/{pathParam2}": {
       "post": {
         "operationId": "POST:svc.onlyPathParams",
@@ -423,6 +465,45 @@
               }
             },
             "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
+    "/single-set-cookie": {
+      "post": {
+        "operationId": "POST:svc.singleSetCookie",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success response",
+            "headers": {
+              "set-cookie": {
+                "allowEmptyValue": true,
+                "explode": true,
+                "required": true,
+                "schema": {
+                  "type": "string"
+                },
+                "style": "simple"
+              }
+            }
           },
           "default": {
             "$ref": "#/components/responses/APIError"
