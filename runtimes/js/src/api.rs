@@ -1,6 +1,6 @@
 use crate::error::coerce_to_api_error;
 use crate::headers::parse_header_map;
-use crate::napi_util::{await_promise, PromiseHandler};
+use crate::napi_util::{await_promise, call_function, CallError, PromiseHandler};
 use crate::pvalue::{
     encode_auth_payload, encode_request_payload, parse_pvalues, pvalues_or_null,
     transform_pvalues_response,
@@ -229,15 +229,18 @@ fn typed_resolve_on_js_thread(ctx: ThreadSafeCallContext<TypedRequestMessage>) -
     let handler = APIPromiseHandler {
         resp_schema: ctx.value.resp_schema,
     };
-    match ctx.callback.unwrap().call(None, &[req]) {
+    match call_function(ctx.env, &ctx.callback.unwrap(), None, &[req]) {
         Ok(result) => {
             await_promise(ctx.env, result, ctx.value.tx.clone(), handler);
-            Ok(())
         }
-        Err(err) => {
+        Err(CallError::Exception(exception)) => {
+            let res = handler.reject(ctx.env, exception);
+            _ = ctx.value.tx.send(res);
+        }
+        Err(CallError::Error(err)) => {
             let res = handler.error(ctx.env, err);
             _ = ctx.value.tx.send(res);
-            Ok(())
         }
     }
+    Ok(())
 }
