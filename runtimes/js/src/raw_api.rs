@@ -17,7 +17,7 @@ use encore_runtime_core::api::{self, ToResponse};
 
 use crate::api::Request;
 use crate::error::coerce_to_api_error;
-use crate::napi_util::{await_promise, PromiseHandler};
+use crate::napi_util::{await_promise, call_function, CallError, PromiseHandler};
 use crate::stream;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
@@ -466,17 +466,20 @@ fn raw_resolve_on_js_thread(ctx: ThreadSafeCallContext<RawRequestMessage>) -> na
     let body = body.as_object(ctx.env);
 
     let handler = RawPromiseHandler;
-    match ctx.callback.unwrap().call(None, &[req, resp, body]) {
+    match call_function(ctx.env, &ctx.callback.unwrap(), None, &[req, resp, body]) {
         Ok(result) => {
             await_promise(ctx.env, result, ctx.value.err_tx.clone(), handler);
-            Ok(())
         }
-        Err(err) => {
+        Err(CallError::Exception(exception)) => {
+            let res = handler.reject(ctx.env, exception);
+            _ = ctx.value.err_tx.send(res);
+        }
+        Err(CallError::Error(err)) => {
             let res = handler.error(ctx.env, err);
             _ = ctx.value.err_tx.send(res);
-            Ok(())
         }
     }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -1,6 +1,5 @@
 use crate::api::{APIPromiseHandler, Request};
-use crate::napi_util::await_promise;
-use crate::napi_util::PromiseHandler;
+use crate::napi_util::{await_promise, call_function, CallError, PromiseHandler};
 use crate::pvalue::{parse_pvalues, PVals};
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
@@ -237,15 +236,18 @@ fn ws_resolve_on_js_thread(ctx: ThreadSafeCallContext<WsRequestMessage>) -> napi
 
     let handler = APIPromiseHandler { resp_schema: None };
 
-    match ctx.callback.unwrap().call(None, &[req, stream_arg]) {
+    match call_function(ctx.env, &ctx.callback.unwrap(), None, &[req, stream_arg]) {
         Ok(result) => {
             await_promise(ctx.env, result, ctx.value.tx.clone(), handler);
-            Ok(())
         }
-        Err(err) => {
+        Err(CallError::Exception(exception)) => {
+            let res = handler.reject(ctx.env, exception);
+            _ = ctx.value.tx.send(res);
+        }
+        Err(CallError::Error(err)) => {
             let res = handler.error(ctx.env, err);
             _ = ctx.value.tx.send(res);
-            Ok(())
         }
     }
+    Ok(())
 }
