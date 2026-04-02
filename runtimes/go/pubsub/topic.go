@@ -31,7 +31,7 @@ type Topic[T any] struct {
 	publishLimiter limiter.Limiter
 }
 
-func newTopic[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
+func newTopic2[T any](mgr *Manager, name string, cfg TopicConfig) *Topic[T] {
 	if mgr.static.Testing {
 		return &Topic[T]{
 			appCfg:         cfg,
