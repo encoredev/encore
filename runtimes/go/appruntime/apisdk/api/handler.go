@@ -296,15 +296,16 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 		return
 	}
 
+	if err := runValidate(payload); err != nil {
+		beginErr = err
+		return
+	}
+
 	return reqData, nil
 }
 
 // handleIncoming executes the given handler, running middleware in the process.
 func (d *Desc[Req, Resp]) handleIncoming(c IncomingContext, reqData Req) (resp *model.Response, respData Resp) {
-	if err := d.validate(reqData); err != nil {
-		return newErrResp(err, 0), respData
-	}
-
 	var respCapturer *rawResponseCapturer
 
 	invokeHandler := func(mwReq middleware.Request) (mwResp middleware.Response) {
