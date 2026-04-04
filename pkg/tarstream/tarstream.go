@@ -171,7 +171,7 @@ func Validate(r io.Reader) (*tar.Header, error) {
 	// hopefully thats what we want here
 	hdr, err := tr.Next()
 	if err != nil {
-		return &tar.Header{}, errors.Wrap(err, fmt.Sprintf("read header"))
+		return &tar.Header{}, errors.Wrap(err, "read header")
 	}
 	return hdr, nil
 }

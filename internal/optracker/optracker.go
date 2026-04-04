@@ -52,7 +52,7 @@ func (t *OpTracker) AllDone() {
 	defer t.mu.Unlock()
 
 	// If we've already quit, don't do anything
-	if t.quit == true {
+	if t.quit {
 		return
 	}
 
