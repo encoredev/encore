@@ -9,7 +9,7 @@ use tower_service::Service;
 
 use crate::{encore::parser::meta::v1 as meta, model::RequestData};
 
-use super::{BoxedHandler, Error, HandlerCall, HandlerRequest, ResponseData};
+use super::{BoxedHandler, Error, HandlerRequest, ResponseData};
 
 #[derive(Clone, Debug)]
 pub struct StaticAssetsHandler {
@@ -72,8 +72,11 @@ impl StaticAssetsHandler {
 }
 
 impl BoxedHandler for StaticAssetsHandler {
-    fn call(self: Arc<Self>, req: HandlerRequest) -> HandlerCall {
-        HandlerCall::inline(Box::pin(async move {
+    fn call(
+        self: Arc<Self>,
+        req: HandlerRequest,
+    ) -> Pin<Box<dyn Future<Output = ResponseData> + Send + 'static>> {
+        Box::pin(async move {
             let RequestData::RPC(data) = &req.data else {
                 return ResponseData::Typed(Err(Error::internal(anyhow::anyhow!(
                     "invalid request data type"
@@ -166,7 +169,7 @@ impl BoxedHandler for StaticAssetsHandler {
                 }
                 Err(e) => ResponseData::Typed(Err(Error::internal(e))),
             }
-        }))
+        })
     }
 }
 

@@ -46,7 +46,7 @@ var (
 func init() {
 	initAppCmd := &cobra.Command{
 		Use:   "init [name]",
-		Short: "Register an existing local repo as a new app on Encore Cloud",
+		Short: "Create a new Encore app from an existing repository",
 		Args:  cobra.MaximumNArgs(1),
 
 		DisableFlagsInUseLine: true,

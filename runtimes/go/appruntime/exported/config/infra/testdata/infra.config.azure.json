@@ -1,0 +1,49 @@
+{
+  "$schema": "https://encore.dev/schemas/infra.schema.json",
+  "metadata": {
+    "app_id": "my-azure-app",
+    "env_name": "my-env",
+    "env_type": "production",
+    "cloud": "azure",
+    "base_url": "https://my-azure-app.com"
+  },
+  "auth": [
+    {
+      "type": "key",
+      "id": 1,
+      "key": {"$env": "SVC_TO_SVC_KEY"}
+    }
+  ],
+  "pubsub": [
+    {
+      "type": "azure_service_bus",
+      "namespace": "my-servicebus-namespace",
+      "topics": {
+        "encore-topic": {
+          "name": "azure-topic-name",
+          "subscriptions": {
+            "encore-subscription": {
+              "name": "azure-subscription-name"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "object_storage": [
+    {
+      "type": "azure_blob",
+      "storage_account": "mystorageaccount",
+      "storage_key": {"$env": "AZURE_STORAGE_KEY"},
+      "buckets": {
+        "my-bucket": {
+          "name": "azure-container-name",
+          "key_prefix": "prefix/",
+          "public_base_url": ""
+        }
+      }
+    }
+  ],
+  "hosted_services": ["my-service"],
+  "hosted_gateways": []
+}

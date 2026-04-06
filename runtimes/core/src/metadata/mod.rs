@@ -3,11 +3,13 @@ use std::collections::HashMap;
 use crate::{
     encore::runtime::v1::{environment::Cloud, Environment},
     metadata::aws::AwsMetadataClient,
+    metadata::azure::AzureMetadataClient,
 };
 use anyhow::Context;
 use tokio::sync::OnceCell;
 
 mod aws;
+mod azure;
 mod gce;
 
 #[derive(Debug)]
@@ -66,7 +68,8 @@ impl ContainerMetadata {
         match env.cloud() {
             Cloud::Gcp | Cloud::Encore => Self::collect_gcp(env, http_client).await,
             Cloud::Aws => Self::collect_aws(env, http_client).await,
-            Cloud::Azure | Cloud::Unspecified | Cloud::Local => anyhow::bail!(
+            Cloud::Azure => Self::collect_azure(env, http_client).await,
+            Cloud::Local | Cloud::Unspecified => anyhow::bail!(
                 "can't collect container meta in {}",
                 env.cloud().as_str_name()
             ),
@@ -138,6 +141,24 @@ impl ContainerMetadata {
             service_id: service,
             revision_id: revision,
             instance_id,
+            env_name: env.env_name.clone(),
+        })
+    }
+
+    async fn collect_azure(
+        env: &Environment,
+        http_client: &reqwest::Client,
+    ) -> anyhow::Result<Self> {
+        let client = AzureMetadataClient::new(http_client.clone());
+        let meta = client
+            .fetch_instance_meta()
+            .await
+            .context("fetch Azure IMDS metadata")?;
+
+        Ok(Self {
+            service_id: meta.compute.resource_group_name,
+            revision_id: meta.compute.location,
+            instance_id: meta.compute.vm_id,
             env_name: env.env_name.clone(),
         })
     }

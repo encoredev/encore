@@ -63,6 +63,7 @@ type Runtime struct {
 	BucketProviders  []*BucketProvider       `json:"bucket_providers,omitempty"`
 	Buckets          map[string]*Bucket      `json:"buckets,omitempty"`
 	Metrics          *Metrics                `json:"metrics,omitempty"`
+	SecretsProvider  *SecretsProvider        `json:"secrets_provider,omitempty"`
 	Gateways         []Gateway               `json:"gateways,omitempty"`          // Gateways defines the gateways which should be served by the container
 	HostedServices   []string                `json:"hosted_services,omitempty"`   // List of services to be hosted within this container (zero length means all services, unless there's a gateway running)
 	ServiceDiscovery map[string]Service      `json:"service_discovery,omitempty"` // ServiceDiscovery lists where all the services are being hosted if not in this container
@@ -410,8 +411,9 @@ type RedisDatabase struct {
 }
 
 type BucketProvider struct {
-	S3  *S3BucketProvider  `json:"s3,omitempty"`  // set if the provider is S3
-	GCS *GCSBucketProvider `json:"gcs,omitempty"` // set if the provider is GCS
+	S3        *S3BucketProvider        `json:"s3,omitempty"`         // set if the provider is S3
+	GCS       *GCSBucketProvider       `json:"gcs,omitempty"`        // set if the provider is GCS
+	AzureBlob *AzureBlobBucketProvider `json:"azure_blob,omitempty"` // set if the provider is Azure Blob Storage
 }
 
 type S3BucketProvider struct {
@@ -440,6 +442,27 @@ type GCSLocalSignOptions struct {
 	PrivateKey string `json:"private_key"`
 }
 
+// AzureBlobBucketProvider configures Azure Blob Storage as the bucket provider.
+//
+// NOTE: This config type is not yet present in infra.proto; it is modeled after
+// the S3BucketProvider and GCSBucketProvider structs above. When proto support
+// is added, this struct should be updated to match the generated config.
+type AzureBlobBucketProvider struct {
+	// StorageAccount is the name of the Azure storage account.
+	StorageAccount string `json:"storage_account"`
+
+	// ConnectionString is the Azure Blob Storage connection string.
+	// If set, it takes precedence over StorageAccount + StorageKey.
+	// The account name and key embedded in the connection string are also
+	// used to generate SAS URLs when no separate StorageKey is provided.
+	ConnectionString *string `json:"connection_string,omitempty"`
+
+	// StorageKey is the Azure storage account key for SharedKey authentication.
+	// If nil and ConnectionString is nil, DefaultAzureCredential (managed identity) is used.
+	// A non-nil StorageKey is required for generating signed (SAS) URLs.
+	StorageKey *string `json:"storage_key,omitempty"`
+}
+
 type Bucket struct {
 	ProviderID int    `json:"cluster_id"`  // the index into (*Runtime).BucketProviders
 	EncoreName string `json:"encore_name"` // the Encore name for the bucket
@@ -459,6 +482,7 @@ type Metrics struct {
 	LogsBased          *LogsBasedMetricsProvider      `json:"logs_based,omitempty"`
 	Prometheus         *PrometheusRemoteWriteProvider `json:"prometheus,omitempty"`
 	Datadog            *DatadogProvider               `json:"datadog,omitempty"`
+	AzureMonitor       *AzureMonitorMetricsProvider   `json:"azure_monitor,omitempty"`
 }
 
 type GCPCloudMonitoringProvider struct {
@@ -494,6 +518,37 @@ type DatadogProvider struct {
 }
 
 type LogsBasedMetricsProvider struct{}
+
+// AzureMonitorMetricsProvider configures the Azure Monitor custom metrics exporter.
+// See https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/metrics-custom-overview
+type AzureMonitorMetricsProvider struct {
+	// Location is the Azure region of the target resource (e.g. "eastus").
+	Location string `json:"location"`
+	// SubscriptionID is the Azure subscription ID that owns the resource.
+	SubscriptionID string `json:"subscription_id"`
+	// ResourceGroup is the resource group containing the target resource.
+	ResourceGroup string `json:"resource_group"`
+	// ResourceNamespace is the resource provider namespace and type
+	// (e.g. "Microsoft.ContainerInstance/containerGroups").
+	ResourceNamespace string `json:"resource_namespace"`
+	// ResourceName is the name of the target resource.
+	ResourceName string `json:"resource_name"`
+	// Namespace is the custom metrics namespace written to Azure Monitor.
+	Namespace string `json:"namespace"`
+}
+
+// SecretsProvider configures a remote provider from which secrets are fetched at runtime.
+type SecretsProvider struct {
+	AzureKeyVault *AzureKeyVaultSecretsProvider `json:"azure_key_vault,omitempty"`
+}
+
+// AzureKeyVaultSecretsProvider configures Azure Key Vault as the source for runtime secrets.
+// Secret names in the Encore app map directly to secret names in the vault.
+// Authentication uses DefaultAzureCredential (managed identity in production, Azure CLI locally).
+type AzureKeyVaultSecretsProvider struct {
+	// VaultURL is the base URL of the Azure Key Vault, e.g. "https://my-vault.vault.azure.net/".
+	VaultURL string `json:"vault_url"`
+}
 
 // Limiter represents a rate limiter that can be used for certain types of operations
 //

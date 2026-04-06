@@ -18,6 +18,7 @@ mod gcs;
 mod manager;
 mod noop;
 mod s3;
+mod azblob;
 
 trait ClusterImpl: Debug + Send + Sync {
     fn bucket(self: Arc<Self>, cfg: &pb::Bucket) -> Arc<dyn BucketImpl + 'static>;

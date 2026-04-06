@@ -323,6 +323,7 @@ message BucketCluster {
   oneof provider {
     S3 s3 = 10;
     GCS gcs = 11;
+    AzBlob az_blob = 12;
   }
 
   message S3 {
@@ -336,6 +337,23 @@ message BucketCluster {
     // as opposed to resolving using AWS's default credential chain.
     optional string access_key_id = 3;
     optional SecretData secret_access_key = 4;
+  }
+
+  // AzBlob configures Azure Blob Storage as the bucket provider.
+  message AzBlob {
+    // The name of the Azure storage account.
+    string storage_account = 1;
+
+    // Connection string for authentication.
+    // If set, it takes precedence over storage_account + storage_key.
+    // The account name and key embedded in the connection string are also
+    // used to generate SAS URLs when no separate storage_key is provided.
+    optional string connection_string = 2;
+
+    // Azure storage account key for SharedKey authentication.
+    // If nil and connection_string is nil, DefaultAzureCredential is used.
+    // Required for generating signed (SAS) URLs.
+    optional SecretData storage_key = 3;
   }
 
   message GCS {

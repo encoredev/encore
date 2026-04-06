@@ -5,7 +5,7 @@ use axum::extract::ws::{Message, WebSocket};
 use futures::Future;
 use tokio::sync::{
     mpsc::{self, UnboundedReceiver, UnboundedSender},
-    oneshot, watch,
+    watch,
 };
 
 use crate::model::{self, Request, RequestData};
@@ -23,7 +23,7 @@ pub fn upgrade_request<C, Fut>(
     callback: C,
 ) -> APIResult<axum::response::Response>
 where
-    C: FnOnce(Arc<Request>, StreamMessagePayload, oneshot::Sender<HandlerResponse>) -> Fut
+    C: FnOnce(Arc<Request>, StreamMessagePayload, UnboundedSender<HandlerResponse>) -> Fut
         + Send
         + 'static,
     Fut: Future<Output = ()> + Send + 'static,
@@ -59,7 +59,7 @@ where
         }
     };
 
-    let (tx, rx) = oneshot::channel::<HandlerResponse>();
+    let (tx, mut rx) = mpsc::unbounded_channel::<HandlerResponse>();
 
     let direction = data.direction;
     Ok(upgrade
@@ -74,8 +74,8 @@ where
                     let (sink, stream) = socket.split();
 
                     tokio::spawn(async move {
-                        match rx.await {
-                            Ok(resp) => match resp {
+                        match rx.recv().await {
+                            Some(resp) => match resp {
                                 Ok(HandlerResponseInner {
                                     payload: Some(resp),
                                     ..
@@ -89,7 +89,7 @@ where
                                 }
                                 Err(err) => log::warn!("responded with error: {err:?}"),
                             },
-                            Err(_) => log::debug!("response channel closed"),
+                            None => log::debug!("response channel closed"),
                         };
                     });
 

@@ -1,0 +1,171 @@
+name: Squad Heartbeat (Ralph)
+# ⚠️ SYNC: This workflow is maintained in 4 locations. Changes must be applied to all:
+#   - templates/workflows/squad-heartbeat.yml (source template)
+#   - packages/squad-cli/templates/workflows/squad-heartbeat.yml (CLI package)
+#   - .squad/templates/workflows/squad-heartbeat.yml (installed template)
+#   - .github/workflows/squad-heartbeat.yml (active workflow)
+# Run 'squad upgrade' to sync installed copies from source templates.
+
+on:
+  schedule:
+    # Every 30 minutes — adjust via cron expression as needed
+    - cron: '*/30 * * * *'
+
+  # React to completed work or new squad work
+  issues:
+    types: [closed, labeled]
+  pull_request:
+    types: [closed]
+
+  # Manual trigger
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check triage script
+        id: check-script
+        run: |
+          if [ -f ".squad/templates/ralph-triage.js" ]; then
+            echo "has_script=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_script=false" >> $GITHUB_OUTPUT
+            echo "⚠️ ralph-triage.js not found — run 'squad upgrade' to install"
+          fi
+
+      - name: Ralph — Smart triage
+        if: steps.check-script.outputs.has_script == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node .squad/templates/ralph-triage.js \
+            --squad-dir .squad \
+            --output triage-results.json
+
+      - name: Ralph — Apply triage decisions
+        if: steps.check-script.outputs.has_script == 'true' && hashFiles('triage-results.json') != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'triage-results.json';
+            if (!fs.existsSync(path)) {
+              core.info('No triage results — board is clear');
+              return;
+            }
+            
+            const results = JSON.parse(fs.readFileSync(path, 'utf8'));
+            if (results.length === 0) {
+              core.info('📋 Board is clear — Ralph found no untriaged issues');
+              return;
+            }
+            
+            for (const decision of results) {
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: decision.issueNumber,
+                  labels: [decision.label]
+                });
+                
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: decision.issueNumber,
+                  body: [
+                    '### 🔄 Ralph — Auto-Triage',
+                    '',
+                    `**Assigned to:** ${decision.assignTo}`,
+                    `**Reason:** ${decision.reason}`,
+                    `**Source:** ${decision.source}`,
+                    '',
+                    '> Ralph auto-triaged this issue using routing rules.',
+                    '> To reassign, swap the `squad:*` label.'
+                  ].join('\n')
+                });
+                
+                core.info(`Triaged #${decision.issueNumber} → ${decision.assignTo} (${decision.source})`);
+              } catch (e) {
+                core.warning(`Failed to triage #${decision.issueNumber}: ${e.message}`);
+              }
+            }
+            
+            core.info(`🔄 Ralph triaged ${results.length} issue(s)`);
+
+      # Copilot auto-assign step (uses PAT if available)
+      - name: Ralph — Assign @copilot issues
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.COPILOT_ASSIGN_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            let teamFile = '.squad/team.md';
+            if (!fs.existsSync(teamFile)) {
+              teamFile = '.ai-team/team.md';
+            }
+            if (!fs.existsSync(teamFile)) return;
+
+            const content = fs.readFileSync(teamFile, 'utf8');
+
+            // Check if @copilot is on the team with auto-assign
+            const hasCopilot = content.includes('🤖 Coding Agent') || content.includes('@copilot');
+            const autoAssign = content.includes('<!-- copilot-auto-assign: true -->');
+            if (!hasCopilot || !autoAssign) return;
+
+            // Find issues labeled squad:copilot with no assignee
+            try {
+              const { data: copilotIssues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'squad:copilot',
+                state: 'open',
+                per_page: 5
+              });
+
+              const unassigned = copilotIssues.filter(i =>
+                !i.assignees || i.assignees.length === 0
+              );
+
+              if (unassigned.length === 0) {
+                core.info('No unassigned squad:copilot issues');
+                return;
+              }
+
+              // Get repo default branch
+              const { data: repoData } = await github.rest.repos.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+
+              for (const issue of unassigned) {
+                try {
+                  await github.request('POST /repos/{owner}/{repo}/issues/{issue_number}/assignees', {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    assignees: ['copilot-swe-agent[bot]'],
+                    agent_assignment: {
+                      target_repo: `${context.repo.owner}/${context.repo.repo}`,
+                      base_branch: repoData.default_branch,
+                      custom_instructions: `Read .squad/team.md (or .ai-team/team.md) for team context and .squad/routing.md (or .ai-team/routing.md) for routing rules.`
+                    }
+                  });
+                  core.info(`Assigned copilot-swe-agent[bot] to #${issue.number}`);
+                } catch (e) {
+                  core.warning(`Failed to assign @copilot to #${issue.number}: ${e.message}`);
+                }
+              }
+            } catch (e) {
+              core.info(`No squad:copilot label found or error: ${e.message}`);
+            }

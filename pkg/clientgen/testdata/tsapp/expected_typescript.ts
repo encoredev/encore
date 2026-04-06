@@ -166,11 +166,9 @@ export namespace svc {
             this.cookiesOnly = this.cookiesOnly.bind(this)
             this.dummy = this.dummy.bind(this)
             this.imported = this.imported.bind(this)
-            this.multiSetCookie = this.multiSetCookie.bind(this)
             this.noTypes = this.noTypes.bind(this)
             this.onlyPathParams = this.onlyPathParams.bind(this)
             this.root = this.root.bind(this)
-            this.singleSetCookie = this.singleSetCookie.bind(this)
         }
 
         public async cookieDummy(params: Request): Promise<{
@@ -240,24 +238,6 @@ export namespace svc {
             return await resp.json() as common_stuff.ImportedResponse
         }
 
-        public async multiSetCookie(): Promise<{
-    message: string
-    tokens: string[]
-}> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/multi-set-cookie`)
-
-            //Populate the return object from the JSON body and received headers
-            const rtn = await resp.json() as {
-    message: string
-    tokens: string[]
-}
-            if (!BROWSER) {
-                rtn.tokens = resp.headers.getSetCookie()
-            }
-            return rtn
-        }
-
         public async noTypes(): Promise<void> {
             await this.baseClient.callTypedAPI("POST", `/type-less`)
         }
@@ -291,24 +271,6 @@ export namespace svc {
             }
 
             await this.baseClient.callTypedAPI("POST", `/`, JSON.stringify(body), {headers, query})
-        }
-
-        public async singleSetCookie(): Promise<{
-    message: string
-    token: string
-}> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/single-set-cookie`)
-
-            //Populate the return object from the JSON body and received headers
-            const rtn = await resp.json() as {
-    message: string
-    token: string
-}
-            if (!BROWSER) {
-                rtn.token = mustBeSet("Header `set-cookie`", resp.headers.getSetCookie()[0])
-            }
-            return rtn
         }
     }
 }
@@ -346,21 +308,6 @@ function makeRecord<K extends string | number | symbol, V>(record: Record<K, V |
         }
     }
     return record as Record<K, V>
-}
-
-
-// mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
-function mustBeSet<A>(field: string, value: A | null | undefined): A {
-    if (value === null || value === undefined) {
-        throw new APIError(
-            500,
-            {
-                code: ErrCode.DataLoss,
-                message: `${field} was unexpectedly ${value}`, // ${value} will create the string "null" or "undefined"
-            },
-        )
-    }
-    return value
 }
 
 function encodeWebSocketHeaders(headers: Record<string, string>) {

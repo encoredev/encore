@@ -1386,60 +1386,6 @@
         }
       }
     },
-    "/svc.SingleSetCookie": {
-      "post": {
-        "operationId": "POST:svc.SingleSetCookie",
-        "parameters": [
-          {
-            "allowEmptyValue": true,
-            "explode": true,
-            "in": "query",
-            "name": "boo",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            },
-            "style": "form"
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "Message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "Message"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Success response",
-            "headers": {
-              "set-cookie": {
-                "allowEmptyValue": true,
-                "description": "single set-cookie header value\n",
-                "explode": true,
-                "required": true,
-                "schema": {
-                  "type": "string"
-                },
-                "style": "simple"
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          }
-        }
-      }
-    },
     "/svc.TupleInputOutput": {
       "post": {
         "description": "and this comment is also multiline, so multiline comments get tested as well.\n",

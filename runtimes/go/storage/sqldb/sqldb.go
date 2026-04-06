@@ -178,7 +178,7 @@ func (tx *Tx) QueryRow(ctx context.Context, query string, args ...interface{}) *
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
-		startEventID = curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+		curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
 			EventParams: eventParams,
 			Query:       query,
 			TxStartID:   tx.startID,

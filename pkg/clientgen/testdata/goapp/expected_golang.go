@@ -286,11 +286,6 @@ type SvcResponseWithSetCookie struct {
 	SetCookie   []string `header:"set-cookie"` // set-cookie header
 }
 
-type SvcResponseWithSingleSetCookie struct {
-	Message   string
-	SetCookie string `header:"set-cookie"` // single set-cookie header value
-}
-
 // Tuple is a generic type which allows us to
 // return two values of two different types
 type SvcTuple[A any, B any] struct {
@@ -326,7 +321,6 @@ type SvcClient interface {
 	Rec(ctx context.Context, params SvcRecursive) (SvcRecursive, error)
 	RequestWithAllInputTypes(ctx context.Context, params SvcAllInputTypes[string]) (SvcAllInputTypes[float64], error)
 	SetCookie(ctx context.Context, params SvcGetRequest) (SvcResponseWithSetCookie, error)
-	SingleSetCookie(ctx context.Context, params SvcGetRequest) (SvcResponseWithSingleSetCookie, error)
 
 	// TupleInputOutput tests the usage of generics in the client generator
 	// and this comment is also multiline, so multiline comments get tested as well.
@@ -588,44 +582,6 @@ func (c *svcClient) SetCookie(ctx context.Context, params SvcGetRequest) (resp S
 
 	resp.HeaderSlice = respDecoder.ToStringList("HeaderSlice", respHeaders.Values("slice"), true)
 	resp.SetCookie = respDecoder.ToStringList("SetCookie", respHeaders.Values("set-cookie"), true)
-	resp.Message = respBody.Message
-
-	if respDecoder.LastError != nil {
-		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
-		return
-	}
-
-	return
-}
-
-func (c *svcClient) SingleSetCookie(ctx context.Context, params SvcGetRequest) (resp SvcResponseWithSingleSetCookie, err error) {
-	// Convert our params into the objects we need for the request
-	reqEncoder := &serde{}
-
-	queryString := url.Values{"boo": {reqEncoder.FromInt(params.Baz)}}
-
-	if reqEncoder.LastError != nil {
-		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
-		return
-	}
-
-	// We only want the response body to marshal into these fields and none of the header fields,
-	// so we'll construct a new struct with only those fields.
-	respBody := struct {
-		Message string `json:"Message"`
-	}{}
-
-	// Now make the actual call to the API
-	var respHeaders http.Header
-	respHeaders, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/svc.SingleSetCookie?%s", queryString.Encode()), nil, nil, &respBody)
-	if err != nil {
-		return
-	}
-
-	// Copy the unmarshalled response body into our response struct
-	respDecoder := &serde{}
-
-	resp.SetCookie = respDecoder.ToString("SetCookie", respHeaders.Get("set-cookie"), true)
 	resp.Message = respBody.Message
 
 	if respDecoder.LastError != nil {

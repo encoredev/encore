@@ -69,16 +69,6 @@ export const cookieDummy = api(
   async (req: Request): Promise<{ cookie: Cookie<'cookie'> }> => { return { cookie: { value: "value" } } },
 );
 
-export const singleSetCookie = api(
-  { expose: true, method: "POST", path: "/single-set-cookie" },
-  async (): Promise<{ message: string, token: Header<'set-cookie'> }> => { return { message: "ok", token: "session=abc" } },
-);
-
-export const multiSetCookie = api(
-  { expose: true, method: "POST", path: "/multi-set-cookie" },
-  async (): Promise<{ message: string, tokens: Header<string[], 'set-cookie'> }> => { return { message: "ok", tokens: ["a=1", "b=2"] } },
-);
-
 export interface AuthParams {
   cookie?: Header<'Cookie'>
   token?: Header<'x-api-token'>

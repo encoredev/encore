@@ -149,3 +149,45 @@ func TestParseInfraConfigEnv(t *testing.T) {
 	// Compare the parsed runtime with the expected runtime
 	c.Assert(parsedRuntime, qt.DeepEquals, &expectedRuntime)
 }
+
+func TestParseInfraConfigEnvAzure(t *testing.T) {
+	c := qt.New(t)
+
+	parsedRuntime := parseInfraConfigEnv("infra/testdata/infra.config.azure.json")
+
+	// Azure Blob Storage bucket provider
+	c.Assert(len(parsedRuntime.BucketProviders), qt.Equals, 1)
+	c.Assert(parsedRuntime.BucketProviders[0].AzureBlob, qt.IsNotNil)
+	c.Assert(parsedRuntime.BucketProviders[0].S3, qt.IsNil)
+	c.Assert(parsedRuntime.BucketProviders[0].GCS, qt.IsNil)
+	c.Assert(parsedRuntime.BucketProviders[0].AzureBlob.StorageAccount, qt.Equals, "mystorageaccount")
+	// ConnectionString not provided, so nil
+	c.Assert(parsedRuntime.BucketProviders[0].AzureBlob.ConnectionString, qt.IsNil)
+
+	// Bucket mapped from Azure container
+	bucket, ok := parsedRuntime.Buckets["my-bucket"]
+	c.Assert(ok, qt.IsTrue)
+	c.Assert(bucket.CloudName, qt.Equals, "azure-container-name")
+	c.Assert(bucket.KeyPrefix, qt.Equals, "prefix/")
+	c.Assert(bucket.ProviderID, qt.Equals, 0)
+
+	// Azure Service Bus pubsub provider
+	c.Assert(len(parsedRuntime.PubsubProviders), qt.Equals, 1)
+	c.Assert(parsedRuntime.PubsubProviders[0].Azure, qt.IsNotNil)
+	c.Assert(parsedRuntime.PubsubProviders[0].GCP, qt.IsNil)
+	c.Assert(parsedRuntime.PubsubProviders[0].AWS, qt.IsNil)
+	c.Assert(parsedRuntime.PubsubProviders[0].Azure.Namespace, qt.Equals, "my-servicebus-namespace")
+
+	// Topic mapped from Azure Service Bus topic
+	topic, ok := parsedRuntime.PubsubTopics["encore-topic"]
+	c.Assert(ok, qt.IsTrue)
+	c.Assert(topic.ProviderName, qt.Equals, "azure-topic-name")
+	c.Assert(topic.ProviderID, qt.Equals, 0)
+
+	// Subscription mapped from Azure Service Bus subscription
+	sub, ok := topic.Subscriptions["encore-subscription"]
+	c.Assert(ok, qt.IsTrue)
+	c.Assert(sub.ProviderName, qt.Equals, "azure-subscription-name")
+	c.Assert(sub.PushOnly, qt.IsFalse)
+	c.Assert(sub.GCP, qt.IsNil)
+}

@@ -1,6 +1,6 @@
 use crate::api::Request;
 use crate::error::coerce_to_api_error;
-use crate::napi_util::{await_promise, OnceSender, PromiseHandler};
+use crate::napi_util::{await_promise, PromiseHandler};
 use crate::pvalue::parse_pvalues;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
@@ -67,8 +67,7 @@ impl api::TypedHandler for JSAuthHandler {
     ) -> Pin<Box<dyn Future<Output = api::HandlerResponse> + Send + 'static>> {
         Box::pin(async move {
             // Create a one-shot channel
-            let (tx, rx) = tokio::sync::oneshot::channel();
-            let tx = OnceSender::new(tx);
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
             // Call the handler.
             let req = Request::new(req);
@@ -78,10 +77,10 @@ impl api::TypedHandler for JSAuthHandler {
             );
 
             // Wait for a response.
-            match rx.await {
-                Ok(Ok(resp)) => Ok(resp),
-                Ok(Err(err)) => Err(err),
-                Err(_) => Err(api::Error::internal(anyhow::anyhow!(
+            match rx.recv().await {
+                Some(Ok(resp)) => Ok(resp),
+                Some(Err(err)) => Err(err),
+                None => Err(api::Error::internal(anyhow::anyhow!(
                     "handler did not respond",
                 ))),
             }
@@ -91,7 +90,7 @@ impl api::TypedHandler for JSAuthHandler {
 
 struct AuthMessage {
     req: Request,
-    tx: OnceSender<HandlerResponse>,
+    tx: tokio::sync::mpsc::UnboundedSender<HandlerResponse>,
 }
 
 fn resolve_on_js_thread(ctx: ThreadSafeCallContext<AuthMessage>) -> napi::Result<()> {
@@ -104,7 +103,7 @@ fn resolve_on_js_thread(ctx: ThreadSafeCallContext<AuthMessage>) -> napi::Result
         }
         Err(err) => {
             let res = handler.error(ctx.env, err);
-            ctx.value.tx.send(res);
+            _ = ctx.value.tx.send(res);
             Ok(())
         }
     }

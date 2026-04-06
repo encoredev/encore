@@ -19,8 +19,8 @@ use crate::model::{PubSubRequestData, RequestData, ResponseData, SpanId, SpanKey
 use crate::names::EncoreName;
 use crate::pubsub::noop::NoopCluster;
 use crate::pubsub::{
-    gcp, noop, nsq, sqs_sns, Cluster, Message, MessageData, MessageId, SubName, Subscription,
-    SubscriptionHandler, Topic,
+    azure, gcp, noop, nsq, sqs_sns, Cluster, Message, MessageData, MessageId, SubName,
+    Subscription, SubscriptionHandler, Topic,
 };
 use crate::trace::{protocol, Tracer};
 use crate::{api, model};
@@ -109,11 +109,9 @@ impl TopicInner {
                         ext_correlation_id.clone(),
                     );
                 }
-                // If this is a traced platform request, propagate the sampled flag so that
+                // If this is a platform request, propagate the sampled flag so that
                 // subscribers always trace platform-initiated messages.
-                // We check both is_platform_request and traced so that scheduled cron jobs
-                // that were sampled out don't force-trace their downstream subscribers.
-                if source.is_platform_request && source.traced {
+                if source.is_platform_request {
                     msg.attrs
                         .insert(ATTR_FORCE_TRACE.to_string(), "true".to_string());
                 }
@@ -179,55 +177,6 @@ pub struct SubHandler {
     counter: AtomicUsize,
 }
 
-type PubSubHandlerFuture = Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send>>;
-
-/// Guard that spawns the pubsub handler into a background task on cancellation,
-/// ensuring `request_span_end` is always emitted. On the normal path this is a no-op.
-struct PubSubCancellationGuard {
-    fut: Option<PubSubHandlerFuture>,
-    info: Option<PubSubCancellationGuardInfo>,
-}
-
-struct PubSubCancellationGuardInfo {
-    tracer: Tracer,
-    request: Arc<model::Request>,
-    start: tokio::time::Instant,
-}
-
-impl PubSubCancellationGuard {
-    async fn run(&mut self) -> Result<(), api::Error> {
-        let result = match self.fut.as_mut() {
-            Some(fut) => std::future::poll_fn(|cx| fut.as_mut().poll(cx)).await,
-            None => Err(api::Error::internal(anyhow::anyhow!(
-                "handler already completed"
-            ))),
-        };
-        self.fut = None;
-        self.info = None; // disarm
-        result
-    }
-}
-
-impl Drop for PubSubCancellationGuard {
-    fn drop(&mut self) {
-        let Some(info) = self.info.take() else {
-            return;
-        };
-        if let Some(fut) = self.fut.take() {
-            tokio::spawn(async move {
-                let result = fut.await;
-                let duration = tokio::time::Instant::now().duration_since(info.start);
-                let resp = model::Response {
-                    request: info.request,
-                    duration,
-                    data: ResponseData::PubSub(result),
-                };
-                info.tracer.request_span_end(&resp, false);
-            });
-        }
-    }
-}
-
 const ATTR_PARENT_TRACE_ID: &str = "encore_parent_trace_id";
 const ATTR_EXT_CORRELATION_ID: &str = "encore_ext_correlation_id";
 const ATTR_FORCE_TRACE: &str = "encore_force_trace";
@@ -240,9 +189,7 @@ impl SubHandler {
     pub(super) fn handle_message(
         &self,
         msg: Message,
-    ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + 'static>> {
-        let obj = self.obj.clone();
-        let next_handler = self.next_handler();
+    ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + '_>> {
         Box::pin(async move {
             let span = SpanKey(TraceId::generate(), SpanId::generate());
 
@@ -259,12 +206,14 @@ impl SubHandler {
                 .attrs
                 .get(ATTR_FORCE_TRACE)
                 .is_some_and(|s| s == "true")
-                || obj
-                    .tracer
-                    .should_sample_pubsub(&obj.service, &obj.topic, &obj.subscription);
+                || self.obj.tracer.should_sample_pubsub(
+                    &self.obj.service,
+                    &self.obj.topic,
+                    &self.obj.subscription,
+                );
 
             let mut de = serde_json::Deserializer::from_slice(&msg.data.raw_body);
-            let parsed_payload = obj.schema.deserialize(
+            let parsed_payload = self.obj.schema.deserialize(
                 &mut de,
                 jsonschema::DecodeConfig {
                     coerce_strings: false,
@@ -295,9 +244,9 @@ impl SubHandler {
                 start,
                 start_time,
                 data: RequestData::PubSub(PubSubRequestData {
-                    service: obj.service.clone(),
-                    topic: obj.topic.clone(),
-                    subscription: obj.subscription.clone(),
+                    service: self.obj.service.clone(),
+                    topic: self.obj.topic.clone(),
+                    subscription: self.obj.subscription.clone(),
                     message_id: msg.id.to_string(),
                     published: msg.publish_time.unwrap_or_else(Utc::now),
                     attempt: msg.attempt,
@@ -310,39 +259,26 @@ impl SubHandler {
             let logger = crate::log::root();
             logger.info(Some(&req), "starting request", None);
 
-            obj.tracer.request_span_start(&req, false);
+            self.obj.tracer.request_span_start(&req, false);
 
-            // Build the handler future and wrap it in a HandlerCall so the
-            // cancellation guard can spawn it into a background task if
-            // this future is cancelled.
-            let handler_fut: Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send>> =
+            let result = {
+                // If we have a parse error, use that as the result immediately.
                 if let Some(parse_error) = parse_error {
-                    Box::pin(std::future::ready(Err(parse_error)))
+                    Err(parse_error)
                 } else {
-                    next_handler.handle_message(req.clone())
-                };
-
-            let mut guard = PubSubCancellationGuard {
-                fut: Some(handler_fut),
-                info: Some(PubSubCancellationGuardInfo {
-                    tracer: obj.tracer.clone(),
-                    request: req.clone(),
-                    start,
-                }),
+                    let handler = self.next_handler();
+                    handler.handle_message(req.clone()).await
+                }
             };
-
-            let result = guard.run().await;
-
-            let duration = tokio::time::Instant::now().duration_since(start);
 
             logger.info(Some(&req), "request completed", None);
 
             let resp = model::Response {
                 request: req,
-                duration,
+                duration: tokio::time::Instant::now().duration_since(start),
                 data: ResponseData::PubSub(result.clone()),
             };
-            obj.tracer.request_span_end(&resp, false);
+            self.obj.tracer.request_span_end(&resp, false);
             result
         })
     }
@@ -588,8 +524,8 @@ fn new_cluster(cluster: &pb::PubSubCluster) -> Arc<dyn Cluster> {
         pb::pub_sub_cluster::Provider::Encore(_) => {
             log::error!("Encore Cloud Pub/Sub not yet supported: {}", cluster.rid);
         }
-        pb::pub_sub_cluster::Provider::Azure(_) => {
-            log::error!("Azure Pub/Sub not yet supported: {}", cluster.rid);
+        pb::pub_sub_cluster::Provider::Azure(cfg) => {
+            return Arc::new(azure::Cluster::new(cfg));
         }
     }
 

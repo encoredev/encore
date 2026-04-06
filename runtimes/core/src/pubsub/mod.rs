@@ -14,6 +14,7 @@ use crate::names::EncoreName;
 use crate::pubsub::manager::SubHandler;
 use crate::{api, model};
 
+mod azure;
 mod gcp;
 mod manager;
 mod noop;
@@ -75,7 +76,7 @@ pub trait SubscriptionHandler: Debug + Send + Sync {
     fn handle_message(
         &self,
         msg: Arc<model::Request>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + 'static>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + '_>>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

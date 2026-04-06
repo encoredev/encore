@@ -556,22 +556,18 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 		isSetCookie := strings.ToLower(headerField.WireFormat) == "set-cookie"
 
 		if isSetCookie {
-			// In browsers Set-Cookie is a forbidden response header,
-			// so we can only read it in non-browser environments.
-			// Use getSetCookie() which correctly returns individual cookie values
-			// without joining them like .get() does.
-			w.WriteString("if (!BROWSER) {\n")
-			inner := w.Indent()
+			// Use getSetCookie() which correctly returns individual cookie values.
+			// In browsers getSetCookie() returns an empty array since Set-Cookie
+			// is a forbidden response header.
 			if headerField.Type.GetList() != nil {
-				inner.WriteStringf("%s = resp.headers.getSetCookie()\n", js.Dot("rtn", headerField.SrcName))
+				w.WriteStringf("%s = resp.headers.getSetCookie()\n", js.Dot("rtn", headerField.SrcName))
 			} else {
 				fieldValue := "resp.headers.getSetCookie()[0]"
 				if !headerField.Optional {
 					fieldValue = fmt.Sprintf("mustBeSet(\"Header `%s`\", %s)", headerField.WireFormat, fieldValue)
 				}
-				inner.WriteStringf("%s = %s\n", js.Dot("rtn", headerField.SrcName), js.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
+				w.WriteStringf("%s = %s\n", js.Dot("rtn", headerField.SrcName), js.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 			}
-			w.WriteString("}\n")
 		} else if headerField.Type.GetList() != nil {
 			// The Fetch API joins multiple header values with ", " so we get a single string.
 			// Wrap it in an array to match the list type.

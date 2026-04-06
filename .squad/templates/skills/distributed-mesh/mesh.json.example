@@ -1,0 +1,30 @@
+{
+  "squads": {
+    "auth-squad": {
+      "zone": "local",
+      "path": "../auth-squad/.mesh"
+    },
+    "api-squad": {
+      "zone": "local",
+      "path": "../api-squad/.mesh"
+    },
+    "ci-squad": {
+      "zone": "remote-trusted",
+      "source": "git@github.com:our-org/ci-squad.git",
+      "ref": "main",
+      "sync_to": ".mesh/remotes/ci-squad"
+    },
+    "data-squad": {
+      "zone": "remote-trusted",
+      "source": "git@github.com:our-org/data-pipeline.git",
+      "ref": "main",
+      "sync_to": ".mesh/remotes/data-squad"
+    },
+    "partner-fraud": {
+      "zone": "remote-opaque",
+      "source": "https://partner.example.com/squad-contracts/fraud/SUMMARY.md",
+      "sync_to": ".mesh/remotes/partner-fraud",
+      "auth": "bearer"
+    }
+  }
+}

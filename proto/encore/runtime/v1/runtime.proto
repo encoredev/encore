@@ -178,6 +178,7 @@ message MetricsProvider {
     AWSCloudWatch aws = 12;
     PrometheusRemoteWrite prom_remote_write = 13;
     Datadog datadog = 14;
+    AzureMonitor azure_monitor = 15;
   }
 
   message GCPCloudMonitoring {
@@ -210,6 +211,24 @@ message MetricsProvider {
   message Datadog {
     string site = 1;
     SecretData api_key = 2;
+  }
+
+  // AzureMonitor configures the Azure Monitor custom metrics exporter.
+  // See https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/metrics-custom-overview
+  message AzureMonitor {
+    // The Azure region of the target resource (e.g. "eastus").
+    string location = 1;
+    // The Azure subscription ID that owns the resource.
+    string subscription_id = 2;
+    // The resource group containing the target resource.
+    string resource_group = 3;
+    // The resource provider namespace and type
+    // (e.g. "Microsoft.ContainerInstance/containerGroups").
+    string resource_namespace = 4;
+    // The name of the target resource.
+    string resource_name = 5;
+    // The custom metrics namespace written to Azure Monitor.
+    string namespace = 6;
   }
 }
 

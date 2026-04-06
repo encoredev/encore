@@ -11,7 +11,7 @@ import (
 
 var cloneAppCmd = &cobra.Command{
 	Use:   "clone [app-id] [directory]",
-	Short: "Clone an existing Encore app from Encore Cloud to your computer",
+	Short: "Clone an Encore app to your computer",
 	Args:  cobra.MinimumNArgs(1),
 
 	DisableFlagsInUseLine: true,
