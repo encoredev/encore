@@ -50,5 +50,39 @@
 - No production code changes required for test coverage
 - Patterns documented for future Azure SDK test development
 
+### Azure Cloud Trace Testing - 2026-04-06
+
+**Test File Created:**
+- `runtimes/go/appruntime/shared/cloudtrace/azure_test.go` - Comprehensive unit tests for Azure Application Insights trace correlation
+
+**Tests Written:**
+- `TestAzureConnectionStringFromEnv` (3 subtests) - Tests environment variable resolution for connection strings
+- `TestAzureInstrumentationKeyFromEnv` (4 subtests) - Tests environment variable resolution for instrumentation keys  
+- `TestExtractInstrumentationKeyFromConnStr` (10 subtests) - Tests connection string parsing with various edge cases
+- `TestStructuredLogFields_AzureTraceparent` (5 subtests) - Tests Azure log field enrichment with W3C traceparent headers
+- `TestStructuredLogFields_NilRequest` - Tests graceful nil handling
+- `TestStructuredLogFields_AzureAndGCPIsolation` - Tests that Azure and GCP fields don't interfere
+
+**Total:** 23 test cases, all passing
+
+**Testing Pattern for sync.Once:**
+- Used white-box testing (`package cloudtrace`, not `package cloudtrace_test`) to access private helper functions
+- Tested `azureConnectionStringFromEnv()`, `azureInstrumentationKeyFromEnv()`, and `extractInstrumentationKeyFromConnStr()` directly
+- For integration tests requiring package-level state, directly manipulated `azureInstrumentationKey` variable with defer cleanup
+- This approach avoids sync.Once isolation issues that would occur with env var manipulation after first call
+
+**Implementation Discovery:**
+- The `parseTraceParent()` function extracts only the trace ID, NOT the parent span ID from the W3C traceparent header
+- As a result, `operation_ParentId` is never populated in Azure log fields (only `operation_Id` is set)
+- Tests written to match actual implementation behavior
+
+**Edge Cases Tested:**
+- Empty environment variables
+- Case-insensitive key matching (uppercase, lowercase, mixed case)
+- Connection strings with extra whitespace
+- Missing keys, empty values, malformed strings
+- Zero span IDs
+- Isolation between Azure and GCP trace fields
+
 <!-- Append learnings below -->
 
