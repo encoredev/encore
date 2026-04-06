@@ -26,10 +26,3 @@ runtimes/supervisor-encore
 runtimes/supervisor-encore-linux-amd64
 
 encore-runtime.node-linux-amd64
-# Squad: ignore runtime state (logs, inbox, sessions)
-.squad/orchestration-log/
-.squad/log/
-.squad/decisions/inbox/
-.squad/sessions/
-# Squad: SubSquad activation file (local to this machine)
-.squad-workstream
