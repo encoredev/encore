@@ -45,5 +45,22 @@
     }
   ],
   "hosted_services": ["my-service"],
-  "hosted_gateways": []
+  "hosted_gateways": [],
+  "metrics": {
+    "type": "azure_monitor",
+    "azure_monitor": {
+      "location": "eastus",
+      "subscription_id": "12345678-1234-1234-1234-123456789012",
+      "resource_group": "my-resource-group",
+      "resource_namespace": "Microsoft.ContainerApps",
+      "resource_name": "my-container-app",
+      "namespace": "my-custom-namespace"
+    }
+  },
+  "secrets_provider": {
+    "type": "azure_key_vault",
+    "azure_key_vault": {
+      "vault_url": "https://my-keyvault.vault.azure.net/"
+    }
+  }
 }
