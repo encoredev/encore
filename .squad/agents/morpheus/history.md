@@ -84,5 +84,45 @@
 - Zero span IDs
 - Isolation between Azure and GCP trace fields
 
+### Azure Go Pubsub Testing - 2026-04-06
+
+**Test File Created:**
+- `runtimes/go/pubsub/internal/azure/topic_test.go` - Unit tests for Azure Service Bus pubsub implementation
+
+**Tests Written (7 test functions, 23 subtests):**
+- `TestConstants` - Validates protocol constants `RetryCountAttribute` and `TargetSubAttribute`
+- `TestManager_ProviderName` - Verifies provider name returns "azure"
+- `TestManager_Matches` (5 subtests) - Tests config matching logic for Azure vs AWS/GCP
+- `TestNewManager` - Tests manager initialization
+- `TestRetryCountParsing` (7 subtests) - Tests retry count parsing from ApplicationProperties with various types
+- `TestAttributeConversion` (8 subtests) - Tests message attribute conversion from interface{} to string
+- `TestDeliveryAttemptCalculation` (3 subtests) - Tests delivery attempt calculation logic
+
+**Testing Pattern:**
+- Pure unit tests extracting testable logic from credential-gated functions
+- No Azure SDK client instantiation or live connections required
+- Focuses on string parsing, type conversion, and protocol logic
+- All tests use white-box testing (`package azure`) for simplicity
+
+**Key Patterns:**
+- Azure Service Bus uses ApplicationProperties map with `interface{}` values that must be converted to strings
+- Retry count parsing uses `fmt.Sprintf("%v", value)` then `strconv.ParseInt()` pattern
+- Delivery attempt is always `retryCount + 1`
+- Protocol constants are critical for message routing between topics and subscriptions
+
+**Coverage Focus:**
+- Constants validation for protocol correctness
+- Provider matching logic (Azure vs other clouds)
+- Message attribute conversion patterns used in `processMessage()`
+- Retry count parsing logic for delivery attempt tracking
+
+**Not Tested (credential-gated):**
+- `getClient()` - requires Azure credentials via `azidentity.NewDefaultAzureCredential`
+- `PublishMessage()` - requires live `azservicebus.Sender`
+- `Subscribe()` - requires live `azservicebus.Receiver`
+- `processMessage()` - full integration requires live message objects
+
+**Result:** All 23 test cases passing. Azure pubsub package now has baseline test coverage matching testable surface area without credentials.
+
 <!-- Append learnings below -->
 

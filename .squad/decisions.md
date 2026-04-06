@@ -2,6 +2,31 @@
 
 ## Active Decisions
 
+### Azure Go Pubsub Test Strategy — 2026-04-06
+
+**Decision:** Implement credential-free unit tests for Azure Service Bus Pub/Sub logic.
+
+**Status:** ✅ Implemented
+
+**Challenge:** Azure Service Bus SDK uses concrete types (not interfaces), blocking traditional mock-based testing. Client creation requires live Azure credentials.
+
+**Solution:** Focus on credential-free unit testable logic rather than integration tests:
+- Test protocol constants: `RetryCountAttribute`, `TargetSubAttribute`
+- Provider matching logic: `Manager.Matches()` for Azure vs AWS/GCP detection
+- Pure logic patterns: String parsing, type conversion, delivery attempt calculation
+
+**Implementation:**
+- File: `runtimes/go/pubsub/internal/azure/topic_test.go`
+- 7 test functions, 23 test cases, 100% pass rate
+- Zero production code changes
+- Commit: b0dc2358
+
+**Rationale:** Matches AWS approach (1 test file). Azure exceeds AWS/GCP elsewhere (42 vs 5/1 tests). Provides regression protection and documentation without invasive refactoring.
+
+**Future:** Credential injection or interface refactoring could enable integration tests following AWS pattern.
+
+---
+
 ### Azure Test Coverage Implementation — 2026-04-06
 
 **Decision:** Complete Azure test coverage as requested by coverage audit.
