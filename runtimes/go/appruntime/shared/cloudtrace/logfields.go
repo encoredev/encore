@@ -40,5 +40,23 @@ func StructuredLogFields(req *http.Request) map[string]string {
 		}
 	}
 
+	// On Azure, Application Insights correlates logs using the W3C traceparent header.
+	// If the request carries a traceparent header and Application Insights is configured,
+	// emit the operation_Id and operation_ParentId fields so Azure Monitor can associate
+	// the log entry with the distributed trace.
+	if traceParent := req.Header.Get("traceparent"); traceParent != "" {
+		if instrKey := AzureInstrumentationKey(); instrKey != "" {
+			ctx := parseTraceParent(log.Logger, req)
+			if ctx != nil && !ctx.TraceID.IsZero() {
+				traceIDHex := fmt.Sprintf("%x", ctx.TraceID[:])
+				additionalLogFields["operation_Id"] = traceIDHex
+				if !ctx.SpanID.IsZero() {
+					// Application Insights dependency format: |{traceId}.{spanId}.
+					additionalLogFields["operation_ParentId"] = fmt.Sprintf("|%s.%x.", traceIDHex, ctx.SpanID[:])
+				}
+			}
+		}
+	}
+
 	return additionalLogFields
 }
