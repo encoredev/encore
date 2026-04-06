@@ -135,7 +135,7 @@ func (i *interceptor) StmtQuery(ctx context.Context, conn driver.StmtQueryContex
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
-		curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+		startEventID = curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
 			EventParams: eventParams,
 			Query:       query,
 			Stack:       stack.Build(5),
@@ -166,7 +166,7 @@ func (i *interceptor) StmtExec(ctx context.Context, conn driver.StmtExecContext,
 			Goid:    curr.Goctr,
 			DefLoc:  0,
 		}
-		curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
+		startEventID = curr.Trace.DBQueryStart(trace2.DBQueryStartParams{
 			EventParams: eventParams,
 			Query:       query,
 			Stack:       stack.Build(5),

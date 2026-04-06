@@ -111,6 +111,7 @@ class SvcServiceClient {
         this.Rec = this.Rec.bind(this)
         this.RequestWithAllInputTypes = this.RequestWithAllInputTypes.bind(this)
         this.SetCookie = this.SetCookie.bind(this)
+        this.SingleSetCookie = this.SingleSetCookie.bind(this)
         this.TupleInputOutput = this.TupleInputOutput.bind(this)
         this.Webhook = this.Webhook.bind(this)
         this.Webhook2 = this.Webhook2.bind(this)
@@ -264,7 +265,26 @@ class SvcServiceClient {
         //Populate the return object from the JSON body and received headers
         const rtn = await resp.json()
         rtn.HeaderSlice = [mustBeSet("Header `slice`", resp.headers.get("slice"))]
-        rtn.SetCookie = resp.headers.getSetCookie()
+        if (!BROWSER) {
+            rtn.SetCookie = resp.headers.getSetCookie()
+        }
+        return rtn
+    }
+
+    async SingleSetCookie(params) {
+        // Convert our params into the objects we need for the request
+        const query = makeRecord({
+            boo: String(params.Baz),
+        })
+
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callTypedAPI("POST", `/svc.SingleSetCookie`, undefined, {query})
+
+        //Populate the return object from the JSON body and received headers
+        const rtn = await resp.json()
+        if (!BROWSER) {
+            rtn.SetCookie = mustBeSet("Header `set-cookie`", resp.headers.getSetCookie()[0])
+        }
         return rtn
     }
 

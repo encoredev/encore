@@ -103,6 +103,11 @@ type ResponseWithSetCookie struct {
     SetCookie   []string `header:"set-cookie"` // set-cookie header
 }
 
+type ResponseWithSingleSetCookie struct {
+    Message   string
+    SetCookie string `header:"set-cookie"` // single set-cookie header value
+}
+
 // HeaderOnlyStruct contains all types we support in headers
 type HeaderOnlyStruct struct {
     Boolean bool            `header:"x-boolean"`
@@ -147,6 +152,11 @@ func Get(ctx context.Context, req *GetRequest) error {
 
 //encore:api public method=POST
 func SetCookie(ctx context.Context, req *GetRequest) (ResponseWithSetCookie, error) {
+    return nil
+}
+
+//encore:api public method=POST
+func SingleSetCookie(ctx context.Context, req *GetRequest) (ResponseWithSingleSetCookie, error) {
     return nil
 }
 

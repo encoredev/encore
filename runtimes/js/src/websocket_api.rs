@@ -1,6 +1,5 @@
 use crate::api::{APIPromiseHandler, Request};
-use crate::napi_util::await_promise;
-use crate::napi_util::PromiseHandler;
+use crate::napi_util::{await_promise, call_function, CallError, OnceSender, PromiseHandler};
 use crate::pvalue::{parse_pvalues, PVals};
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
@@ -10,14 +9,12 @@ use encore_runtime_core::api::{self, HandlerRequest, HandlerResponse};
 use encore_runtime_core::api::{websocket_client, ToResponse};
 use napi::{Env, JsFunction, JsObject, JsUnknown, NapiRaw};
 use napi_derive::napi;
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 
 struct WsRequestMessage {
     req: Request,
     payload: StreamMessagePayload,
-    tx: tokio::sync::mpsc::UnboundedSender<HandlerResponse>,
+    tx: OnceSender<HandlerResponse>,
 }
 
 pub struct JSWebSocketHandler {
@@ -25,16 +22,13 @@ pub struct JSWebSocketHandler {
 }
 
 impl api::BoxedHandler for JSWebSocketHandler {
-    fn call(
-        self: Arc<Self>,
-        req: HandlerRequest,
-    ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
-        Box::pin(async move {
+    fn call(self: Arc<Self>, req: HandlerRequest) -> api::HandlerCall {
+        api::HandlerCall::inline(Box::pin(async move {
             let internal_caller = req.internal_caller.clone();
             let resp = api::websocket::upgrade_request(req, |req, payload, tx| async move {
                 self.handler.call(
                     WsRequestMessage {
-                        tx,
+                        tx: OnceSender::new(tx),
                         payload,
                         req: Request::new(req),
                     },
@@ -46,7 +40,7 @@ impl api::BoxedHandler for JSWebSocketHandler {
                 Ok(resp) => api::ResponseData::Raw(resp),
                 Err(e) => api::ResponseData::Raw(e.to_response(internal_caller)),
             }
-        })
+        }))
     }
 }
 
@@ -237,15 +231,18 @@ fn ws_resolve_on_js_thread(ctx: ThreadSafeCallContext<WsRequestMessage>) -> napi
 
     let handler = APIPromiseHandler { resp_schema: None };
 
-    match ctx.callback.unwrap().call(None, &[req, stream_arg]) {
+    match call_function(ctx.env, &ctx.callback.unwrap(), None, &[req, stream_arg]) {
         Ok(result) => {
             await_promise(ctx.env, result, ctx.value.tx.clone(), handler);
-            Ok(())
         }
-        Err(err) => {
+        Err(CallError::Exception(exception)) => {
+            let res = handler.reject(ctx.env, exception);
+            ctx.value.tx.send(res);
+        }
+        Err(CallError::Error(err)) => {
             let res = handler.error(ctx.env, err);
-            _ = ctx.value.tx.send(res);
-            Ok(())
+            ctx.value.tx.send(res);
         }
     }
+    Ok(())
 }
