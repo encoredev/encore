@@ -91,6 +91,33 @@ Azure support test coverage audit identified:
 
 **Pattern Reference:** For future `sync.Once` testing: white-box (`package X`), test helpers directly, manipulate state with cleanup, document in comments.
 
+---
+
+### Azure SDK Go packages upgraded to latest stable — 2026-04-06
+
+**Decision:** Upgrade all Azure SDK Go packages in `runtimes/go/` to their latest stable versions.
+
+**Status:** ✅ Implemented
+
+**Packages upgraded:**
+
+| Package | Old Version | New Version | Notes |
+|---------|-------------|-------------|-------|
+| `github.com/Azure/azure-sdk-for-go/sdk/storage/azblob` | v0.6.1 | v1.6.4 | Pre-GA → stable; source already used v1.x API |
+| `github.com/Azure/azure-sdk-for-go/sdk/azcore` | v1.18.0 | v1.21.0 | Minor upgrade |
+| `github.com/Azure/azure-sdk-for-go/sdk/azidentity` | v1.10.1 | v1.13.1 | Minor upgrade |
+| `github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus` | v1.1.0 | v1.10.0 | Minor upgrade |
+| `github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets` | v1.4.0 | v1.4.0 | Already at latest |
+
+**Rationale:** `azblob v0.6.1` was flagged as pre-GA. Source code was already written against v1.x API patterns. Keeping packages at latest stable reduces security exposure and ensures supported SDK versions. AWS and GCP direct dependencies remain frozen.
+
+**Verification:**
+- `go build ./...` — ✅
+- Azure pubsub, secrets, storage, cloudtrace tests — ✅
+- AWS/GCP tests — ✅
+
+**Commit:** 458dc912
+
 ## Governance
 
 - All meaningful changes require team consensus
