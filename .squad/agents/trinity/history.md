@@ -37,6 +37,26 @@
 
 **Verdict:** Safe to merge with one flag — `azblob v0.6.1` is outdated pre-GA SDK; recommend upgrade to `v1.x` before final merge for long-term supportability.
 
+### 2026-04-06 — Azure SDK Go Package Upgrade
+
+**Task:** Upgrade all Azure SDK Go packages to latest stable without forcing AWS/GCP version changes.
+
+**Findings:**
+
+1. **azblob v0.6.1 → v1.6.4:** The source code in `runtimes/go/storage/objects/internal/providers/azblob/` was already written against the v1.x API (sub-packages `azblob/bloberror`, `azblob/container`, `azblob/sas`, `azblob/blob`, `azblob/blockblob`). The go.mod was simply never updated to match. No source changes needed.
+
+2. **azservicebus v1.1.0 → v1.10.0:** Go module minor version bump. No API breakage. `go-amqp v1.4.0` pulled in as a new indirect dependency (replaces internal AMQP implementation).
+
+3. **azidentity v1.10.1 → v1.13.1 and azcore v1.18.0 → v1.21.0:** Clean minor upgrades, no API changes affecting our code.
+
+4. **azsecrets v1.4.0:** Already at latest stable — no change needed.
+
+5. **AWS/GCP constraint upheld:** Zero AWS or GCP direct-dependency version changes. Shared transitive packages (`golang.org/x/crypto`, `x/net`, `x/sync`, `x/sys`, `x/text`) received minor/patch bumps pulled by Azure's newer deps — all acceptable.
+
+6. **All tests pass:** azblob (bucket + uploader + SAS URL tests), azsecrets, pubsub/azure, cloudtrace, s3, pubsub/aws, metrics/aws, metrics/gcp — all green.
+
+**Pattern for future Azure upgrades:** Always check if source code is already ahead of go.mod. The Azure SDK team ships Go sub-packages under the same module path across major versions (v0.x → v1.x same path), so the import paths don't change — only the go.mod needs updating.
+
 **Go vet pre-existing issues:** Unkeyed struct literal warnings in prometheus, gcp, aws test files — pre-existing, not introduced by Azure changes.
 
 ### 2025-01-XX — Azure Application Insights Cloud Trace Integration
