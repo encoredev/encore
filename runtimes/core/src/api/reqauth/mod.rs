@@ -207,16 +207,6 @@ impl CallMeta {
                         meta.trace_sampled = Some(sampled);
                     }
 
-                    // If the caller is a gateway, ignore the parent span id and trace sampling
-                    // decision as gateways don't record a span. The endpoint will make its own
-                    // sampling decision instead.
-                    if let Some(internal) = &meta.internal {
-                        if matches!(internal.caller, Caller::Gateway { .. }) {
-                            meta.parent_span_id = None;
-                            meta.trace_sampled = None;
-                        }
-                    }
-
                     // Parse the trace state.
                     let tracestate = parse_tracestate(headers.meta_values(MetaKey::TraceState));
 
@@ -233,6 +223,14 @@ impl CallMeta {
                     // the traceparent header since it might be tampered by GCP infra.
                     if let Some(sampled) = tracestate.sampled {
                         meta.trace_sampled = Some(sampled);
+                    }
+
+                    // If the caller is a gateway, ignore the parent span id
+                    // as gateways don't record a span.
+                    if let Some(internal) = &meta.internal {
+                        if matches!(internal.caller, Caller::Gateway { .. }) {
+                            meta.parent_span_id = None;
+                        }
                     }
                 }
             }
