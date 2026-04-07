@@ -471,6 +471,7 @@ func (s *SQLServer) Validate(v *validator) {
 }
 
 type TLSConfig struct {
+	Disabled                       bool        `json:"disabled,omitempty"`
 	CA                             string      `json:"ca,omitempty"`
 	ClientCert                     *ClientCert `json:"client_cert,omitempty"`
 	DisableTLSHostnameVerification bool        `json:"disable_tls_hostname_verification,omitempty"`
