@@ -124,5 +124,27 @@
 
 **Result:** All 23 test cases passing. Azure pubsub package now has baseline test coverage matching testable surface area without credentials.
 
+### AWS/GCP Regression Test Run — 2026-04-06
+
+**Trigger:** Verify Azure support changes haven't broken AWS or GCP tests.
+
+**Test Packages Executed:**
+
+| Package | Result | Notes |
+|---|---|---|
+| `encore.dev/storage/objects/internal/providers/gcs` | ⏭️ SKIP | No test files |
+| `encore.dev/storage/objects/internal/providers/s3` | ✅ PASS | 14.6s |
+| `encore.dev/pubsub/internal/gcp` | ⏭️ SKIP | No test files |
+| `encore.dev/pubsub/internal/aws` | ✅ PASS | 9.75s |
+| `encore.dev/appruntime/shared/cloudtrace` | ✅ PASS | Cached |
+| `encore.dev/appruntime/infrasdk/metrics/aws` | ✅ PASS | 3 subtests |
+| `encore.dev/appruntime/infrasdk/metrics/gcp` | ✅ PASS | 6 subtests |
+
+**Build:** `go build ./...` from `runtimes/go/` — exit code 0, zero compilation errors.
+
+**Conclusion:** No regressions introduced by Azure changes. All AWS and GCP packages that have tests pass cleanly. GCS and GCP pubsub have no test files (pre-existing, not a regression).
+
+**Key Observation:** The `cloudtrace` package (which now includes Azure alongside GCP) still passes — confirming the white-box testing pattern and the Azure addition are isolated correctly from existing GCP/AWS logic.
+
 <!-- Append learnings below -->
 
