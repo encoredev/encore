@@ -693,18 +693,18 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         rid: get_next_rid(),
                         host: server.host,
                         kind: pbruntime::ServerKind::Primary as i32,
-                        tls_config: server.tls_config.map_or_else(
-                            || Some(TlsConfig::default()),
-                            |tls| match tls.disabled {
-                                true => None,
-                                false => Some(TlsConfig {
+                        tls_config: server.tls_config.and_then(|tls| {
+                            if tls.disabled {
+                                None
+                            } else {
+                                Some(TlsConfig {
                                     server_ca_cert: tls.ca,
                                     disable_tls_hostname_verification: tls
                                         .disable_tls_hostname_verification,
                                     disable_ca_validation: tls.disable_ca_validation,
-                                }),
-                            },
-                        ),
+                                })
+                            }
+                        }),
                     }],
                     databases,
                 }
@@ -772,18 +772,18 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         rid: String::new(), // Assign a unique RID
                         host: redis.host,
                         kind: pbruntime::ServerKind::Primary as i32,
-                        tls_config: redis.tls_config.map_or_else(
-                            || Some(TlsConfig::default()),
-                            |tls| match tls.disabled {
-                                true => None,
-                                false => Some(TlsConfig {
+                        tls_config: redis.tls_config.and_then(|tls| {
+                            if tls.disabled {
+                                None
+                            } else {
+                                Some(TlsConfig {
                                     server_ca_cert: tls.ca,
                                     disable_tls_hostname_verification: tls
                                         .disable_tls_hostname_verification,
                                     disable_ca_validation: tls.disable_ca_validation,
-                                }),
-                            },
-                        ),
+                                })
+                            }
+                        }),
                     }],
                     databases: vec![database],
                     in_memory: redis.in_memory,
