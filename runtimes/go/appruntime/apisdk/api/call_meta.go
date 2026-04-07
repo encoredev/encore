@@ -248,12 +248,6 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 		var sampledFromTraceParent bool
 		meta.TraceID, meta.ParentSpanID, sampledFromTraceParent, _ = parseTraceParent(traceParent)
 
-		// If the caller is a gateway, ignore the parent span id as gateways don't currently record a span.
-		// If we include it the root request won't be tagged as such.
-		if _, isGateway := meta.Internal.Caller.(GatewayCaller); isGateway {
-			meta.ParentSpanID = model.SpanID{}
-		}
-
 		// Default to the traceparent sampled flag.
 		meta.TraceSampled = sampledFromTraceParent
 
@@ -275,6 +269,13 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 			if sampledFromTraceState != nil {
 				meta.TraceSampled = *sampledFromTraceState
 			}
+		}
+
+		// If the caller is a gateway, ignore the parent span id as gateways
+		// don't record a span. We keep the trace sampling decision since the
+		// gateway already made the sampling decision.
+		if _, isGateway := meta.Internal.Caller.(GatewayCaller); isGateway {
+			meta.ParentSpanID = model.SpanID{}
 		}
 	}
 
