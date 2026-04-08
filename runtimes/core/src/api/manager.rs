@@ -104,6 +104,8 @@ impl ManagerConfig<'_> {
                 .strip_prefix("roll_")
                 .unwrap_or(&self.deploy_id)
                 .to_string(),
+            app_slug: self.environment.app_slug.clone(),
+            env_name: self.environment.env_name.clone(),
         };
 
         let hosted_services = Hosted::from_iter(self.hosted_services.into_iter().map(|s| s.name));
