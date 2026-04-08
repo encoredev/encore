@@ -203,7 +203,11 @@ impl CallMeta {
                     {
                         meta.trace_id = trace_id;
                         meta.caller_trace_id = Some(trace_id);
-                        meta.parent_span_id = Some(parent_span_id);
+                        meta.parent_span_id = if parent_span_id.is_zero() {
+                            None
+                        } else {
+                            Some(parent_span_id)
+                        };
                         meta.trace_sampled = Some(sampled);
                     }
 

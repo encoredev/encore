@@ -72,6 +72,11 @@ type execContext struct {
 	auth   model.AuthInfo
 
 	callMeta CallMeta
+
+	// traceSampledPrecomputed is true when callMeta.TraceSampled has been
+	// pre-computed by processRequest. When set, beginRequest uses it directly
+	// instead of re-evaluating the sampling decision.
+	traceSampledPrecomputed bool
 }
 
 type IncomingContext struct {
@@ -558,7 +563,7 @@ func (s *Server) newExecContext(ctx context.Context, ps UnnamedParams, callMeta 
 			UserData: callMeta.Internal.AuthData,
 		}
 	}
-	return execContext{s, ctx, ps, auth, callMeta}
+	return execContext{s, ctx, ps, auth, callMeta, false}
 }
 
 func (s *Server) NewIncomingContext(w http.ResponseWriter, req *http.Request, ps UnnamedParams, callMeta CallMeta) IncomingContext {

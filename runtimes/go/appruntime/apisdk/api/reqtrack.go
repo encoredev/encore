@@ -64,6 +64,12 @@ type beginRequestParams struct {
 	// This is mainly used to add the trace identifiers to the log messages
 	// so the clouds logging can correlate the logs with the trace.
 	AdditionalLogFields map[string]string
+
+	// TraceSampledPrecomputed indicates that ParentSampled was pre-computed
+	// by processRequest and should be used as-is, skipping the normal
+	// sampling logic. This ensures the auth handler and endpoint handler
+	// use the exact same sampling decision.
+	TraceSampledPrecomputed bool
 }
 
 // shouldTrace determines whether a request should be traced based on the
@@ -98,9 +104,9 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	}
 
 	var traced bool
-	if p.Type == model.AuthHandler {
-		// Auth handlers inherit the trace sampling decision from the caller,
-		// which is set to the target endpoint's decision by processRequest.
+	if p.Type == model.AuthHandler || p.TraceSampledPrecomputed {
+		// Use the pre-computed sampling decision from processRequest.
+		// This ensures the auth handler and endpoint use the same decision.
 		traced = p.ParentSampled
 	} else {
 		traced = s.shouldTrace(
