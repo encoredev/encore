@@ -544,10 +544,15 @@ where
             trace_state.push_str(if self.traced { "1" } else { "0" });
 
             headers.set(MetaKey::TraceState, trace_state)?;
+        } else {
+            // Even without a parent span, always propagate the sampling decision
+            // via tracestate. GCP Cloud Run can modify the traceparent sampled flag,
+            // so we need tracestate as the authoritative source.
+            headers.set(
+                MetaKey::TraceState,
+                format!("encore/sampled={}", if self.traced { "1" } else { "0" }),
+            )?;
         }
-
-        // TODO handle GCP span propagation with tracestate key.
-        // headers.set(MetaKey::TraceState, "")?;
 
         if let Some(corr_id) = self.ext_correlation_id {
             headers.set(MetaKey::XCorrelationId, corr_id.into_owned())?;

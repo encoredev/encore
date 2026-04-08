@@ -60,6 +60,9 @@ func (r *remoteAuthHandler) Authenticate(c IncomingContext) (model.AuthInfo, err
 		// also receive full marshalled errors back from the auth handler (as ApiCaller's are allowed PrivateAPIAccess)
 		Caller: ApiCaller{ServiceName: "gateway", Endpoint: "__encore/authhandler"},
 	}
+	// Use the endpoint's trace sampling decision (set in processRequest /
+	// createGatewayHandlerAdapter) so the remote auth handler inherits it.
+	meta.TraceSampled = c.callMeta.TraceSampled
 	if err := meta.AddToRequest(r.server, r.hostingService, transport.HTTPRequest(authReq)); err != nil {
 		r.logger.Err(err).Msg("unable to add call metadata to auth request")
 		return model.AuthInfo{}, errs.Wrap(err, "unable to add call metadata to auth request")
@@ -123,8 +126,12 @@ func (s *Server) handleRemoteAuthCall(w http.ResponseWriter, req *http.Request, 
 	// this is used for returnError to marshal the full error
 	originalC := s.NewIncomingContext(w, req, nil, meta)
 
-	// Remove the internal call metadata, so it doesn't get passed to the auth handler
+	// Remove the internal call metadata, so it doesn't get passed to the auth handler.
+	// Also clear the parent span ID since the auth handler is a root span —
+	// any parent span ID here is injected by infrastructure (e.g. GCP Cloud Run),
+	// not a real Encore parent span.
 	meta.Internal = nil
+	meta.ParentSpanID = model.SpanID{}
 
 	// Create a new IncomingContext
 	c := s.NewIncomingContext(w, req, nil, meta)

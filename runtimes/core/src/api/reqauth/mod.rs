@@ -227,8 +227,18 @@ impl CallMeta {
 
                     // If the caller is a gateway, ignore the parent span id
                     // as gateways don't record a span.
+                    // Also clear for remote auth handler calls, which are
+                    // conceptually root requests from the gateway.
                     if let Some(internal) = &meta.internal {
-                        if matches!(internal.caller, Caller::Gateway { .. }) {
+                        let clear_parent = match &internal.caller {
+                            Caller::Gateway { .. } => true,
+                            Caller::APIEndpoint(name) => {
+                                name.service() == "gateway"
+                                    && name.endpoint() == "__encore/authhandler"
+                            }
+                            _ => false,
+                        };
+                        if clear_parent {
                             meta.parent_span_id = None;
                         }
                     }

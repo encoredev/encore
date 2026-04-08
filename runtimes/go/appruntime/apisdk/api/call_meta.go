@@ -146,6 +146,11 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 			} else {
 				req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%s,%s=%s", eventTraceStateEventIDKey, eventID, eventTraceStateSampledKey, sampledTS))
 			}
+		} else {
+			// Even without a parent span, always propagate the sampling decision
+			// via tracestate. GCP Cloud Run can modify the traceparent sampled flag,
+			// so we need tracestate as the authoritative source.
+			req.SetMeta(transport.TraceStateKey, fmt.Sprintf("%s=%s", eventTraceStateSampledKey, sampledTS))
 		}
 	}
 

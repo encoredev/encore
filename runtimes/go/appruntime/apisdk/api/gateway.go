@@ -45,7 +45,11 @@ func (s *Server) createGatewayHandlerAdapter(h Handler) httprouter.Handle {
 
 		meta := CallMetaFromContext(req.Context())
 
-		info, proceed := s.runAuthHandler(h, s.NewIncomingContext(w, req, toUnnamedParams(ps), meta))
+		ic := s.NewIncomingContext(w, req, toUnnamedParams(ps), meta)
+		traced := s.endpointTraceSampled(h, ic)
+		ic.callMeta.TraceSampled = traced
+		meta.TraceSampled = traced // also update for the proxy's AddToRequest
+		info, proceed := s.runAuthHandler(h, ic)
 		if proceed {
 			meta.Internal = &InternalCallMeta{
 				Caller: GatewayCaller{

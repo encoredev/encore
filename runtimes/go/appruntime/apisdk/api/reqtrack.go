@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"reflect"
 	"sync/atomic"
 	"time"
@@ -65,6 +66,18 @@ type beginRequestParams struct {
 	AdditionalLogFields map[string]string
 }
 
+// shouldTrace determines whether a request should be traced based on the
+// platform auth status, cron scheduling, parent span, and sampling config.
+func (s *Server) shouldTrace(service, endpoint string, headers http.Header, fromPlatform, isRoot bool, parentSampled bool) bool {
+	isCronScheduled := headers.Get("X-Encore-Cron-Trigger") == "scheduled"
+	if fromPlatform && !isCronScheduled {
+		return true
+	} else if isRoot {
+		return s.rt.SampleTrace(service, endpoint)
+	}
+	return parentSampled
+}
+
 func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*model.Request, error) {
 	traceID := p.TraceID
 	if traceID.IsZero() {
@@ -84,15 +97,19 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		spanID = id
 	}
 
-	isCronScheduled := p.Data.RequestHeaders.Get("X-Encore-Cron-Trigger") == "scheduled"
-
 	var traced bool
-	if p.Data.FromEncorePlatform && !isCronScheduled {
-		traced = true
-	} else if p.ParentSpanID.IsZero() {
-		traced = s.rt.SampleTrace(p.Data.Desc.Service, p.Data.Desc.Endpoint)
-	} else {
+	if p.Type == model.AuthHandler {
+		// Auth handlers inherit the trace sampling decision from the caller,
+		// which is set to the target endpoint's decision by processRequest.
 		traced = p.ParentSampled
+	} else {
+		traced = s.shouldTrace(
+			p.Data.Desc.Service, p.Data.Desc.Endpoint,
+			p.Data.RequestHeaders,
+			p.Data.FromEncorePlatform,
+			p.ParentSpanID.IsZero(),
+			p.ParentSampled,
+		)
 	}
 
 	req := &model.Request{
