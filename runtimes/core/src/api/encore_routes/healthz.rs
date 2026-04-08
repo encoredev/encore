@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub struct Handler {
     pub app_revision: String,
     pub deploy_id: String,
+    pub app_slug: String,
+    pub env_name: String,
 }
 
 impl Handler {
@@ -15,6 +17,8 @@ impl Handler {
             code: "ok".into(),
             message: "Your Encore app is up and running!".into(),
             details: Details {
+                app_slug: self.app_slug,
+                env_name: self.env_name,
                 app_revision: self.app_revision,
                 encore_compiler: "".into(),
                 deploy_id: self.deploy_id,
@@ -45,6 +49,8 @@ pub struct Response {
 
 #[derive(Serialize, Deserialize)]
 pub struct Details {
+    pub app_slug: String,
+    pub env_name: String,
     pub app_revision: String,
     pub encore_compiler: String,
     pub deploy_id: String,
