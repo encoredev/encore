@@ -32,10 +32,6 @@ pub struct HealthzResponse {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct HealthzDetails {
-    #[serde(default)]
-    pub app_slug: String,
-    #[serde(default)]
-    pub env_name: String,
     pub app_revision: String,
     pub encore_compiler: String,
     pub deploy_id: String,
@@ -106,8 +102,6 @@ impl GatewayProxy {
                     code: "unhealthy".to_string(),
                     message: "healhtcheck failed".to_string(),
                     details: HealthzDetails {
-                        app_slug: "".to_string(),
-                        env_name: "".to_string(),
                         app_revision: "".to_string(),
                         encore_compiler: "".to_string(),
                         deploy_id: "".to_string(),

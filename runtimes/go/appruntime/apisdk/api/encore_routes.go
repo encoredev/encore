@@ -54,16 +54,12 @@ func (s *Server) handleHealthz(w http.ResponseWriter, req *http.Request) {
 		Code:    statusStr,
 		Message: "Your Encore app is up and running!",
 		Details: struct {
-			AppSlug            string        `json:"app_slug"`
-			EnvName            string        `json:"env_name"`
 			AppRevision        string        `json:"app_revision"`
 			EncoreCompiler     string        `json:"encore_compiler"`
 			DeployId           string        `json:"deploy_id"`
 			Checks             []checkResult `json:"checks"`
 			EnabledExperiments []string      `json:"enabled_experiments"`
 		}{
-			AppSlug:            s.runtime.AppSlug,
-			EnvName:            s.runtime.EnvName,
 			AppRevision:        s.static.AppCommit.AsRevisionString(),
 			EncoreCompiler:     s.static.EncoreCompiler,
 			DeployId:           s.runtime.DeployID,
