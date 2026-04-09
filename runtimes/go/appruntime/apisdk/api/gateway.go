@@ -13,6 +13,7 @@ import (
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/beta/errs"
+	"encore.dev/internal/platformauth"
 )
 
 // IsGateway returns true if this instance of the container is acting as an API
@@ -45,10 +46,17 @@ func (s *Server) createGatewayHandlerAdapter(h Handler) httprouter.Handle {
 
 		meta := CallMetaFromContext(req.Context())
 
+		// Pre-compute the endpoint's trace sampling decision.
+		// This is used by both the auth handler and the proxy to the target service.
+		meta.TraceSampled = s.shouldTrace(
+			h.ServiceName(), h.EndpointName(),
+			req.Header,
+			platformauth.IsEncorePlatformRequest(req.Context()),
+			meta.ParentSpanID.IsZero(),
+			meta.TraceSampled,
+		)
+
 		ic := s.NewIncomingContext(w, req, toUnnamedParams(ps), meta)
-		traced := s.endpointTraceSampled(h, ic)
-		ic.callMeta.TraceSampled = traced
-		meta.TraceSampled = traced // also update for the proxy's AddToRequest
 		info, proceed := s.runAuthHandler(h, ic)
 		if proceed {
 			meta.Internal = &InternalCallMeta{
