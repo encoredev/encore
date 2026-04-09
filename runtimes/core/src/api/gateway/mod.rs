@@ -135,7 +135,11 @@ impl Gateway {
         self.inner.shared.auth.as_ref()
     }
 
-    pub async fn serve(self, listen_addr: &str) -> anyhow::Result<()> {
+    pub async fn serve(
+        self,
+        listen_addr: &str,
+        shutdown: crate::shutdown::ShutdownHandle,
+    ) -> anyhow::Result<()> {
         let conf = Arc::new(
             ServerConf::new_with_opt_override(&Opt {
                 upgrade: false,
@@ -150,7 +154,16 @@ impl Gateway {
 
         proxy.add_tcp(listen_addr);
 
-        let (_tx, rx) = watch::channel(false);
+        let (tx, rx) = watch::channel(false);
+
+        // Signal Pingora to stop accepting when shutdown is initiated.
+        // Pingora will then wait for in-flight proxy connections to drain
+        // via join_all(handlers) before start_service returns.
+        tokio::spawn(async move {
+            shutdown.cancelled().await;
+            let _ = tx.send(true);
+        });
+
         proxy
             .start_service(
                 #[cfg(unix)]
@@ -184,11 +197,12 @@ impl ProxyHttp for Gateway {
         Self::CTX: Send + Sync,
     {
         if session.req_header().uri.path() == "/__encore/healthz" {
-            let healthz_resp = self.inner.healthz.clone().health_check();
+            let (status, axum::response::Json(healthz_resp)) =
+                self.inner.healthz.clone().health_check();
             let healthz_bytes: Vec<u8> = serde_json::to_vec(&healthz_resp)
                 .or_err(ErrorType::HTTPStatus(500), "could not encode response")?;
 
-            let mut header = ResponseHeader::build(200, None)?;
+            let mut header = ResponseHeader::build(status.as_u16(), None)?;
             header.insert_header(header::CONTENT_LENGTH, healthz_bytes.len())?;
             header.insert_header(header::CONTENT_TYPE, "application/json")?;
             session

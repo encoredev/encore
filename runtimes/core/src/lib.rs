@@ -34,6 +34,7 @@ pub mod proccfg;
 pub mod pubsub;
 pub mod runtime_config;
 pub mod secrets;
+pub mod shutdown;
 pub mod sqldb;
 mod trace;
 
@@ -216,6 +217,8 @@ pub struct Runtime {
     runtime: tokio::runtime::Runtime,
     metrics: metrics::Manager,
     runtime_config: runtime_config::RuntimeConfig,
+    shutdown_config: shutdown::ShutdownConfig,
+    tracer_flush: std::sync::Mutex<Option<trace::TracerFlush>>,
 }
 
 impl Runtime {
@@ -249,6 +252,8 @@ impl Runtime {
         let mut deployment = cfg.deployment.take().unwrap_or_default();
         let service_discovery = deployment.service_discovery.take().unwrap_or_default();
         let observability = deployment.observability.take().unwrap_or_default();
+        let shutdown_config =
+            shutdown::ShutdownConfig::from_proto(deployment.graceful_shutdown.take());
 
         let http_client = reqwest::Client::builder()
             .build()
@@ -273,7 +278,7 @@ impl Runtime {
         // Set up observability.
         let disable_tracing =
             testing || std::env::var("ENCORE_NOTRACE").is_ok_and(|v| !v.is_empty());
-        let tracer = if !disable_tracing {
+        let (tracer, tracer_flush) = if !disable_tracing {
             let trace_cfg = observability
                 .tracing
                 .into_iter()
@@ -308,14 +313,14 @@ impl Runtime {
                         platform_validator: platform_validator.clone(),
                     };
 
-                    let (tracer, reporter) = trace::streaming_tracer(http_client.clone(), config);
-                    tokio_rt.spawn(reporter.start_reporting());
-                    tracer
+                    let (tracer, flush) =
+                        trace::streaming_tracer(http_client.clone(), config, tokio_rt.handle());
+                    (tracer, Some(flush))
                 }
-                None => trace::Tracer::noop(),
+                None => (trace::Tracer::noop(), None),
             }
         } else {
-            trace::Tracer::noop()
+            (trace::Tracer::noop(), None)
         };
 
         log::set_tracer(tracer.clone());
@@ -450,6 +455,8 @@ impl Runtime {
             runtime: tokio_rt,
             metrics: metrics_manager,
             runtime_config,
+            shutdown_config,
+            tracer_flush: std::sync::Mutex::new(tracer_flush),
         })
     }
 
@@ -506,25 +513,53 @@ impl Runtime {
     #[inline]
     pub fn run_blocking(&self) {
         self.runtime.block_on(async move {
-            let api_handle = self.api().start_serving();
+            // Start the shutdown orchestrator (waits for signal in background).
+            let shutdown = shutdown::run(self.shutdown_config.clone()).await;
 
-            // Register signal handlers
-            tokio::spawn(async {
-                use tokio::signal::unix::{signal, SignalKind};
-                let mut sigint =
-                    signal(SignalKind::interrupt()).expect("failed to install SIGINT handler");
-                let mut sigterm =
-                    signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
+            // Start the API server with the shutdown handle.
+            let api_handle = self.api().start_serving(shutdown.clone());
 
-                tokio::select! {
-                    _ = sigint.recv() => {},
-                    _ = sigterm.recv() => {},
+            // Wait for shutdown signal.
+            shutdown.cancelled().await;
+
+            // K8s grace period: healthz is already returning 503, but keep
+            // accepting requests while load balancers propagate the change.
+            if !self.shutdown_config.keep_accepting.is_zero() {
+                ::log::info!(
+                    "keeping accepting requests for {:?} while load balancers update",
+                    self.shutdown_config.keep_accepting
+                );
+                tokio::time::sleep(self.shutdown_config.keep_accepting).await;
+            }
+
+            // Stop pubsub subscriptions from fetching new messages.
+            self.pubsub.cancel_token().cancel();
+
+            // Wait for the API server to drain (gateway drains first, then axum).
+            let serve_result = match api_handle.await {
+                Ok(inner) => inner,
+                Err(err) => Err(anyhow::anyhow!("serving task panicked: {:?}", err)),
+            };
+
+            // Flush observability data.
+            self.metrics().collect_and_export().await;
+            let tracer_flush = self.tracer_flush.lock().unwrap().take();
+            if let Some(flush) = tracer_flush {
+                flush.flush().await;
+            }
+
+            // Exit. We can't just return here because the tokio runtime
+            // (and the orchestrator's force-exit task) is kept alive by Arc<Runtime>
+            // in the JS layer's static OnceLock.
+            match serve_result {
+                Ok(()) => {
+                    ::log::info!("shutdown complete");
+                    std::process::exit(0);
                 }
-                std::process::exit(0);
-            });
-
-            if let Err(err) = api_handle.await {
-                ::log::error!("failed to start serving: {:?}", err);
+                Err(err) => {
+                    ::log::error!("server failed: {:?}", err);
+                    std::process::exit(1);
+                }
             }
         });
     }

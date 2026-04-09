@@ -8,6 +8,7 @@ use anyhow::Context;
 use chrono::Utc;
 use futures::future::Shared;
 use futures::FutureExt;
+use tokio_util::sync::CancellationToken;
 
 use crate::api::jsonschema::{self, JSONSchema};
 use crate::api::{APIResult, PValues};
@@ -36,6 +37,7 @@ pub struct Manager {
     topics: Arc<RwLock<HashMap<EncoreName, Arc<TopicInner>>>>,
     subs: Arc<RwLock<HashMap<SubName, Arc<SubscriptionObj>>>>,
     push_registry: PushHandlerRegistry,
+    cancel: CancellationToken,
 }
 
 #[derive(Debug)]
@@ -144,6 +146,7 @@ pub struct SubscriptionObj {
     topic: EncoreName,
     subscription: EncoreName,
     schema: JSONSchema,
+    cancel: CancellationToken,
 
     handler: OnceLock<Arc<SubHandler>>,
     subscribe_fut: OnceLock<Shared<SubscribeFut>>,
@@ -166,7 +169,11 @@ impl SubscriptionObj {
         h.add_handler(handler);
 
         self.subscribe_fut
-            .get_or_init(|| self.inner.subscribe(h.clone()).shared())
+            .get_or_init(|| {
+                self.inner
+                    .subscribe(h.clone(), self.cancel.child_token())
+                    .shared()
+            })
             .clone()
             .await
     }
@@ -379,7 +386,13 @@ impl Manager {
             topics: Arc::default(),
             subs: Arc::default(),
             push_registry: PushHandlerRegistry::new(),
+            cancel: CancellationToken::new(),
         })
+    }
+
+    /// Returns the cancellation token for all subscriptions.
+    pub fn cancel_token(&self) -> CancellationToken {
+        self.cancel.clone()
     }
 
     pub fn topic(&self, name: EncoreName) -> Option<TopicObj> {
@@ -438,6 +451,7 @@ impl Manager {
                     topic: name.topic.clone(),
                     subscription: name.subscription.clone(),
                     schema: cfg.schema.clone(),
+                    cancel: self.cancel.child_token(),
                     handler: OnceLock::new(),
                     subscribe_fut: Default::default(),
                 })
@@ -458,6 +472,7 @@ impl Manager {
                     // Use a null schema.
                     schema: JSONSchema::null(),
 
+                    cancel: self.cancel.child_token(),
                     handler: OnceLock::new(),
                     subscribe_fut: Default::default(),
                 })

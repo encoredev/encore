@@ -32,6 +32,14 @@ export function registerGateways(gateways: Gateway[]) {
 
 export async function run(entrypoint: string) {
   if (isMainThread) {
+    // Suppress Node.js's default signal handling. Without this, Node.js
+    // receives SIGINT/SIGTERM and tears down the event loop (clearing timers,
+    // pending promises, etc.), which prevents in-flight request handlers from
+    // completing. The Rust runtime handles signals for graceful shutdown,
+    // including force-exit on a second signal.
+    process.on("SIGINT", () => {});
+    process.on("SIGTERM", () => {});
+
     const metricsBuffer = initGlobalMetricsBuffer();
     const extraWorkers = runtime.RT.numWorkerThreads() - 1;
     if (extraWorkers > 0) {

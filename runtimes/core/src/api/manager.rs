@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::future::{Future, IntoFuture};
+use std::future::Future;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
@@ -106,6 +106,7 @@ impl ManagerConfig<'_> {
                 .to_string(),
             app_slug: self.environment.app_slug.clone(),
             env_name: self.environment.env_name.clone(),
+            shutting_down: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         };
 
         let hosted_services = Hosted::from_iter(self.hosted_services.into_iter().map(|s| s.name));
@@ -359,7 +360,10 @@ impl Manager {
     }
 
     /// Starts serving the API.
-    pub fn start_serving(&self) -> tokio::task::JoinHandle<anyhow::Result<()>> {
+    pub fn start_serving(
+        &self,
+        shutdown: crate::shutdown::ShutdownHandle,
+    ) -> tokio::task::JoinHandle<anyhow::Result<()>> {
         let api = self.api_server.as_ref().map(|srv| srv.router());
 
         async fn fallback(
@@ -391,18 +395,35 @@ impl Manager {
         let gateway = self.gateways.values().next().cloned();
         let testing = self.testing;
 
+        // Wire up the healthz shutdown flag.
+        let shutting_down = self.healthz.shutting_down.clone();
+        {
+            let shutdown = shutdown.clone();
+            self.runtime.spawn(async move {
+                shutdown.cancelled().await;
+                shutting_down.store(true, std::sync::atomic::Ordering::Relaxed);
+            });
+        }
+
         self.runtime.spawn(async move {
-            let gateway_parts = (gateway, gateway_listener);
-            let gateway_fut = match gateway_parts {
-                (Some(gw), Some(ref ln)) => {
-                    if !testing {
-                        log::debug!(addr=ln; "gateway listening for incoming requests");
-                        Some(gw.serve(ln))
-                    } else {
-                        // No need running the gateway in tests
-                        None
-                    }
-                },
+            // Fires if either server exits before shutdown (error/panic).
+            // Each task holds a drop guard so the token fires even on panic.
+            let server_exited = tokio_util::sync::CancellationToken::new();
+
+            // Start the gateway (Pingora). On shutdown it stops accepting
+            // connections and waits for in-flight proxy requests to drain.
+            let gateway_handle = match (gateway, gateway_listener) {
+                (Some(gw), Some(ln)) if !testing => {
+                    log::debug!(addr=&ln; "gateway listening for incoming requests");
+                    let gw_shutdown = shutdown.clone();
+                    let guard = server_exited.clone().drop_guard();
+                    Some(tokio::spawn(async move {
+                        let _guard = guard;
+                        if let Err(err) = gw.serve(&ln, gw_shutdown).await {
+                            log::error!("api gateway failed: {:?}", err);
+                        }
+                    }))
+                }
                 (Some(_), None) => {
                     ::log::error!("internal encore error: misconfigured api gateway (missing listener), skipping");
                     None
@@ -411,37 +432,82 @@ impl Manager {
                     ::log::error!("internal encore error: misconfigured api gateway (missing gateway config), skipping");
                     None
                 }
-                (None, None) => None,
+                _ => None,
             };
 
-            let api_fut = match api_listener {
+            // Start the API server (axum) with graceful shutdown.
+            // The shutdown signal depends on whether there's a gateway:
+            // - With gateway: shut down after gateway finishes draining,
+            //   since the gateway proxies to the API server.
+            // - Without gateway: shut down directly on the global signal.
+            let api_shutdown = tokio_util::sync::CancellationToken::new();
+            let api_handle = match api_listener {
                 Some(ln) => {
                     let addr = ln.local_addr().map(|addr| addr.to_string()).unwrap_or_default();
                     log::debug!(addr = addr; "api server listening for incoming requests");
 
-                    ln
-                        .set_nonblocking(true)
+                    ln.set_nonblocking(true)
                         .context("unable to set nonblocking")?;
                     let axum_listener = tokio::net::TcpListener::from_std(ln)
                         .context("unable to convert listener to tokio")?;
-                    let fut = axum::serve(axum_listener, server).into_future();
-                    Some(fut)
+                    let signal = api_shutdown.clone();
+                    let guard = server_exited.clone().drop_guard();
+                    Some(tokio::spawn(async move {
+                        let _guard = guard;
+                        axum::serve(axum_listener, server)
+                            .with_graceful_shutdown(signal.cancelled_owned())
+                            .await
+                            .inspect_err(|err| log::error!("api server failed: {:?}", err))
+                            .ok();
+                    }))
                 }
                 None => None,
             };
 
+
+            if gateway_handle.is_none() && api_handle.is_none() {
+                ::log::debug!("no api server or gateway to serve");
+                return Ok(());
+            }
+
+            // Wait for shutdown signal, or for either server to exit unexpectedly.
+            // Biased so shutdown always takes priority if both fire simultaneously.
             tokio::select! {
-                res = async { gateway_fut.unwrap().await }, if gateway_fut.is_some() => {
-                    res.context("serve gateway").inspect_err(|err| log::error!("api gateway failed: {:?}", err))?;
-                },
-                res = async { api_fut.unwrap().await }, if api_fut.is_some() => {
-                    res.context("serve api").inspect_err(|err| log::error!("api server failed: {:?}", err))?;
-                },
-                else => {
-                    // Nothing to serve.
-                    ::log::debug!("no api server or gateway to serve");
+                biased;
+                _ = shutdown.cancelled() => {}
+                _ = server_exited.cancelled() => {
+                    // A server exited before shutdown. Check which one and
+                    // extract the error/panic details.
+                    if let Some(h) = gateway_handle {
+                        if h.is_finished() {
+                            if let Err(err) = h.await {
+                                anyhow::bail!("gateway failed: {err:?}");
+                            }
+                            anyhow::bail!("gateway exited unexpectedly");
+                        }
+                    }
+                    if let Some(h) = api_handle {
+                        if h.is_finished() {
+                            if let Err(err) = h.await {
+                                anyhow::bail!("api server failed: {err:?}");
+                            }
+                            anyhow::bail!("api server exited unexpectedly");
+                        }
+                    }
+                    anyhow::bail!("server exited unexpectedly");
                 }
-            };
+            }
+
+            // Drain in order: gateway first (it proxies to the API server),
+            // then API server.
+            if let Some(h) = gateway_handle {
+                let _ = h.await;
+            }
+            api_shutdown.cancel();
+            if let Some(h) = api_handle {
+                let _ = h.await;
+            }
+
             Ok(())
         })
     }

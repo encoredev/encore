@@ -9,6 +9,8 @@ use tokio_nsq::{
     NSQChannel, NSQConsumerConfig, NSQConsumerConfigSources, NSQMessage, NSQRequeueDelay, NSQTopic,
 };
 
+use tokio_util::sync::CancellationToken;
+
 use crate::api::APIResult;
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
@@ -81,28 +83,37 @@ impl Subscription for NsqSubscription {
     fn subscribe(
         &self,
         handler: Arc<SubHandler>,
+        cancel: CancellationToken,
     ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
         let mut consumer = self.config.clone().build();
         let max_retries = self.max_retries;
 
         Box::pin(async move {
             loop {
-                let Some(msg) = consumer.consume_filtered().await else {
-                    continue;
-                };
+                tokio::select! {
+                    _ = cancel.cancelled() => {
+                        log::info!("nsq subscription shutting down");
+                        return Ok(());
+                    }
+                    msg = consumer.consume_filtered() => {
+                        let Some(msg) = msg else {
+                            continue;
+                        };
 
-                // If the attempt exceeds the max retries, drop it.
-                // Attempt starts at 1 for the first delivery, which means
-                // the retry count is (attempt-1).
-                let retry = msg.attempt as i64 - 1;
-                if retry > max_retries {
-                    msg.finish().await;
-                    continue;
+                        // If the attempt exceeds the max retries, drop it.
+                        // Attempt starts at 1 for the first delivery, which means
+                        // the retry count is (attempt-1).
+                        let retry = msg.attempt as i64 - 1;
+                        if retry > max_retries {
+                            msg.finish().await;
+                            continue;
+                        }
+
+                        // Process the message asynchronously.
+                        let h = handler.clone();
+                        tokio::spawn(async move { process_message(msg, h).await });
+                    }
                 }
-
-                // Process the message asynchronously.
-                let h = handler.clone();
-                tokio::spawn(async move { process_message(msg, h).await });
             }
         })
     }
