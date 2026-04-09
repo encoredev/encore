@@ -231,20 +231,17 @@ impl CallMeta {
 
                     // If the caller is a gateway, ignore the parent span id
                     // as gateways don't record a span.
-                    // Also clear for remote auth handler calls, which are
-                    // conceptually root requests from the gateway.
                     if let Some(internal) = &meta.internal {
-                        let clear_parent = match &internal.caller {
-                            Caller::Gateway { .. } => true,
-                            Caller::APIEndpoint(name) => {
-                                name.service() == "gateway"
-                                    && name.endpoint() == "__encore/authhandler"
-                            }
-                            _ => false,
-                        };
-                        if clear_parent {
+                        if matches!(internal.caller, Caller::Gateway { .. }) {
                             meta.parent_span_id = None;
                         }
+                    }
+
+                    // If this is an internal call but the tracestate didn't contain
+                    // encore/span-id, any parent_span_id from the traceparent was
+                    // injected by infrastructure (e.g. GCP Cloud Run), not by Encore.
+                    if meta.internal.is_some() && tracestate.span_id.is_none() {
+                        meta.parent_span_id = None;
                     }
                 }
             }
