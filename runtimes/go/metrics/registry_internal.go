@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"sync/atomic"
 
@@ -14,6 +15,8 @@ type Registry struct {
 	numSvcs  uint16
 	tsid     uint64
 	registry sync.Map // map[registryKey]*timeseries
+
+	serviceLabels sync.Map // map[string][]KeyValue — extra labels per service name
 }
 
 func NewRegistry(rt *reqtrack.RequestTracker, numServicesInBinary int) *Registry {
@@ -84,6 +87,11 @@ type CollectedMetric struct {
 	Labels       []KeyValue
 	Val          any // []T where T is any of Value
 	Valid        []atomic.Bool
+
+	// ServiceLabels maps service names to additional labels that should be
+	// included when exporting this metric for that service. It is nil when
+	// no service labels have been registered.
+	ServiceLabels map[string][]KeyValue
 }
 
 type registryKey struct {
@@ -121,4 +129,51 @@ func getTS[T any](r *Registry, name string, labels any, info MetricInfo) (ts *ti
 		id:   atomic.AddUint64(&r.tsid, 1),
 	})
 	return val.(*timeseries[T]), loaded
+}
+
+// reservedLabelKeys are label keys that are set by the exporters and must
+// not be overwritten by user-provided service labels.
+var reservedLabelKeys = map[string]bool{
+	"__name__": true,
+	"service":  true,
+	"endpoint": true,
+	"code":     true,
+}
+
+// RegisterServiceLabels registers additional labels to be included with all
+// metrics exported for the named service. This is useful for enriching built-in
+// metrics (like e_requests_total) with custom metadata for alert routing or
+// dashboard filtering.
+//
+// Labels with reserved keys (service, endpoint, code, __name__) or empty
+// values are silently skipped. Subsequent calls for the same service replace
+// previous labels. Passing nil or empty labels removes any previously
+// registered labels for the service.
+func (r *Registry) RegisterServiceLabels(serviceName string, labels map[string]string) {
+	kvs := make([]KeyValue, 0, len(labels))
+	for k, v := range labels {
+		if k == "" || v == "" || reservedLabelKeys[k] {
+			continue
+		}
+		kvs = append(kvs, KeyValue{Key: k, Value: v})
+	}
+	if len(kvs) == 0 {
+		r.serviceLabels.Delete(serviceName)
+		return
+	}
+	sort.Slice(kvs, func(i, j int) bool { return kvs[i].Key < kvs[j].Key })
+	r.serviceLabels.Store(serviceName, kvs)
+}
+
+// ServiceLabels returns a snapshot of all registered service labels.
+func (r *Registry) ServiceLabels() map[string][]KeyValue {
+	result := make(map[string][]KeyValue)
+	r.serviceLabels.Range(func(key, value any) bool {
+		result[key.(string)] = value.([]KeyValue)
+		return true
+	})
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
