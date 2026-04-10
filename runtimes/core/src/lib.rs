@@ -532,8 +532,10 @@ impl Runtime {
                 tokio::time::sleep(self.shutdown_config.keep_accepting).await;
             }
 
-            // Stop pubsub subscriptions from fetching new messages.
+            // Stop pubsub subscriptions from fetching new messages,
+            // then wait for in-flight message handlers to finish.
             self.pubsub.cancel_token().cancel();
+            self.pubsub.drain().await;
 
             // Wait for the API server to drain (gateway drains first, then axum).
             let serve_result = match api_handle.await {
@@ -543,7 +545,11 @@ impl Runtime {
 
             // Flush observability data.
             self.metrics().collect_and_export().await;
-            let tracer_flush = self.tracer_flush.lock().unwrap().take();
+            let tracer_flush = self
+                .tracer_flush
+                .lock()
+                .expect("tracer_flush lock poisoned")
+                .take();
             if let Some(flush) = tracer_flush {
                 flush.flush().await;
             }

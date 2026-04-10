@@ -108,6 +108,4 @@ pub async fn process_concurrently<F: Fetcher>(cfg: Config, fetcher: F, cancel: C
             }
         }
     }
-
-    log::info!("subscription shutting down");
 }

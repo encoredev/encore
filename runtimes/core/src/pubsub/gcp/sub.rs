@@ -39,6 +39,8 @@ impl pubsub::Subscription for Subscription {
         cancel: CancellationToken,
     ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
         let inner = self.inner.clone();
+        let topic = handler.topic().clone();
+        let subscription = handler.subscription().clone();
         Box::pin(async move {
             let sub = inner.get_sub().await.map_err(api::Error::internal)?;
             sub.receive(
@@ -51,6 +53,11 @@ impl pubsub::Subscription for Subscription {
             )
             .await
             .map_err(api::Error::internal)?;
+            log::info!(
+                topic = &*topic,
+                subscription = &*subscription;
+                "gcp subscription shutting down"
+            );
             Ok(())
         })
     }

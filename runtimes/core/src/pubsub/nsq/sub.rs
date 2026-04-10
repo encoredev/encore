@@ -92,7 +92,15 @@ impl Subscription for NsqSubscription {
             loop {
                 tokio::select! {
                     _ = cancel.cancelled() => {
-                        log::info!("nsq subscription shutting down");
+                        log::info!(
+                            topic = &**handler.topic(),
+                            subscription = &**handler.subscription();
+                            "nsq subscription shutting down"
+                        );
+                        // Wait for in-flight handlers to finish ack/nack
+                        // before dropping the consumer (which closes the
+                        // NSQ connection).
+                        handler.drain_in_flight().await;
                         return Ok(());
                     }
                     msg = consumer.consume_filtered() => {
