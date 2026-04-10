@@ -275,9 +275,10 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 			ServiceToServiceCall: c.callMeta.IsServiceToService(),
 		},
 
-		ExtRequestID:        clampTo64Chars(c.req.Header.Get("X-Request-ID")),
-		ExtCorrelationID:    clampTo64Chars(c.req.Header.Get("X-Correlation-ID")),
-		AdditionalLogFields: cloudtrace.StructuredLogFields(c.req),
+		ExtRequestID:            clampTo64Chars(c.req.Header.Get("X-Request-ID")),
+		ExtCorrelationID:        clampTo64Chars(c.req.Header.Get("X-Correlation-ID")),
+		AdditionalLogFields:     cloudtrace.StructuredLogFields(c.req),
+		TraceSampledPrecomputed: c.traceSampledPrecomputed,
 	})
 	if err != nil {
 		beginErr = errs.B().Code(errs.Internal).Msg("internal error").Err()

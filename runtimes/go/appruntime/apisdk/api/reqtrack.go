@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"reflect"
 	"sync/atomic"
 	"time"
@@ -63,6 +64,24 @@ type beginRequestParams struct {
 	// This is mainly used to add the trace identifiers to the log messages
 	// so the clouds logging can correlate the logs with the trace.
 	AdditionalLogFields map[string]string
+
+	// TraceSampledPrecomputed indicates that ParentSampled was pre-computed
+	// by processRequest and should be used as-is, skipping the normal
+	// sampling logic. This ensures the auth handler and endpoint handler
+	// use the exact same sampling decision.
+	TraceSampledPrecomputed bool
+}
+
+// shouldTrace determines whether a request should be traced based on the
+// platform auth status, cron scheduling, parent span, and sampling config.
+func (s *Server) shouldTrace(service, endpoint string, headers http.Header, fromPlatform, isRoot bool, parentSampled bool) bool {
+	isCronScheduled := headers.Get("X-Encore-Cron-Trigger") == "scheduled"
+	if fromPlatform && !isCronScheduled {
+		return true
+	} else if isRoot {
+		return s.rt.SampleTrace(service, endpoint)
+	}
+	return parentSampled
 }
 
 func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*model.Request, error) {
@@ -84,15 +103,19 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		spanID = id
 	}
 
-	isCronScheduled := p.Data.RequestHeaders.Get("X-Encore-Cron-Trigger") == "scheduled"
-
 	var traced bool
-	if p.Data.FromEncorePlatform && !isCronScheduled {
-		traced = true
-	} else if p.ParentSpanID.IsZero() {
-		traced = s.rt.SampleTrace(p.Data.Desc.Service, p.Data.Desc.Endpoint)
-	} else {
+	if p.Type == model.AuthHandler || p.TraceSampledPrecomputed {
+		// Use the pre-computed sampling decision from processRequest.
+		// This ensures the auth handler and endpoint use the same decision.
 		traced = p.ParentSampled
+	} else {
+		traced = s.shouldTrace(
+			p.Data.Desc.Service, p.Data.Desc.Endpoint,
+			p.Data.RequestHeaders,
+			p.Data.FromEncorePlatform,
+			p.ParentSpanID.IsZero(),
+			p.ParentSampled,
+		)
 	}
 
 	req := &model.Request{

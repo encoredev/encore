@@ -84,6 +84,7 @@ impl RemoteAuthHandler {
         let meta = &req.call_meta;
         let desc: CallDesc<()> = CallDesc {
             caller: &caller,
+            trace_id: Some(meta.trace_id),
             parent_span: meta.parent_span_id.map(|sp| meta.trace_id.with_span(sp)),
             parent_event_id: None,
             ext_correlation_id: meta

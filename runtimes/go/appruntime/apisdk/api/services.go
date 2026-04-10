@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+
+	"encore.dev/internal/platformauth"
 )
 
 func (s *Server) createServiceHandlerAdapter(h Handler) httprouter.Handle {
@@ -45,9 +47,36 @@ func (s *Server) processRequest(h Handler, c IncomingContext) {
 	c.server.beginOperation()
 	defer c.server.finishOperation()
 
+	// Pre-compute the endpoint's trace sampling decision and store it in
+	// callMeta.TraceSampled. The auth handler uses this (via ParentSampled)
+	// instead of making its own sampling decision, which would use the auth
+	// handler's endpoint name and typically fall through to the default rate.
+	c.callMeta.TraceSampled = s.endpointTraceSampled(h, c)
+	c.traceSampledPrecomputed = true
+
 	info, proceed := s.runAuthHandler(h, c)
 	if proceed {
 		c.auth = info
 		h.Handle(c)
 	}
+}
+
+// endpointTraceSampled computes the trace sampling decision for the
+// given endpoint handler, using the same logic as beginRequest.
+func (s *Server) endpointTraceSampled(h Handler, c IncomingContext) bool {
+	// If the request was forwarded by a gateway, the gateway already made the
+	// sampling decision and propagated it via tracestate. Use it directly
+	// instead of re-evaluating, so the auth handler and endpoint agree.
+	if c.callMeta.Internal != nil {
+		if _, ok := c.callMeta.Internal.Caller.(GatewayCaller); ok {
+			return c.callMeta.TraceSampled
+		}
+	}
+	return s.shouldTrace(
+		h.ServiceName(), h.EndpointName(),
+		c.req.Header,
+		platformauth.IsEncorePlatformRequest(c.req.Context()),
+		c.callMeta.ParentSpanID.IsZero(),
+		c.callMeta.TraceSampled,
+	)
 }

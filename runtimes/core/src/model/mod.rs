@@ -83,6 +83,10 @@ impl TraceId {
 pub struct InvalidBase32;
 
 impl SpanId {
+    pub fn is_zero(&self) -> bool {
+        self.0 == [0u8; 8]
+    }
+
     pub fn generate() -> Self {
         let mut span_id = [0u8; 8];
         rand::thread_rng().fill_bytes(&mut span_id);

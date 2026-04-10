@@ -203,7 +203,7 @@ impl CallMeta {
                     {
                         meta.trace_id = trace_id;
                         meta.caller_trace_id = Some(trace_id);
-                        meta.parent_span_id = Some(parent_span_id);
+                        meta.parent_span_id = parent_span_id;
                         meta.trace_sampled = Some(sampled);
                     }
 
@@ -232,6 +232,13 @@ impl CallMeta {
                             meta.parent_span_id = None;
                         }
                     }
+
+                    // If this is an internal call but the tracestate didn't contain
+                    // encore/span-id, any parent_span_id from the traceparent was
+                    // injected by infrastructure (e.g. GCP Cloud Run), not by Encore.
+                    if meta.internal.is_some() && tracestate.span_id.is_none() {
+                        meta.parent_span_id = None;
+                    }
                 }
             }
 
@@ -247,7 +254,9 @@ impl CallMeta {
     }
 }
 
-fn parse_traceparent(s: &str) -> anyhow::Result<(model::TraceId, model::SpanId, bool)> {
+/// Parse a W3C traceparent header. Returns the trace ID, parent span ID (None if zero),
+/// and the sampled flag.
+fn parse_traceparent(s: &str) -> anyhow::Result<(model::TraceId, Option<model::SpanId>, bool)> {
     let version = "00";
     let trace_id_len = 32;
     let span_id_len = 16;
@@ -292,6 +301,11 @@ fn parse_traceparent(s: &str) -> anyhow::Result<(model::TraceId, model::SpanId, 
     let trace_flags = u8::from_str_radix(trace_flags, 16).context("invalid trace flags")?;
     let sampled = trace_flags & 0x01 != 0;
 
+    let span_id = if span_id.is_zero() {
+        None
+    } else {
+        Some(span_id)
+    };
     Ok((trace_id, span_id, sampled))
 }
 
