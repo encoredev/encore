@@ -15,7 +15,7 @@ use crate::api::reqauth::meta::MetaKey;
 use crate::api::reqauth::{service_auth_method, svcauth};
 use crate::api::schema::{JSONPayload, ToOutgoingRequest};
 use crate::api::{schema, APIResult, Endpoint, EndpointMap};
-use crate::model::{SpanKey, TraceEventId};
+use crate::model::{SpanId, SpanKey, TraceEventId, TraceId};
 use crate::names::EndpointName;
 use crate::trace::Tracer;
 use crate::{api, encore, model, secrets, EncoreName, Hosted};
@@ -479,6 +479,7 @@ impl ServiceRegistry {
         let desc = CallDesc {
             caller: &caller,
             svc_auth_method: svc_auth_method.as_ref(),
+            trace_id: source.map(|r| r.span.0),
             parent_span: source.map(|r| r.span),
             parent_event_id,
             ext_correlation_id: source.and_then(|r| {
@@ -500,6 +501,9 @@ impl ServiceRegistry {
 pub struct CallDesc<'a, AuthData> {
     pub caller: &'a Caller,
 
+    /// The trace ID for this call. Used to send the traceparent header
+    /// even when there is no parent span (e.g. remote auth handler calls).
+    pub trace_id: Option<TraceId>,
     pub parent_span: Option<SpanKey>,
     pub parent_event_id: Option<TraceEventId>,
     pub ext_correlation_id: Option<Cow<'a, str>>,
@@ -520,22 +524,26 @@ where
     pub fn add_meta<R: MetaMapMut>(self, headers: &mut R) -> anyhow::Result<()> {
         headers.set(MetaKey::Version, "1".to_string())?;
 
-        if let Some(span) = self.parent_span {
+        if let Some(trace_id) = self.trace_id {
+            // Send traceparent with the parent span ID if available, or zero.
+            let span_id = self.parent_span.map(|s| s.1).unwrap_or(SpanId([0u8; 8]));
+
             headers.set(
                 MetaKey::TraceParent,
                 format!(
                     "00-{}-{}-{}",
-                    span.0.serialize_std(),
-                    span.1.serialize_std(),
+                    trace_id.serialize_std(),
+                    span_id.serialize_std(),
                     if self.traced { "01" } else { "00" },
                 ),
             )?;
 
+            // Build tracestate with span-id (if non-zero), event-id, and sampled.
             let mut trace_state = String::new();
 
-            if !span.1.is_zero() {
+            if !span_id.is_zero() {
                 trace_state.push_str("encore/span-id=");
-                trace_state.push_str(&span.1.serialize_std());
+                trace_state.push_str(&span_id.serialize_std());
             }
 
             if let Some(event_id) = self.parent_event_id.map(|id| id.serialize()) {
@@ -546,7 +554,7 @@ where
                 trace_state.push_str(event_id.to_string().as_str());
             }
 
-            // Propagate our sampling decision via tracestate since GCP Cloud Run
+            // Always propagate our sampling decision via tracestate since GCP Cloud Run
             // can modify the traceparent sampled flag between services.
             if !trace_state.is_empty() {
                 trace_state.push(',');
@@ -555,14 +563,6 @@ where
             trace_state.push_str(if self.traced { "1" } else { "0" });
 
             headers.set(MetaKey::TraceState, trace_state)?;
-        } else {
-            // Even without a parent span, always propagate the sampling decision
-            // via tracestate. GCP Cloud Run can modify the traceparent sampled flag,
-            // so we need tracestate as the authoritative source.
-            headers.set(
-                MetaKey::TraceState,
-                format!("encore/sampled={}", if self.traced { "1" } else { "0" }),
-            )?;
         }
 
         if let Some(corr_id) = self.ext_correlation_id {

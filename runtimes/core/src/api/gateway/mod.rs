@@ -451,6 +451,7 @@ impl ProxyHttp for Gateway {
             });
             let mut desc = CallDesc {
                 caller: &caller,
+                trace_id: Some(call_meta.trace_id),
                 parent_span: call_meta
                     .parent_span_id
                     .map(|sp| call_meta.trace_id.with_span(sp)),

@@ -82,17 +82,10 @@ impl RemoteAuthHandler {
         let caller = Caller::APIEndpoint(EndpointName::new("gateway", "__encore/authhandler"));
 
         let meta = &req.call_meta;
-        // Always include the trace ID so traceparent is sent, even without a parent span.
-        // This ensures the tracestate (with the sampling decision) is read by the receiver,
-        // which is necessary on non-GCP environments where Cloud Run doesn't inject a traceparent.
-        let zero_span = crate::model::SpanId([0u8; 8]);
-        let parent_span = Some(
-            meta.trace_id
-                .with_span(meta.parent_span_id.unwrap_or(zero_span)),
-        );
         let desc: CallDesc<()> = CallDesc {
             caller: &caller,
-            parent_span,
+            trace_id: Some(meta.trace_id),
+            parent_span: meta.parent_span_id.map(|sp| meta.trace_id.with_span(sp)),
             parent_event_id: None,
             ext_correlation_id: meta
                 .ext_correlation_id
