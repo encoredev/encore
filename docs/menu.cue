@@ -981,6 +981,11 @@
 				text: "Mono vs Multi Repo"
 				path: "/ts/frontend/mono-vs-multi-repo"
 				file: "ts/frontend/mono-vs-multi-repo"
+			}, {
+				kind: "basic"
+				text: "Encore Toolbar"
+				path: "/ts/frontend/encore-toolbar"
+				file: "ts/frontend/encore-toolbar"
 			}]
 		},
 		{
