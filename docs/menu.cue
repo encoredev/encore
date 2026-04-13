@@ -504,6 +504,11 @@
 				file: "go/how-to/integrate-frontend"
 			}, {
 				kind: "basic"
+				text: "Encore Toolbar"
+				path: "/go/how-to/encore-toolbar"
+				file: "go/how-to/encore-toolbar"
+			}, {
+				kind: "basic"
 				text: "Use Temporal with Encore"
 				path: "/go/how-to/temporal"
 				file: "go/how-to/temporal"
@@ -981,6 +986,11 @@
 				text: "Mono vs Multi Repo"
 				path: "/ts/frontend/mono-vs-multi-repo"
 				file: "ts/frontend/mono-vs-multi-repo"
+			}, {
+				kind: "basic"
+				text: "Encore Toolbar"
+				path: "/ts/frontend/encore-toolbar"
+				file: "ts/frontend/encore-toolbar"
 			}]
 		},
 		{
