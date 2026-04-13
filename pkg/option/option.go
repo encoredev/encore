@@ -21,7 +21,7 @@ type Option[T any] struct {
 	present bool
 }
 
-func (o *Option[T]) MarshalJSON() ([]byte, error) {
+func (o Option[T]) MarshalJSON() ([]byte, error) {
 	if !o.present {
 		return []byte("null"), nil
 	}
