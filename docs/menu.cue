@@ -504,6 +504,11 @@
 				file: "go/how-to/integrate-frontend"
 			}, {
 				kind: "basic"
+				text: "Encore Toolbar"
+				path: "/go/how-to/encore-toolbar"
+				file: "go/how-to/encore-toolbar"
+			}, {
+				kind: "basic"
 				text: "Use Temporal with Encore"
 				path: "/go/how-to/temporal"
 				file: "go/how-to/temporal"

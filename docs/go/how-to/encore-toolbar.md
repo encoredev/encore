@@ -3,10 +3,10 @@ seotitle: Encore Toolbar – Inspect API requests from your frontend
 seodesc: Learn how to add the Encore Toolbar to your frontend to inspect API requests, link to distributed traces, and view backend logs during development.
 title: Encore Toolbar
 subtitle: Inspect API requests and traces from your frontend
-lang: ts
+lang: go
 ---
 
-The Encore Toolbar is a lightweight, drop-in script that adds a floating developer panel to your frontend application. It automatically intercepts all `fetch()` and `XMLHttpRequest` calls, captures trace IDs from Encore's response headers, and lets you jump directly to the corresponding trace in the [Development Dashboard](/docs/ts/observability/dev-dash) or [Encore Cloud](https://app.encore.cloud).
+The Encore Toolbar is a lightweight, drop-in script that adds a floating developer panel to your frontend application. It automatically intercepts all `fetch()` and `XMLHttpRequest` calls, captures trace IDs from Encore's response headers, and lets you jump directly to the corresponding trace in the [Development Dashboard](/docs/go/observability/dev-dash) or [Encore Cloud](https://app.encore.cloud).
 
 This is useful when you're building a frontend that talks to an Encore backend and want visibility into what's happening on the backend without switching to a separate tool.
 
@@ -75,22 +75,29 @@ If the toolbar shows "Trace link could not be created", it means the toolbar doe
    <script src="https://encore.dev/encore-toolbar.js?appId=my-app&envName=staging"></script>
    ```
 
-   If you don't want to hardcode the environment name, you can add a backend endpoint that redirects to the toolbar script with the correct parameters:
+   If you don't want to hardcode the environment name, you can add a [raw endpoint](/docs/go/primitives/raw-endpoints) that redirects to the toolbar script with the correct parameters:
 
-   ```ts
-   import { api } from "encore.dev/api";
-   import { appMeta } from "encore.dev";
+   ```go
+   package toolbar
 
-   export const toolbar = api.raw(
-     { method: "GET", expose: true, path: "/encore-toolbar.js" },
-     async (req, resp) => {
-       const appId = appMeta().appId;
-       const envName = appMeta().environment.name;
-       const url = `https://encore.dev/encore-toolbar.js?appId=${encodeURIComponent(appId)}&envName=${encodeURIComponent(envName)}`;
-       resp.writeHead(302, { Location: url });
-       resp.end();
-     },
-   );
+   import (
+       "fmt"
+       "net/http"
+       "net/url"
+
+       "encore.dev"
+   )
+
+   //encore:api public raw path=/encore-toolbar.js
+   func Toolbar(w http.ResponseWriter, req *http.Request) {
+       meta := encore.Meta()
+       target := fmt.Sprintf(
+           "https://encore.dev/encore-toolbar.js?appId=%s&envName=%s",
+           url.QueryEscape(meta.AppID),
+           url.QueryEscape(meta.Environment.Name),
+       )
+       http.Redirect(w, req, target, http.StatusFound)
+   }
    ```
 
    Then point your script tag at your own backend instead:
