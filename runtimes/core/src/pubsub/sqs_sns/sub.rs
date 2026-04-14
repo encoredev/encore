@@ -84,8 +84,6 @@ impl pubsub::Subscription for Subscription {
         Box::pin(async move {
             let client = client.get_sqs().await.clone();
 
-            let topic = handler.topic().clone();
-            let subscription = handler.subscription().clone();
             let sqs_fetcher = Arc::new(SqsFetcher {
                 handler,
                 client,
@@ -94,12 +92,6 @@ impl pubsub::Subscription for Subscription {
                 requeue_policy,
             });
             fetcher::process_concurrently(fetcher_cfg.clone(), sqs_fetcher, cancel).await;
-
-            log::info!(
-                topic = &*topic,
-                subscription = &*subscription;
-                "sqs subscription shutting down"
-            );
 
             Ok(())
         })

@@ -203,6 +203,17 @@ impl InFlightTracker {
         }
     }
 
+    // Ordering rationale:
+    // - acquire: Relaxed — just a counter bump, no data to synchronize.
+    //   If a spawned handler task hasn't been polled when drain() runs,
+    //   drain may return early (count is still 0). This is safe: the
+    //   handler never started and the broker redelivers the message.
+    // - release: Release — ensures all handler work (message processing,
+    //   ack/nack) is visible before the decrement.
+    // - drain: Acquire — pairs with release's Release via release sequences.
+    //   When drain sees 0, all handler side effects across all threads are
+    //   guaranteed visible.
+
     fn acquire(&self) {
         self.count
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -219,8 +230,21 @@ impl InFlightTracker {
     }
 
     async fn drain(&self) {
-        while self.count.load(std::sync::atomic::Ordering::Acquire) > 0 {
-            self.notify.notified().await;
+        loop {
+            // IMPORTANT: create the Notified future BEFORE loading the count.
+            //
+            // Tokio's Notify works via a generation counter. Calling notified()
+            // captures the current generation, so if notify_waiters() fires after
+            // this line but before .await, the future observes the incremented
+            // generation on its first poll and returns immediately.
+            //
+            // If we loaded count first and it raced with the final release()
+            // decrement, we would miss the notification and park forever.
+            let notified = self.notify.notified();
+            if self.count.load(std::sync::atomic::Ordering::Acquire) == 0 {
+                return;
+            }
+            notified.await;
         }
     }
 }
@@ -411,14 +435,6 @@ impl SubHandler {
             obj.tracer.request_span_end(&resp, false);
             result
         })
-    }
-
-    pub(super) fn topic(&self) -> &EncoreName {
-        &self.obj.topic
-    }
-
-    pub(super) fn subscription(&self) -> &EncoreName {
-        &self.obj.subscription
     }
 
     /// Waits for all in-flight message handlers to complete.

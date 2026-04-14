@@ -63,18 +63,11 @@ impl pubsub::Subscription for PushSubscription {
         handler: Arc<SubHandler>,
         cancel: tokio_util::sync::CancellationToken,
     ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
-        let topic = handler.topic().clone();
-        let subscription = handler.subscription().clone();
         self.inner.handler.write().unwrap().replace(handler);
 
         // Block until cancelled; the handler is called from the HTTP handler.
         Box::pin(async move {
             cancel.cancelled().await;
-            log::info!(
-                topic = &*topic,
-                subscription = &*subscription;
-                "gcp push subscription shutting down"
-            );
             Ok(())
         })
     }
