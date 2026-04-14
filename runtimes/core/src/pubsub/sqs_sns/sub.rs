@@ -10,6 +10,8 @@ use serde::Deserialize;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::{Action, Retry};
 
+use tokio_util::sync::CancellationToken;
+
 use crate::api::APIResult;
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
@@ -71,6 +73,7 @@ impl pubsub::Subscription for Subscription {
     fn subscribe(
         &self,
         handler: Arc<SubHandler>,
+        cancel: CancellationToken,
     ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
         let client = self.client.clone();
         let cloud_name = self.cloud_name.clone();
@@ -88,7 +91,7 @@ impl pubsub::Subscription for Subscription {
                 ack_deadline,
                 requeue_policy,
             });
-            fetcher::process_concurrently(fetcher_cfg.clone(), sqs_fetcher).await;
+            fetcher::process_concurrently(fetcher_cfg.clone(), sqs_fetcher, cancel).await;
 
             Ok(())
         })

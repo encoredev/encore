@@ -3,6 +3,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use anyhow::Result;
+use tokio_util::sync::CancellationToken;
 
 use crate::api::APIResult;
 use crate::encore::parser::meta::v1 as meta;
@@ -48,7 +49,11 @@ impl pubsub::Subscription for NoopSubscription {
     fn subscribe(
         &self,
         _: Arc<SubHandler>,
+        cancel: CancellationToken,
     ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
-        Box::pin(futures::future::pending())
+        Box::pin(async move {
+            cancel.cancelled().await;
+            Ok(())
+        })
     }
 }

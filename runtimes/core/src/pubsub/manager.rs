@@ -8,6 +8,7 @@ use anyhow::Context;
 use chrono::Utc;
 use futures::future::Shared;
 use futures::FutureExt;
+use tokio_util::sync::CancellationToken;
 
 use crate::api::jsonschema::{self, JSONSchema};
 use crate::api::{APIResult, PValues};
@@ -36,6 +37,7 @@ pub struct Manager {
     topics: Arc<RwLock<HashMap<EncoreName, Arc<TopicInner>>>>,
     subs: Arc<RwLock<HashMap<SubName, Arc<SubscriptionObj>>>>,
     push_registry: PushHandlerRegistry,
+    cancel: CancellationToken,
 }
 
 #[derive(Debug)]
@@ -144,6 +146,7 @@ pub struct SubscriptionObj {
     topic: EncoreName,
     subscription: EncoreName,
     schema: JSONSchema,
+    cancel: CancellationToken,
 
     handler: OnceLock<Arc<SubHandler>>,
     subscribe_fut: OnceLock<Shared<SubscribeFut>>,
@@ -161,12 +164,17 @@ impl SubscriptionObj {
                 obj: self.clone(),
                 handlers: RwLock::new(Vec::new()),
                 counter: AtomicUsize::new(0),
+                in_flight: Arc::new(InFlightTracker::new()),
             })
         });
         h.add_handler(handler);
 
         self.subscribe_fut
-            .get_or_init(|| self.inner.subscribe(h.clone()).shared())
+            .get_or_init(|| {
+                self.inner
+                    .subscribe(h.clone(), self.cancel.child_token())
+                    .shared()
+            })
             .clone()
             .await
     }
@@ -177,6 +185,77 @@ pub struct SubHandler {
     obj: Arc<SubscriptionObj>,
     handlers: RwLock<Vec<Arc<dyn SubscriptionHandler>>>,
     counter: AtomicUsize,
+    in_flight: Arc<InFlightTracker>,
+}
+
+/// Tracks in-flight message handlers so we can wait for them to drain.
+#[derive(Debug)]
+struct InFlightTracker {
+    count: AtomicUsize,
+    notify: tokio::sync::Notify,
+}
+
+impl InFlightTracker {
+    fn new() -> Self {
+        Self {
+            count: AtomicUsize::new(0),
+            notify: tokio::sync::Notify::new(),
+        }
+    }
+
+    // Ordering rationale:
+    // - acquire: Relaxed — just a counter bump, no data to synchronize.
+    //   If a spawned handler task hasn't been polled when drain() runs,
+    //   drain may return early (count is still 0). This is safe: the
+    //   handler never started and the broker redelivers the message.
+    // - release: Release — ensures all handler work (message processing,
+    //   ack/nack) is visible before the decrement.
+    // - drain: Acquire — pairs with release's Release via release sequences.
+    //   When drain sees 0, all handler side effects across all threads are
+    //   guaranteed visible.
+
+    fn acquire(&self) {
+        self.count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn release(&self) {
+        if self
+            .count
+            .fetch_sub(1, std::sync::atomic::Ordering::Release)
+            == 1
+        {
+            self.notify.notify_waiters();
+        }
+    }
+
+    async fn drain(&self) {
+        loop {
+            // IMPORTANT: create the Notified future BEFORE loading the count.
+            //
+            // Tokio's Notify works via a generation counter. Calling notified()
+            // captures the current generation, so if notify_waiters() fires after
+            // this line but before .await, the future observes the incremented
+            // generation on its first poll and returns immediately.
+            //
+            // If we loaded count first and it raced with the final release()
+            // decrement, we would miss the notification and park forever.
+            let notified = self.notify.notified();
+            if self.count.load(std::sync::atomic::Ordering::Acquire) == 0 {
+                return;
+            }
+            notified.await;
+        }
+    }
+}
+
+/// Guard that releases the in-flight tracker on drop.
+struct InFlightGuard(Arc<InFlightTracker>);
+
+impl Drop for InFlightGuard {
+    fn drop(&mut self) {
+        self.0.release();
+    }
 }
 
 type PubSubHandlerFuture = Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send>>;
@@ -186,6 +265,7 @@ type PubSubHandlerFuture = Pin<Box<dyn Future<Output = Result<(), api::Error>> +
 struct PubSubCancellationGuard {
     fut: Option<PubSubHandlerFuture>,
     info: Option<PubSubCancellationGuardInfo>,
+    _in_flight: InFlightGuard,
 }
 
 struct PubSubCancellationGuardInfo {
@@ -214,7 +294,14 @@ impl Drop for PubSubCancellationGuard {
             return;
         };
         if let Some(fut) = self.fut.take() {
+            // Take the in-flight guard so it moves into the spawned task,
+            // keeping the counter incremented until the handler finishes.
+            let in_flight = std::mem::replace(
+                &mut self._in_flight,
+                InFlightGuard(Arc::new(InFlightTracker::new())),
+            );
             tokio::spawn(async move {
+                let _in_flight = in_flight;
                 let result = fut.await;
                 let duration = tokio::time::Instant::now().duration_since(info.start);
                 let resp = model::Response {
@@ -243,6 +330,8 @@ impl SubHandler {
     ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + 'static>> {
         let obj = self.obj.clone();
         let next_handler = self.next_handler();
+        self.in_flight.acquire();
+        let in_flight_guard = InFlightGuard(self.in_flight.clone());
         Box::pin(async move {
             let span = SpanKey(TraceId::generate(), SpanId::generate());
 
@@ -329,6 +418,7 @@ impl SubHandler {
                     request: req.clone(),
                     start,
                 }),
+                _in_flight: in_flight_guard,
             };
 
             let result = guard.run().await;
@@ -345,6 +435,11 @@ impl SubHandler {
             obj.tracer.request_span_end(&resp, false);
             result
         })
+    }
+
+    /// Waits for all in-flight message handlers to complete.
+    pub(super) async fn drain_in_flight(&self) {
+        self.in_flight.drain().await;
     }
 
     fn next_handler(&self) -> Arc<dyn SubscriptionHandler> {
@@ -379,7 +474,23 @@ impl Manager {
             topics: Arc::default(),
             subs: Arc::default(),
             push_registry: PushHandlerRegistry::new(),
+            cancel: CancellationToken::new(),
         })
+    }
+
+    /// Returns the cancellation token for all subscriptions.
+    pub fn cancel_token(&self) -> CancellationToken {
+        self.cancel.clone()
+    }
+
+    /// Waits for all in-flight message handlers to complete.
+    pub async fn drain(&self) {
+        let subs = self.subs.read().expect("subs lock poisoned").clone();
+        for sub in subs.values() {
+            if let Some(handler) = sub.handler.get() {
+                handler.in_flight.drain().await;
+            }
+        }
     }
 
     pub fn topic(&self, name: EncoreName) -> Option<TopicObj> {
@@ -438,6 +549,7 @@ impl Manager {
                     topic: name.topic.clone(),
                     subscription: name.subscription.clone(),
                     schema: cfg.schema.clone(),
+                    cancel: self.cancel.child_token(),
                     handler: OnceLock::new(),
                     subscribe_fut: Default::default(),
                 })
@@ -458,6 +570,7 @@ impl Manager {
                     // Use a null schema.
                     schema: JSONSchema::null(),
 
+                    cancel: self.cancel.child_token(),
                     handler: OnceLock::new(),
                     subscribe_fut: Default::default(),
                 })
@@ -645,5 +758,83 @@ fn message_attr_fields(
         | Typ::Literal(_)
         | Typ::TypeParameter(_)
         | Typ::Config(_) => Ok(vec![]),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::FutureExt;
+    use std::sync::Arc;
+
+    fn count(tracker: &InFlightTracker) -> usize {
+        tracker.count.load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    #[test]
+    fn drain_completes_immediately_when_empty() {
+        let tracker = InFlightTracker::new();
+        assert!(tracker.drain().now_or_never().is_some());
+    }
+
+    #[test]
+    fn drain_is_pending_while_guard_held() {
+        let tracker = Arc::new(InFlightTracker::new());
+        tracker.acquire();
+        let guard = InFlightGuard(tracker.clone());
+
+        assert!(tracker.drain().now_or_never().is_none());
+
+        drop(guard);
+        assert!(tracker.drain().now_or_never().is_some());
+    }
+
+    #[test]
+    fn drain_is_pending_until_all_guards_dropped() {
+        let tracker = Arc::new(InFlightTracker::new());
+        tracker.acquire();
+        tracker.acquire();
+        let guard1 = InFlightGuard(tracker.clone());
+        let guard2 = InFlightGuard(tracker.clone());
+
+        assert!(tracker.drain().now_or_never().is_none());
+
+        drop(guard1);
+        assert!(tracker.drain().now_or_never().is_none());
+
+        drop(guard2);
+        assert!(tracker.drain().now_or_never().is_some());
+    }
+
+    #[test]
+    fn guard_decrements_count_on_drop() {
+        let tracker = Arc::new(InFlightTracker::new());
+        tracker.acquire();
+        tracker.acquire();
+        assert_eq!(count(&tracker), 2);
+
+        let guard = InFlightGuard(tracker.clone());
+        tracker.release();
+        assert_eq!(count(&tracker), 1);
+
+        drop(guard);
+        assert_eq!(count(&tracker), 0);
+    }
+
+    #[tokio::test]
+    async fn guard_decrements_on_panic() {
+        let tracker = Arc::new(InFlightTracker::new());
+        tracker.acquire();
+
+        let tracker_clone = tracker.clone();
+        let result = tokio::spawn(async move {
+            let _guard = InFlightGuard(tracker_clone);
+            panic!("handler panicked");
+        })
+        .await;
+
+        assert!(result.is_err());
+        assert_eq!(count(&tracker), 0);
+        assert!(tracker.drain().now_or_never().is_some());
     }
 }

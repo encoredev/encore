@@ -152,14 +152,31 @@ pub struct Reporter {
     anchor: TimeAnchor,
     http_client: reqwest::Client,
     config: ReporterConfig,
+    shutdown: tokio_util::sync::CancellationToken,
+}
+
+/// Handle to force-flush the trace reporter and wait for it to finish.
+pub struct TracerFlush {
+    shutdown: tokio_util::sync::CancellationToken,
+    handle: tokio::task::JoinHandle<()>,
+}
+
+impl TracerFlush {
+    /// Signal the reporter to flush any buffered events and wait for completion.
+    pub async fn flush(self) {
+        self.shutdown.cancel();
+        let _ = self.handle.await;
+    }
 }
 
 pub fn streaming_tracer(
     http_client: reqwest::Client,
     config: ReporterConfig,
-) -> (Tracer, Reporter) {
+    runtime: &tokio::runtime::Handle,
+) -> (Tracer, TracerFlush) {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let tracer = Tracer::new(tx, config.trace_sampling_config.clone());
+    let shutdown = tokio_util::sync::CancellationToken::new();
 
     let anchor = TimeAnchor::new();
     let reporter = Reporter {
@@ -167,8 +184,11 @@ pub fn streaming_tracer(
         anchor,
         http_client,
         config,
+        shutdown: shutdown.clone(),
     };
-    (tracer, reporter)
+    let handle = runtime.spawn(reporter.start_reporting());
+    let flush = TracerFlush { shutdown, handle };
+    (tracer, flush)
 }
 
 #[derive(Debug)]
@@ -228,21 +248,28 @@ impl Reporter {
                                 no_data_timeout = Box::pin(tokio::time::sleep(timeout_duration));
                             }
                             None => {
-                                // The stream is closed. This only happens if all senders have been dropped,
-                                // which should never happen in regular use.
+                                // All senders have been dropped — channel is closed.
                                 return;
                             }
                         }
                     }
                     _ = &mut no_data_timeout => {
-                        // Timeout reached with no new events
-                        if let Some(sender) = body_sender {
-                            // Close the stream and wait for a new event
-                            drop(sender);
-                        }
+                        // Timeout reached with no new events — flush the current batch.
+                        break;
+                    }
+                    _ = self.shutdown.cancelled() => {
+                        // Shutdown requested — flush the current batch and exit.
                         break;
                     }
                 }
+            }
+
+            // Send the current batch (if any) by dropping the sender.
+            drop(body_sender);
+
+            if self.shutdown.is_cancelled() {
+                log::trace!("trace reporter exiting due to shutdown signal");
+                return;
             }
         }
     }
@@ -435,6 +462,7 @@ mod tests {
             rx,
             anchor: TimeAnchor::new(),
             http_client: reqwest::Client::new(),
+            shutdown: tokio_util::sync::CancellationToken::new(),
             config: ReporterConfig {
                 app_id: "test-app".to_string(),
                 env_id: "test-env".to_string(),

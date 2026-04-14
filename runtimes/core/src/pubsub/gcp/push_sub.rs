@@ -61,11 +61,15 @@ impl pubsub::Subscription for PushSubscription {
     fn subscribe(
         &self,
         handler: Arc<SubHandler>,
+        cancel: tokio_util::sync::CancellationToken,
     ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
         self.inner.handler.write().unwrap().replace(handler);
 
-        // Block forever; the handler is called from the HTTP handler.
-        Box::pin(futures::future::pending())
+        // Block until cancelled; the handler is called from the HTTP handler.
+        Box::pin(async move {
+            cancel.cancelled().await;
+            Ok(())
+        })
     }
 
     fn push_handler(&self) -> Option<(String, Arc<dyn pubsub::PushRequestHandler>)> {

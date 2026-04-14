@@ -57,6 +57,7 @@ trait Subscription: Debug + Send + Sync {
     fn subscribe(
         &self,
         handler: Arc<SubHandler>,
+        cancel: tokio_util::sync::CancellationToken,
     ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>>;
 
     fn push_handler(&self) -> Option<(String, Arc<dyn PushRequestHandler>)> {

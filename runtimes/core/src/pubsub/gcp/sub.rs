@@ -36,11 +36,11 @@ impl pubsub::Subscription for Subscription {
     fn subscribe(
         &self,
         handler: Arc<SubHandler>,
+        cancel: CancellationToken,
     ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
         let inner = self.inner.clone();
         Box::pin(async move {
             let sub = inner.get_sub().await.map_err(api::Error::internal)?;
-            let cancel = CancellationToken::new();
             sub.receive(
                 move |message, cancel| {
                     let handler = handler.clone();

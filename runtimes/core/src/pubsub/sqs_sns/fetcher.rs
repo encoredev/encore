@@ -3,6 +3,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use tokio_util::sync::CancellationToken;
+
 pub trait Fetcher: Clone + Sync + Send {
     type Item;
     type Error: Debug;
@@ -24,7 +26,7 @@ pub struct Config {
     pub max_batch_size: usize,
 }
 
-pub async fn process_concurrently<F: Fetcher>(cfg: Config, fetcher: F) {
+pub async fn process_concurrently<F: Fetcher>(cfg: Config, fetcher: F, cancel: CancellationToken) {
     // Semaphore representing work being processed.
     let sem = Arc::new(tokio::sync::Semaphore::new(cfg.max_concurrency));
 
@@ -40,12 +42,19 @@ pub async fn process_concurrently<F: Fetcher>(cfg: Config, fetcher: F) {
         (base, max, base)
     };
 
-    // Fetch work.
+    // Fetch work until cancelled.
     loop {
+        if cancel.is_cancelled() {
+            break;
+        }
+
         // How many items shall we fetch?
         let (to_fetch, permit) = {
-            // Wait for at least one permit.
-            let mut permit = sem.acquire().await.expect("semaphore is closed");
+            // Wait for at least one permit, or cancellation.
+            let mut permit = tokio::select! {
+                permit = sem.acquire() => permit.expect("semaphore is closed"),
+                _ = cancel.cancelled() => { break; }
+            };
 
             // Do we have any additional available permits and the max batch size allows for it?
             let extra = sem.available_permits().min(max_batch - 1);
@@ -62,7 +71,10 @@ pub async fn process_concurrently<F: Fetcher>(cfg: Config, fetcher: F) {
             (1 + extra, permit)
         };
 
-        let fetch_result = fetcher.clone().fetch(to_fetch).await;
+        let fetch_result = tokio::select! {
+            result = fetcher.clone().fetch(to_fetch) => result,
+            _ = cancel.cancelled() => { break; }
+        };
         match fetch_result {
             Ok(work) => {
                 err_sleep = base_sleep;
@@ -88,7 +100,10 @@ pub async fn process_concurrently<F: Fetcher>(cfg: Config, fetcher: F) {
             }
             Err(err) => {
                 log::error!("encore: pub/sub fetch error, retrying: {err:#?}");
-                tokio::time::sleep(err_sleep).await;
+                tokio::select! {
+                    _ = tokio::time::sleep(err_sleep) => {},
+                    _ = cancel.cancelled() => { break; }
+                }
                 err_sleep = err_sleep.mul_f32(1.5).min(max_sleep);
             }
         }
