@@ -256,7 +256,7 @@ pub enum PubSub {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GCPPubsub {
-    pub project_id: String,
+    pub project_id: Option<String>,
     pub topics: HashMap<String, GCPTopic>,
 }
 
@@ -815,7 +815,8 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                                         project_id: topic
                                             .project_id
                                             .clone()
-                                            .unwrap_or_else(|| gcp.project_id.clone()),
+                                            .or_else(|| gcp.project_id.clone())
+                                            .unwrap_or_default(),
                                     },
                                 )),
                             })
@@ -838,7 +839,8 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                                                     project_id: sub
                                                         .project_id
                                                         .clone()
-                                                        .unwrap_or_else(|| gcp.project_id.clone()),
+                                                        .or_else(|| gcp.project_id.clone())
+                                                        .unwrap_or_default(),
                                                     push_service_account: sub
                                                         .push_config
                                                         .as_ref()
