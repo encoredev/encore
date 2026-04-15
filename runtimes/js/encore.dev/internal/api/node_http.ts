@@ -79,7 +79,18 @@ export class RawRequest extends stream.Readable {
       return this._rawHeaders;
     }
 
-    this._rawHeaders = Object.keys(this.headers);
+    const result: string[] = [];
+    const headers = this.headers;
+    for (const [key, value] of Object.entries(headers)) {
+      if (Array.isArray(value)) {
+        for (const v of value) {
+          result.push(key, v);
+        }
+      } else if (value !== undefined) {
+        result.push(key, value);
+      }
+    }
+    this._rawHeaders = result;
     return this._rawHeaders;
   }
 
