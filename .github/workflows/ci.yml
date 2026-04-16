@@ -110,17 +110,6 @@ jobs:
         run: cd encr.dev/runtimes/go && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build ./...
         if: github.event.schedule == '30 2 * * *'
 
-      - name: Report Nightly Failure
-        uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
-        if: ${{ failure() && github.event.schedule == '30 2 * * *' }}
-        with:
-          status: ${{ job.status }} # required
-          notification_title: "{workflow} has {status_message}"
-          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
-          footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }} # required
-
   test-e2e:
     name: "Test e2e"
     runs-on: ubuntu-24.04
@@ -191,16 +180,6 @@ jobs:
           ENCORE_GOROOT: ${{ github.workspace }}/encore-go
           ENCORE_RUNTIMES_PATH: ${{ github.workspace }}/encr.dev/runtimes
 
-      - name: Report Nightly Failure
-        uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
-        if: ${{ failure() && github.event.schedule == '30 2 * * *' }}
-        with:
-          status: ${{ job.status }} # required
-          notification_title: "{workflow} has {status_message}"
-          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
-          footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }} # required
 
   # Run static analysis on the PR
   static-analysis:

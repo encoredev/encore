@@ -1,3 +1,6 @@
+# Local docs (not for committing)
+/docs
+
 # Prevent built binaries from being checked in accidentally.
 /dist
 /encore
