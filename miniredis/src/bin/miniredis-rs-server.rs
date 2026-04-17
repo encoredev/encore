@@ -91,20 +91,18 @@ async fn main() {
         }
         match parts[0].to_lowercase().as_str() {
             "port" => { /* ignored – always use port 0 */ }
-            "bind" => {
-                if parts.len() > 1 {
+            "bind"
+                if parts.len() > 1 => {
                     bind_addr = parts[1].to_string();
                 }
-            }
-            "requirepass" => {
-                if parts.len() > 1 {
+            "requirepass"
+                if parts.len() > 1 => {
                     password = Some(parts[1].to_string());
                 }
-            }
-            "user" => {
+            "user"
                 // user <name> on +@all ~* ><password>
                 // or: user default on -@all +hello
-                if parts.len() >= 2 {
+                if parts.len() >= 2 => {
                     let username = parts[1].to_string();
                     // Find the >password token
                     let mut pw = None;
@@ -118,25 +116,21 @@ async fn main() {
                     }
                     // "user default on -@all +hello" (no password) is ignored
                 }
-            }
             "tls-port" => {
                 tls_enabled = true;
             }
-            "tls-cert-file" => {
-                if parts.len() > 1 {
+            "tls-cert-file"
+                if parts.len() > 1 => {
                     tls_cert = parts[1].to_string();
                 }
-            }
-            "tls-key-file" => {
-                if parts.len() > 1 {
+            "tls-key-file"
+                if parts.len() > 1 => {
                     tls_key = parts[1].to_string();
                 }
-            }
-            "tls-ca-cert-file" => {
-                if parts.len() > 1 {
+            "tls-ca-cert-file"
+                if parts.len() > 1 => {
                     tls_ca_cert = parts[1].to_string();
                 }
-            }
             // Silently ignore everything else
             _ => {}
         }
