@@ -1047,15 +1047,11 @@ fn zstore_impl(
                     let old = *e.get();
                     match aggregate.as_str() {
                         "sum" => *e.get_mut() += score,
-                        "min" => {
-                            if score < old {
-                                *e.get_mut() = score;
-                            }
+                        "min" if score < old => {
+                            *e.get_mut() = score;
                         }
-                        "max" => {
-                            if score > old {
-                                *e.get_mut() = score;
-                            }
+                        "max" if score > old => {
+                            *e.get_mut() = score;
                         }
                         _ => {}
                     }
@@ -1545,15 +1541,11 @@ fn zop_impl(
                     let old = *e.get();
                     match aggregate.as_str() {
                         "sum" => *e.get_mut() += score,
-                        "min" => {
-                            if score < old {
-                                *e.get_mut() = score;
-                            }
+                        "min" if score < old => {
+                            *e.get_mut() = score;
                         }
-                        "max" => {
-                            if score > old {
-                                *e.get_mut() = score;
-                            }
+                        "max" if score > old => {
+                            *e.get_mut() = score;
                         }
                         _ => {}
                     }

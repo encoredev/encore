@@ -50,7 +50,7 @@ impl FromStr for OperationHash {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let raw = hex::decode(s).context("invalid hex")?;
-        let output = <sha3::digest::Output<Sha3_256>>::from_exact_iter(raw.into_iter())
+        let output = <sha3::digest::Output<Sha3_256>>::from_exact_iter(raw)
             .context("invalid hash length")?;
         Ok(Self {
             output,
