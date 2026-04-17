@@ -27,6 +27,10 @@ your Pull Requests, and provision Preview Environments for each Pull Request.
 
 <img class="max-w-lg w-full mx-auto" src="/assets/img/git-linked.png" />
 
+## GitHub Enterprise Cloud
+
+Encore supports integration with GitHub Enterprise Cloud (GHEC) for enterprise customers. [Contact us](/book) for more information.
+
 ## Placing your Encore app in a monorepo sub-folder
 
 If you already have a monorepo and want to place your Encore application in a sub-folder, you need to tell Encore which folder the `encore.app` file is in.
