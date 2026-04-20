@@ -13,6 +13,11 @@ export interface SQLDatabaseConfig {
 const driverName = "node-pg";
 
 /**
+ * Column metadata from a driver query result.
+ */
+export type { DriverColumnInfo, DriverQueryResult } from "../../internal/runtime/mod";
+
+/**
  * Represents a single row from a query result
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -308,6 +313,26 @@ export class SQLDatabase extends BaseQueryExecutor {
     const impl = await this.impl.begin(source);
     return new Transaction(impl);
   }
+
+  /**
+   * Executes a query returning text-format results with column metadata.
+   * Designed for building pg-compatible driver adapters — the results
+   * match what the pg Node.js library returns over the wire, enabling
+   * ORM type parsers to work correctly.
+   *
+   * Queries are automatically traced by the Encore runtime.
+   *
+   * @param query - The SQL query string with $1, $2, ... placeholders.
+   * @param params - The parameter values.
+   * @returns Column metadata, text-format rows, affected row count, and command tag.
+   */
+  async driverQuery(
+    query: string,
+    params?: (string | Buffer | null)[],
+  ): Promise<runtime.DriverQueryResult> {
+    const source = getCurrentRequest();
+    return this.impl.driverQuery(query, params ?? [], source);
+  }
 }
 
 export class Transaction extends BaseQueryExecutor implements AsyncDisposable {
@@ -336,6 +361,15 @@ export class Transaction extends BaseQueryExecutor implements AsyncDisposable {
     await this.impl.rollback(source);
   }
 
+  /** @see SQLDatabase.driverQuery */
+  async driverQuery(
+    query: string,
+    params?: (string | Buffer | null)[],
+  ): Promise<runtime.DriverQueryResult> {
+    const source = getCurrentRequest();
+    return this.impl.driverQuery(query, params ?? [], source);
+  }
+
   async [Symbol.asyncDispose]() {
     if (!this.done) {
       await this.rollback();
@@ -358,6 +392,15 @@ export class Connection extends BaseQueryExecutor {
    */
   async close() {
     await this.impl.close();
+  }
+
+  /** @see SQLDatabase.driverQuery */
+  async driverQuery(
+    query: string,
+    params?: (string | Buffer | null)[],
+  ): Promise<runtime.DriverQueryResult> {
+    const source = getCurrentRequest();
+    return this.impl.driverQuery(query, params ?? [], source);
   }
 }
 

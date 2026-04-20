@@ -1,2 +1,7 @@
-export { SQLDatabase } from "./database";
-export type { SQLDatabaseConfig, Row as ResultRow } from "./database";
+export { SQLDatabase, Connection } from "./database";
+export type {
+  SQLDatabaseConfig,
+  Row as ResultRow,
+  DriverColumnInfo,
+  DriverQueryResult,
+} from "./database";

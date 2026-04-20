@@ -1,9 +1,10 @@
 use tokio_postgres::types::BorrowToSql;
+use tokio_postgres::ResultFormat;
 
 use crate::model;
 
 use super::{
-    client::{Error, PooledConn, QueryTracer},
+    client::{Error, PooledConn, QueryTracer, TextCursor},
     Cursor,
 };
 
@@ -103,6 +104,27 @@ impl Transaction {
             .trace(source, query, || async {
                 self.conn
                     .query_raw(query, params)
+                    .await
+                    .map_err(Error::from)
+            })
+            .await
+    }
+
+    pub async fn query_raw_text<P, I>(
+        &self,
+        query: &str,
+        params: I,
+        source: Option<&model::Request>,
+    ) -> Result<TextCursor, Error>
+    where
+        P: BorrowToSql,
+        I: IntoIterator<Item = P>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        self.tracer
+            .trace_text_query(source, query, || async {
+                self.conn
+                    .query_raw_with_format(query, params, ResultFormat::Text)
                     .await
                     .map_err(Error::from)
             })

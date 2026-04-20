@@ -1994,6 +1994,7 @@ dependencies = [
  "prost-types 0.12.6",
  "serde_json",
  "tokio",
+ "tokio-postgres",
  "tokio-util",
 ]
 
@@ -5126,7 +5127,7 @@ dependencies = [
 [[package]]
 name = "postgres-protocol"
 version = "0.6.8"
-source = "git+https://github.com/encoredev/rust-postgres?branch=encore-patches-sync#e71577eea1d14769a3021b6dd214448e3de3ffb6"
+source = "git+https://github.com/encoredev/rust-postgres?branch=encore-patches-sync#e5f61ce4df48ebd84eb2a8e734945f809111ac34"
 dependencies = [
  "base64 0.22.1",
  "byteorder",
@@ -5144,7 +5145,7 @@ dependencies = [
 [[package]]
 name = "postgres-types"
 version = "0.2.9"
-source = "git+https://github.com/encoredev/rust-postgres?branch=encore-patches-sync#e71577eea1d14769a3021b6dd214448e3de3ffb6"
+source = "git+https://github.com/encoredev/rust-postgres?branch=encore-patches-sync#e5f61ce4df48ebd84eb2a8e734945f809111ac34"
 dependencies = [
  "array-init",
  "bytes",
@@ -7473,7 +7474,7 @@ dependencies = [
 [[package]]
 name = "tokio-postgres"
 version = "0.7.13"
-source = "git+https://github.com/encoredev/rust-postgres?branch=encore-patches-sync#e71577eea1d14769a3021b6dd214448e3de3ffb6"
+source = "git+https://github.com/encoredev/rust-postgres?branch=encore-patches-sync#e5f61ce4df48ebd84eb2a8e734945f809111ac34"
 dependencies = [
  "async-trait",
  "byteorder",
