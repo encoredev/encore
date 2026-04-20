@@ -97,6 +97,12 @@ impl LitParser for CronExpr {
             ast::Expr::Lit(ast::Lit::Str(str)) => {
                 // Ensure the cron expression is valid
                 let expr = str.value.as_ref();
+                let fields: Vec<&str> = expr.split_whitespace().collect();
+                if fields.len() != 5 {
+                    return Err(input.parse_err(
+                        "invalid cron expression: must have exactly 5 fields (minute, hour, day of month, month, day of week), e.g. \"* * * * *\".",
+                    ));
+                }
                 cron_parser::parse(expr, &chrono::Utc::now())
                     .map_err(|err| input.parse_err(err.to_string()))?;
                 Ok(CronExpr(expr.to_string()))
