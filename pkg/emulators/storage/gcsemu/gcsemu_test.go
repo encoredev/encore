@@ -177,7 +177,7 @@ func testHugeFile(t *testing.T, bh BucketHandle) {
 }
 
 func testHugeFileMultipleOfChunkSize(t *testing.T, bh BucketHandle) {
-	doHugeFile(t, bh, "gscemu-test/huge2.txt", googleapi.DefaultUploadChunkSize*4)
+	doHugeFile(t, bh, "gscemu-test/huge_multiple.txt", googleapi.DefaultUploadChunkSize*4)
 }
 
 func doHugeFile(t *testing.T, bh BucketHandle, name string, size int) {
