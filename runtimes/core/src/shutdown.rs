@@ -91,7 +91,8 @@ impl ShutdownHandle {
     }
 }
 
-/// Waits for a SIGINT or SIGTERM signal.
+/// Waits for a shutdown signal (SIGINT/SIGTERM on Unix, Ctrl-C/Ctrl-Break/Ctrl-Close on Windows).
+#[cfg(unix)]
 async fn wait_for_signal() {
     use tokio::signal::unix::{signal, SignalKind};
 
@@ -104,6 +105,27 @@ async fn wait_for_signal() {
         },
         _ = sigterm.recv() => {
             ::log::info!("received SIGTERM, initiating graceful shutdown");
+        },
+    }
+}
+
+#[cfg(windows)]
+async fn wait_for_signal() {
+    use tokio::signal::windows::{ctrl_break, ctrl_c, ctrl_close};
+
+    let mut ctrl_c = ctrl_c().expect("failed to install Ctrl-C handler");
+    let mut ctrl_break = ctrl_break().expect("failed to install Ctrl-Break handler");
+    let mut ctrl_close = ctrl_close().expect("failed to install Ctrl-Close handler");
+
+    tokio::select! {
+        _ = ctrl_c.recv() => {
+            ::log::info!("received Ctrl-C, initiating graceful shutdown");
+        },
+        _ = ctrl_break.recv() => {
+            ::log::info!("received Ctrl-Break, initiating graceful shutdown");
+        },
+        _ = ctrl_close.recv() => {
+            ::log::info!("received Ctrl-Close, initiating graceful shutdown");
         },
     }
 }
