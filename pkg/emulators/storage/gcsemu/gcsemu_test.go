@@ -3,6 +3,7 @@ package gcsemu
 import (
 	"context"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -71,12 +72,12 @@ func testBasics(t *testing.T, bh BucketHandle) {
 	// Forcibly delete the object at the start, make sure it doesn't exist.
 	err := oh.Delete(ctx)
 	if err != nil {
-		assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+		assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 	}
 
 	// Should not exist.
 	_, err = oh.Attrs(ctx)
-	assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+	assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 
 	// Checker funcs
 	checkAttrs := func(attrs *storage.ObjectAttrs, content string, metagen int64) {
@@ -139,13 +140,13 @@ func testBasics(t *testing.T, bh BucketHandle) {
 
 	// Should not exist.
 	_, err = oh.Attrs(ctx)
-	assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+	assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 
 	// Should not be able to update attrs.
 	_, err = oh.Update(ctx, storage.ObjectAttrsToUpdate{
 		ContentType: "text/plain",
 	})
-	assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+	assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 }
 
 func testMultipleFiles(t *testing.T, bh BucketHandle) {
@@ -187,12 +188,12 @@ func doHugeFile(t *testing.T, bh BucketHandle, name string, size int) {
 	// Forcibly delete the object at the start, make sure it doesn't exist.
 	err := oh.Delete(ctx)
 	if err != nil {
-		assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+		assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 	}
 
 	// Should not exist.
 	_, err = oh.Attrs(ctx)
-	assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+	assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 
 	// Create the object.
 	w := oh.NewWriter(ctx)
@@ -228,12 +229,12 @@ func testHugeFileWithConditional(t *testing.T, bh BucketHandle) {
 	// Forcibly delete the object at the start, make sure it doesn't exist.
 	err := oh.Delete(ctx)
 	if err != nil {
-		assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+		assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 	}
 
 	// Should not exist.
 	_, err = oh.Attrs(ctx)
-	assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+	assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 
 	// Create the object.
 	w := oh.If(storage.Conditions{DoesNotExist: true}).NewWriter(ctx)
@@ -259,7 +260,7 @@ func testConditionalUpdates(t *testing.T, bh BucketHandle) {
 	// Forcibly delete the object at the start, make sure it doesn't exist.
 	err := oh.Delete(ctx)
 	if err != nil {
-		assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+		assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 	}
 
 	// Ensure write fails
@@ -356,7 +357,7 @@ func testConditionalUpdates(t *testing.T, bh BucketHandle) {
 
 	// Should not exist.
 	_, err = oh.Attrs(ctx)
-	assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+	assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 }
 
 func testGenNotMatchDoesntExist(t *testing.T, bh BucketHandle) {
@@ -369,7 +370,7 @@ func testGenNotMatchDoesntExist(t *testing.T, bh BucketHandle) {
 	// Forcibly delete the object at the start, make sure it doesn't exist.
 	err := oh.Delete(ctx)
 	if err != nil {
-		assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+		assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 	}
 
 	// Write should fail on non-existent object, even though the generation doesn't match.
@@ -393,7 +394,7 @@ func testCopyBasics(t *testing.T, bh BucketHandle) {
 
 	// Should not exist.
 	_, err := src.Attrs(ctx)
-	assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+	assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 
 	// Create the object.
 	w := src.NewWriter(ctx)
@@ -475,7 +476,7 @@ func testCompose(t *testing.T, bh BucketHandle) {
 
 		// Should not exist.
 		_, err := srcs[i].Attrs(ctx)
-		assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+		assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 
 		// Create the object.
 		w := srcs[i].NewWriter(ctx)
@@ -493,7 +494,7 @@ func testCompose(t *testing.T, bh BucketHandle) {
 
 	destSecondary := bh.Object(dstNameSecondary)
 	err := destSecondary.Delete(ctx) // this one needs to be deleted to start
-	assert.Assert(t, err == nil || err == storage.ErrObjectNotExist, "failed to delete secondary")
+	assert.Assert(t, err == nil || errors.Is(err, storage.ErrObjectNotExist), "failed to delete secondary")
 
 	composer := dest.ComposerFrom(srcs...)
 	composer.ContentType = "text/plain"
@@ -564,7 +565,7 @@ func testCompose(t *testing.T, bh BucketHandle) {
 	_ = dneObj.Delete(ctx)
 	// Should not exist.
 	_, err = dneObj.Attrs(ctx)
-	assert.Equal(t, storage.ErrObjectNotExist, err, "wrong error")
+	assert.ErrorIs(t, err, storage.ErrObjectNotExist, "wrong error")
 
 	composer = dest.ComposerFrom(dneObj)
 	_, err = composer.Run(ctx)
