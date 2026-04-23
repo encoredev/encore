@@ -3,6 +3,7 @@ package infra
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -295,9 +296,20 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 			})
 		}
 
-		// Configure max connections based on 96 connections
-		// divided evenly among the databases
-		maxConns := 96 / len(cfg.SQLDatabases)
+		// Configure max connections as a total budget divided evenly among
+		// the databases. Defaults to 96 (leaving headroom below Postgres's
+		// default server-side max_connections of 100). Override with
+		// ENCORE_SQLDB_POOL_SIZE — typically paired with a raised
+		// ENCORE_SQLDB_MAX_CONNECTIONS so the server can actually accept them.
+		totalPoolBudget := 96
+		if v := os.Getenv("ENCORE_SQLDB_POOL_SIZE"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil && n > 0 {
+				totalPoolBudget = n
+			} else {
+				log.Warn().Str("value", v).Msg("ignoring invalid ENCORE_SQLDB_POOL_SIZE; expected positive integer")
+			}
+		}
+		maxConns := max(totalPoolBudget/len(cfg.SQLDatabases), 1)
 		for _, db := range cfg.SQLDatabases {
 			db.MaxConnections = maxConns
 		}
