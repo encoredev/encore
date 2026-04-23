@@ -75,7 +75,7 @@ duct = "0.13.7"
 base32 = "0.4.0"
 
 # We need to vendor openssl to allow cross-compilation on our build systems
-openssl = { version = "0.10.57", features = ["vendored"] }
+openssl = { version = "0.10.78", features = ["vendored"] }
 bb8 = "0.9"
 bb8-postgres = "0.9"
 bb8-redis = "0.26"
