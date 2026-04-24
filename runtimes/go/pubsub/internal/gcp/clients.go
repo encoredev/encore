@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 )
 
 // getClientForProject returns a singleton pubsub client for the given project or panics if it cannot be created.

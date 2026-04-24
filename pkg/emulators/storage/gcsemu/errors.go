@@ -1,17 +1,20 @@
 package gcsemu
 
 import (
+	"errors"
 	"fmt"
 
 	"google.golang.org/api/googleapi"
 )
 
 func httpStatusCodeOf(err error) int {
-	if gapiErr, ok := err.(*googleapi.Error); ok {
+	var gapiErr *googleapi.Error
+	if ok := errors.As(err, &gapiErr); ok {
 		return gapiErr.Code
 	}
 
-	if httpErr, ok := err.(*httpError); ok {
+	var httpErr *httpError
+	if ok := errors.As(err, &httpErr); ok {
 		if httpErr.code != 0 {
 			return httpErr.code
 		}

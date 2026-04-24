@@ -6,7 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
@@ -32,7 +33,7 @@ func NewManager(ctxs *utils.Contexts, static *config.Static, runtime *config.Run
 
 type topic struct {
 	mgr      *Manager
-	gcpTopic *pubsub.Topic
+	gcpTopic *pubsub.Publisher
 	topicCfg *config.PubsubTopic
 }
 
@@ -44,14 +45,16 @@ func (mgr *Manager) Matches(cfg *config.PubsubProvider) bool {
 
 func (mgr *Manager) NewTopic(_ *config.PubsubProvider, staticCfg types.TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation {
 	// Create the topic
-	gcpTopic := mgr.getClientForProject(runtimeCfg.GCP.ProjectID).Topic(runtimeCfg.ProviderName)
+	gcpTopic := mgr.getClientForProject(runtimeCfg.GCP.ProjectID).Publisher(runtimeCfg.ProviderName)
 
 	// Enable message ordering if we have an ordering key set
 	gcpTopic.EnableMessageOrdering = staticCfg.OrderingAttribute != ""
 
 	// Check we have permissions to interact with the given topic
 	// (note: the call to Topic() above only creates the object, it doesn't verify that we have permissions to interact with it)
-	_, err := gcpTopic.Config(mgr.ctxs.Connection)
+	_, err := mgr.getClientForProject(runtimeCfg.GCP.ProjectID).TopicAdminClient.GetTopic(mgr.ctxs.Connection, &pubsubpb.GetTopicRequest{
+		Topic: fmt.Sprintf("projects/%s/topics/%s", runtimeCfg.GCP.ProjectID, runtimeCfg.ProviderName),
+	})
 	if err != nil {
 		panic(fmt.Sprintf("pubsub topic %s status call failed: %s", runtimeCfg.EncoreName, err))
 	}
@@ -96,7 +99,7 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 	// If we're not push only, then also set up the subscription
 	if !subCfg.PushOnly {
 		// Create the subscription object (and then check it exists on GCP's side)
-		subscription := t.mgr.getClientForProject(gcpCfg.ProjectID).Subscription(subCfg.ProviderName)
+		subscription := t.mgr.getClientForProject(gcpCfg.ProjectID).Subscriber(subCfg.ProviderName)
 
 		// Set the concurrency
 		if maxConcurrency == 0 {
