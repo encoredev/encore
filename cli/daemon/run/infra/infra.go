@@ -3,6 +3,8 @@ package infra
 import (
 	"context"
 	"fmt"
+	"math"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -400,6 +402,38 @@ func (rm *ResourceManager) SQLDatabaseConfig(db *meta.SQLDatabase) (config.SQLDa
 	}
 
 	return dbCfg, nil
+}
+
+// defaultSQLPoolBudget is the total pgx connection budget shared across
+// the databases in a locally-managed Postgres cluster. It leaves headroom
+// below Postgres's default server-side max_connections of 100 for admin
+// and replication slots.
+const defaultSQLPoolBudget = 96
+
+// SQLDatabaseMaxConnections returns the per-database pgx MaxConns to use
+// for a locally-managed Postgres cluster hosting numLocalDBs databases.
+//
+// Reads ENCORE_SQLDB_POOL_BUDGET to override the total budget; falls back
+// to defaultSQLPoolBudget. The env var is read on every call, but the
+// daemon's environment is frozen at daemon startup — so setting the var
+// in the shell that spawns the daemon is what matters; changing it
+// afterwards requires restarting the daemon to take effect.
+//
+// The result is clamped to int32 to match the SQLConnectionPool proto
+// field on the consuming side.
+func (rm *ResourceManager) SQLDatabaseMaxConnections(numLocalDBs int) int {
+	if numLocalDBs <= 0 {
+		return 0
+	}
+	budget := defaultSQLPoolBudget
+	if v := os.Getenv("ENCORE_SQLDB_POOL_BUDGET"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			budget = n
+		} else {
+			rm.log.Warn().Str("value", v).Msg("ignoring invalid ENCORE_SQLDB_POOL_BUDGET; expected positive integer")
+		}
+	}
+	return min(max(budget/numLocalDBs, 1), math.MaxInt32)
 }
 
 // PubSubProviderConfig returns the PubSub provider configuration.
