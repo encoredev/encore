@@ -13,8 +13,31 @@ import (
 
 func New(bucketFactor float64) *Histogram {
 	return &Histogram{
-		Schema: pickSchema(bucketFactor),
+		Schema:  pickSchema(bucketFactor),
+		minBits: math.Float64bits(math.Inf(1)),
+		maxBits: math.Float64bits(math.Inf(-1)),
 	}
+}
+
+// Stats is a snapshot of a Histogram's aggregate values.
+type Stats struct {
+	Count uint64
+	Sum   float64
+	Min   float64
+	Max   float64
+}
+
+// Stats returns a consistent snapshot of the aggregate observation values.
+// If no observations have been recorded, Min and Max are both 0.
+func (h *Histogram) Stats() Stats {
+	count := atomic.LoadUint64(&h.Count)
+	sum := math.Float64frombits(atomic.LoadUint64(&h.sumBits))
+	min := math.Float64frombits(atomic.LoadUint64(&h.minBits))
+	max := math.Float64frombits(atomic.LoadUint64(&h.maxBits))
+	if count == 0 {
+		min, max = 0, 0
+	}
+	return Stats{Count: count, Sum: sum, Min: min, Max: max}
 }
 
 type Histogram struct {
@@ -24,6 +47,17 @@ type Histogram struct {
 
 	// NumZeroValues counts the number of observations in the zero bucket.
 	NumZeroValues uint64
+
+	// sumBits holds the running sum of observed values encoded as float64 bits.
+	sumBits uint64
+
+	// minBits holds the running minimum observed value encoded as float64 bits.
+	// Initialised to +Inf so the first real observation always wins.
+	minBits uint64
+
+	// maxBits holds the running maximum observed value encoded as float64 bits.
+	// Initialised to -Inf so the first real observation always wins.
+	maxBits uint64
 
 	// Schema is the Histogram bucket Schema. It's decided on creation.
 	Schema int32
@@ -71,11 +105,46 @@ func (h *Histogram) Observe(v float64) {
 	default:
 		atomic.AddUint64(&h.NumZeroValues, 1)
 	}
+
+	atomic.AddUint64(&h.Count, 1)
+
+	// Update running sum using a CAS loop.
+	for {
+		old := atomic.LoadUint64(&h.sumBits)
+		if atomic.CompareAndSwapUint64(&h.sumBits, old, math.Float64bits(math.Float64frombits(old)+v)) {
+			break
+		}
+	}
+
+	// Update running min using a CAS loop.
+	for {
+		old := atomic.LoadUint64(&h.minBits)
+		if v >= math.Float64frombits(old) {
+			break
+		}
+		if atomic.CompareAndSwapUint64(&h.minBits, old, math.Float64bits(v)) {
+			break
+		}
+	}
+
+	// Update running max using a CAS loop.
+	for {
+		old := atomic.LoadUint64(&h.maxBits)
+		if v <= math.Float64frombits(old) {
+			break
+		}
+		if atomic.CompareAndSwapUint64(&h.maxBits, old, math.Float64bits(v)) {
+			break
+		}
+	}
 }
 
 func (h *Histogram) reset() {
 	atomic.StoreUint64(&h.Count, 0)
 	atomic.StoreUint64(&h.NumZeroValues, 0)
+	atomic.StoreUint64(&h.sumBits, 0)
+	atomic.StoreUint64(&h.minBits, math.Float64bits(math.Inf(1)))
+	atomic.StoreUint64(&h.maxBits, math.Float64bits(math.Inf(-1)))
 	clearSyncMap(&h.PositiveVals)
 	clearSyncMap(&h.NegativeVals)
 }

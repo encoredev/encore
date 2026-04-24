@@ -17,6 +17,7 @@ enum ProviderType {
     Aws(pb::metrics_provider::AwsCloudWatch),
     Datadog(pb::metrics_provider::Datadog),
     Prometheus(pb::metrics_provider::PrometheusRemoteWrite),
+    Azure(pb::metrics_provider::AzureMonitor),
 }
 
 impl ProviderType {
@@ -32,6 +33,9 @@ impl ProviderType {
             }
             Some(pb::metrics_provider::Provider::PromRemoteWrite(config)) => {
                 Some(Self::Prometheus(config.clone()))
+            }
+            Some(pb::metrics_provider::Provider::AzureMonitor(config)) => {
+                Some(Self::Azure(config.clone()))
             }
             None => {
                 log::warn!("no metrics provider configured");
@@ -57,6 +61,7 @@ impl ProviderType {
             Self::Prometheus(config) => {
                 Self::create_prometheus_exporter(config, secrets, env, http_client)
             }
+            Self::Azure(config) => Ok(Self::create_azure_exporter(config, http_client)),
         }
     }
 
@@ -97,6 +102,16 @@ impl ProviderType {
         Arc::new(exporter::Aws::new(
             provider_cfg.namespace.clone(),
             container_meta_client,
+        ))
+    }
+
+    fn create_azure_exporter(
+        provider_cfg: &pb::metrics_provider::AzureMonitor,
+        http_client: &reqwest::Client,
+    ) -> Arc<dyn Exporter + Send + Sync> {
+        Arc::new(exporter::AzureMonitor::new(
+            provider_cfg.clone(),
+            http_client.clone(),
         ))
     }
 

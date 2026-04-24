@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::names::EncoreName;
-use crate::objects::{gcs, noop, s3, BucketImpl, ClusterImpl};
+use crate::objects::{azblob, gcs, noop, s3, BucketImpl, ClusterImpl};
 use crate::secrets;
 use crate::trace::Tracer;
 
@@ -99,5 +99,12 @@ fn new_cluster(
             Arc::new(s3::Cluster::new(s3cfg, secret_access_key))
         }
         pb::bucket_cluster::Provider::Gcs(gcscfg) => Arc::new(gcs::Cluster::new(gcscfg.clone())),
+        pb::bucket_cluster::Provider::AzBlob(azcfg) => {
+            let storage_key = azcfg
+                .storage_key
+                .as_ref()
+                .map(|k| secrets.load(k.clone()));
+            Arc::new(azblob::Cluster::new(azcfg, storage_key))
+        }
     }
 }

@@ -19,6 +19,7 @@ type InfraConfig struct {
 	Redis            map[string]*Redis            `json:"redis,omitempty"`
 	PubSub           []*PubSub                    `json:"pubsub,omitempty"`
 	Secrets          Secrets                      `json:"secrets,omitempty"`
+	SecretsProvider  *SecretsProvider             `json:"secrets_provider,omitempty"`
 	ObjectStorage    []*ObjectStorage             `json:"object_storage,omitempty"`
 
 	// Log configuration for the application.
@@ -38,9 +39,10 @@ type InfraConfig struct {
 }
 
 type ObjectStorage struct {
-	Type string `json:"type"`
-	GCS  *GCS   `json:"gcs,omitempty"`
-	S3   *S3    `json:"s3,omitempty"`
+	Type      string     `json:"type"`
+	GCS       *GCS       `json:"gcs,omitempty"`
+	S3        *S3        `json:"s3,omitempty"`
+	AzureBlob *AzureBlob `json:"azure_blob,omitempty"`
 }
 
 func (o *ObjectStorage) GetBuckets() map[string]*Bucket {
@@ -49,6 +51,8 @@ func (o *ObjectStorage) GetBuckets() map[string]*Bucket {
 		return o.GCS.Buckets
 	case "s3":
 		return o.S3.Buckets
+	case "azure_blob":
+		return o.AzureBlob.Buckets
 	default:
 		panic("unsupported object storage type")
 	}
@@ -60,6 +64,8 @@ func (o *ObjectStorage) DeleteBucket(name string) {
 		delete(o.GCS.Buckets, name)
 	case "s3":
 		delete(o.S3.Buckets, name)
+	case "azure_blob":
+		delete(o.AzureBlob.Buckets, name)
 	default:
 		panic("unsupported object storage type")
 	}
@@ -67,12 +73,14 @@ func (o *ObjectStorage) DeleteBucket(name string) {
 }
 
 func (a *ObjectStorage) Validate(v *validator) {
-	v.ValidateField("Type", OneOf(a.Type, "gcs", "s3"))
+	v.ValidateField("Type", OneOf(a.Type, "gcs", "s3", "azure_blob"))
 	switch a.Type {
 	case "gcs":
 		a.GCS.Validate(v)
 	case "s3":
 		a.S3.Validate(v)
+	case "azure_blob":
+		a.AzureBlob.Validate(v)
 	default:
 		v.ValidateField("type", Err("unsupported object storage type"))
 	}
@@ -96,6 +104,12 @@ func (p *ObjectStorage) MarshalJSON() ([]byte, error) {
 	case "s3":
 		if p.S3 != nil {
 			for k, v := range structToMap(p.S3) {
+				m[k] = v
+			}
+		}
+	case "azure_blob":
+		if p.AzureBlob != nil {
+			for k, v := range structToMap(p.AzureBlob) {
 				m[k] = v
 			}
 		}
@@ -133,6 +147,12 @@ func (p *ObjectStorage) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		p.S3 = &a
+	case "azure_blob":
+		var az AzureBlob
+		if err := json.Unmarshal(data, &az); err != nil {
+			return err
+		}
+		p.AzureBlob = &az
 	default:
 		return errors.New("unsupported object storage type")
 	}
@@ -164,6 +184,18 @@ type GCS struct {
 }
 
 func (a *GCS) Validate(v *validator) {
+	ValidateChildMap(v, "buckets", a.Buckets)
+}
+
+type AzureBlob struct {
+	StorageAccount   string             `json:"storage_account"`
+	ConnectionString EnvString          `json:"connection_string,omitempty"`
+	StorageKey       EnvString          `json:"storage_key,omitempty"`
+	Buckets          map[string]*Bucket `json:"buckets,omitempty"`
+}
+
+func (a *AzureBlob) Validate(v *validator) {
+	v.ValidateField("storage_account", NotZero(a.StorageAccount))
 	ValidateChildMap(v, "buckets", a.Buckets)
 }
 
@@ -213,6 +245,30 @@ func (i *InfraConfig) Validate(v *validator) {
 	ValidateChildMap(v, "redis", i.Redis)
 	ValidateChildList(v, "pubsub", i.PubSub)
 	v.ValidateChild("secrets", i.Secrets)
+	v.ValidateChild("secrets_provider", i.SecretsProvider)
+}
+
+// SecretsProvider configures a remote provider from which secrets are fetched at runtime.
+// Exactly one of the provider-specific fields should be set.
+type SecretsProvider struct {
+	AzureKeyVault *AzureKeyVaultSecretsProvider `json:"azure_key_vault,omitempty"`
+}
+
+func (s *SecretsProvider) Validate(v *validator) {
+	if s == nil {
+		return
+	}
+	if s.AzureKeyVault != nil {
+		v.ValidateField("azure_key_vault.vault_url", NotZero(s.AzureKeyVault.VaultURL))
+	}
+}
+
+// AzureKeyVaultSecretsProvider configures Azure Key Vault as the source for runtime secrets.
+// Secret names in the Encore app map directly to secret names in the vault.
+// Authentication uses DefaultAzureCredential (managed identity in production, Azure CLI locally).
+type AzureKeyVaultSecretsProvider struct {
+	// VaultURL is the base URL of the Azure Key Vault, e.g. "https://my-vault.vault.azure.net/".
+	VaultURL string `json:"vault_url"`
 }
 
 type Secrets struct {
@@ -311,6 +367,7 @@ type Metrics struct {
 	Datadog            *Datadog
 	GCPCloudMonitoring *GCPCloudMonitoring
 	AWSCloudWatch      *AWSCloudWatch
+	AzureMonitor       *AzureMonitor
 }
 
 // MarshalJSON custom marshaller to handle dynamic types in Metrics.
@@ -343,6 +400,12 @@ func (m *Metrics) MarshalJSON() ([]byte, error) {
 	case "aws_cloudwatch":
 		if m.AWSCloudWatch != nil {
 			for k, v := range structToMap(m.AWSCloudWatch) {
+				data[k] = v
+			}
+		}
+	case "azure_monitor":
+		if m.AzureMonitor != nil {
+			for k, v := range structToMap(m.AzureMonitor) {
 				data[k] = v
 			}
 		}
@@ -394,6 +457,12 @@ func (m *Metrics) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		m.AWSCloudWatch = &a
+	case "azure_monitor":
+		var a AzureMonitor
+		if err := json.Unmarshal(data, &a); err != nil {
+			return err
+		}
+		m.AzureMonitor = &a
 	default:
 		return errors.New("unsupported metrics type")
 	}
@@ -411,6 +480,8 @@ func (m *Metrics) Validate(v *validator) {
 		m.GCPCloudMonitoring.Validate(v)
 	case "aws_cloudwatch":
 		m.AWSCloudWatch.Validate(v)
+	case "azure_monitor":
+		m.AzureMonitor.Validate(v)
 	default:
 		v.ValidateField("type", Err("unsupported metrics type"))
 	}
@@ -455,6 +526,25 @@ type AWSCloudWatch struct {
 }
 
 func (a *AWSCloudWatch) Validate(v *validator) {
+	v.ValidateField("namespace", NotZero(a.Namespace))
+}
+
+// AzureMonitor-specific metric configuration.
+type AzureMonitor struct {
+	Location          string `json:"location,omitempty"`
+	SubscriptionID    string `json:"subscription_id,omitempty"`
+	ResourceGroup     string `json:"resource_group,omitempty"`
+	ResourceNamespace string `json:"resource_namespace,omitempty"`
+	ResourceName      string `json:"resource_name,omitempty"`
+	Namespace         string `json:"namespace,omitempty"`
+}
+
+func (a *AzureMonitor) Validate(v *validator) {
+	v.ValidateField("location", NotZero(a.Location))
+	v.ValidateField("subscription_id", NotZero(a.SubscriptionID))
+	v.ValidateField("resource_group", NotZero(a.ResourceGroup))
+	v.ValidateField("resource_namespace", NotZero(a.ResourceNamespace))
+	v.ValidateField("resource_name", NotZero(a.ResourceName))
 	v.ValidateField("namespace", NotZero(a.Namespace))
 }
 
@@ -551,10 +641,11 @@ func (c *ClientCert) Validate(v *validator) {
 
 // Main PubSub struct which embeds different PubSub types.
 type PubSub struct {
-	Type string `json:"type,omitempty"`
-	GCP  *GCPPubsub
-	AWS  *AWSSNS_SQS
-	NSQ  *NSQPubsub
+	Type  string               `json:"type,omitempty"`
+	GCP   *GCPPubsub
+	AWS   *AWSSNS_SQS
+	NSQ   *NSQPubsub
+	Azure *AzureServiceBusPubsub
 }
 
 func (p *PubSub) Validate(v *validator) {
@@ -565,6 +656,8 @@ func (p *PubSub) Validate(v *validator) {
 		p.AWS.Validate(v)
 	case "nsq":
 		p.NSQ.Validate(v)
+	case "azure_service_bus":
+		p.Azure.Validate(v)
 	default:
 		v.ValidateField("type", Err("unsupported pubsub type"))
 	}
@@ -578,6 +671,8 @@ func (p *PubSub) DeleteTopic(name string) {
 		p.AWS.DeleteTopic(name)
 	case "nsq":
 		p.NSQ.DeleteTopic(name)
+	case "azure_service_bus":
+		p.Azure.DeleteTopic(name)
 	}
 }
 
@@ -589,6 +684,8 @@ func (p *PubSub) GetTopics() map[string]PubsubTopic {
 		return p.AWS.GetTopics()
 	case "nsq":
 		return p.NSQ.GetTopics()
+	case "azure_service_bus":
+		return p.Azure.GetTopics()
 	default:
 		panic("unsupported pubsub type")
 	}
@@ -770,6 +867,55 @@ func (n *NSQSub) Validate(v *validator) {
 	v.ValidateField("name", NotZero(n.Name))
 }
 
+// AzureServiceBusPubsub specific configuration.
+type AzureServiceBusPubsub struct {
+	Namespace string                   `json:"namespace"`
+	Topics    map[string]*AzureTopic   `json:"topics,omitempty"`
+}
+
+func (a *AzureServiceBusPubsub) Validate(v *validator) {
+	v.ValidateField("namespace", NotZero(a.Namespace))
+	ValidateChildMap(v, "topics", a.Topics)
+}
+
+func (a *AzureServiceBusPubsub) GetTopics() map[string]PubsubTopic {
+	return MapValues(a.Topics, func(k string, v *AzureTopic) PubsubTopic {
+		return v
+	})
+}
+
+func (a *AzureServiceBusPubsub) DeleteTopic(name string) {
+	delete(a.Topics, name)
+}
+
+type AzureTopic struct {
+	Name          string                  `json:"name"`
+	Subscriptions map[string]*AzureSub    `json:"subscriptions,omitempty"`
+}
+
+func (a *AzureTopic) Validate(v *validator) {
+	v.ValidateField("name", NotZero(a.Name))
+	ValidateChildMap(v, "subscriptions", a.Subscriptions)
+}
+
+func (a *AzureTopic) GetSubscriptions() map[string]PubsubSubscription {
+	return MapValues(a.Subscriptions, func(k string, v *AzureSub) PubsubSubscription {
+		return v
+	})
+}
+
+func (a *AzureTopic) DeleteSubscription(name string) {
+	delete(a.Subscriptions, name)
+}
+
+type AzureSub struct {
+	Name string `json:"name"`
+}
+
+func (a *AzureSub) Validate(v *validator) {
+	v.ValidateField("name", NotZero(a.Name))
+}
+
 // MarshalJSON custom marshaller for PubSub.
 func (p *PubSub) MarshalJSON() ([]byte, error) {
 	// Create a map to hold the JSON structure
@@ -795,6 +941,12 @@ func (p *PubSub) MarshalJSON() ([]byte, error) {
 	case "nsq":
 		if p.NSQ != nil {
 			for k, v := range structToMap(p.NSQ) {
+				m[k] = v
+			}
+		}
+	case "azure_service_bus":
+		if p.Azure != nil {
+			for k, v := range structToMap(p.Azure) {
 				m[k] = v
 			}
 		}
@@ -847,6 +999,12 @@ func (p *PubSub) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		p.NSQ = &n
+	case "azure_service_bus":
+		var az AzureServiceBusPubsub
+		if err := json.Unmarshal(data, &az); err != nil {
+			return err
+		}
+		p.Azure = &az
 	default:
 		return errors.New("unsupported pubsub type")
 	}

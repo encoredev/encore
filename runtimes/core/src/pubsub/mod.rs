@@ -14,6 +14,7 @@ use crate::names::EncoreName;
 use crate::pubsub::manager::SubHandler;
 use crate::{api, model};
 
+mod azure;
 mod gcp;
 mod manager;
 mod noop;

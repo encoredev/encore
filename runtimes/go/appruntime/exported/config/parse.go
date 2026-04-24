@@ -223,6 +223,17 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 					infraCfg.Metrics.AWSCloudWatch.Namespace,
 				}
 			}
+		case "azure_monitor":
+			if infraCfg.Metrics.AzureMonitor != nil {
+				cfg.Metrics.AzureMonitor = &AzureMonitorMetricsProvider{
+					Location:          infraCfg.Metrics.AzureMonitor.Location,
+					SubscriptionID:    infraCfg.Metrics.AzureMonitor.SubscriptionID,
+					ResourceGroup:     infraCfg.Metrics.AzureMonitor.ResourceGroup,
+					ResourceNamespace: infraCfg.Metrics.AzureMonitor.ResourceNamespace,
+					ResourceName:      infraCfg.Metrics.AzureMonitor.ResourceName,
+					Namespace:         infraCfg.Metrics.AzureMonitor.Namespace,
+				}
+			}
 		}
 	}
 
@@ -309,6 +320,12 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 					Host: pubsub.NSQ.Hosts,
 				},
 			}
+		case "azure_service_bus":
+			cfg.PubsubProviders[i] = &PubsubProvider{
+				Azure: &AzureServiceBusProvider{
+					Namespace: pubsub.Azure.Namespace,
+				},
+			}
 		}
 		cfg.PubsubTopics = map[string]*PubsubTopic{}
 		for topicName, topic := range pubsub.GetTopics() {
@@ -331,6 +348,13 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 					Subscriptions: map[string]*PubsubSubscription{},
 				}
 			case *infra.NSQTopic:
+				cfg.PubsubTopics[topicName] = &PubsubTopic{
+					EncoreName:    topicName,
+					ProviderID:    i,
+					ProviderName:  topic.Name,
+					Subscriptions: map[string]*PubsubSubscription{},
+				}
+			case *infra.AzureTopic:
 				cfg.PubsubTopics[topicName] = &PubsubTopic{
 					EncoreName:    topicName,
 					ProviderID:    i,
@@ -360,6 +384,12 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 						PushOnly:     false,
 					}
 				case *infra.NSQSub:
+					cfg.PubsubTopics[topicName].Subscriptions[subName] = &PubsubSubscription{
+						EncoreName:   subName,
+						ProviderName: subscription.Name,
+						PushOnly:     false,
+					}
+				case *infra.AzureSub:
 					cfg.PubsubTopics[topicName].Subscriptions[subName] = &PubsubSubscription{
 						EncoreName:   subName,
 						ProviderName: subscription.Name,
@@ -400,6 +430,14 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 					SecretAccessKey: nilOr(storage.S3.SecretAccessKey.Value()),
 				},
 			}
+		case "azure_blob":
+			cfg.BucketProviders[i] = &BucketProvider{
+				AzureBlob: &AzureBlobBucketProvider{
+					StorageAccount:   storage.AzureBlob.StorageAccount,
+					ConnectionString: nilOr(storage.AzureBlob.ConnectionString.Value()),
+					StorageKey:       nilOr(storage.AzureBlob.StorageKey.Value()),
+				},
+			}
 		}
 		cfg.Buckets = map[string]*Bucket{}
 		for bucketName, bucket := range storage.GetBuckets() {
@@ -424,6 +462,15 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 			AllowPrivateNetworkAccess:      true,
 		}
 	}
+	// Map SecretsProvider configuration
+	if infraCfg.SecretsProvider != nil && infraCfg.SecretsProvider.AzureKeyVault != nil {
+		cfg.SecretsProvider = &SecretsProvider{
+			AzureKeyVault: &AzureKeyVaultSecretsProvider{
+				VaultURL: infraCfg.SecretsProvider.AzureKeyVault.VaultURL,
+			},
+		}
+	}
+
 	// Map hosted services
 	cfg.HostedServices = infraCfg.HostedServices
 	cfg.Gateways = make([]Gateway, len(infraCfg.HostedGateways))
