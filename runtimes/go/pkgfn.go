@@ -1,20 +1,10 @@
-//go:build encore_app
-
 package encore
-
-import (
-	"encore.dev/appruntime/shared/appconf"
-	"encore.dev/appruntime/shared/reqtrack"
-)
-
-//publicapigen:drop
-var Singleton = NewManager(appconf.Static, appconf.Runtime, reqtrack.Singleton)
 
 // Meta returns metadata about the running application.
 //
 // Meta will never return nil.
 func Meta() *AppMetadata {
-	return Singleton.Meta()
+	return meta()
 }
 
 // CurrentRequest returns the Request that is currently being handled by the calling goroutine
@@ -24,5 +14,5 @@ func Meta() *AppMetadata {
 //
 // CurrentRequest never returns nil.
 func CurrentRequest() *Request {
-	return Singleton.CurrentRequest()
+	return currentRequest()
 }
