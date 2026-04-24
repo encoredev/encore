@@ -63,6 +63,7 @@ type RuntimeConfigGenerator struct {
 		PubSubProviderConfig() (config.PubsubProvider, error)
 
 		SQLDatabaseConfig(db *meta.SQLDatabase) (config.SQLDatabase, error)
+		SQLDatabaseMaxConnections(numLocalDBs int) int
 		PubSubTopicConfig(topic *meta.PubSubTopic) (config.PubsubProvider, config.PubsubTopic, error)
 		PubSubSubscriptionConfig(topic *meta.PubSubTopic, sub *meta.PubSubTopic_Subscription) (config.PubsubSubscription, error)
 		RedisConfig(redis *meta.CacheCluster) (config.RedisServer, config.RedisDatabase, error)
@@ -306,6 +307,18 @@ func (g *RuntimeConfigGenerator) initialize() error {
 				TlsConfig: tlsConfig,
 			})
 
+			// Count databases hosted by the locally-managed cluster so the
+			// shared pgx connection budget (see infra.SQLDatabaseMaxConnections)
+			// can be divided evenly among them. External databases connect to
+			// their own Postgres servers and aren't subject to the local budget.
+			numLocalDBs := 0
+			for _, db := range g.md.SqlDatabases {
+				if _, external := g.DefinedSecrets["sqldb::"+db.Name]; !external {
+					numLocalDBs++
+				}
+			}
+			localMaxConns := g.infraManager.SQLDatabaseMaxConnections(numLocalDBs)
+
 			for _, db := range g.md.SqlDatabases {
 				if externalDB, ok := g.DefinedSecrets["sqldb::"+db.Name]; ok {
 					var extCfg struct {
@@ -362,6 +375,10 @@ func (g *RuntimeConfigGenerator) initialize() error {
 						Password:      toSecret([]byte(dbConfig.Password)),
 						ClientCertRid: nil,
 					})
+					maxConns := int32(dbConfig.MaxConnections)
+					if maxConns == 0 {
+						maxConns = int32(localMaxConns)
+					}
 					cluster.SQLDatabase(&runtimev1.SQLDatabase{
 						Rid:        newRid(),
 						EncoreName: dbConfig.EncoreName,
@@ -371,7 +388,7 @@ func (g *RuntimeConfigGenerator) initialize() error {
 						IsReadonly:     false,
 						RoleRid:        roleRid,
 						MinConnections: int32(dbConfig.MinConnections),
-						MaxConnections: int32(dbConfig.MaxConnections),
+						MaxConnections: maxConns,
 					})
 
 				}

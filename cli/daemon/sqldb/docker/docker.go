@@ -159,8 +159,10 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 
 		// Allow CI / power users to raise the Postgres server's max_connections
 		// ceiling above its default (100). Only applied when creating a fresh
-		// container — `docker start` on an existing container reuses its original
-		// args, so changing this value locally requires `docker rm` first.
+		// container — the daemon is long-lived and `docker start` on an existing
+		// container reuses its original args. To pick up a new value locally,
+		// stop the daemon and `docker rm` the encore-pg container so the next
+		// run creates a fresh one.
 		if v := os.Getenv("ENCORE_SQLDB_MAX_CONNECTIONS"); v != "" {
 			if n, err := strconv.Atoi(v); err == nil && n > 0 {
 				args = append(args, "-c", "max_connections="+strconv.Itoa(n))
