@@ -294,6 +294,23 @@ func writeNewFileOrSkip(filePath string, data []byte) error {
 	return nil
 }
 
+// HasLLMRules checks if any LLM rules files have been set up in the given app root.
+func HasLLMRules(appRoot string) bool {
+	paths := []string{
+		filepath.Join(appRoot, ".cursor", "rules", "encore.mdc"),
+		filepath.Join(appRoot, ".claude", "CLAUDE.md"),
+		filepath.Join(appRoot, ".github", "copilot-instructions.md"),
+		filepath.Join(appRoot, "AGENTS.md"),
+		filepath.Join(appRoot, ".rules"),
+	}
+	for _, p := range paths {
+		if _, err := os.Stat(p); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 func downloadLLMInstructions(lang cmdutil.Language) (string, error) {
 	fmt.Println("Downloading LLM Instructions...")
 	var url string
