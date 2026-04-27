@@ -38,6 +38,9 @@ func (m *Manager) getMetadata(ctx context.Context, request mcp.CallToolRequest) 
 		return nil, fmt.Errorf("failed to get metadata: %w", err)
 	}
 	data, err := protojson.Marshal(md)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal metadata: %w", err)
+	}
 
 	return mcp.NewToolResultText(string(data)), nil
 }

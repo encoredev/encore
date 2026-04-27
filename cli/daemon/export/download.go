@@ -77,7 +77,6 @@ func tryCleanupPreviousVersions(binDir dockerbuild.HostPath) {
 			}
 		}
 	}
-	return
 }
 
 func downloadFile(url, dest string) error {

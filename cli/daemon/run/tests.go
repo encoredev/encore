@@ -125,7 +125,7 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		}
 		secrets = secretData.Values
 		// remove db override secrets for tests
-		for k, _ := range secrets {
+		for k := range secrets {
 			if strings.HasPrefix(k, "sqldb::") {
 				delete(secrets, k)
 			}
