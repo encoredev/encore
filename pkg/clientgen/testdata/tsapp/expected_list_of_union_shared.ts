@@ -78,10 +78,21 @@ export interface ClientOptions {
     /** Default RequestInit to be used for the client */
     requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
     /**
-     * Disables the automatic conversion of date strings to Date objects in API responses.
-     * When true, date strings are left as strings.
+     * Overrides or disables the built-in date reviver for all API calls.
+     * Pass a custom function to use instead, or false to disable date parsing entirely.
      */
-    disableDateReviver?: boolean
+    dateReviver?: ((key: string, value: any) => any) | false
+}
+
+/**
+ * CallOptions allows you to override per-call behaviour within the generated Encore client.
+ */
+export interface CallOptions {
+    /**
+     * Overrides the date reviver for this specific call.
+     * Pass a custom function to transform date strings, or false to disable date parsing.
+     */
+    dateReviver?: ((key: string, value: any) => any) | false
 }
 
 /**
@@ -395,7 +406,7 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
-        this.reviver = options.disableDateReviver ? undefined : dateReviver
+        this.reviver = options.dateReviver === false ? undefined : (options.dateReviver ?? dateReviver)
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
@@ -403,7 +414,7 @@ class BaseClient {
     }
 
     // createStreamInOut sets up a stream to a streaming API endpoint.
-    async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
+    async createStreamInOut<Request, Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -420,11 +431,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamInOut(this.baseURL + path + queryString, headers, this.reviver);
+        return new StreamInOut(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // createStreamIn sets up a stream to a streaming API endpoint.
-    async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
+    async createStreamIn<Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamIn<Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -441,11 +452,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamIn(this.baseURL + path + queryString, headers, this.reviver);
+        return new StreamIn(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // createStreamOut sets up a stream to a streaming API endpoint.
-    async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
+    async createStreamOut<Request, Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -462,7 +473,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamOut(this.baseURL + path + queryString, headers, this.reviver);
+        return new StreamOut(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"

@@ -90,10 +90,21 @@ export interface ClientOptions {
      */
     auth?: RequestType<typeof auth_auth> | AuthDataGenerator
     /**
-     * Disables the automatic conversion of date strings to Date objects in API responses.
-     * When true, date strings are left as strings.
+     * Overrides or disables the built-in date reviver for all API calls.
+     * Pass a custom function to use instead, or false to disable date parsing entirely.
      */
-    disableDateReviver?: boolean
+    dateReviver?: ((key: string, value: any) => any) | false
+}
+
+/**
+ * CallOptions allows you to override per-call behaviour within the generated Encore client.
+ */
+export interface CallOptions {
+    /**
+     * Overrides the date reviver for this specific call.
+     * Pass a custom function to transform date strings, or false to disable date parsing.
+     */
+    dateReviver?: ((key: string, value: any) => any) | false
 }
 
 /**
@@ -131,7 +142,7 @@ export namespace svc {
             this.singleSetCookie = this.singleSetCookie.bind(this)
         }
 
-        public async cookieDummy(params: RequestType<typeof api_svc_svc_cookieDummy>): Promise<ResponseType<typeof api_svc_svc_cookieDummy>> {
+        public async cookieDummy(params: RequestType<typeof api_svc_svc_cookieDummy>, callOptions?: CallOptions): Promise<ResponseType<typeof api_svc_svc_cookieDummy>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 baz: params.headerBaz,
@@ -152,13 +163,15 @@ export namespace svc {
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/cookie-dummy`, {headers, query, method: "POST", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), this.baseClient.reviver) as ResponseType<typeof api_svc_svc_cookieDummy>
+            const reviver = callOptions?.dateReviver !== undefined ? (callOptions.dateReviver || undefined) : this.baseClient.reviver
+            return JSON.parse(await resp.text(), reviver) as ResponseType<typeof api_svc_svc_cookieDummy>
         }
 
-        public async cookiesOnly(params: RequestType<typeof api_svc_svc_cookiesOnly>): Promise<ResponseType<typeof api_svc_svc_cookiesOnly>> {
+        public async cookiesOnly(params: RequestType<typeof api_svc_svc_cookiesOnly>, callOptions?: CallOptions): Promise<ResponseType<typeof api_svc_svc_cookiesOnly>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/cookies-only`, {method: "POST", body: undefined})
-            return JSON.parse(await resp.text(), this.baseClient.reviver) as ResponseType<typeof api_svc_svc_cookiesOnly>
+            const reviver = callOptions?.dateReviver !== undefined ? (callOptions.dateReviver || undefined) : this.baseClient.reviver
+            return JSON.parse(await resp.text(), reviver) as ResponseType<typeof api_svc_svc_cookiesOnly>
         }
 
         public async dummy(params: RequestType<typeof api_svc_svc_dummy>): Promise<void> {
@@ -187,18 +200,20 @@ export namespace svc {
          * Imported tests the usage of imported types
          * and this comment is also multiline.
          */
-        public async imported(params: RequestType<typeof api_svc_svc_imported>): Promise<ResponseType<typeof api_svc_svc_imported>> {
+        public async imported(params: RequestType<typeof api_svc_svc_imported>, callOptions?: CallOptions): Promise<ResponseType<typeof api_svc_svc_imported>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/imported`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), this.baseClient.reviver) as ResponseType<typeof api_svc_svc_imported>
+            const reviver = callOptions?.dateReviver !== undefined ? (callOptions.dateReviver || undefined) : this.baseClient.reviver
+            return JSON.parse(await resp.text(), reviver) as ResponseType<typeof api_svc_svc_imported>
         }
 
-        public async multiSetCookie(): Promise<ResponseType<typeof api_svc_svc_multiSetCookie>> {
+        public async multiSetCookie(callOptions?: CallOptions): Promise<ResponseType<typeof api_svc_svc_multiSetCookie>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/multi-set-cookie`, {method: "POST", body: undefined})
+            const reviver = callOptions?.dateReviver !== undefined ? (callOptions.dateReviver || undefined) : this.baseClient.reviver
 
             //Populate the return object from the JSON body and received headers
-            const rtn = JSON.parse(await resp.text(), this.baseClient.reviver) as ResponseType<typeof api_svc_svc_multiSetCookie>
+            const rtn = JSON.parse(await resp.text(), reviver) as ResponseType<typeof api_svc_svc_multiSetCookie>
             if (!BROWSER) {
                 rtn.tokens = resp.headers.getSetCookie()
             }
@@ -209,10 +224,11 @@ export namespace svc {
             await this.baseClient.callTypedAPI(`/type-less`, {method: "POST", body: undefined})
         }
 
-        public async onlyPathParams(params: { pathParam: string, pathParam2: string }): Promise<ResponseType<typeof api_svc_svc_onlyPathParams>> {
+        public async onlyPathParams(params: { pathParam: string, pathParam2: string }, callOptions?: CallOptions): Promise<ResponseType<typeof api_svc_svc_onlyPathParams>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/path/${encodeURIComponent(params.pathParam)}/${encodeURIComponent(params.pathParam2)}`, {method: "POST", body: undefined})
-            return JSON.parse(await resp.text(), this.baseClient.reviver) as ResponseType<typeof api_svc_svc_onlyPathParams>
+            const reviver = callOptions?.dateReviver !== undefined ? (callOptions.dateReviver || undefined) : this.baseClient.reviver
+            return JSON.parse(await resp.text(), reviver) as ResponseType<typeof api_svc_svc_onlyPathParams>
         }
 
         /**
@@ -240,12 +256,13 @@ export namespace svc {
             await this.baseClient.callTypedAPI(`/`, {headers, query, method: "POST", body: JSON.stringify(body)})
         }
 
-        public async singleSetCookie(): Promise<ResponseType<typeof api_svc_svc_singleSetCookie>> {
+        public async singleSetCookie(callOptions?: CallOptions): Promise<ResponseType<typeof api_svc_svc_singleSetCookie>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/single-set-cookie`, {method: "POST", body: undefined})
+            const reviver = callOptions?.dateReviver !== undefined ? (callOptions.dateReviver || undefined) : this.baseClient.reviver
 
             //Populate the return object from the JSON body and received headers
-            const rtn = JSON.parse(await resp.text(), this.baseClient.reviver) as ResponseType<typeof api_svc_svc_singleSetCookie>
+            const rtn = JSON.parse(await resp.text(), reviver) as ResponseType<typeof api_svc_svc_singleSetCookie>
             if (!BROWSER) {
                 rtn.token = mustBeSet("Header `set-cookie`", resp.headers.getSetCookie()[0])
             }
@@ -570,7 +587,7 @@ class BaseClient {
                 this.authGenerator = () => auth
             }
         }
-        this.reviver = options.disableDateReviver ? undefined : dateReviver
+        this.reviver = options.dateReviver === false ? undefined : (options.dateReviver ?? dateReviver)
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
@@ -601,7 +618,7 @@ class BaseClient {
     }
 
     // createStreamInOut sets up a stream to a streaming API endpoint.
-    async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
+    async createStreamInOut<Request, Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -618,11 +635,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamInOut(this.baseURL + path + queryString, headers, this.reviver);
+        return new StreamInOut(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // createStreamIn sets up a stream to a streaming API endpoint.
-    async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
+    async createStreamIn<Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamIn<Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -639,11 +656,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamIn(this.baseURL + path + queryString, headers, this.reviver);
+        return new StreamIn(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // createStreamOut sets up a stream to a streaming API endpoint.
-    async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
+    async createStreamOut<Request, Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -660,7 +677,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamOut(this.baseURL + path + queryString, headers, this.reviver);
+        return new StreamOut(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"
