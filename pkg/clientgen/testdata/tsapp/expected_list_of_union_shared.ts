@@ -77,6 +77,11 @@ export interface ClientOptions {
 
     /** Default RequestInit to be used for the client */
     requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+    /**
+     * Disables the automatic conversion of date strings to Date objects in API responses.
+     * When true, date strings are left as strings.
+     */
+    disableDateReviver?: boolean
 }
 
 /**
@@ -244,10 +249,10 @@ export class StreamInOut<Request, Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(url: string, headers?: Record<string, string>, reviver?: (key: string, value: any) => any) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data, dateReviver));
+            this.buffer.push(JSON.parse(event.data, reviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -288,10 +293,10 @@ export class StreamIn<Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(url: string, headers?: Record<string, string>, reviver?: (key: string, value: any) => any) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data, dateReviver));
+            this.buffer.push(JSON.parse(event.data, reviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -321,13 +326,13 @@ export class StreamOut<Request, Response> {
     public socket: WebSocketConnection;
     private responseValue: Promise<Response>;
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(url: string, headers?: Record<string, string>, reviver?: (key: string, value: any) => any) {
         let responseResolver: (_: any) => void;
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
 
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            responseResolver(JSON.parse(event.data, dateReviver))
+            responseResolver(JSON.parse(event.data, reviver))
         });
     }
 
@@ -370,6 +375,7 @@ class BaseClient {
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
     readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+    readonly reviver: ((key: string, value: any) => any) | undefined
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
@@ -389,6 +395,7 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
+        this.reviver = options.disableDateReviver ? undefined : dateReviver
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
@@ -413,7 +420,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamInOut(this.baseURL + path + queryString, headers);
+        return new StreamInOut(this.baseURL + path + queryString, headers, this.reviver);
     }
 
     // createStreamIn sets up a stream to a streaming API endpoint.
@@ -434,7 +441,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamIn(this.baseURL + path + queryString, headers);
+        return new StreamIn(this.baseURL + path + queryString, headers, this.reviver);
     }
 
     // createStreamOut sets up a stream to a streaming API endpoint.
@@ -455,7 +462,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamOut(this.baseURL + path + queryString, headers);
+        return new StreamOut(this.baseURL + path + queryString, headers, this.reviver);
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"

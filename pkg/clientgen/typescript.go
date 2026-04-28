@@ -769,7 +769,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	// If we don't need to do anything with the body, we can just return the response
 	if len(respEnc.HeaderParameters) == 0 {
 		if ts.sharedTypes {
-			w.WriteString("return JSON.parse(await resp.text(), dateReviver) as ")
+			w.WriteString("return JSON.parse(await resp.text(), this.baseClient.reviver) as ")
 			fmt.Fprintf(ts, "ResponseType<typeof %s>", rpcImportName(rpc))
 		} else {
 			w.WriteString("return await resp.json() as ")
@@ -783,7 +783,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	w.WriteString("\n//Populate the return object from the JSON body and received headers\n")
 
 	if ts.sharedTypes {
-		w.WriteStringf("const rtn = JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof %s>", rpcImportName(rpc))
+		w.WriteStringf("const rtn = JSON.parse(await resp.text(), this.baseClient.reviver) as ResponseType<typeof %s>", rpcImportName(rpc))
 	} else {
 		w.WriteString("const rtn = await resp.json() as ")
 		ts.writeTyp(ns, rpc.ResponseSchema, 0)
@@ -934,8 +934,10 @@ type StreamResponse<Type> = Type extends
 	}
 
 	parse := "JSON.parse(event.data)"
+	ctorParams := "url: string, headers?: Record<string, string>"
 	if ts.sharedTypes {
-		parse = "JSON.parse(event.data, dateReviver)"
+		parse = "JSON.parse(event.data, reviver)"
+		ctorParams = "url: string, headers?: Record<string, string>, reviver?: (key: string, value: any) => any"
 	}
 
 	send := `
@@ -1032,7 +1034,7 @@ export class StreamInOut<Request, Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(` + ctorParams + `) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
             this.buffer.push(` + parse + `);
@@ -1051,7 +1053,7 @@ export class StreamIn<Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(` + ctorParams + `) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
             this.buffer.push(` + parse + `);
@@ -1069,7 +1071,7 @@ export class StreamOut<Request, Response> {
     public socket: WebSocketConnection;
     private responseValue: Promise<Response>;
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(` + ctorParams + `) {
         let responseResolver: (_: any) => void;
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
 
@@ -1268,6 +1270,15 @@ export interface ClientOptions {
 		w.WriteString(" | AuthDataGenerator\n")
 	}
 
+	if ts.sharedTypes {
+		w.WriteString(`    /**
+     * Disables the automatic conversion of date strings to Date objects in API responses.
+     * When true, date strings are left as strings.
+     */
+    disableDateReviver?: boolean
+`)
+	}
+
 	w.WriteString(`}
 
 `)
@@ -1321,6 +1332,10 @@ class BaseClient {
 		ts.WriteString("\n    readonly authGenerator?: AuthDataGenerator")
 	}
 
+	if ts.sharedTypes {
+		ts.WriteString("\n    readonly reviver: ((key: string, value: any) => any) | undefined")
+	}
+
 	ts.WriteString(`
 
     constructor(baseURL: string, options: ClientOptions) {
@@ -1354,6 +1369,11 @@ class BaseClient {
                 this.authGenerator = () => auth
             }
         }`)
+	}
+
+	if ts.sharedTypes {
+		ts.WriteString(`
+        this.reviver = options.disableDateReviver ? undefined : dateReviver`)
 	}
 
 	ts.WriteString(`
@@ -1448,7 +1468,12 @@ class BaseClient {
     }
 `)
 
-	ts.WriteString(`
+	streamReviverArg := ""
+	if ts.sharedTypes {
+		streamReviverArg = ", this.reviver"
+	}
+
+	fmt.Fprintf(ts, `
     // createStreamInOut sets up a stream to a streaming API endpoint.
     async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
@@ -1467,7 +1492,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamInOut(this.baseURL + path + queryString, headers);
+        return new StreamInOut(this.baseURL + path + queryString, headers%s);
     }
 
     // createStreamIn sets up a stream to a streaming API endpoint.
@@ -1488,7 +1513,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamIn(this.baseURL + path + queryString, headers);
+        return new StreamIn(this.baseURL + path + queryString, headers%s);
     }
 
     // createStreamOut sets up a stream to a streaming API endpoint.
@@ -1509,9 +1534,9 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamOut(this.baseURL + path + queryString, headers);
+        return new StreamOut(this.baseURL + path + queryString, headers%s);
     }
-`)
+`, streamReviverArg, streamReviverArg, streamReviverArg)
 
 	callParams := "method: string, path: string, body?: RequestInit[\"body\"], params?: CallParameters"
 	callAPIParams := "method, path, body"
