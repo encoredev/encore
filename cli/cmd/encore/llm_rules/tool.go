@@ -107,8 +107,7 @@ func SetupLLMRules(llmRules Tool, lang cmdutil.Language, appRootRelpath string, 
 			// https://cursor.com/docs/context/mcp#using-mcpjson
 			mcpPath := filepath.Join(cursorDir, "mcp.json")
 			err = updateJsonFile(mcpPath, "mcpServers", func(mcpServers map[string]any) {
-				// Add encore-mcp configuration
-				mcpServers["encore-mcp"] = map[string]any{
+				mcpServers["encore-local"] = map[string]any{
 					"command": "encore",
 					"args":    []string{"mcp", "run", "--app=" + appSlug},
 				}
@@ -129,8 +128,7 @@ func SetupLLMRules(llmRules Tool, lang cmdutil.Language, appRootRelpath string, 
 			// https://code.claude.com/docs/en/mcp#project-scope
 			mcpPath := filepath.Join(appRootRelpath, ".mcp.json")
 			err = updateJsonFile(mcpPath, "mcpServers", func(mcpServers map[string]any) {
-				// Add encore-mcp configuration
-				mcpServers["encore-mcp"] = map[string]any{
+				mcpServers["encore-local"] = map[string]any{
 					"command": "encore",
 					"args":    []string{"mcp", "run", "--app=" + appSlug},
 				}
@@ -170,8 +168,7 @@ func SetupLLMRules(llmRules Tool, lang cmdutil.Language, appRootRelpath string, 
 		// https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_configuration-format
 		mcpPath := filepath.Join(vscodePath, "mcp.json")
 		err = updateJsonFile(mcpPath, "servers", func(servers map[string]any) {
-			// Add encore-mcp configuration
-			servers["encore-mcp"] = map[string]any{
+			servers["encore-local"] = map[string]any{
 				"command": "encore",
 				"args":    []string{"mcp", "run", "--app=" + appSlug},
 			}
@@ -204,8 +201,7 @@ func SetupLLMRules(llmRules Tool, lang cmdutil.Language, appRootRelpath string, 
 			// https://zed.dev/docs/ai/mcp#as-custom-servers
 			settingsPath := filepath.Join(zedDir, "settings.json")
 			err = updateJsonFile(settingsPath, "context_servers", func(contextServers map[string]any) {
-				// Add encore-mcp configuration
-				contextServers["encore-mcp"] = map[string]any{
+				contextServers["encore-local"] = map[string]any{
 					"command": "encore",
 					"args":    []string{"mcp", "run", "--app=" + appSlug},
 					"env":     map[string]any{},
