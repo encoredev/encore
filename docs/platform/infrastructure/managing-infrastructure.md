@@ -148,8 +148,22 @@ To download the CA certificate and create a client certificate for your database
 6. If your tool requires a client certificate, under **Manage client certificates**, click **Create Client Certificate** and follow the prompts.
 
 *AWS (RDS):*
-1. Download the RDS CA certificate bundle from the [AWS RDS documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html).
-2. Configure your tool to use the appropriate regional or global CA certificate.
+1. Download the RDS CA certificate bundle. You can use the global bundle (covers all regions) or a region-specific one:
+   ```shell
+   # Global bundle (recommended)
+   $ wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+
+   # Or region-specific, e.g. us-east-1
+   $ wget https://truststore.pki.rds.amazonaws.com/us-east-1/us-east-1-bundle.pem
+   ```
+2. Configure your tool to trust the downloaded certificate. For example, with `psql`:
+   ```shell
+   $ psql "host=your-instance.rds.amazonaws.com dbname=yourdb user=youruser sslmode=verify-full sslrootcert=global-bundle.pem"
+   ```
+3. For application connection strings, append the SSL parameters:
+   ```
+   postgresql://user:password@your-instance.rds.amazonaws.com:5432/dbname?sslmode=verify-full&sslrootcert=/path/to/global-bundle.pem
+   ```
 
 Configure your external tool to trust the downloaded CA certificate, and provide the client certificate if required. The exact configuration depends on the tool you are using.
 
