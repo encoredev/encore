@@ -135,12 +135,25 @@ For cloud environments on AWS/GCP, you can retrieve database credentials from th
 
 **SSL/TLS certificates**
 
-Encore Cloud provisions databases with TLS encryption enabled. When connecting external tools, you may need to configure SSL certificates:
+Encore Cloud provisions databases with TLS encryption enabled. When connecting external tools (data pipelines, replication services, database management utilities, etc.), you will need to configure SSL certificates for the connection.
 
-- **Download the CA certificate** from your cloud provider's console (e.g. the Cloud SQL instance page in GCP, or the RDS instance page in AWS) and configure your tool to trust it.
-- **Disable TLS verification** if your tool connects over a trusted internal network (e.g. within the same VPC via a private IP or a secured proxy). This is only appropriate when the connection path is already encrypted or isolated at the network level.
+To download the CA certificate and create a client certificate for your database instance:
 
-The right approach depends on your network topology and security requirements. Tools connecting over the public internet should always use TLS with proper certificate validation.
+*GCP (Cloud SQL):*
+1. Go to the Cloud SQL Instances page in the GCP console.
+2. Click on your PostgreSQL instance name.
+3. Select **Connections** from the left-hand menu.
+4. Click the **Security** tab.
+5. Under **Manage certificates**, click **Download CA certificate**. This downloads the `server-ca.pem` file.
+6. If your tool requires a client certificate, under **Manage client certificates**, click **Create Client Certificate** and follow the prompts.
+
+*AWS (RDS):*
+1. Download the RDS CA certificate bundle from the [AWS RDS documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html).
+2. Configure your tool to use the appropriate regional or global CA certificate.
+
+Configure your external tool to trust the downloaded CA certificate, and provide the client certificate if required. The exact configuration depends on the tool you are using.
+
+If your tool connects over a trusted internal network (e.g. within the same VPC via a private IP or a secured proxy), you may be able to disable TLS verification. This is only appropriate when the connection path is already encrypted or isolated at the network level. Tools connecting over the public internet should always use TLS with proper certificate validation.
 
 ## Disaster Recovery
 
