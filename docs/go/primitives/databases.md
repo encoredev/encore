@@ -185,6 +185,8 @@ It's often useful to be able to connect to the database from outside the backend
 
 Currently Encore does not expose user credentials for databases in the local environment or for environments on Encore Cloud. You can use a connection string to connect instead, see below.
 
+If you need to connect external tools like data pipelines or BI platforms, see [Connecting external tools to databases](/docs/platform/infrastructure/managing-infrastructure#connecting-external-tools-to-databases) for guidance on SSL certificates and network access.
+
 ### Using the Encore CLI
 
 Encore's CLI comes with built-in support for connecting to databases:
