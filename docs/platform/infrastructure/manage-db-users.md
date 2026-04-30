@@ -23,7 +23,7 @@ To connect to an Encore Cloud-hosted database, use [`encore db shell`](/docs/ts/
 Encore Cloud provisions unique credentials at multiple levels to ensure proper security isolation:
 
 - Each database instance has its own unique credentials.
-- Each container connecting to a database uses a unique credential, so no credentials are shared across services or instances.
+- Each container connecting to a database uses a unique credential.
 
 ## Credential rotation
 
