@@ -115,6 +115,33 @@ Encore Cloud automatically manages database credentials with built-in isolation:
 
 Learn more about viewing and managing database credentials in the [Managing database users](/docs/platform/infrastructure/manage-db-users) docs.
 
+### Connecting external tools to databases
+
+When deploying to your own cloud account, Encore Cloud provisions databases in private subnets that are not directly accessible from the public internet. If you need to connect external tools (data pipelines, BI platforms, database management utilities, etc.) to your databases, there are a few approaches:
+
+**Using the Encore CLI proxy**
+
+The simplest way to connect external tools is through the Encore CLI's built-in database proxy:
+
+```shell
+$ encore db proxy --env=<environment-name>
+```
+
+This sets up a local proxy that forwards connections to your databases. External tools can then connect to the local proxy endpoint. Learn more in the [database CLI docs](/docs/ts/primitives/databases#connecting-to-databases).
+
+**Using database credentials directly**
+
+For cloud environments on AWS/GCP, you can retrieve database credentials from the Encore Cloud dashboard and use them with your cloud provider's connectivity options (e.g. VPC peering, private service access, or a proxy). See the [Managing database users](/docs/platform/infrastructure/manage-db-users) docs for how to access credentials.
+
+**SSL/TLS certificates**
+
+Encore Cloud provisions databases with TLS encryption enabled. When connecting external tools, you may need to configure SSL certificates:
+
+- **Download the CA certificate** from your cloud provider's console (e.g. the Cloud SQL instance page in GCP, or the RDS instance page in AWS) and configure your tool to trust it.
+- **Disable TLS verification** if your tool connects over a trusted internal network (e.g. within the same VPC via a private IP or a secured proxy). This is only appropriate when the connection path is already encrypted or isolated at the network level.
+
+The right approach depends on your network topology and security requirements. Tools connecting over the public internet should always use TLS with proper certificate validation.
+
 ## Disaster Recovery
 
 ### Built-in protections
