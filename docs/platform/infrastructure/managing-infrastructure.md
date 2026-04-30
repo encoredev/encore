@@ -2,7 +2,7 @@
 seotitle: Managing Infrastructure – Safety, Upgrades & Disaster Recovery
 seodesc: Learn how Encore Cloud protects your infrastructure with deletion safeguards, handles upgrades, and supports disaster recovery for production environments.
 title: Managing Infrastructure
-subtitle: Deletion protection, upgrades, disaster recovery, and shared responsibilities
+subtitle: Safety, upgrades, database management, and disaster recovery
 lang: platform
 ---
 
