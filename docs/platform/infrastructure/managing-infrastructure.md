@@ -17,7 +17,7 @@ Encore Cloud implements multiple layers of protection against accidental or mali
 - **Admin-only environment deletion:** Only users with the Admin role can destroy or delete environments. [Learn more about roles](/docs/platform/management/permissions).
 - **Confirmation required:** Destroying an environment requires the admin to manually type a confirmation message.
 - **Stateful resource protection:** Stateful resources (databases, buckets, queues) are never deleted unless they are unused by the application and a user has manually confirmed deletion. Encore tracks which resources are in use through its [Application Model](/docs/ts/concepts/application-model).
-- **Cloud provider safeguards:** For GCP deployments, SQL databases have deletion protection enabled at the cloud provider level, which must be manually disabled in the GCP console before the resource can be removed.
+- **Cloud provider safeguards:** For deployments to your own cloud, SQL databases have deletion protection enabled at the cloud provider level, which must be manually disabled in the cloud provider console before the resource can be removed.
 
 ### Drift detection
 
@@ -74,7 +74,7 @@ Encore runtime versions are automatically included as part of each build in the 
 Encore Cloud automatically applies schema migrations as part of each deployment. However, PostgreSQL major version upgrades (e.g. PostgreSQL 15 to 16) are handled differently:
 
 - **Major version upgrades** must be manually initiated. They involve downtime and should be planned accordingly. Expect 10 to 20 minutes of downtime depending on database size, controlled by the cloud provider.
-- **Migration tooling:** Standard cloud provider tools (e.g. `pg_dump`/`pg_restore` for GCP) are supported for migrating data between database versions or environments.
+- **Migration tooling:** Standard cloud provider tools and PostgreSQL utilities like `pg_dump`/`pg_restore` are supported for migrating data between database versions or environments.
 - **Testing:** Always test major upgrades in a staging environment before rolling out to production. Major PostgreSQL version upgrades may introduce backward compatibility issues at the SQL level.
 
 ### Infrastructure component upgrades
@@ -85,20 +85,20 @@ Upgrades to the underlying cloud services (Cloud Run, Pub/Sub, IAM, VPC, etc.) a
 
 ### Built-in protections
 
-For GCP deployments, Encore Cloud provisions databases with the following protections by default:
+When deploying to your own cloud account, Encore Cloud provisions databases with the following protections by default:
 
 - **Automated daily backups** retained for 7 days
 - **Point-in-time recovery (PITR)** capabilities
 - **Private subnet placement** for network isolation
 
-Learn more about the default database configuration in the [GCP Infrastructure](/docs/platform/infrastructure/gcp) docs.
+Learn more about the default database configuration in the [GCP Infrastructure](/docs/platform/infrastructure/gcp) and [AWS Infrastructure](/docs/platform/infrastructure/aws) docs.
 
 ### Configuring DR
 
 Disaster recovery settings for stateful resources can be configured in two ways:
 
 1. **Encore Cloud dashboard:** Use the infrastructure configuration UI to adjust backup schedules, retention periods, and other DR-related settings.
-2. **Cloud provider console:** Since Encore Cloud deploys infrastructure directly into your cloud account, you can configure DR settings (high availability, multi-zone, cross-region replication, etc.) directly in the GCP or AWS console.
+2. **Cloud provider console:** Since Encore Cloud deploys infrastructure directly into your cloud account, you can configure DR settings (high availability, multi-zone, cross-region replication, etc.) directly in your cloud provider's console.
 
 Learn more about manual configuration in the [Infrastructure Configuration](/docs/platform/infrastructure/configuration) docs.
 
