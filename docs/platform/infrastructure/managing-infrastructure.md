@@ -112,19 +112,23 @@ For production environments with specific RTO/RPO targets, consider:
 - Testing recovery procedures regularly in non-production environments
 - Documenting your recovery runbooks
 
-## Shared Responsibility Model
+## What Encore Cloud Automates vs. What You Control
 
-Encore Cloud and your team share responsibility for operating production infrastructure:
+Encore Cloud automates the heavy lifting of infrastructure management, while giving you full control over customization and decisions that are specific to your application.
 
-| Area | Encore Cloud | Customer |
-| --- | --- | --- |
-| **Infrastructure provisioning** | Automatically provisions and manages cloud resources based on your application code | Defines infrastructure requirements through application code |
-| **Deployments** | Builds, tests, and deploys automatically via CI/CD | Pushes code changes; optionally reviews and approves deployments |
-| **Schema migrations** | Automatically applies database migrations on deploy | Writes and tests migration files |
-| **Runtime upgrades** | Includes latest runtime in each build | Optionally pins specific versions; tests in staging |
-| **PostgreSQL major upgrades** | N/A (must be manually initiated) | Plans and executes major version upgrades; tests in staging first |
-| **Infrastructure configuration** | Provides defaults following best practices | Customizes settings via dashboard or cloud console as needed |
-| **Disaster recovery** | Provides default backups and PITR for databases | Configures DR settings to meet specific RTO/RPO requirements |
-| **Security & IAM** | Automatically manages IAM with least-privilege; encrypts data in transit and at rest | Reviews permissions; manages application-level auth |
-| **Monitoring & alerting** | Provides built-in observability (tracing, metrics, logs) | Sets up custom alerts and monitors for application-specific needs |
-| **Cloud provider updates** | Manages GCP/AWS deprecations as they arise | Stays informed of cloud provider deprecation notices |
+### Automated by Encore Cloud
+- **Infrastructure provisioning:** Cloud resources are automatically created and managed based on your application code. No Terraform, no YAML.
+- **Deployments and CI/CD:** Every git push triggers a build, test, and deploy pipeline. No manual steps required.
+- **Schema migrations:** Database migrations are automatically applied on each deploy.
+- **Runtime upgrades:** Each build includes the latest Encore runtime. Backward compatibility is maintained across releases.
+- **Security and IAM:** IAM policies are automatically managed using the principle of least privilege. All data is encrypted in transit and at rest.
+- **Monitoring and observability:** Built-in distributed tracing, metrics, and logging are available out of the box.
+- **Cloud provider updates:** Encore Cloud handles changes to underlying cloud services as part of normal deployments.
+
+### Under your control
+- **Infrastructure customization:** Override defaults via the Encore Cloud dashboard or directly in your cloud provider's console.
+- **Deploy approval:** Optionally require admin approval for deployments that include infrastructure changes.
+- **Runtime pinning:** Pin specific runtime or base image versions when you need to.
+- **PostgreSQL major upgrades:** Major version upgrades are a manual decision, giving you control over timing and testing.
+- **Disaster recovery tuning:** Encore provides default backups and PITR. You can adjust retention, replication, and HA settings to meet your specific RTO/RPO targets.
+- **Application-level concerns:** Authentication logic, custom alerting, and domain-specific monitoring are yours to configure as needed.
