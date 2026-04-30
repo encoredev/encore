@@ -125,6 +125,11 @@ message RunRequest {
   // scrub_sensitive_data, if true, scrubs sensitive data from local traces.
   bool scrub_sensitive_data = 13;
 
+  // non_interactive, if true, signals that the CLI is not connected to an
+  // interactive terminal. The build progress UI is rendered as plain
+  // one-line-per-event output instead of the spinner.
+  bool non_interactive = 14;
+
   enum BrowserMode {
     BROWSER_AUTO = 0;
     BROWSER_NEVER = 1;
@@ -197,6 +202,10 @@ message ExecScriptRequest {
   // namespace is the infrastructure namespace to use.
   // If empty the active namespace is used.
   optional string namespace = 7;
+
+  // non_interactive, if true, signals that the CLI is not connected to an
+  // interactive terminal. See RunRequest.non_interactive for details.
+  bool non_interactive = 8;
 }
 
 message ExecSpecRequest {
@@ -215,6 +224,10 @@ message ExecSpecRequest {
   // temp_dir is a temp dir that will be cleaned up by the CLI after the command
   // has been executed, to write things like app meta and runtime config etc.
   string temp_dir = 8;
+
+  // non_interactive, if true, signals that the CLI is not connected to an
+  // interactive terminal. See RunRequest.non_interactive for details.
+  bool non_interactive = 9;
 }
 
 message ExecSpecMessage {

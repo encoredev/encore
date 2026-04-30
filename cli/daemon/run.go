@@ -95,7 +95,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		return nil
 	}
 
-	ops := optracker.New(stderr, stream)
+	ops := optracker.New(stderr, stream, !req.NonInteractive)
 	defer ops.AllDone() // Kill the tracker when we exit this function
 
 	// Check for available update before we start the proc

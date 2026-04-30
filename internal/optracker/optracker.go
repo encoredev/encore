@@ -20,10 +20,17 @@ type OutputStream interface {
 	Send(*daemonpb.CommandMessage) error
 }
 
-func New(w io.Writer, stream OutputStream) *OpTracker {
+// New returns a new OpTracker.
+//
+// When interactive is true the tracker renders an in-place spinner UI using
+// ANSI cursor manipulation. When false, it emits one plain line per state
+// change (start / done / failed), suitable for piping into log aggregators
+// or non-TTY environments.
+func New(w io.Writer, stream OutputStream, interactive bool) *OpTracker {
 	return &OpTracker{
-		w:      w,
-		stream: stream,
+		w:           w,
+		stream:      stream,
+		interactive: interactive,
 	}
 }
 
@@ -35,6 +42,7 @@ type OpTracker struct {
 	quit        bool // quit indicates that the tracker has been stopped (this should only be set by AllDone)
 	savedCursor sync.Once
 	stream      OutputStream
+	interactive bool
 }
 
 type OperationID int
@@ -90,7 +98,7 @@ func (t *OpTracker) Add(msg string, minStart time.Time) OperationID {
 	t.ops = append(t.ops, op)
 	t.refresh()
 
-	if !t.started {
+	if t.interactive && !t.started {
 		go t.spin()
 		t.started = true
 	}
@@ -147,6 +155,14 @@ func (t *OpTracker) Cancel(id OperationID) {
 // refresh refreshes the display by writing to t.w.
 // The mutex must be held by the caller.
 func (t *OpTracker) refresh() {
+	if t.interactive {
+		t.refreshTTY()
+	} else {
+		t.refreshPlain()
+	}
+}
+
+func (t *OpTracker) refreshTTY() {
 	t.savedCursor.Do(func() {
 		fmt.Fprint(t.w, ansi.SaveCursorPosition)
 	})
@@ -200,6 +216,33 @@ func (t *OpTracker) refresh() {
 	}
 }
 
+// refreshPlain emits a single line per state transition (start / done / failed).
+// Subsequent calls for the same op are no-ops, so it is safe to invoke from
+// every Add/Done/Fail without producing duplicate output.
+func (t *OpTracker) refreshPlain() {
+	for _, o := range t.ops {
+		if !o.startedPrinted {
+			fmt.Fprintf(t.w, "  %s...\n", o.msg)
+			o.startedPrinted = true
+		}
+		if !o.donePrinted && !o.done.IsZero() {
+			switch {
+			case errors.Is(o.err, ErrCanceled):
+				fmt.Fprintf(t.w, "  %s %s: Canceled\n", canceled, o.msg)
+			case o.err != nil:
+				if el := errlist.Convert(o.err); el != nil && len(el.List) > 0 {
+					fmt.Fprintf(t.w, "  %s %s: Failed: %v\n", fail, o.msg, el.List[0].Title())
+				} else {
+					fmt.Fprintf(t.w, "  %s %s: Failed: %v\n", fail, o.msg, o.err)
+				}
+			default:
+				fmt.Fprintf(t.w, "  %s %s: Done\n", success, o.msg)
+			}
+			o.donePrinted = true
+		}
+	}
+}
+
 func (t *OpTracker) spin() {
 	refresh := 100 * time.Millisecond
 	if runtime.GOOS == "windows" {
@@ -221,11 +264,13 @@ func (t *OpTracker) spin() {
 }
 
 type slowOp struct {
-	msg     string
-	err     error
-	spinIdx int
-	start   time.Time
-	done    time.Time
+	msg            string
+	err            error
+	spinIdx        int
+	start          time.Time
+	done           time.Time
+	startedPrinted bool // plain mode only
+	donePrinted    bool // plain mode only
 }
 
 var (

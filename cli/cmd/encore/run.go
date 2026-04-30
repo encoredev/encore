@@ -137,6 +137,7 @@ func runApp(appRoot, wd string) {
 		Browser:            browserMode,
 		LogLevel:           nonZeroPtr(logLevel.Value),
 		ScrubSensitiveData: scrubSensitiveData,
+		NonInteractive:     !term.IsTerminal(int(os.Stderr.Fd())),
 	})
 	if err != nil {
 		fatal(err)
