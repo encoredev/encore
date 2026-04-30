@@ -27,3 +27,4 @@ When Encore Cloud deploys your application and infrastructure, it takes care of 
 - **Cloud security**: Automatic provisioning with security best practices specific to each cloud provider
   - Learn more about [Google Cloud Platform (GCP)](/docs/platform/infrastructure/gcp)
   - Learn more about [Amazon Web Services (AWS)](/docs/platform/infrastructure/aws)
+- **Infrastructure safety**: Deletion protection, admin-only environment management, and full audit trails for infrastructure changes. Learn more in [Managing Infrastructure](/docs/platform/infrastructure/managing-infrastructure).

@@ -1201,6 +1201,11 @@
 				text: "Infrastructure Configuration"
 				path: "/platform/infrastructure/configuration"
 				file: "platform/infrastructure/configuration"
+			}, {
+				kind: "basic"
+				text: "Managing Infrastructure"
+				path: "/platform/infrastructure/managing-infrastructure"
+				file: "platform/infrastructure/managing-infrastructure"
 			},
 			{
 				kind: "accordion"

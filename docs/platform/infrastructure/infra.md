@@ -106,3 +106,5 @@ Encore Cloud provisions production infrastructure resources using best-practice 
 With Encore you do not define any cloud service specifics in the application code. This means that after deploying, you can safely use your cloud provider's console to modify the provisioned resources, or use the built-in configuration UI in the Encore Cloud dashboard.
 
 Learn more in the [Infrastructure Configuration](/docs/platform/infrastructure/configuration) documentation.
+
+For information on infrastructure safety, upgrades, disaster recovery, and shared responsibilities, see [Managing Infrastructure](/docs/platform/infrastructure/managing-infrastructure).
