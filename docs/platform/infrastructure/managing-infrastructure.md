@@ -81,6 +81,40 @@ Encore Cloud automatically applies schema migrations as part of each deployment.
 
 Upgrades to the underlying cloud services (Cloud Run, Pub/Sub, IAM, VPC, etc.) are handled as part of the normal [deployment phases](#deployment-phases). By default, these upgrades are applied automatically during deployment. You can require admin approval for deployments that include infrastructure changes through the [deploy approval](#deploy-approval) settings.
 
+## Database Management
+
+### Instance naming
+
+Encore Cloud assigns names to database instances automatically when provisioning. Cloud providers (e.g. GCP Cloud SQL, AWS RDS) do not support renaming instances after creation. If you need a different naming convention (for example, to include environment or service identifiers), the process involves:
+
+1. Cloning the database to a new instance with the desired name.
+2. Contacting Encore support to reconfigure the environment to point to the new instance.
+3. Planning for downtime while the instance is being replaced.
+
+### Database schemas
+
+Encore does not enforce a specific PostgreSQL schema for your tables. Table creation is controlled entirely by your [migration files](/docs/ts/primitives/databases#database-migrations), so you have full control over which schema tables are created in. If your organization requires tables to be in a dedicated schema rather than `public`, update your migration files accordingly. For example:
+
+```sql
+CREATE SCHEMA IF NOT EXISTS myapp;
+CREATE TABLE myapp.todo_item (
+    id BIGSERIAL PRIMARY KEY,
+    title TEXT NOT NULL
+);
+```
+
+This is purely a migration-level decision and does not require any changes to Encore's configuration.
+
+### Credential management
+
+Encore Cloud automatically manages database credentials with built-in isolation:
+
+- **Per-instance credentials:** Each database instance has its own unique credentials.
+- **Per-container credentials:** Each container connecting to a database instance uses a unique credential.
+- **Credential rotation:** Credentials can be rotated through the Encore Cloud dashboard. Navigate to the **Infrastructure** page for the relevant environment and use the rotation controls in the database cluster section.
+
+Learn more about viewing and managing database credentials in the [Managing database users](/docs/platform/infrastructure/manage-db-users) docs.
+
 ## Disaster Recovery
 
 ### Built-in protections

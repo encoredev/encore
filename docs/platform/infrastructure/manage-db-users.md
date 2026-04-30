@@ -18,6 +18,17 @@ To connect to an Encore Cloud-hosted database, use [`encore db shell`](/docs/ts/
 
 <img src="/assets/docs/db-user.png" title="View Database User Credentials"/>
 
+## Credential isolation
+
+Encore Cloud provisions unique credentials at multiple levels to ensure proper security isolation:
+
+- Each database instance has its own unique credentials.
+- Each container connecting to a database uses a unique credential, so no credentials are shared across services or instances.
+
+## Credential rotation
+
+To rotate database credentials, open the [Encore Cloud dashboard](https://app.encore.cloud) and navigate to the **Infrastructure** page for the relevant environment. In the database cluster section, use the rotation controls to generate new credentials. Existing connections will be updated automatically on the next deployment.
+
 <Callout type="important">
 
 Do not change or remove the database users created by Encore, as this will prevent Encore Cloud from maintaining and handling connections to the databases in your application.
