@@ -105,6 +105,21 @@ CREATE TABLE myapp.todo_item (
 
 This is purely a migration-level decision and does not require any changes to Encore's configuration.
 
+### Database availability
+
+Encore Cloud provisions databases with regional (multi-AZ) availability by default, distributing replicas across multiple availability zones for higher resilience. This means your database remains available even if an individual zone experiences an outage.
+
+You can change the availability configuration on the **Infrastructure** page in the Encore Cloud dashboard:
+
+- **Regional (multi-AZ):** Default. Provides higher availability and automatic failover across zones. Recommended for production workloads.
+- **Zonal (single-AZ):** Runs the database in a single availability zone. Lower cost, but no automatic failover if the zone goes down. Suitable for development environments or workloads where cost is a higher priority than availability.
+
+<Callout type="important">
+
+Switching between regional and zonal availability causes downtime while the change is applied. Plan accordingly and consider making this change during a maintenance window.
+
+</Callout>
+
 ### Credential management
 
 Encore Cloud automatically manages database credentials with built-in isolation:
