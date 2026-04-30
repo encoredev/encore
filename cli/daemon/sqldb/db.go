@@ -153,7 +153,7 @@ func (db *DB) doCreate(ctx context.Context, cloudName string, template option.Op
 	// Does it already exist?
 	var dummy int
 	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", cloudName).Scan(&dummy)
-	owner, ok := db.Cluster.Roles.First(RoleAdmin, RoleSuperuser)
+	owner, ok := db.Cluster.Roles.First(RoleMigrator, RoleAdmin, RoleSuperuser)
 	if !ok {
 		return errors.New("unable to find admin or superuser roles")
 	}
@@ -213,8 +213,29 @@ func (db *DB) ensureRoles(ctx context.Context, cloudName string, roles ...Role) 
 		case RoleSuperuser:
 			// Already granted; nothing to do
 			continue
+		case RoleServices:
+			stmt = fmt.Sprintf(`
+				GRANT ALL ON DATABASE %[1]s TO %[2]s;
+				GRANT pg_read_all_data TO %[2]s;
+				GRANT pg_write_all_data TO %[2]s;`,
+				safeDBName, safeRoleName)
+		case RoleService:
+			stmt = fmt.Sprintf(`GRANT encore_services TO %s;`, safeRoleName)
+		case RoleMigrator:
+			stmt = fmt.Sprintf(`
+				GRANT ALL ON DATABASE %[1]s TO %[2]s;
+				GRANT pg_read_all_data TO %[2]s;
+				GRANT pg_write_all_data TO %[2]s;
+				GRANT encore_services TO %[2]s;`,
+				safeDBName, safeRoleName)
 		case RoleAdmin:
-			stmt = fmt.Sprintf("GRANT ALL ON DATABASE %s TO %s;", safeDBName, safeRoleName)
+			stmt = fmt.Sprintf(`
+				GRANT ALL ON DATABASE %[1]s TO %[2]s;
+				GRANT pg_read_all_data TO %[2]s;
+				GRANT pg_write_all_data TO %[2]s;
+				GRANT "encore-migrator" TO %[2]s;
+				GRANT encore_services TO %[2]s;`,
+				safeDBName, safeRoleName)
 		case RoleWrite:
 			stmt = fmt.Sprintf(`
 				GRANT TEMP, CONNECT ON DATABASE %s TO %s;
@@ -281,7 +302,7 @@ func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *
 		return errors.New("cluster not running")
 	}
 
-	admin, ok := info.Encore.First(RoleAdmin, RoleSuperuser)
+	admin, ok := info.Encore.First(RoleMigrator, RoleAdmin, RoleSuperuser)
 	if !ok {
 		return errors.New("unable to find superuser or admin roles")
 	}

@@ -70,7 +70,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 	// If the username is "encore" we're connecting to a database cluster
 	// which may not be local
 	var cluster *Cluster
-	if startup.Username == "encore" {
+	if startup.Username == "encore" || startup.Username == "encore-service" {
 		password := startup.Password
 		found, ok := cm.LookupPassword(password)
 		if !ok {
@@ -220,9 +220,14 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 	defer fns.CloseIgnore(server)
 
 	// Send a modified startup message to the backend
-	admin, _ := info.Encore.First(RoleAdmin, RoleSuperuser)
-	startup.Username = admin.Username
-	startup.Password = admin.Password
+	var role Role
+	if startup.Username == "encore-service" {
+		role, _ = info.Encore.First(RoleService, RoleAdmin, RoleSuperuser)
+	} else {
+		role, _ = info.Encore.First(RoleAdmin, RoleSuperuser)
+	}
+	startup.Username = role.Username
+	startup.Password = role.Password
 	if db == nil {
 		// We don't know about this database, we'll use the requested name
 		// in case it does actually exist within the cluster.

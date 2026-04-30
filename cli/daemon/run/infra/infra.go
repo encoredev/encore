@@ -395,7 +395,7 @@ func (rm *ResourceManager) SQLDatabaseConfig(db *meta.SQLDatabase) (config.SQLDa
 	dbCfg := config.SQLDatabase{
 		EncoreName:   db.Name,
 		DatabaseName: db.Name,
-		User:         "encore",
+		User:         "encore-service",
 		Password:     cluster.Password,
 	}
 
