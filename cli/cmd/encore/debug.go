@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 
@@ -11,12 +12,29 @@ import (
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
+var (
+	debugBuildCodegenDebug bool
+	debugBuildParseTests   bool
+)
+
 func init() {
 	debugCmd := &cobra.Command{
 		Use:    "debug",
 		Short:  "debug is a collection of debug commands",
 		Hidden: true,
 	}
+
+	buildCmd := &cobra.Command{
+		Use:                   "build",
+		Short:                 "Checks your application for compile-time errors using Encore's compiler.",
+		DisableFlagsInUseLine: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			appRoot, relPath := determineAppRoot()
+			runDebugBuild(appRoot, relPath)
+		},
+	}
+	buildCmd.Flags().BoolVar(&debugBuildCodegenDebug, "codegen-debug", false, "Dump generated code (for debugging Encore's code generation)")
+	buildCmd.Flags().BoolVar(&debugBuildParseTests, "tests", false, "Parse tests as well")
 
 	format := cmdutil.Oneof{
 		Value:     "proto",
@@ -53,7 +71,27 @@ func init() {
 	format.AddFlag(dumpMeta)
 	dumpMeta.Flags().BoolVar(&p.ParseTests, "tests", false, "Parse tests as well")
 	rootCmd.AddCommand(debugCmd)
+	debugCmd.AddCommand(buildCmd)
 	debugCmd.AddCommand(dumpMeta)
+}
+
+func runDebugBuild(appRoot, relPath string) {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	daemon := setupDaemon(ctx)
+	stream, err := daemon.Check(ctx, &daemonpb.CheckRequest{
+		AppRoot:      appRoot,
+		WorkingDir:   relPath,
+		CodegenDebug: debugBuildCodegenDebug,
+		ParseTests:   debugBuildParseTests,
+		Environ:      os.Environ(),
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "fatal: ", err)
+		os.Exit(1)
+	}
+	os.Exit(cmdutil.StreamCommandOutput(stream, nil))
 }
 
 type dumpMetaParams struct {

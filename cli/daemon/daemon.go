@@ -49,7 +49,7 @@ type Server struct {
 	mcp  *mcp.Manager
 
 	mu      sync.Mutex
-	streams map[string]*streamLog // run id -> stream
+	streams map[string]runStreamSink // run id -> stream
 
 	availableVerInit sync.Once
 	availableVer     atomic.Value // string
@@ -69,7 +69,7 @@ func New(appsMgr *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *
 		sm:      sm,
 		ns:      ns,
 		mcp:     mcp,
-		streams: make(map[string]*streamLog),
+		streams: make(map[string]runStreamSink),
 
 		appDebouncers: make(map[*apps.Instance]*regenerateCodeDebouncer),
 	}
@@ -261,6 +261,15 @@ var errNotLinked = (func() error {
 
 type commandStream interface {
 	Send(msg *daemonpb.CommandMessage) error
+}
+
+// runStreamSink is the subset of *streamLog used by the run.EventListener
+// implementation on Server. Different RPC handlers can plug in their own
+// sink as long as they can render stdout/stderr bytes and errlist errors.
+type runStreamSink interface {
+	Stdout(buffer bool) io.Writer
+	Stderr(buffer bool) io.Writer
+	Error(err *errlist.List)
 }
 
 func newStreamLogger(slog *streamLog) zerolog.Logger {
