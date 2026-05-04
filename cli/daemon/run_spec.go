@@ -17,6 +17,7 @@ import (
 
 	"encr.dev/cli/daemon/run"
 	"encr.dev/internal/optracker"
+	"encr.dev/pkg/builder"
 	"encr.dev/pkg/errlist"
 	"encr.dev/pkg/fns"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -101,6 +102,7 @@ func (s *Server) RunSpec(req *daemonpb.RunSpecRequest, stream daemonpb.Daemon_Ru
 		Environ:    req.Environ,
 		OpsTracker: ops,
 		Browser:    run.BrowserModeNever,
+		Debug:      builder.DebugModeDisabled,
 	})
 	if err != nil {
 		// Forward errlist details (compile errors, parse errors) as plain text
