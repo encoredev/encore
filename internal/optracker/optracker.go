@@ -27,6 +27,14 @@ func New(w io.Writer, stream OutputStream) *OpTracker {
 	}
 }
 
+// NewLineMode creates a tracker that emits one plain-text line per state
+// change instead of redrawing a spinner display. Suited for non-interactive
+// agents (no ANSI, no spinner). The stream is unused — this constructor exists
+// so callers don't need to plumb a CommandMessage stream they don't have.
+func NewLineMode(w io.Writer) *OpTracker {
+	return &OpTracker{w: w, lineMode: true}
+}
+
 type OpTracker struct {
 	mu          sync.Mutex
 	ops         []*slowOp
@@ -35,6 +43,7 @@ type OpTracker struct {
 	quit        bool // quit indicates that the tracker has been stopped (this should only be set by AllDone)
 	savedCursor sync.Once
 	stream      OutputStream
+	lineMode    bool // when true, emit one line per state change instead of redrawing
 }
 
 type OperationID int
@@ -66,6 +75,11 @@ func (t *OpTracker) AllDone() {
 		}
 	}
 	t.quit = true
+	if t.lineMode {
+		// State transitions were already emitted as they happened; nothing
+		// further to render.
+		return
+	}
 	t.refresh()
 }
 
@@ -88,6 +102,12 @@ func (t *OpTracker) Add(msg string, minStart time.Time) OperationID {
 	}
 	op := &slowOp{msg: msg, start: start}
 	t.ops = append(t.ops, op)
+
+	if t.lineMode {
+		fmt.Fprintf(t.w, "encore: %s...\n", msg)
+		return id
+	}
+
 	t.refresh()
 
 	if !t.started {
@@ -115,6 +135,11 @@ func (t *OpTracker) Done(id OperationID, minDuration time.Duration) {
 		done = a
 	}
 	o.done = done
+
+	if t.lineMode {
+		fmt.Fprintf(t.w, "encore: %s done (%s)\n", o.msg, done.Sub(o.start).Round(time.Millisecond))
+		return
+	}
 	t.refresh()
 }
 
@@ -135,6 +160,16 @@ func (t *OpTracker) Fail(id OperationID, err error) {
 	}
 	t.ops[id].err = err
 	t.ops[id].done = time.Now()
+
+	if t.lineMode {
+		o := t.ops[id]
+		if errors.Is(err, ErrCanceled) {
+			fmt.Fprintf(t.w, "encore: %s canceled\n", o.msg)
+		} else {
+			fmt.Fprintf(t.w, "encore: %s failed: %v\n", o.msg, err)
+		}
+		return
+	}
 	t.refresh()
 }
 

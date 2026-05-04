@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	Daemon_Run_FullMethodName             = "/encore.daemon.Daemon/Run"
+	Daemon_RunSpec_FullMethodName         = "/encore.daemon.Daemon/RunSpec"
 	Daemon_Test_FullMethodName            = "/encore.daemon.Daemon/Test"
 	Daemon_TestSpec_FullMethodName        = "/encore.daemon.Daemon/TestSpec"
 	Daemon_ExecScript_FullMethodName      = "/encore.daemon.Daemon/ExecScript"
@@ -49,6 +50,9 @@ const (
 type DaemonClient interface {
 	// Run runs the application.
 	Run(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CommandMessage], error)
+	// RunSpec runs a list of HTTP requests against a freshly-started app and
+	// streams the results. Designed for non-interactive agents.
+	RunSpec(ctx context.Context, in *RunSpecRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RunSpecMessage], error)
 	// Test runs tests.
 	Test(ctx context.Context, in *TestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CommandMessage], error)
 	// TestSpec returns the specification for how to run tests.
@@ -120,9 +124,28 @@ func (c *daemonClient) Run(ctx context.Context, in *RunRequest, opts ...grpc.Cal
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Daemon_RunClient = grpc.ServerStreamingClient[CommandMessage]
 
+func (c *daemonClient) RunSpec(ctx context.Context, in *RunSpecRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RunSpecMessage], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[1], Daemon_RunSpec_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[RunSpecRequest, RunSpecMessage]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Daemon_RunSpecClient = grpc.ServerStreamingClient[RunSpecMessage]
+
 func (c *daemonClient) Test(ctx context.Context, in *TestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CommandMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[1], Daemon_Test_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[2], Daemon_Test_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +174,7 @@ func (c *daemonClient) TestSpec(ctx context.Context, in *TestSpecRequest, opts .
 
 func (c *daemonClient) ExecScript(ctx context.Context, in *ExecScriptRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CommandMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[2], Daemon_ExecScript_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[3], Daemon_ExecScript_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +193,7 @@ type Daemon_ExecScriptClient = grpc.ServerStreamingClient[CommandMessage]
 
 func (c *daemonClient) ExecSpec(ctx context.Context, in *ExecSpecRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ExecSpecMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[3], Daemon_ExecSpec_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[4], Daemon_ExecSpec_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +212,7 @@ type Daemon_ExecSpecClient = grpc.ServerStreamingClient[ExecSpecMessage]
 
 func (c *daemonClient) Check(ctx context.Context, in *CheckRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CommandMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[4], Daemon_Check_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[5], Daemon_Check_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +231,7 @@ type Daemon_CheckClient = grpc.ServerStreamingClient[CommandMessage]
 
 func (c *daemonClient) Export(ctx context.Context, in *ExportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CommandMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[5], Daemon_Export_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[6], Daemon_Export_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +260,7 @@ func (c *daemonClient) DBConnect(ctx context.Context, in *DBConnectRequest, opts
 
 func (c *daemonClient) DBProxy(ctx context.Context, in *DBProxyRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CommandMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[6], Daemon_DBProxy_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[7], Daemon_DBProxy_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +279,7 @@ type Daemon_DBProxyClient = grpc.ServerStreamingClient[CommandMessage]
 
 func (c *daemonClient) DBReset(ctx context.Context, in *DBResetRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CommandMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[7], Daemon_DBReset_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &Daemon_ServiceDesc.Streams[8], Daemon_DBReset_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -389,6 +412,9 @@ func (c *daemonClient) CreateApp(ctx context.Context, in *CreateAppRequest, opts
 type DaemonServer interface {
 	// Run runs the application.
 	Run(*RunRequest, grpc.ServerStreamingServer[CommandMessage]) error
+	// RunSpec runs a list of HTTP requests against a freshly-started app and
+	// streams the results. Designed for non-interactive agents.
+	RunSpec(*RunSpecRequest, grpc.ServerStreamingServer[RunSpecMessage]) error
 	// Test runs tests.
 	Test(*TestRequest, grpc.ServerStreamingServer[CommandMessage]) error
 	// TestSpec returns the specification for how to run tests.
@@ -443,6 +469,9 @@ type UnimplementedDaemonServer struct{}
 
 func (UnimplementedDaemonServer) Run(*RunRequest, grpc.ServerStreamingServer[CommandMessage]) error {
 	return status.Errorf(codes.Unimplemented, "method Run not implemented")
+}
+func (UnimplementedDaemonServer) RunSpec(*RunSpecRequest, grpc.ServerStreamingServer[RunSpecMessage]) error {
+	return status.Errorf(codes.Unimplemented, "method RunSpec not implemented")
 }
 func (UnimplementedDaemonServer) Test(*TestRequest, grpc.ServerStreamingServer[CommandMessage]) error {
 	return status.Errorf(codes.Unimplemented, "method Test not implemented")
@@ -535,6 +564,17 @@ func _Daemon_Run_Handler(srv interface{}, stream grpc.ServerStream) error {
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Daemon_RunServer = grpc.ServerStreamingServer[CommandMessage]
+
+func _Daemon_RunSpec_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(RunSpecRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DaemonServer).RunSpec(m, &grpc.GenericServerStream[RunSpecRequest, RunSpecMessage]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Daemon_RunSpecServer = grpc.ServerStreamingServer[RunSpecMessage]
 
 func _Daemon_Test_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(TestRequest)
@@ -911,6 +951,11 @@ var Daemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Run",
 			Handler:       _Daemon_Run_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "RunSpec",
+			Handler:       _Daemon_RunSpec_Handler,
 			ServerStreams: true,
 		},
 		{
