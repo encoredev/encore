@@ -9,6 +9,9 @@ option go_package = "encr.dev/proto/encore/daemon";
 service Daemon {
   // Run runs the application.
   rpc Run(RunRequest) returns (stream CommandMessage);
+  // RunSpec runs a list of HTTP requests against a freshly-started app and
+  // streams the results. Designed for non-interactive agents.
+  rpc RunSpec(RunSpecRequest) returns (stream RunSpecMessage);
   // Test runs tests.
   rpc Test(TestRequest) returns (stream CommandMessage);
   // TestSpec returns the specification for how to run tests.
@@ -141,6 +144,68 @@ message RunRequest {
     DEBUG_ENABLED = 1;
     DEBUG_BREAK = 2;
   }
+}
+
+message RunSpecRequest {
+  // app_root is the absolute filesystem path to the Encore app root.
+  string app_root = 1;
+  // working_dir is the working directory relative to the app_root,
+  // for formatting relative paths in error messages.
+  string working_dir = 2;
+  // environ is the environment to set for the running app,
+  // each entry in "KEY=VALUE" format.
+  repeated string environ = 3;
+  // commands is the ordered list of spec commands to execute against the app.
+  repeated SpecCommand commands = 4;
+  // ready_timeout_seconds is the budget for waiting on /__encore/healthz.
+  // If <= 0, the daemon picks a sensible default.
+  int32 ready_timeout_seconds = 5;
+  // namespace is the infrastructure namespace to use.
+  // If empty the active namespace is used.
+  optional string namespace = 6;
+}
+
+message SpecCommand {
+  oneof cmd {
+    CurlCommand curl = 1;
+  }
+}
+
+message CurlCommand {
+  // path must start with "/" and is appended to http://<bound-addr> by the daemon.
+  string path = 1;
+  // args are extra flags passed verbatim to the curl subprocess.
+  repeated string args = 2;
+}
+
+message RunSpecMessage {
+  oneof msg {
+    // output forwards stdout/stderr from the app or daemon (compile noise,
+    // runtime logs). Clients should render this on stderr.
+    CommandOutput output = 1;
+    // result is one finished spec command.
+    SpecCommandResult result = 2;
+    // complete is the terminal message for the stream.
+    SpecComplete complete = 3;
+  }
+}
+
+message SpecCommandResult {
+  int32 index = 1;       // 1-based
+  int32 total = 2;
+  string display = 3;    // human-readable, e.g. "curl /api/foo -i"
+  bytes stdout = 4;
+  bytes stderr = 5;
+  int32 exit_code = 6;
+}
+
+message SpecComplete {
+  int32 succeeded = 1;
+  int32 total = 2;
+  // error, if non-empty, indicates the run never reached the command-running
+  // phase (compile failure, healthz timeout, etc.). When set, succeeded/total
+  // reflect commands that did execute (typically zero).
+  string error = 3;
 }
 
 message TestRequest {

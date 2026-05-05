@@ -20,18 +20,19 @@ type OutputStream interface {
 	Send(*daemonpb.CommandMessage) error
 }
 
-// New returns a new OpTracker.
-//
-// When interactive is true the tracker renders an in-place spinner UI using
-// ANSI cursor manipulation. When false, it emits one plain line per state
-// change (start / done / failed), suitable for piping into log aggregators
-// or non-TTY environments.
-func New(w io.Writer, stream OutputStream, interactive bool) *OpTracker {
+func New(w io.Writer, stream OutputStream) *OpTracker {
 	return &OpTracker{
-		w:           w,
-		stream:      stream,
-		interactive: interactive,
+		w:      w,
+		stream: stream,
 	}
+}
+
+// NewLineMode creates a tracker that emits one plain-text line per state
+// change instead of redrawing a spinner display. Suited for non-interactive
+// agents (no ANSI, no spinner). The stream is unused — this constructor exists
+// so callers don't need to plumb a CommandMessage stream they don't have.
+func NewLineMode(w io.Writer) *OpTracker {
+	return &OpTracker{w: w, lineMode: true}
 }
 
 type OpTracker struct {
@@ -42,7 +43,7 @@ type OpTracker struct {
 	quit        bool // quit indicates that the tracker has been stopped (this should only be set by AllDone)
 	savedCursor sync.Once
 	stream      OutputStream
-	interactive bool
+	lineMode    bool // when true, emit one line per state change instead of redrawing
 }
 
 type OperationID int
@@ -74,6 +75,11 @@ func (t *OpTracker) AllDone() {
 		}
 	}
 	t.quit = true
+	if t.lineMode {
+		// State transitions were already emitted as they happened; nothing
+		// further to render.
+		return
+	}
 	t.refresh()
 }
 
@@ -96,9 +102,15 @@ func (t *OpTracker) Add(msg string, minStart time.Time) OperationID {
 	}
 	op := &slowOp{msg: msg, start: start}
 	t.ops = append(t.ops, op)
+
+	if t.lineMode {
+		fmt.Fprintf(t.w, "encore: %s...\n", msg)
+		return id
+	}
+
 	t.refresh()
 
-	if t.interactive && !t.started {
+	if !t.started {
 		go t.spin()
 		t.started = true
 	}
@@ -123,6 +135,11 @@ func (t *OpTracker) Done(id OperationID, minDuration time.Duration) {
 		done = a
 	}
 	o.done = done
+
+	if t.lineMode {
+		fmt.Fprintf(t.w, "encore: %s done (%s)\n", o.msg, done.Sub(o.start).Round(time.Millisecond))
+		return
+	}
 	t.refresh()
 }
 
@@ -143,6 +160,16 @@ func (t *OpTracker) Fail(id OperationID, err error) {
 	}
 	t.ops[id].err = err
 	t.ops[id].done = time.Now()
+
+	if t.lineMode {
+		o := t.ops[id]
+		if errors.Is(err, ErrCanceled) {
+			fmt.Fprintf(t.w, "encore: %s canceled\n", o.msg)
+		} else {
+			fmt.Fprintf(t.w, "encore: %s failed: %v\n", o.msg, err)
+		}
+		return
+	}
 	t.refresh()
 }
 
@@ -155,14 +182,6 @@ func (t *OpTracker) Cancel(id OperationID) {
 // refresh refreshes the display by writing to t.w.
 // The mutex must be held by the caller.
 func (t *OpTracker) refresh() {
-	if t.interactive {
-		t.refreshTTY()
-	} else {
-		t.refreshPlain()
-	}
-}
-
-func (t *OpTracker) refreshTTY() {
 	t.savedCursor.Do(func() {
 		fmt.Fprint(t.w, ansi.SaveCursorPosition)
 	})
@@ -216,33 +235,6 @@ func (t *OpTracker) refreshTTY() {
 	}
 }
 
-// refreshPlain emits a single line per state transition (start / done / failed).
-// Subsequent calls for the same op are no-ops, so it is safe to invoke from
-// every Add/Done/Fail without producing duplicate output.
-func (t *OpTracker) refreshPlain() {
-	for _, o := range t.ops {
-		if !o.startedPrinted {
-			fmt.Fprintf(t.w, "  %s...\n", o.msg)
-			o.startedPrinted = true
-		}
-		if !o.donePrinted && !o.done.IsZero() {
-			switch {
-			case errors.Is(o.err, ErrCanceled):
-				fmt.Fprintf(t.w, "  %s %s: Canceled\n", canceled, o.msg)
-			case o.err != nil:
-				if el := errlist.Convert(o.err); el != nil && len(el.List) > 0 {
-					fmt.Fprintf(t.w, "  %s %s: Failed: %v\n", fail, o.msg, el.List[0].Title())
-				} else {
-					fmt.Fprintf(t.w, "  %s %s: Failed: %v\n", fail, o.msg, o.err)
-				}
-			default:
-				fmt.Fprintf(t.w, "  %s %s: Done\n", success, o.msg)
-			}
-			o.donePrinted = true
-		}
-	}
-}
-
 func (t *OpTracker) spin() {
 	refresh := 100 * time.Millisecond
 	if runtime.GOOS == "windows" {
@@ -264,13 +256,11 @@ func (t *OpTracker) spin() {
 }
 
 type slowOp struct {
-	msg            string
-	err            error
-	spinIdx        int
-	start          time.Time
-	done           time.Time
-	startedPrinted bool // plain mode only
-	donePrinted    bool // plain mode only
+	msg     string
+	err     error
+	spinIdx int
+	start   time.Time
+	done    time.Time
 }
 
 var (
