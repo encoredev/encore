@@ -138,6 +138,7 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 			"-e", "POSTGRES_PASSWORD=" + DefaultSuperuserPassword,
 			"-e", "POSTGRES_DB=" + DefaultRootDatabase,
 			"-e", "PGDATA=" + defaultDataDir,
+			"-e", "AUTO_PG_UPGRADE=1",
 			"--name", cnames[0],
 		}
 		if p.Memfs {
@@ -382,7 +383,7 @@ func PullImage(ctx context.Context) error {
 	return cmd.Run()
 }
 
-const Image = "encoredotdev/postgres:15"
+const Image = "encoredotdev/postgres:18"
 
 func isDockerRunning(ctx context.Context) bool {
 	err := exec.CommandContext(ctx, "docker", "info").Run()
