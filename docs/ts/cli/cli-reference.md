@@ -584,7 +584,7 @@ Deploy an Encore app to a cloud environment.
 Requires either `--commit` or `--branch` to be specified.
 
 ```shell
-$ encore deploy --env=<env-name> (--commit=<sha> | --branch=<name>) [flags]
+$ encore alpha deploy --env=<env-name> (--commit=<sha> | --branch=<name>) [flags]
 ```
 
 **Flags**
