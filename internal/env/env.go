@@ -117,6 +117,16 @@ func EncoreObjectStorageListAddr() option.Option[string] {
 	return option.None[string]()
 }
 
+// EncoreDebug reports the value of the ENCOREDEBUG environment variable,
+// a comma-separated list of key=value pairs that toggle non-default daemon
+// behavior (e.g. ENCOREDEBUG=sqldbrole=legacy).
+func EncoreDebug() option.Option[string] {
+	if p := os.Getenv("ENCOREDEBUG"); p != "" {
+		return option.Some(p)
+	}
+	return option.None[string]()
+}
+
 func encoreGoRoot() string {
 	if p := os.Getenv("ENCORE_GOROOT"); p != "" {
 		return p

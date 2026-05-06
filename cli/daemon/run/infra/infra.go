@@ -13,6 +13,7 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/internal/debugflags"
 	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/objects"
 	"encr.dev/cli/daemon/pubsub"
@@ -392,10 +393,14 @@ func (rm *ResourceManager) SQLDatabaseConfig(db *meta.SQLDatabase) (config.SQLDa
 		return config.SQLDatabase{}, errors.New("no SQL cluster found")
 	}
 
+	user := "encore-service"
+	if debugflags.Get("sqldbrole") == debugflags.SQLDBRoleLegacy {
+		user = "encore"
+	}
 	dbCfg := config.SQLDatabase{
 		EncoreName:   db.Name,
 		DatabaseName: db.Name,
-		User:         "encore",
+		User:         user,
 		Password:     cluster.Password,
 	}
 
