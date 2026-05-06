@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgproto3/v2"
 	"github.com/rs/zerolog/log"
 
+	"encr.dev/cli/daemon/internal/debugflags"
 	"encr.dev/cli/daemon/namespace"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/pgproxy"
@@ -221,7 +222,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 
 	// Send a modified startup message to the backend
 	var role Role
-	if startup.Username == "encore-service" {
+	if startup.Username == "encore-service" && debugflags.Get("sqldbrole") != debugflags.SQLDBRoleLegacy {
 		role, _ = info.Encore.First(RoleService, RoleAdmin, RoleSuperuser)
 	} else {
 		role, _ = info.Encore.First(RoleAdmin, RoleSuperuser)

@@ -44,6 +44,7 @@ func ConfigHash() (string, error) {
 	fmt.Fprintf(h, "EncoreDevDashListenAddr=%s\n", env.EncoreDevDashListenAddr().GetOrElse(""))
 	fmt.Fprintf(h, "EncoreMCPSSEListenAddr=%s\n", env.EncoreMCPSSEListenAddr().GetOrElse(""))
 	fmt.Fprintf(h, "EncoreObjectStorageListAddr=%s\n", env.EncoreObjectStorageListAddr().GetOrElse(""))
+	fmt.Fprintf(h, "EncoreDebug=%s\n", env.EncoreDebug().GetOrElse(""))
 
 	digest := h.Sum(nil)
 	return base64.RawURLEncoding.EncodeToString(digest), nil
