@@ -54,6 +54,18 @@ Encore Cloud provides [distributed tracing](/docs/platform/observability/tracing
 - Inspect timing to find bottlenecks
 - Compare behavior between preview and production environments
 
+## MCP Servers
+
+Encore provides [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) servers that give AI agents rich context about your application. MCP is an open standard that lets large language models access contextual information from external sources.
+
+### Local MCP Server
+
+The [Local MCP Server](/docs/ts/cli/mcp) runs alongside `encore run` and gives AI tools access to your local application's metadata, traces, databases, source code, and more. It's ideal for connecting AI assistants like Cursor or Claude Desktop to your local development environment.
+
+### Cloud MCP Server
+
+The [Cloud MCP Server](/docs/platform/cloud-mcp) gives AI agents access to your deployed environments on Encore Cloud, including production traces, deployment status, environment configuration, and infrastructure metadata. It's hosted at `https://api.encore.cloud/mcp` and authenticates via OAuth or a Bearer API token.
+
 ## Connecting Your Cloud
 
 To deploy your Encore app to your cloud:
