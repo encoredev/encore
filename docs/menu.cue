@@ -1151,6 +1151,11 @@
 				text: "AI Integration"
 				path: "/platform/ai-integration"
 				file: "platform/ai-integration"
+			}, {
+				kind: "basic"
+				text: "Cloud MCP Server"
+				path: "/platform/cloud-mcp"
+				file: "platform/cloud-mcp"
 			}]
 		},
 		{

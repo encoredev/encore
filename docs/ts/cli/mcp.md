@@ -1,7 +1,7 @@
 ---
-seotitle: Encore MCP Server
-seodesc: Encore's Model Context Protocol (MCP) server provides deep introspection of your application to AI development tools.
-title: MCP Server
+seotitle: Encore Local MCP Server
+seodesc: Encore's Local Model Context Protocol (MCP) server provides deep introspection of your application to AI development tools.
+title: Local MCP Server
 subtitle: The Model Context Protocol (MCP) exposes tools that provide application context to LLMs.
 lang: ts
 ---
