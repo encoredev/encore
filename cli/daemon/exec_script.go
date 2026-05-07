@@ -56,7 +56,12 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 		return nil
 	}
 
-	ops := optracker.New(stderr, stream)
+	var ops *optracker.OpTracker
+	if req.NonInteractive {
+		ops = optracker.NewLineMode(stderr)
+	} else {
+		ops = optracker.New(stderr, stream)
+	}
 	defer ops.AllDone() // Kill the tracker when we exit this function
 
 	testResults := make(chan error, 1)
@@ -163,7 +168,12 @@ func (s *Server) ExecSpec(req *daemonpb.ExecSpecRequest, stream daemonpb.Daemon_
 		return nil
 	}
 
-	ops := optracker.New(stderr, adapter)
+	var ops *optracker.OpTracker
+	if req.NonInteractive {
+		ops = optracker.NewLineMode(stderr)
+	} else {
+		ops = optracker.New(stderr, adapter)
+	}
 	defer ops.AllDone()
 
 	defer func() {

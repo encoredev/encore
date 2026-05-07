@@ -8,6 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
@@ -66,12 +67,13 @@ func execScript(appRoot, relWD string, args []string) {
 		defer func() { _ = os.RemoveAll(tempDir) }()
 
 		stream, err := daemon.ExecSpec(ctx, &daemonpb.ExecSpecRequest{
-			AppRoot:    appRoot,
-			WorkingDir: relWD,
-			ScriptArgs: args,
-			Environ:    os.Environ(),
-			Namespace:  nonZeroPtr(nsName),
-			TempDir:    tempDir,
+			AppRoot:        appRoot,
+			WorkingDir:     relWD,
+			ScriptArgs:     args,
+			Environ:        os.Environ(),
+			Namespace:      nonZeroPtr(nsName),
+			TempDir:        tempDir,
+			NonInteractive: !term.IsTerminal(int(os.Stderr.Fd())),
 		})
 		if err != nil {
 			fatal(err)
@@ -120,12 +122,13 @@ func execScript(appRoot, relWD string, args []string) {
 
 	// For Go apps, use the streaming ExecScript RPC.
 	stream, err := daemon.ExecScript(ctx, &daemonpb.ExecScriptRequest{
-		AppRoot:    appRoot,
-		WorkingDir: relWD,
-		ScriptArgs: args,
-		Environ:    os.Environ(),
-		TraceFile:  root.TraceFile,
-		Namespace:  nonZeroPtr(nsName),
+		AppRoot:        appRoot,
+		WorkingDir:     relWD,
+		ScriptArgs:     args,
+		Environ:        os.Environ(),
+		TraceFile:      root.TraceFile,
+		Namespace:      nonZeroPtr(nsName),
+		NonInteractive: !term.IsTerminal(int(os.Stderr.Fd())),
 	})
 	if err != nil {
 		fatal(err)
