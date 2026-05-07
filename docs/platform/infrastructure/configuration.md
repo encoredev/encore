@@ -56,6 +56,8 @@ Therefore it only makes the minimum necessary modifications to infrastructure wh
 
 - **Avoid full syncs:** Unlike Terraform, Encore Cloud updates only the specific resources necessary to accomplish an infrastructure change rather than performing a complete infrastructure refresh.
 
+- **Drift-aware updates:** Before making any changes to a resource, Encore Cloud pulls the current resource properties. If drift is detected (e.g. a setting was changed directly in the cloud console), Encore updates its internal representation to match the current state, unless there is a pending, unapplied change request in the Encore Cloud dashboard.
+
 These behaviors ensure an efficient and predictable workflow, minimizing unintended changes and reducing deployment times, and means that you can safely use your cloud provider's console to modify the provisioned resources.
 
 This behavior also makes Encore Cloud well-suited for environments where infrastructure is partially managed outside of Encore Cloud, enabling you to deploy Encore applications alongside existing infrastructure (more on this below).

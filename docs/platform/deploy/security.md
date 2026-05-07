@@ -24,6 +24,8 @@ When Encore Cloud deploys your application and infrastructure, it takes care of 
 
 - **Strong encryption**: All communication uses mutual TLSv1.3
 - **Secure databases**: Database access is encrypted with certificate validation and strong security credentials
+- **Isolated database credentials**: Each database instance has unique credentials, and each container connecting to a database uses its own credential. Credentials can be [rotated via the dashboard](/docs/platform/infrastructure/manage-db-users).
 - **Cloud security**: Automatic provisioning with security best practices specific to each cloud provider
   - Learn more about [Google Cloud Platform (GCP)](/docs/platform/infrastructure/gcp)
   - Learn more about [Amazon Web Services (AWS)](/docs/platform/infrastructure/aws)
+- **Infrastructure safety**: Deletion protection, admin-only environment management, and full audit trails for infrastructure changes. Learn more in [Managing Infrastructure](/docs/platform/infrastructure/managing-infrastructure).
