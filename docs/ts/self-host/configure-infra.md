@@ -340,7 +340,7 @@ of the environment variable should be a JSON string where each key is the secret
       "host": "redis.myencoreapp.com:6379",
       "database_index": 0,
       "auth": {
-        "type": "auth",
+        "type": "auth_string",
         "auth_string": {
           "$env": "REDIS_AUTH_STRING"
         }
