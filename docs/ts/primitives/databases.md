@@ -256,6 +256,48 @@ The `version` column tracks which migration was last applied. If you wish to ski
 change the value in this column. For example, to re-run the last migration, run `UPDATE schema_migrations SET version = version - 1;`.
 *Note that Encore does not use the `dirty` flag by default.*
 
+## The `encore_services` role
+
+Encore uses a shared database role named `encore_services` to bridge permissions between database migrations and the services that connect to the database at runtime. This role exists consistently across all environments — local and cloud.
+
+- All roles that run migrations are granted `encore_services`.
+- All roles used by services to connect to the database at runtime are also granted `encore_services`.
+
+This means anything owned by `encore_services` — or any permissions granted to it — is automatically accessible to both migration roles and runtime service roles. You can use migration scripts to grant additional permissions to `encore_services`, and they will be inherited by the service roles connecting at runtime.
+
+### Materialized views example
+
+Materialized views are a good example of where `encore_services` is useful: they're created during migrations, but need to be refreshed at runtime by the service role. You can bridge this gap by creating a dedicated owner role in a migration, granting it to `encore_services`, and assuming it when creating the view:
+
+```sql
+-- In a migration file
+CREATE ROLE matview_owner;
+GRANT matview_owner TO encore_services;
+
+SET ROLE matview_owner;
+CREATE MATERIALIZED VIEW my_view AS
+  SELECT id, count(*) AS total FROM todo_item GROUP BY id;
+RESET ROLE;
+```
+
+At runtime, the service role can assume `matview_owner` (via `encore_services`) and refresh the view:
+
+```ts
+await db.exec`SET ROLE matview_owner`;
+await db.exec`REFRESH MATERIALIZED VIEW my_view`;
+await db.exec`RESET ROLE`;
+```
+
+### Legacy behavior
+
+In earlier versions of Encore, migrations were run using the same database account that services used to connect at runtime. To restore this legacy behavior, set the following environment variable:
+
+```shell
+ENCOREDEBUG="sqldbrole=legacy"
+```
+
+This is provided for backwards compatibility and is not recommended for new applications.
+
 ## Using an ORM
 
 Encore has all the tools needed to support ORMs and migration frameworks out-of-the-box through named databases and migration files. Writing plain SQL might not work for your use case, or you may not want to use SQL in the first place.
