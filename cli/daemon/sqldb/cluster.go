@@ -143,7 +143,7 @@ func (c *Cluster) setupRoles(ctx context.Context, st *ClusterStatus) (EncoreRole
 
 		// Add cluster-level permissions.
 		switch role.Type {
-		case RoleAdmin, RoleMigrator:
+		case RoleAdmin:
 			// Grant admins the ability to create databases.
 			_, err := conn.Exec(ctx, `
 				ALTER USER `+sanitizedUsername+` CREATEDB CREATEROLE
@@ -186,7 +186,6 @@ func (c *Cluster) determineRoles(ctx context.Context, st *ClusterStatus, conn *p
 		// Otherwise if we support predefined roles, add more roles to use.
 		roles = append(roles,
 			Role{RoleServices, "encore_services", "services"},
-			Role{RoleMigrator, "encore-migrator", "migrator"},
 			Role{RoleAdmin, "encore-admin", "admin"},
 			Role{RoleService, "encore-service", "service"},
 			Role{RoleWrite, "encore-write", "write"},
@@ -402,7 +401,6 @@ func (s *ClusterStatus) ConnURI(database string, r Role) string {
 // to the cluster as an Encore user.
 type EncoreRoles []Role
 
-func (roles EncoreRoles) Migrator() (Role, bool)  { return roles.find(RoleMigrator) }
 func (roles EncoreRoles) Superuser() (Role, bool) { return roles.find(RoleSuperuser) }
 func (roles EncoreRoles) Admin() (Role, bool)     { return roles.find(RoleAdmin) }
 func (roles EncoreRoles) Write() (Role, bool)     { return roles.find(RoleWrite) }
@@ -432,7 +430,6 @@ func (r RoleType) String() string { return string(r) }
 
 const (
 	RoleSuperuser RoleType = "superuser"
-	RoleMigrator  RoleType = "migrator"
 	RoleAdmin     RoleType = "admin"
 	RoleServices  RoleType = "services"
 	RoleService   RoleType = "service"
