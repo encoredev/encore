@@ -573,6 +573,130 @@ func (m *Manager) getMiddleware(ctx context.Context, request mcp.CallToolRequest
 	return mcp.NewToolResultText(string(jsonData)), nil
 }
 
+type retryConfig struct {
+	Predicate     predicate
+	Timeout       time.Duration
+	Interval      time.Duration
+	FailOnTimeout bool
+}
+
+type retryInfo struct {
+	Matched     bool
+	Attempts    int
+	TotalWaitMS int64
+	Predicate   map[string]any // for echoing back to the agent
+}
+
+type retryTimeoutError struct {
+	Message      string
+	LastResponse map[string]any
+	Attempts     int
+}
+
+func (e *retryTimeoutError) Error() string { return e.Message }
+
+const (
+	defaultRetryTimeoutMS  = 10000
+	defaultRetryIntervalMS = 250
+)
+
+// parseRetryUntil decodes the retry_until input. Returns ok=false when retry_until is absent.
+func parseRetryUntil(raw any) (retryConfig, bool, error) {
+	if raw == nil {
+		return retryConfig{}, false, nil
+	}
+	m, ok := raw.(map[string]any)
+	if !ok {
+		return retryConfig{}, false, fmt.Errorf("retry_until must be an object")
+	}
+
+	cfg := retryConfig{
+		Timeout:  defaultRetryTimeoutMS * time.Millisecond,
+		Interval: defaultRetryIntervalMS * time.Millisecond,
+	}
+
+	if v, ok := m["timeout_ms"].(float64); ok {
+		cfg.Timeout = time.Duration(v) * time.Millisecond
+	}
+	if v, ok := m["interval_ms"].(float64); ok {
+		cfg.Interval = time.Duration(v) * time.Millisecond
+	}
+	if v, ok := m["fail_on_timeout"].(bool); ok {
+		cfg.FailOnTimeout = v
+	}
+
+	pm, ok := m["predicate"].(map[string]any)
+	if !ok {
+		return retryConfig{}, false, fmt.Errorf("retry_until.predicate is required")
+	}
+	// Order of preference: jq > body_path > status (per spec).
+	if jq, ok := pm["body_jq"].(string); ok && jq != "" {
+		cfg.Predicate = predicate{Jq: jq}
+	} else if pp, ok := pm["body_path"].(map[string]any); ok {
+		path, _ := pp["path"].(string)
+		cfg.Predicate = predicate{Path: &pathPredicate{Path: path, Equals: pp["equals"]}}
+	} else if status, ok := pm["status"].(float64); ok {
+		cfg.Predicate = predicate{Status: int(status)}
+	} else {
+		return retryConfig{}, false, fmt.Errorf("retry_until.predicate must specify status, body_path, or body_jq")
+	}
+	return cfg, true, nil
+}
+
+// runRetryLoop calls doCall repeatedly until the predicate matches, the timeout
+// elapses, or ctx is canceled.
+func runRetryLoop(ctx context.Context, cfg retryConfig, doCall func(ctx context.Context) (map[string]any, error)) (map[string]any, retryInfo, error) {
+	deadline := time.Now().Add(cfg.Timeout)
+	var (
+		lastResp map[string]any
+		attempts int
+	)
+	info := retryInfo{}
+
+	for {
+		attempts++
+		resp, err := doCall(ctx)
+		if err != nil {
+			return nil, info, err
+		}
+		lastResp = resp
+
+		status, _ := resp["status"].(float64)
+		body, _ := resp["body"].(string)
+
+		matched, evalErr := cfg.Predicate.evaluate(int(status), []byte(body))
+		if evalErr != nil {
+			return nil, info, fmt.Errorf("predicate evaluation failed: %w", evalErr)
+		}
+		if matched {
+			info.Matched = true
+			info.Attempts = attempts
+			info.TotalWaitMS = int64(time.Since(deadline.Add(-cfg.Timeout)) / time.Millisecond)
+			return resp, info, nil
+		}
+
+		if time.Now().After(deadline) {
+			info.Matched = false
+			info.Attempts = attempts
+			info.TotalWaitMS = cfg.Timeout.Milliseconds()
+			if cfg.FailOnTimeout {
+				return nil, info, &retryTimeoutError{
+					Message:      fmt.Sprintf("retry_until predicate never matched within %dms", cfg.Timeout.Milliseconds()),
+					LastResponse: lastResp,
+					Attempts:     attempts,
+				}
+			}
+			return lastResp, info, nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, info, ctx.Err()
+		case <-time.After(cfg.Interval):
+		}
+	}
+}
+
 func (m *Manager) getAuthHandlers(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	inst, err := m.getApp(ctx)
 	if err != nil {
