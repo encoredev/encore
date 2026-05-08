@@ -14,6 +14,8 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/schemautil"
@@ -124,12 +126,30 @@ func (m *Manager) callEndpoint(ctx context.Context, request mcp.CallToolRequest)
 		return nil, fmt.Errorf("failed to get active namespace: %w", err)
 	}
 
-	// Get the app's run instance
+	if err := m.ensureAppRunning(ctx, inst, ns); err != nil {
+		return nil, err
+	}
+
+	result, err := singleShotCall(ctx, m.run, inst, params)
+	if err != nil {
+		return nil, fmt.Errorf("API call failed: %w", err)
+	}
+
+	jsonData, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal response: %w", err)
+	}
+	return mcp.NewToolResultText(string(jsonData)), nil
+}
+
+// ensureAppRunning starts the app if it isn't already, and waits for the
+// health endpoint to return 200 before returning.
+func (m *Manager) ensureAppRunning(ctx context.Context, inst *apps.Instance, ns *namespace.Namespace) error {
 	appRun := m.run.FindRunByAppID(inst.PlatformOrLocalID())
 	if appRun == nil {
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
-			return nil, fmt.Errorf("failed to create listener: %w", err)
+			return fmt.Errorf("failed to create listener: %w", err)
 		}
 		port := ln.Addr().(*net.TCPAddr).Port
 		appRun, err = m.run.Start(ctx, run.StartParams{
@@ -145,48 +165,49 @@ func (m *Manager) callEndpoint(ctx context.Context, request mcp.CallToolRequest)
 			Debug:      builder.DebugModeDisabled,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to start app run: %w", err)
+			return fmt.Errorf("failed to start app run: %w", err)
 		}
 	}
-
-	started := false
-	for !started {
+	for {
 		select {
 		case <-appRun.Done():
-			return nil, fmt.Errorf("app run failed to start")
+			return fmt.Errorf("app run failed to start")
 		case <-time.After(100 * time.Millisecond):
-			// Check if the app is ready by polling the health endpoint
 			resp, err := http.Get("http://" + appRun.ListenAddr + "/__encore/healthz")
 			if err != nil {
 				continue
 			}
 			resp.Body.Close()
-			started = resp.StatusCode == 200
+			if resp.StatusCode == 200 {
+				return nil
+			}
 		}
 	}
+}
 
-	// Call the API
-	result, err := run.CallAPI(ctx, appRun, params)
-
-	if err != nil {
-		return nil, fmt.Errorf("API call failed: %w", err)
+// singleShotCall performs one HTTP call against the running app and returns
+// the result map with byte-body converted to string.
+func singleShotCall(ctx context.Context, runMgr *run.Manager, inst *apps.Instance, params *run.ApiCallParams) (map[string]any, error) {
+	appRun := runMgr.FindRunByAppID(inst.PlatformOrLocalID())
+	if appRun == nil {
+		return nil, fmt.Errorf("app is not running")
 	}
+	result, err := run.CallAPI(ctx, appRun, params)
+	if err != nil {
+		return nil, err
+	}
+	return stringifyBody(result), nil
+}
 
-	// Convert body to string
+// stringifyBody mutates result in place to convert a []byte body to string.
+// The map is returned for chaining.
+func stringifyBody(result map[string]any) map[string]any {
 	if body, ok := result["body"]; ok {
-		switch v := body.(type) {
-		case []byte:
+		if v, ok := body.([]byte); ok {
 			result["body"] = string(v)
 		}
 	}
-
-	// Serialize the response
-	jsonData, err := json.Marshal(result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal response: %w", err)
-	}
-
-	return mcp.NewToolResultText(string(jsonData)), nil
+	return result
 }
 
 func (m *Manager) getEndpoints(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
