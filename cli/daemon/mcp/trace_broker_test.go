@@ -79,3 +79,31 @@ func TestTraceBroker_SlowSubscriberDoesNotBlock(t *testing.T) {
 		}
 	}
 }
+
+func TestTraceBroker_SubscribeAfterCloseDoesNotPanic(t *testing.T) {
+	src := make(chan trace2.NewSpanEvent)
+	b := newTraceBroker(src)
+	b.close()
+
+	sub, cancel := b.subscribe()
+	defer cancel() // must be safe to call
+
+	// The returned channel must be closed (i.e. read returns ok=false immediately).
+	select {
+	case _, ok := <-sub:
+		if ok {
+			t.Fatal("expected closed channel, got value")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("read on returned channel did not complete (channel should be already closed)")
+	}
+}
+
+func TestTraceBroker_CloseIsIdempotent(t *testing.T) {
+	src := make(chan trace2.NewSpanEvent)
+	b := newTraceBroker(src)
+
+	// Calling close twice must not panic.
+	b.close()
+	b.close()
+}

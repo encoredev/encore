@@ -17,9 +17,10 @@ const subscriberBufSize = 16
 type traceBroker struct {
 	src <-chan trace2.NewSpanEvent
 
-	mu   sync.Mutex
-	subs map[chan trace2.NewSpanEvent]struct{}
-	done chan struct{}
+	mu        sync.Mutex
+	subs      map[chan trace2.NewSpanEvent]struct{}
+	done      chan struct{}
+	closeOnce sync.Once
 }
 
 func newTraceBroker(src <-chan trace2.NewSpanEvent) *traceBroker {
@@ -61,26 +62,37 @@ func (b *traceBroker) dispatch(ev trace2.NewSpanEvent) {
 func (b *traceBroker) subscribe() (<-chan trace2.NewSpanEvent, func()) {
 	ch := make(chan trace2.NewSpanEvent, subscriberBufSize)
 	b.mu.Lock()
-	b.subs[ch] = struct{}{}
-	b.mu.Unlock()
+	defer b.mu.Unlock()
 
+	if b.subs == nil {
+		// Broker is closed; return a closed channel and a no-op cancel.
+		close(ch)
+		return ch, func() {}
+	}
+
+	b.subs[ch] = struct{}{}
 	cancel := func() {
 		b.mu.Lock()
+		defer b.mu.Unlock()
 		if _, ok := b.subs[ch]; ok {
 			delete(b.subs, ch)
 			close(ch)
 		}
-		b.mu.Unlock()
 	}
 	return ch, cancel
 }
 
 func (b *traceBroker) close() {
-	close(b.done)
+	b.closeOnce.Do(func() {
+		close(b.done)
+	})
 	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.subs == nil {
+		return
+	}
 	for ch := range b.subs {
 		close(ch)
 	}
 	b.subs = nil
-	b.mu.Unlock()
 }
