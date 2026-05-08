@@ -37,7 +37,7 @@ func (m *Manager) registerAPITools() {
 		mcp.WithString("auth_token", mcp.Description("Optional authentication token to include in the request. This is used for endpoints that require authentication.")),
 		mcp.WithString("auth_payload", mcp.Description("Optional authentication payload in JSON format. This is used for custom authentication schemes.")),
 		mcp.WithString("correlation_id", mcp.Description("Optional correlation ID to track the request through the system. Useful for debugging and tracing.")),
-		mcp.WithObject("retry_until", mcp.Description("Optional. If set, the MCP server repeatedly calls the endpoint until the predicate matches OR the timeout elapses, then returns the final response. Predicate forms: status (int), body_path ({path, equals}), body_jq (subset: '<path>' or '<path> | length <op> N'). Other fields: timeout_ms (int, default 10000), interval_ms (int, default 250), fail_on_timeout (bool, default false).")),
+		mcp.WithObject("retry_until", mcp.Description("Optional. If set, the MCP server repeatedly calls the endpoint until the predicate matches OR the timeout elapses, then returns the final response. Predicate forms: status (int), body_path ({path, equals}), body_jq (subset: '<path>' or '<path> | length <op> N'). Other fields: timeout_ms (int, default 10000), interval_ms (int, default 250), fail_on_timeout (bool, default false). Accepts a JSON object or a JSON-encoded string.")),
 	), m.callEndpoint)
 
 	// Add tool for getting all services and endpoints

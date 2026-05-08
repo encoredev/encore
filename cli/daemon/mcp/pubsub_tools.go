@@ -20,7 +20,7 @@ func (m *Manager) registerPubSubTools() {
 		mcp.WithString("subscription", mcp.Description("Subscription name to wait on. Optional — if omitted, waits for ANY subscription on the topic to process its next message.")),
 		mcp.WithNumber("timeout_ms", mcp.Description("Max wait in milliseconds. Default 10000.")),
 		mcp.WithString("since", mcp.Description("Optional ISO/RFC3339 timestamp. If set, return the next message processed after this time. If omitted, waits for the next message after this MCP call begins.")),
-		mcp.WithObject("match", mcp.Description("Optional filter. If set, only return when a message whose JSON payload contains the given top-level key/value pairs is processed.")),
+		mcp.WithObject("match", mcp.Description("Optional filter. If set, only return when a message whose JSON payload contains the given top-level key/value pairs is processed. Accepts a JSON object or a JSON-encoded string.")),
 	), m.waitForSubscriptionMessage)
 }
 

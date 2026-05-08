@@ -237,6 +237,14 @@ func (m *Manager) waitForSubscriptionMessage(ctx context.Context, request mcp.Ca
 		return mcp.NewToolResultText(toJSON(map[string]any{"error": err.Error()})), nil
 	}
 
+	ns, err := m.ns.GetActive(ctx, inst)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active namespace: %w", err)
+	}
+	if err := m.ensureAppRunning(ctx, inst, ns); err != nil {
+		return nil, err
+	}
+
 	subCh, cancel := m.broker.subscribe()
 	defer cancel()
 
