@@ -245,3 +245,70 @@ func TestWaitForMatch_HappyPath(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+func TestWaitForMatch_Timeout(t *testing.T) {
+	ch := make(chan trace2.NewSpanEvent)
+	res, err := waitForMatch(context.Background(), waitParams{
+		AppID:   "app-1",
+		Topic:   "order-created",
+		EventCh: ch,
+		Getter:  &fakeTraceStore{},
+		Timeout: 50 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if !res.Timeout {
+		t.Fatal("expected timeout")
+	}
+	if res.Matched {
+		t.Fatal("matched should be false")
+	}
+}
+
+func TestWaitForMatch_StaleEventsBeforeSince_Skipped(t *testing.T) {
+	ch := make(chan trace2.NewSpanEvent, 4)
+	since := time.Now()
+
+	// Stale event from before Since.
+	ch <- trace2.NewSpanEvent{
+		AppID: "app-1",
+		Span: &tracepb2.SpanSummary{
+			Type:      tracepb2.SpanSummary_PUBSUB_MESSAGE,
+			TopicName: ptr("order-created"),
+			StartedAt: timestamppb.New(since.Add(-time.Hour)),
+		},
+	}
+	// Then a fresh event after Since.
+	ch <- trace2.NewSpanEvent{
+		AppID: "app-1",
+		Span: &tracepb2.SpanSummary{
+			Type:      tracepb2.SpanSummary_PUBSUB_MESSAGE,
+			TraceId:   "trace-2",
+			SpanId:    "span-2",
+			TopicName: ptr("order-created"),
+			StartedAt: timestamppb.New(since.Add(time.Second)),
+		},
+	}
+
+	res, err := waitForMatch(context.Background(), waitParams{
+		AppID:   "app-1",
+		Topic:   "order-created",
+		Since:   since,
+		EventCh: ch,
+		Getter:  &fakeTraceStore{events: []*tracepb2.TraceEvent{}},
+		Timeout: 200 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if !res.Matched {
+		t.Fatal("expected matched on the fresh event")
+	}
+	if res.Span.TraceId != "trace-2" {
+		t.Errorf("expected trace-2, got %s", res.Span.TraceId)
+	}
+	if res.MessagesSeen != 1 {
+		t.Errorf("expected 1 stale message seen, got %d", res.MessagesSeen)
+	}
+}
