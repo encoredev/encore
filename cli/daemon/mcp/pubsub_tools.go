@@ -13,6 +13,15 @@ func (m *Manager) registerPubSubTools() {
 	m.server.AddTool(mcp.NewTool("get_pubsub",
 		mcp.WithDescription("Retrieve detailed information about all PubSub topics and their subscriptions in the currently open Encore. This includes topic configurations, subscription patterns, message schemas, and the services that publish to or subscribe to each topic."),
 	), m.getPubSub)
+
+	m.server.AddTool(mcp.NewTool("wait_for_subscription_message",
+		mcp.WithDescription("Block until the next message on a topic is fully processed by a subscription (handler returns or errors), then return the outcome. Use this to bridge async Pub/Sub work into a synchronous verification step instead of polling read-side endpoints in a loop."),
+		mcp.WithString("topic", mcp.Description("Topic name as declared in pubsub.NewTopic. Must match the live app.")),
+		mcp.WithString("subscription", mcp.Description("Subscription name to wait on. Optional — if omitted, waits for ANY subscription on the topic to process its next message.")),
+		mcp.WithNumber("timeout_ms", mcp.Description("Max wait in milliseconds. Default 10000.")),
+		mcp.WithString("since", mcp.Description("Optional ISO/RFC3339 timestamp. If set, return the next message processed after this time. If omitted, waits for the next message after this MCP call begins.")),
+		mcp.WithObject("match", mcp.Description("Optional filter. If set, only return when a message whose JSON payload contains the given top-level key/value pairs is processed.")),
+	), m.waitForSubscriptionMessage)
 }
 
 func (m *Manager) getPubSub(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

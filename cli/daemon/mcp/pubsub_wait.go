@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/mark3labs/mcp-go/mcp"
+
 	"encr.dev/cli/daemon/engine/trace2"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
 	metav1 "encr.dev/proto/encore/parser/meta/v1"
@@ -178,4 +180,132 @@ func spanMatches(ev trace2.NewSpanEvent, p waitParams) bool {
 		}
 	}
 	return true
+}
+
+const defaultWaitTimeoutMS = 10000
+
+// waitForSubscriptionMessage is the MCP tool handler.
+func (m *Manager) waitForSubscriptionMessage(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	inst, err := m.getApp(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get app: %w", err)
+	}
+
+	topic, ok := request.Params.Arguments["topic"].(string)
+	if !ok || topic == "" {
+		return nil, fmt.Errorf("missing or invalid topic argument")
+	}
+	sub, _ := request.Params.Arguments["subscription"].(string)
+
+	timeoutMS := defaultWaitTimeoutMS
+	switch v := request.Params.Arguments["timeout_ms"].(type) {
+	case float64:
+		timeoutMS = int(v)
+	case int:
+		timeoutMS = v
+	}
+
+	since := time.Now()
+	if sinceStr, ok := request.Params.Arguments["since"].(string); ok && sinceStr != "" {
+		t, err := time.Parse(time.RFC3339Nano, sinceStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid since timestamp: %w", err)
+		}
+		since = t
+	}
+
+	var match map[string]any
+	if raw, ok := request.Params.Arguments["match"].(map[string]any); ok {
+		match = raw
+	}
+
+	md, err := inst.CachedMetadata()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metadata: %w", err)
+	}
+	if err := validateTopicSub(md.PubsubTopics, topic, sub); err != nil {
+		return mcp.NewToolResultText(toJSON(map[string]any{"error": err.Error()})), nil
+	}
+
+	subCh, cancel := m.broker.subscribe()
+	defer cancel()
+
+	res, err := waitForMatch(ctx, waitParams{
+		AppID:   inst.PlatformOrLocalID(),
+		Topic:   topic,
+		Sub:     sub,
+		Since:   since,
+		Match:   match,
+		EventCh: subCh,
+		Getter:  m.traces,
+		Timeout: time.Duration(timeoutMS) * time.Millisecond,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return mcp.NewToolResultText(toJSON(formatWaitResult(topic, sub, timeoutMS, res))), nil
+}
+
+func formatWaitResult(topic, sub string, timeoutMS int, res *waitResult) map[string]any {
+	if res.Timeout {
+		return map[string]any{
+			"matched":                   false,
+			"timeout":                   true,
+			"topic":                     topic,
+			"waited_ms":                 timeoutMS,
+			"messages_seen_during_wait": res.MessagesSeen,
+		}
+	}
+
+	outcome := "success"
+	if res.Details.HandlerError != "" {
+		outcome = "error"
+	}
+
+	out := map[string]any{
+		"matched":      true,
+		"topic":        topic,
+		"subscription": res.Span.GetSubscriptionName(),
+		"trace_id":     res.Span.GetTraceId(),
+		"message": map[string]any{
+			"id":               res.Details.MessageID,
+			"published_at":     res.Details.PublishedAt.UTC().Format(time.RFC3339Nano),
+			"delivery_attempt": res.Details.Attempt,
+			"payload":          rawJSON(res.Details.Payload),
+		},
+		"handler": map[string]any{
+			"outcome":     outcome,
+			"duration_ms": res.Details.DurationMS,
+			"error":       nilIfEmpty(res.Details.HandlerError),
+		},
+	}
+	if sub != "" {
+		out["subscription"] = sub
+	}
+	return out
+}
+
+func toJSON(v any) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
+// rawJSON returns the payload as decoded JSON when possible, otherwise a string.
+func rawJSON(b []byte) any {
+	if len(b) == 0 {
+		return nil
+	}
+	var v any
+	if err := json.Unmarshal(b, &v); err == nil {
+		return v
+	}
+	return string(b)
+}
+
+func nilIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }
