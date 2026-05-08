@@ -661,10 +661,10 @@ func runRetryLoop(ctx context.Context, cfg retryConfig, doCall func(ctx context.
 		}
 		lastResp = resp
 
-		status, _ := resp["status"].(float64)
+		status := extractStatusCode(resp)
 		body, _ := resp["body"].(string)
 
-		matched, evalErr := cfg.Predicate.evaluate(int(status), []byte(body))
+		matched, evalErr := cfg.Predicate.evaluate(status, []byte(body))
 		if evalErr != nil {
 			return nil, info, fmt.Errorf("predicate evaluation failed: %w", evalErr)
 		}
@@ -695,6 +695,20 @@ func runRetryLoop(ctx context.Context, cfg retryConfig, doCall func(ctx context.
 		case <-time.After(cfg.Interval):
 		}
 	}
+}
+
+// extractStatusCode reads the numeric HTTP status from a run.CallAPI result,
+// which stores it under "status_code" (the "status" field holds the string
+// like "200 OK"). Handles int (direct from CallAPI) and float64 (in case the
+// caller round-trips through JSON).
+func extractStatusCode(resp map[string]any) int {
+	switch v := resp["status_code"].(type) {
+	case int:
+		return v
+	case float64:
+		return int(v)
+	}
+	return 0
 }
 
 func (m *Manager) getAuthHandlers(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

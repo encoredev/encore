@@ -96,9 +96,9 @@ func TestRunRetryLoop_MatchesAfterRetries(t *testing.T) {
 	doCall := func(ctx context.Context) (map[string]any, error) {
 		calls++
 		if calls < 3 {
-			return map[string]any{"status": float64(200), "body": `{"events":[]}`}, nil
+			return map[string]any{"status": "200 OK", "status_code": 200, "body": `{"events":[]}`}, nil
 		}
-		return map[string]any{"status": float64(200), "body": `{"events":[{"id":7}]}`}, nil
+		return map[string]any{"status": "200 OK", "status_code": 200, "body": `{"events":[{"id":7}]}`}, nil
 	}
 	cfg := retryConfig{
 		Predicate: predicate{Jq: ".events | length > 0"},
@@ -122,7 +122,7 @@ func TestRunRetryLoop_MatchesAfterRetries(t *testing.T) {
 
 func TestRunRetryLoop_TimeoutReturnsLastBody(t *testing.T) {
 	doCall := func(ctx context.Context) (map[string]any, error) {
-		return map[string]any{"status": float64(200), "body": `{"events":[]}`}, nil
+		return map[string]any{"status": "200 OK", "status_code": 200, "body": `{"events":[]}`}, nil
 	}
 	cfg := retryConfig{
 		Predicate:     predicate{Jq: ".events | length > 0"},
@@ -147,7 +147,7 @@ func TestRunRetryLoop_TimeoutReturnsLastBody(t *testing.T) {
 
 func TestRunRetryLoop_FailOnTimeout_ReturnsError(t *testing.T) {
 	doCall := func(ctx context.Context) (map[string]any, error) {
-		return map[string]any{"status": float64(200), "body": `{"events":[]}`}, nil
+		return map[string]any{"status": "200 OK", "status_code": 200, "body": `{"events":[]}`}, nil
 	}
 	cfg := retryConfig{
 		Predicate:     predicate{Jq: ".events | length > 0"},
@@ -165,5 +165,36 @@ func TestRunRetryLoop_FailOnTimeout_ReturnsError(t *testing.T) {
 	}
 	if rte.Attempts < 2 {
 		t.Errorf("expected attempts >= 2, got %d", rte.Attempts)
+	}
+}
+
+func TestRunRetryLoop_StatusPredicateMatchesIntStatusCode(t *testing.T) {
+	// Pin the bug: run.CallAPI returns status_code as int, not float64,
+	// and the numeric code lives under "status_code" not "status".
+	calls := 0
+	doCall := func(ctx context.Context) (map[string]any, error) {
+		calls++
+		if calls == 1 {
+			return map[string]any{"status": "404 Not Found", "status_code": 404, "body": ""}, nil
+		}
+		return map[string]any{"status": "200 OK", "status_code": 200, "body": ""}, nil
+	}
+	cfg := retryConfig{
+		Predicate: predicate{Status: 200},
+		Timeout:   500 * time.Millisecond,
+		Interval:  10 * time.Millisecond,
+	}
+	res, info, err := runRetryLoop(context.Background(), cfg, doCall)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !info.Matched {
+		t.Fatal("expected matched after status flipped to 200")
+	}
+	if info.Attempts != 2 {
+		t.Errorf("attempts: %d, want 2", info.Attempts)
+	}
+	if got := extractStatusCode(res); got != 200 {
+		t.Errorf("expected status_code 200, got %d", got)
 	}
 }
