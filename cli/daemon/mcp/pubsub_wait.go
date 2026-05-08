@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"time"
 
+	"encr.dev/cli/daemon/engine/trace2"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
 )
 
@@ -77,4 +78,84 @@ func loadSpanDetails(ctx context.Context, store eventGetter, appID, traceID, spa
 		}
 	}
 	return out, nil
+}
+
+type waitParams struct {
+	AppID   string
+	Topic   string
+	Sub     string // "" means any subscription on the topic
+	Since   time.Time
+	Match   map[string]any
+	EventCh <-chan trace2.NewSpanEvent
+	Getter  eventGetter
+	Timeout time.Duration
+}
+
+type waitResult struct {
+	Matched      bool
+	Timeout      bool
+	Span         *tracepb2.SpanSummary
+	Details      *spanDetails
+	MessagesSeen int // count of messages seen during wait that didn't match
+}
+
+// waitForMatch reads from EventCh until a span matching the filters arrives,
+// the context is canceled, or Timeout elapses. It returns the matched span
+// and full event details, or a timeout result.
+func waitForMatch(ctx context.Context, p waitParams) (*waitResult, error) {
+	deadline := time.NewTimer(p.Timeout)
+	defer deadline.Stop()
+
+	res := &waitResult{}
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-deadline.C:
+			res.Timeout = true
+			return res, nil
+		case ev, ok := <-p.EventCh:
+			if !ok {
+				res.Timeout = true
+				return res, nil
+			}
+			if !spanMatches(ev, p) {
+				res.MessagesSeen++
+				continue
+			}
+			details, err := loadSpanDetails(ctx, p.Getter, ev.AppID, ev.Span.TraceId, ev.Span.SpanId)
+			if err != nil {
+				return nil, err
+			}
+			if !matchPayload(details.Payload, p.Match) {
+				res.MessagesSeen++
+				continue
+			}
+			res.Matched = true
+			res.Span = ev.Span
+			res.Details = details
+			return res, nil
+		}
+	}
+}
+
+func spanMatches(ev trace2.NewSpanEvent, p waitParams) bool {
+	if ev.AppID != p.AppID {
+		return false
+	}
+	if ev.Span == nil || ev.Span.Type != tracepb2.SpanSummary_PUBSUB_MESSAGE {
+		return false
+	}
+	if ev.Span.GetTopicName() != p.Topic {
+		return false
+	}
+	if p.Sub != "" && ev.Span.GetSubscriptionName() != p.Sub {
+		return false
+	}
+	if !p.Since.IsZero() && ev.Span.GetStartedAt() != nil {
+		if ev.Span.GetStartedAt().AsTime().Before(p.Since) {
+			return false
+		}
+	}
+	return true
 }

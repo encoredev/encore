@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"encr.dev/cli/daemon/engine/trace2"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
 )
 
@@ -180,3 +181,67 @@ func TestLoadSpanDetails_ErrorOutcome(t *testing.T) {
 		t.Errorf("HandlerError = %q", details.HandlerError)
 	}
 }
+
+func TestWaitForMatch_HappyPath(t *testing.T) {
+	ch := make(chan trace2.NewSpanEvent, 4)
+	getter := &fakeTraceStore{
+		events: []*tracepb2.TraceEvent{
+			{
+				Event: &tracepb2.TraceEvent_SpanStart{
+					SpanStart: &tracepb2.SpanStart{
+						Data: &tracepb2.SpanStart_PubsubMessage{
+							PubsubMessage: &tracepb2.PubsubMessageSpanStart{
+								MessageId:      "msg-1",
+								MessagePayload: []byte(`{"customerID":"cust_42"}`),
+							},
+						},
+					},
+				},
+			},
+			{
+				Event: &tracepb2.TraceEvent_SpanEnd{
+					SpanEnd: &tracepb2.SpanEnd{DurationNanos: 5_000_000},
+				},
+			},
+		},
+	}
+
+	go func() {
+		ch <- trace2.NewSpanEvent{
+			AppID: "app-1",
+			Span: &tracepb2.SpanSummary{
+				Type:             tracepb2.SpanSummary_PUBSUB_MESSAGE,
+				TraceId:          "trace-1",
+				SpanId:           "span-1",
+				TopicName:        ptr("order-created"),
+				SubscriptionName: ptr("audit"),
+				StartedAt:        timestamppb.Now(),
+			},
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	res, err := waitForMatch(ctx, waitParams{
+		AppID:   "app-1",
+		Topic:   "order-created",
+		Sub:     "audit",
+		Since:   time.Now().Add(-time.Hour),
+		Match:   map[string]any{"customerID": "cust_42"},
+		EventCh: ch,
+		Getter:  getter,
+		Timeout: time.Second,
+	})
+	if err != nil {
+		t.Fatalf("waitForMatch returned error: %v", err)
+	}
+	if !res.Matched {
+		t.Fatal("expected matched")
+	}
+	if res.Details.MessageID != "msg-1" {
+		t.Errorf("MessageID = %q", res.Details.MessageID)
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
