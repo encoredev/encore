@@ -204,6 +204,9 @@ func (m *Manager) waitForSubscriptionMessage(ctx context.Context, request mcp.Ca
 	case int:
 		timeoutMS = v
 	}
+	if timeoutMS <= 0 {
+		return nil, fmt.Errorf("timeout_ms must be a positive integer, got %d", timeoutMS)
+	}
 
 	since := time.Now()
 	if sinceStr, ok := request.Params.Arguments["since"].(string); ok && sinceStr != "" {
@@ -215,8 +218,15 @@ func (m *Manager) waitForSubscriptionMessage(ctx context.Context, request mcp.Ca
 	}
 
 	var match map[string]any
-	if raw, ok := request.Params.Arguments["match"].(map[string]any); ok {
-		match = raw
+	switch v := request.Params.Arguments["match"].(type) {
+	case map[string]any:
+		match = v
+	case string:
+		if v != "" {
+			if err := json.Unmarshal([]byte(v), &match); err != nil {
+				return nil, fmt.Errorf("invalid match argument: %w", err)
+			}
+		}
 	}
 
 	md, err := inst.CachedMetadata()
@@ -263,10 +273,14 @@ func formatWaitResult(topic, sub string, timeoutMS int, res *waitResult) map[str
 		outcome = "error"
 	}
 
-	out := map[string]any{
+	subscriptionName := res.Span.GetSubscriptionName()
+	if sub != "" {
+		subscriptionName = sub
+	}
+	return map[string]any{
 		"matched":      true,
 		"topic":        topic,
-		"subscription": res.Span.GetSubscriptionName(),
+		"subscription": subscriptionName,
 		"trace_id":     res.Span.GetTraceId(),
 		"message": map[string]any{
 			"id":               res.Details.MessageID,
@@ -280,10 +294,6 @@ func formatWaitResult(topic, sub string, timeoutMS int, res *waitResult) map[str
 			"error":       nilIfEmpty(res.Details.HandlerError),
 		},
 	}
-	if sub != "" {
-		out["subscription"] = sub
-	}
-	return out
 }
 
 func toJSON(v any) string {
