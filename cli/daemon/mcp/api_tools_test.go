@@ -240,3 +240,24 @@ func TestRunRetryLoop_StatusPredicateMatchesIntStatusCode(t *testing.T) {
 		t.Errorf("expected status_code 200, got %d", got)
 	}
 }
+
+func TestParseRetryUntil_RejectsMissingPredicate(t *testing.T) {
+	_, _, err := parseRetryUntil(map[string]any{"timeout_ms": float64(1000)})
+	if err == nil {
+		t.Fatal("expected error when predicate is missing")
+	}
+}
+
+func TestRunRetryLoop_BackwardsCompatNotInvokedWhenAbsent(t *testing.T) {
+	// This test pins the parseRetryUntil contract: nil input means "no retry".
+	// Without this guarantee, the call_endpoint backwards-compat path would
+	// silently invoke the retry loop with a zero-value config.
+	cfg, ok, err := parseRetryUntil(nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatal("expected ok=false")
+	}
+	_ = cfg
+}
