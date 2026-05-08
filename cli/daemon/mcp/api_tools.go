@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -36,6 +37,7 @@ func (m *Manager) registerAPITools() {
 		mcp.WithString("auth_token", mcp.Description("Optional authentication token to include in the request. This is used for endpoints that require authentication.")),
 		mcp.WithString("auth_payload", mcp.Description("Optional authentication payload in JSON format. This is used for custom authentication schemes.")),
 		mcp.WithString("correlation_id", mcp.Description("Optional correlation ID to track the request through the system. Useful for debugging and tracing.")),
+		mcp.WithObject("retry_until", mcp.Description("Optional. If set, the MCP server repeatedly calls the endpoint until the predicate matches OR the timeout elapses, then returns the final response. Predicate forms: status (int), body_path ({path, equals}), body_jq (subset: '<path>' or '<path> | length <op> N'). Other fields: timeout_ms (int, default 10000), interval_ms (int, default 250), fail_on_timeout (bool, default false).")),
 	), m.callEndpoint)
 
 	// Add tool for getting all services and endpoints
@@ -130,16 +132,69 @@ func (m *Manager) callEndpoint(ctx context.Context, request mcp.CallToolRequest)
 		return nil, err
 	}
 
-	result, err := singleShotCall(ctx, m.run, inst, params)
+	doCall := func(ctx context.Context) (map[string]any, error) {
+		return singleShotCall(ctx, m.run, inst, params)
+	}
+
+	cfg, hasRetry, err := parseRetryUntil(request.Params.Arguments["retry_until"])
 	if err != nil {
+		return nil, err
+	}
+
+	if !hasRetry {
+		result, err := doCall(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("API call failed: %w", err)
+		}
+		jsonData, err := json.Marshal(result)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal response: %w", err)
+		}
+		return mcp.NewToolResultText(string(jsonData)), nil
+	}
+
+	startedAt := time.Now()
+	result, info, err := runRetryLoop(ctx, cfg, doCall)
+	info.TotalWaitMS = int64(time.Since(startedAt) / time.Millisecond)
+	info.Predicate = predicateAsMap(cfg.Predicate)
+
+	if err != nil {
+		var rte *retryTimeoutError
+		if errors.As(err, &rte) {
+			body, _ := json.Marshal(map[string]any{
+				"error":         rte.Message,
+				"last_response": rte.LastResponse,
+				"attempts":      rte.Attempts,
+			})
+			return mcp.NewToolResultText(string(body)), nil
+		}
 		return nil, fmt.Errorf("API call failed: %w", err)
 	}
 
+	result["retry"] = map[string]any{
+		"matched":       info.Matched,
+		"attempts":      info.Attempts,
+		"total_wait_ms": info.TotalWaitMS,
+		"predicate":     info.Predicate,
+	}
 	jsonData, err := json.Marshal(result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal response: %w", err)
 	}
 	return mcp.NewToolResultText(string(jsonData)), nil
+}
+
+func predicateAsMap(p predicate) map[string]any {
+	if p.Jq != "" {
+		return map[string]any{"body_jq": p.Jq}
+	}
+	if p.Path != nil {
+		return map[string]any{"body_path": map[string]any{"path": p.Path.Path, "equals": p.Path.Equals}}
+	}
+	if p.Status != 0 {
+		return map[string]any{"status": p.Status}
+	}
+	return map[string]any{}
 }
 
 // ensureAppRunning starts the app if it isn't already, and waits for the
