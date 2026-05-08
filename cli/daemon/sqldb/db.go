@@ -251,15 +251,15 @@ func (db *DB) ensureRoles(ctx context.Context, cloudName string, roles ...Role) 
 				GRANT ALL ON DATABASE %[1]s TO %[2]s;
 				GRANT pg_read_all_data TO %[2]s;
 				GRANT pg_write_all_data TO %[2]s;
-				GRANT encore_services TO %[2]s;`,
+				GRANT encore_services TO %[2]s WITH ADMIN OPTION;`,
 				safeDBName, safeRoleName)
 		case RoleAdmin:
 			stmt = fmt.Sprintf(`
 				GRANT ALL ON DATABASE %[1]s TO %[2]s;
 				GRANT pg_read_all_data TO %[2]s;
 				GRANT pg_write_all_data TO %[2]s;
-				GRANT "encore-migrator" TO %[2]s;
-				GRANT encore_services TO %[2]s;
+				GRANT "encore-migrator" TO %[2]s WITH ADMIN OPTION;
+				GRANT encore_services TO %[2]s WITH ADMIN OPTION;
 				REASSIGN OWNED BY %[2]s TO "encore-migrator"`,
 				safeDBName, safeRoleName)
 		case RoleWrite:
