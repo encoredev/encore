@@ -126,6 +126,12 @@ func compareInt(a int, op string, b int) bool {
 	return false
 }
 
+// truthy intentionally diverges from real jq: in jq, only false and null are
+// falsy (0, "", [], {} are all truthy). For retry predicate use ("did the
+// response contain anything useful yet?") the empty-is-falsy interpretation
+// is what the agent actually wants — matching it here means `.events` returns
+// false until events arrive, instead of always being truthy as soon as the
+// field exists.
 func truthy(v any) bool {
 	if v == nil {
 		return false
