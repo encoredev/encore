@@ -210,9 +210,23 @@ func (db *DB) ensureRoles(ctx context.Context, cloudName string, roles ...Role) 
 	}
 	defer func() { _ = adm.Close() }()
 
+	// We've observed race conditions in Postgres to grant access. Retry a few times.
+	retryExec := func(id, stmt string) error {
+		var err error
+		for range 5 {
+			_, err = adm.ExecContext(ctx, stmt)
+			if err == nil {
+				break
+			}
+			db.log.Debug().Str("db", cloudName).Str("stmtId", id).Err(err).Msg("error executing statement, retrying")
+			time.Sleep(250 * time.Millisecond)
+		}
+		return err
+	}
+
 	db.log.Debug().Msg("revoking public access")
 	safeDBName := (pgx.Identifier{cloudName}).Sanitize()
-	_, err = adm.ExecContext(ctx, "REVOKE ALL ON DATABASE "+safeDBName+" FROM public")
+	err = retryExec("revoke public", "REVOKE ALL ON DATABASE "+safeDBName+" FROM public")
 	if err != nil {
 		return fmt.Errorf("revoke public: %v", err)
 	}
@@ -265,20 +279,8 @@ func (db *DB) ensureRoles(ctx context.Context, cloudName string, roles ...Role) 
 
 		db.log.Debug().Str("role", role.Username).Str("db", cloudName).Msg("granting access to role")
 
-		// We've observed race conditions in Postgres to grant access. Retry a few times.
-		{
-			var err error
-			for i := 0; i < 5; i++ {
-				_, err = adm.ExecContext(ctx, stmt)
-				if err == nil {
-					break
-				}
-				db.log.Debug().Str("role", role.Username).Str("db", cloudName).Err(err).Msg("error granting role, retrying")
-				time.Sleep(250 * time.Millisecond)
-			}
-			if err != nil {
-				return fmt.Errorf("grant %s role %s: %v", role.Type, role.Username, err)
-			}
+		if err := retryExec("granting "+role.Username, stmt); err != nil {
+			return fmt.Errorf("grant %s role %s: %v", role.Type, role.Username, err)
 		}
 
 		db.log.Debug().Str("role", role.Username).Str("db", cloudName).Msg("successfully granted access")
