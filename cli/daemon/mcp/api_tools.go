@@ -164,7 +164,12 @@ func (m *Manager) callEndpoint(ctx context.Context, request mcp.CallToolRequest)
 			body, _ := json.Marshal(map[string]any{
 				"error":         rte.Message,
 				"last_response": rte.LastResponse,
-				"attempts":      rte.Attempts,
+				"retry": map[string]any{
+					"matched":       false,
+					"attempts":      rte.Attempts,
+					"total_wait_ms": info.TotalWaitMS,
+					"predicate":     info.Predicate,
+				},
 			})
 			return mcp.NewToolResultText(string(body)), nil
 		}
@@ -660,9 +665,23 @@ func parseRetryUntil(raw any) (retryConfig, bool, error) {
 	if raw == nil {
 		return retryConfig{}, false, nil
 	}
-	m, ok := raw.(map[string]any)
-	if !ok {
+	var m map[string]any
+	switch v := raw.(type) {
+	case map[string]any:
+		m = v
+	case string:
+		if v == "" {
+			return retryConfig{}, false, nil
+		}
+		if err := json.Unmarshal([]byte(v), &m); err != nil {
+			return retryConfig{}, false, fmt.Errorf("invalid retry_until: %w", err)
+		}
+	default:
 		return retryConfig{}, false, fmt.Errorf("retry_until must be an object")
+	}
+	if len(m) == 0 {
+		// Empty object → no retry, matching the omitted-field behavior.
+		return retryConfig{}, false, nil
 	}
 
 	cfg := retryConfig{

@@ -168,6 +168,48 @@ func TestRunRetryLoop_FailOnTimeout_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestParseRetryUntil_EmptyObjectMeansNoRetry(t *testing.T) {
+	cfg, ok, err := parseRetryUntil(map[string]any{})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatal("expected ok=false for empty object")
+	}
+	_ = cfg
+}
+
+func TestParseRetryUntil_StringFormParsedAsJSON(t *testing.T) {
+	cfg, ok, err := parseRetryUntil(`{"predicate":{"status":200},"timeout_ms":1000}`)
+	if err != nil || !ok {
+		t.Fatalf("err: %v ok: %v", err, ok)
+	}
+	if cfg.Predicate.Status != 200 {
+		t.Errorf("status: %d", cfg.Predicate.Status)
+	}
+	if cfg.Timeout != time.Second {
+		t.Errorf("timeout: %v", cfg.Timeout)
+	}
+}
+
+func TestParseRetryUntil_InvalidStringReturnsError(t *testing.T) {
+	_, _, err := parseRetryUntil(`not json`)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestParseRetryUntil_EmptyStringMeansNoRetry(t *testing.T) {
+	cfg, ok, err := parseRetryUntil("")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatal("expected ok=false for empty string")
+	}
+	_ = cfg
+}
+
 func TestRunRetryLoop_StatusPredicateMatchesIntStatusCode(t *testing.T) {
 	// Pin the bug: run.CallAPI returns status_code as int, not float64,
 	// and the numeric code lives under "status_code" not "status".
