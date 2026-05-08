@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"encr.dev/cli/daemon/engine/trace2"
+	metav1 "encr.dev/proto/encore/parser/meta/v1"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
 )
 
@@ -245,6 +246,60 @@ func TestWaitForMatch_HappyPath(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+func TestValidateTopicAndSub(t *testing.T) {
+	cases := []struct {
+		name    string
+		topics  []*metav1.PubSubTopic
+		topic   string
+		sub     string
+		wantErr string
+	}{
+		{
+			name:   "topic exists, no sub specified",
+			topics: []*metav1.PubSubTopic{{Name: "order-created"}},
+			topic:  "order-created",
+		},
+		{
+			name: "topic + sub both exist",
+			topics: []*metav1.PubSubTopic{
+				{Name: "order-created", Subscriptions: []*metav1.PubSubTopic_Subscription{{Name: "audit"}}},
+			},
+			topic: "order-created",
+			sub:   "audit",
+		},
+		{
+			name:    "topic missing",
+			topics:  []*metav1.PubSubTopic{{Name: "other"}},
+			topic:   "order-created",
+			wantErr: `topic "order-created" not found in current app`,
+		},
+		{
+			name: "topic exists, sub missing",
+			topics: []*metav1.PubSubTopic{
+				{Name: "order-created", Subscriptions: []*metav1.PubSubTopic_Subscription{{Name: "other"}}},
+			},
+			topic:   "order-created",
+			sub:     "audit",
+			wantErr: `subscription "audit" not found on topic "order-created"`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateTopicSub(tc.topics, tc.topic, tc.sub)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || err.Error() != tc.wantErr {
+				t.Fatalf("err = %v, want %q", err, tc.wantErr)
+			}
+		})
+	}
+}
 
 func TestWaitForMatch_Timeout(t *testing.T) {
 	ch := make(chan trace2.NewSpanEvent)

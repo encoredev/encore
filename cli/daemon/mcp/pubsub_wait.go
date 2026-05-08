@@ -3,11 +3,13 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"time"
 
 	"encr.dev/cli/daemon/engine/trace2"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
+	metav1 "encr.dev/proto/encore/parser/meta/v1"
 )
 
 // matchPayload reports whether the JSON-encoded payload satisfies the match
@@ -137,6 +139,24 @@ func waitForMatch(ctx context.Context, p waitParams) (*waitResult, error) {
 			return res, nil
 		}
 	}
+}
+
+func validateTopicSub(topics []*metav1.PubSubTopic, topic, sub string) error {
+	for _, t := range topics {
+		if t.Name != topic {
+			continue
+		}
+		if sub == "" {
+			return nil
+		}
+		for _, s := range t.Subscriptions {
+			if s.Name == sub {
+				return nil
+			}
+		}
+		return fmt.Errorf("subscription %q not found on topic %q", sub, topic)
+	}
+	return fmt.Errorf("topic %q not found in current app", topic)
 }
 
 func spanMatches(ev trace2.NewSpanEvent, p waitParams) bool {
