@@ -10,6 +10,12 @@ When using [Encore Cloud Pro](https://encore.cloud/pricing), you automatically g
 
 Preview Environments are free, fully-managed development environments that run on Encore Cloud. They let you test changes without managing infrastructure or incurring cost.
 
+### Self-hosted Preview Environments (Enterprise)
+
+On the Enterprise tier, Preview Environments can also be hosted on your own cloud infrastructure. This is useful when your Preview Environments need network access to private resources, such as shared databases or internal APIs.
+
+For example, on GCP you can isolate all Preview Environments to a single GCP project, so you only need to set up networking and VPC access to your other private resources once and all Preview Environments will automatically have access. [Contact us](https://encore.dev/book) to discuss your requirements.
+
 See the [infra docs](/docs/platform/infrastructure/infra#preview-environments) if you're curious about exactly how Preview Environments are provisioned.
 
 ## Using Preview Environments
