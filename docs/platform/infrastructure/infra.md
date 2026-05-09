@@ -69,8 +69,10 @@ The application code itself is compiled and run natively on your machine (withou
 
 When you've [connected your application to GitHub](/docs/platform/integrations/github), Encore Cloud automatically provisions a temporary [Preview Environment](/docs/platform/deploy/preview-environments) for each Pull Request.
 
-Preview Environments are created in Encore Cloud Hosting, and are optimized for provisioning speed and cost-effectiveness.
+Preview Environments are created in Encore Cloud Hosting by default, and are optimized for provisioning speed and cost-effectiveness.
 The Preview Environment is automatically destroyed when the Pull Request is merged or closed.
+
+On the Enterprise tier, Preview Environments can also be hosted on your own cloud infrastructure. See the [Preview Environments docs](/docs/platform/deploy/preview-environments#self-hosted-preview-environments-enterprise) for more information.
 
 Preview Environments are named after the pull request, so PR #72 will create an environment named `pr:72`.
 

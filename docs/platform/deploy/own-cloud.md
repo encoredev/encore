@@ -23,7 +23,13 @@ within Encore, you need to explicitly approve the deletion of the infrastructure
 
 ## Google Cloud Platform (GCP)
 
-Encore Cloud provides a GCP Service Account for each Encore Cloud application, letting you grant Encore Cloud access to provision all the necessary infrastructure directly in your own GCP Organization account.
+Encore Cloud provides a GCP Service Account for each Encore Cloud application, letting you grant Encore Cloud access to provision all the necessary infrastructure directly in your own GCP account.
+
+### Permissions scoping
+
+GCP's permissions system is well-suited for scoping down Encore Cloud's access. While the simplest setup grants access at the organization level, permissions can also be scoped down to a single GCP project. This is useful when you want to isolate Encore Cloud's access to a specific project within your organization, for example a sandboxed prototyping environment. [Contact us](https://encore.dev/book) to discuss the best setup for your needs.
+
+### Setup
 
 To find your app's Service Account email and configure GCP deployments, head over to the Connect Cloud page by going to the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
@@ -56,6 +62,15 @@ If you're using several GCP accounts, make sure you're logged in with the correc
 Still having issues? Drop us an email at [support@encore.dev](mailto:support@encore.dev) or chat with us in the [Encore Discord](https://encore.dev/discord.
 
 ## Amazon Web Services (AWS)
+
+### Permissions scoping
+
+For a seamless experience, the default setup uses an IAM Role that gives Encore Cloud the permissions needed to provision and manage infrastructure in your AWS account. The simplest way to scope this is to use a dedicated AWS sub-organization for Encore Cloud, which provides clear isolation.
+
+It's also possible to configure a more narrowly scoped IAM policy. The required permissions depend dynamically on the structure of your applications and the infrastructure resources they use. We're actively working on providing more solutions for scoping down permissions further. [Contact us](https://encore.dev/book) to discuss the best setup for your needs.
+
+### Setup
+
 To configure your Encore Cloud app to deploy to your AWS account, head over to the Connect Cloud page by going to the
 **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
