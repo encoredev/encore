@@ -71,7 +71,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 	// If the username is "encore" we're connecting to a database cluster
 	// which may not be local
 	var cluster *Cluster
-	if startup.Username == "encore" || startup.Username == "encore-service" {
+	if startup.Username == "encore" || startup.Username == "encore-service" || startup.Username == "encore-migrator" {
 		password := startup.Password
 		found, ok := cm.LookupPassword(password)
 		if !ok {
@@ -222,10 +222,17 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 
 	// Send a modified startup message to the backend
 	var role Role
-	if startup.Username == "encore-service" && debugflags.Get("sqldbrole") != debugflags.SQLDBRoleLegacy {
-		role, _ = info.Encore.First(RoleService, RoleAdmin, RoleSuperuser)
-	} else {
+	if debugflags.Get("sqldbrole") == debugflags.SQLDBRoleLegacy {
 		role, _ = info.Encore.First(RoleAdmin, RoleSuperuser)
+	} else {
+		switch startup.Username {
+		case "encore-migrator":
+			role, _ = info.Encore.First(RoleMigrator, RoleAdmin, RoleSuperuser)
+		case "encore-service":
+			role, _ = info.Encore.First(RoleService, RoleAdmin, RoleSuperuser)
+		default:
+			role, _ = info.Encore.First(RoleAdmin, RoleSuperuser)
+		}
 	}
 	startup.Username = role.Username
 	startup.Password = role.Password
