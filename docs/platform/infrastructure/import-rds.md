@@ -52,3 +52,32 @@ dirty boolean
 ```
 
 If the table exists but has a different schema, you will not be able to import it with Encore at this time. If the table exists with an existing entry, Encore will apply all higher versions in your `migrations` directory to the database.
+
+### Bootstrap migration for existing databases
+
+If you have an existing production database that wasn't previously managed by Encore's migration system, you need to set up a **bootstrap migration** so that new environments (dev, staging, etc.) are created with the same schema, while your existing database is not modified.
+
+**Step 1:** Dump your existing database schema:
+
+```shell
+$ pg_dump --schema-only --no-owner --no-privileges your_database > 001_bootstrap.up.sql
+```
+
+Review the output and clean it up as needed (remove any database-specific settings, comments, etc.), then place it in your service's `migrations` directory.
+
+**Step 2:** In your **existing** imported database, manually create the `schema_migrations` table and mark the bootstrap migration as already applied:
+
+```sql
+CREATE TABLE IF NOT EXISTS schema_migrations (version bigint NOT NULL, dirty boolean NOT NULL);
+INSERT INTO schema_migrations (version, dirty) VALUES (1, false);
+```
+
+This tells Encore that migration `1` (the bootstrap) has already been applied to this database. Encore will skip it and only run migrations with a higher version number.
+
+**Step 3:** Any future schema changes should be added as new migration files (e.g. `002_add_column.up.sql`). These will be applied to all environments, including the imported database.
+
+<Callout type="info">
+
+This approach ensures that new environments get the full schema from scratch via the bootstrap migration, while your production database continues from where it is without any changes being re-applied.
+
+</Callout>
