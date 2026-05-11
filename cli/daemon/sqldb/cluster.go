@@ -49,6 +49,13 @@ type Cluster struct {
 	mu         sync.Mutex
 	dbs        map[string]*DB // name -> db
 	isExternal func(name string) bool
+
+	// rolesMu serializes the per-database role grants in DB.ensureRoles.
+	// The cluster-wide role memberships are applied once in setupRoles,
+	// but the residual per-database statements still touch role rows in
+	// pg_authid (REASSIGN OWNED, GRANT ... ON DATABASE) and can deadlock
+	// when run concurrently across databases in the same cluster.
+	rolesMu sync.Mutex
 }
 
 func (c *Cluster) Stop() {
@@ -141,17 +148,45 @@ func (c *Cluster) setupRoles(ctx context.Context, st *ClusterStatus) (EncoreRole
 			c.log.Debug().Str("role", role.Username).Msg("role already exists")
 		}
 
-		// Add cluster-level permissions.
+		// Apply cluster-wide permissions and role memberships. These were
+		// previously done per-database in DB.ensureRoles, but that caused
+		// deadlocks on pg_authid when multiple databases were set up
+		// concurrently. The roles list is ordered so that any role used as
+		// a grant target below has already been created in an earlier
+		// iteration.
+		var stmt string
 		switch role.Type {
-		case RoleAdmin, RoleMigrator:
-			// Grant admins the ability to create databases.
-			_, err := conn.Exec(ctx, `
-				ALTER USER `+sanitizedUsername+` CREATEDB CREATEROLE
-			`)
-			if err != nil {
-				c.log.Error().Err(err).Str("role", role.Username).Msg("unable to grant CREATEDB")
-				return nil, fmt.Errorf("grant CREATEDB to %q: %v", role.Username, err)
-			}
+		case RoleServices:
+			stmt = fmt.Sprintf(`
+				GRANT pg_read_all_data TO %[1]s;
+				GRANT pg_write_all_data TO %[1]s;`, sanitizedUsername)
+		case RoleMigrator:
+			stmt = fmt.Sprintf(`
+				ALTER USER %[1]s CREATEDB CREATEROLE;
+				GRANT pg_read_all_data TO %[1]s;
+				GRANT pg_write_all_data TO %[1]s;
+				GRANT encore_services TO %[1]s WITH ADMIN OPTION;`, sanitizedUsername)
+		case RoleAdmin:
+			stmt = fmt.Sprintf(`
+				ALTER USER %[1]s CREATEDB CREATEROLE;
+				GRANT pg_read_all_data TO %[1]s;
+				GRANT pg_write_all_data TO %[1]s;
+				GRANT "encore-migrator" TO %[1]s WITH ADMIN OPTION;
+				GRANT encore_services TO %[1]s WITH ADMIN OPTION;`, sanitizedUsername)
+		case RoleService:
+			stmt = fmt.Sprintf(`GRANT encore_services TO %s;`, sanitizedUsername)
+		case RoleWrite:
+			stmt = fmt.Sprintf(`
+				GRANT pg_read_all_data TO %[1]s;
+				GRANT pg_write_all_data TO %[1]s;`, sanitizedUsername)
+		case RoleRead:
+			stmt = fmt.Sprintf(`GRANT pg_read_all_data TO %s;`, sanitizedUsername)
+		default:
+			continue
+		}
+		if _, err := conn.Exec(ctx, stmt); err != nil {
+			c.log.Error().Err(err).Str("role", role.Username).Msg("unable to apply cluster role grants")
+			return nil, fmt.Errorf("apply cluster role grants for %q: %v", role.Username, err)
 		}
 	}
 

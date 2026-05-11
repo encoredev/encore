@@ -203,6 +203,12 @@ func (db *DB) renameDB(ctx context.Context, from, to string) error {
 }
 
 // ensureRoles ensures the roles have been granted access to this database.
+//
+// Cluster-wide role memberships (GRANT pg_read_all_data, encore_services, etc.)
+// are applied once in Cluster.setupRoles. This function handles only the
+// database-local statements, but still serializes on Cluster.rolesMu because
+// REASSIGN OWNED and GRANT ... ON DATABASE touch role rows in pg_authid and
+// can deadlock when run concurrently across databases in the same cluster.
 func (db *DB) ensureRoles(ctx context.Context, cloudName string, roles ...Role) error {
 	adm, err := db.connectToDB(ctx)
 	if err != nil {
@@ -210,24 +216,12 @@ func (db *DB) ensureRoles(ctx context.Context, cloudName string, roles ...Role) 
 	}
 	defer func() { _ = adm.Close() }()
 
-	// We've observed race conditions in Postgres to grant access. Retry a few times.
-	retryExec := func(id, stmt string) error {
-		var err error
-		for range 5 {
-			_, err = adm.ExecContext(ctx, stmt)
-			if err == nil {
-				break
-			}
-			db.log.Debug().Str("db", cloudName).Str("stmtId", id).Err(err).Msg("error executing statement, retrying")
-			time.Sleep(250 * time.Millisecond)
-		}
-		return err
-	}
+	db.Cluster.rolesMu.Lock()
+	defer db.Cluster.rolesMu.Unlock()
 
 	db.log.Debug().Msg("revoking public access")
 	safeDBName := (pgx.Identifier{cloudName}).Sanitize()
-	err = retryExec("revoke public", "REVOKE ALL ON DATABASE "+safeDBName+" FROM public")
-	if err != nil {
+	if _, err := adm.ExecContext(ctx, "REVOKE ALL ON DATABASE "+safeDBName+" FROM public"); err != nil {
 		return fmt.Errorf("revoke public: %v", err)
 	}
 
@@ -238,48 +232,25 @@ func (db *DB) ensureRoles(ctx context.Context, cloudName string, roles ...Role) 
 		case RoleSuperuser:
 			// Already granted; nothing to do
 			continue
-		case RoleServices:
-			stmt = fmt.Sprintf(`
-				GRANT ALL ON DATABASE %[1]s TO %[2]s;
-				GRANT pg_read_all_data TO %[2]s;
-				GRANT pg_write_all_data TO %[2]s;`,
-				safeDBName, safeRoleName)
 		case RoleService:
-			stmt = fmt.Sprintf(`GRANT encore_services TO %s;`, safeRoleName)
-		case RoleMigrator:
-			stmt = fmt.Sprintf(`
-				GRANT ALL ON DATABASE %[1]s TO %[2]s;
-				GRANT pg_read_all_data TO %[2]s;
-				GRANT pg_write_all_data TO %[2]s;
-				GRANT encore_services TO %[2]s WITH ADMIN OPTION;`,
-				safeDBName, safeRoleName)
+			// Only cluster-wide memberships; nothing to do per-database.
+			continue
+		case RoleServices, RoleMigrator:
+			stmt = fmt.Sprintf(`GRANT ALL ON DATABASE %s TO %s;`, safeDBName, safeRoleName)
 		case RoleAdmin:
 			stmt = fmt.Sprintf(`
 				GRANT ALL ON DATABASE %[1]s TO %[2]s;
-				GRANT pg_read_all_data TO %[2]s;
-				GRANT pg_write_all_data TO %[2]s;
-				GRANT "encore-migrator" TO %[2]s WITH ADMIN OPTION;
-				GRANT encore_services TO %[2]s WITH ADMIN OPTION;
 				REASSIGN OWNED BY %[2]s TO "encore-migrator"`,
 				safeDBName, safeRoleName)
-		case RoleWrite:
-			stmt = fmt.Sprintf(`
-				GRANT TEMP, CONNECT ON DATABASE %s TO %s;
-				GRANT pg_read_all_data TO %s;
-				GRANT pg_write_all_data TO %s;
-			`, safeDBName, safeRoleName, safeRoleName, safeRoleName)
-		case RoleRead:
-			stmt = fmt.Sprintf(`
-				GRANT TEMP, CONNECT ON DATABASE %s TO %s;
-				GRANT pg_read_all_data TO %s;
-			`, safeDBName, safeRoleName, safeRoleName)
+		case RoleWrite, RoleRead:
+			stmt = fmt.Sprintf(`GRANT TEMP, CONNECT ON DATABASE %s TO %s;`, safeDBName, safeRoleName)
 		default:
 			return fmt.Errorf("unknown role type %q", role.Type)
 		}
 
 		db.log.Debug().Str("role", role.Username).Str("db", cloudName).Msg("granting access to role")
 
-		if err := retryExec("granting "+role.Username, stmt); err != nil {
+		if _, err := adm.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("grant %s role %s: %v", role.Type, role.Username, err)
 		}
 
