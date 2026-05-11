@@ -324,6 +324,8 @@ class DummySocket extends stream.Duplex {
   setTimeout(_timeout: number, _callback?: () => void): this { return this; }
   setNoDelay(_noDelay?: boolean): this { return this; }
   setKeepAlive(_enable?: boolean, _initialDelay?: number): this { return this; }
+  getTypeOfService(): number { return 0; }
+  setTypeOfService(_tos: number): this { return this; }
   address(): AddressInfo | {} { return {}; }
   unref(): this { return this; }
   ref(): this { return this; }
