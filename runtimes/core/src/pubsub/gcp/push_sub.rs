@@ -5,9 +5,7 @@ use std::sync::{Arc, RwLock};
 
 use anyhow::Context;
 use axum::extract::Request;
-use axum::RequestExt;
 use chrono::{DateTime, Utc};
-use http_body_util::BodyExt;
 use serde::Deserialize;
 
 use crate::api::{self, APIResult, ToResponse};
@@ -16,6 +14,11 @@ use crate::pubsub::manager::SubHandler;
 use crate::pubsub::{self, MessageId};
 
 use super::jwk::{self, CachingClient};
+
+/// Maximum size of a GCP Pub/Sub push request body. GCP allows messages up to
+/// 10 MiB, so we accept up to that size (slightly above to leave room for the
+/// JSON envelope around the base64-encoded payload).
+const MAX_PUSH_BODY_SIZE: usize = 15 * 1024 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct PushSubscription {
@@ -152,13 +155,22 @@ impl Inner {
             .await
             .map_err(api::Error::internal)?;
 
-        // Parse the request payload.
-        let bytes = req
-            .into_limited_body()
-            .collect()
+        // Parse the request payload. GCP Pub/Sub allows messages up to 10 MiB,
+        // so we raise the body limit above Axum's 2 MiB default.
+        let content_length = req
+            .headers()
+            .get(axum::http::header::CONTENT_LENGTH)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+        let bytes = axum::body::to_bytes(req.into_body(), MAX_PUSH_BODY_SIZE)
             .await
-            .map_err(api::Error::internal)?
-            .to_bytes();
+            .map_err(|err| {
+                api::Error::internal(anyhow::anyhow!(
+                    "failed to read push body (limit={} bytes, content-length={}): {err}",
+                    MAX_PUSH_BODY_SIZE,
+                    content_length.as_deref().unwrap_or("<missing>"),
+                ))
+            })?;
         let msg: PushPayload = serde_json::from_slice(&bytes).map_err(api::Error::internal)?;
 
         let msg = pubsub::Message {
