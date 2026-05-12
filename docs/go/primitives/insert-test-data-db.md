@@ -12,10 +12,13 @@ This can be done is several ways depending on your use case.
 
 A straightforward way to insert test data is to conditionally insert it on startup using `go:embed` in combination with Encore's [metadata API](/docs/go/develop/metadata) control in which environments the data gets inserted. E.g. only in your local environment.
 
+It's important to be aware that **a service has to be running** in order to connect to the database, so you **cannot perform database operations, like seeding, outside of a service**.
+
 ### Example
 
 Create a file with your test data named `fixtures.sql`.
-Then, for the service where you want to insert test data, add the following to its `.go` file in order to run on startup.
+
+Next, for the service where you want to insert test data, add the following to its `.go` file in order to run on startup.
 
 ```
 import (
