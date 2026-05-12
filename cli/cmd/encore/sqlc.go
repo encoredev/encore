@@ -115,6 +115,9 @@ func init() {
 				return fmt.Errorf("sqlc exited with code %d", res)
 			}
 			reqBlob, err := os.ReadFile(filepath.Join(outPath, "output.pb"))
+			if err != nil {
+				return err
+			}
 			if !useProto {
 				req := &daemon.SQLCPlugin_GenerateRequest{}
 				if err := proto.Unmarshal(reqBlob, req); err != nil {

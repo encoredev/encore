@@ -41,9 +41,7 @@ var (
 // the display, while still presenting them in the source code in indented
 // form.
 func Dedent(text string) string {
-	if strings.HasPrefix(text, "\n") {
-		text = strings.TrimPrefix(text, "\n")
-	}
+	text = strings.TrimPrefix(text, "\n")
 
 	var margin string
 

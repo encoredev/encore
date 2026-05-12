@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"fmt"
 	"go/token"
-	gotoken "go/token"
 	"slices"
 	"sort"
 
@@ -548,7 +547,7 @@ func (b *builder) Build() *meta.Data {
 	return md
 }
 
-func (b *builder) apiPath(pos gotoken.Pos, path *resourcepaths.Path) *meta.Path {
+func (b *builder) apiPath(pos token.Pos, path *resourcepaths.Path) *meta.Path {
 	res := &meta.Path{
 		Type: meta.Path_URL,
 	}
