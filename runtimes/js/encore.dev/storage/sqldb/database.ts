@@ -2,10 +2,16 @@ import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
 
+/**
+ * Configures how database migrations are managed for a `SQLDatabase`.
+ */
 export interface SQLMigrationsConfig {
   path: string;
   source?: "prisma" | "drizzle" | "drizzle/v1";
 }
+/**
+ * Configuration for a `SQLDatabase`.
+ */
 export interface SQLDatabaseConfig {
   migrations?: string | SQLMigrationsConfig;
 }
@@ -310,6 +316,11 @@ export class SQLDatabase extends BaseQueryExecutor {
   }
 }
 
+/**
+ * Represents a database transaction.
+ *
+ * Make sure to always call `rollback` or `commit` to prevent hanging transactions.
+ */
 export class Transaction extends BaseQueryExecutor implements AsyncDisposable {
   declare protected readonly impl: runtime.Transaction;
   private done: boolean = false;

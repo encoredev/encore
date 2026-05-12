@@ -1,0 +1,83 @@
+---
+title: encore.dev/auth
+lang: ts
+toc: true
+---
+
+# encore.dev/auth
+
+## Type Aliases
+
+### AuthHandler
+
+```ts
+type AuthHandler<Params, AuthData> = (params) => Promise<AuthData | null> & AuthHandlerBrand;
+```
+
+Defined in: [auth/mod.ts:1](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/auth/mod.ts#L1)
+
+#### Type Parameters
+
+##### Params
+
+`Params` *extends* `object`
+
+##### AuthData
+
+`AuthData` *extends* \{
+  `userID`: `string`;
+\}
+
+***
+
+### AuthHandlerBrand
+
+```ts
+type AuthHandlerBrand = {
+  __authHandlerBrand: unique symbol;
+};
+```
+
+Defined in: [auth/mod.ts:6](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/auth/mod.ts#L6)
+
+#### Properties
+
+##### \_\_authHandlerBrand
+
+```ts
+readonly __authHandlerBrand: unique symbol;
+```
+
+Defined in: [auth/mod.ts:6](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/auth/mod.ts#L6)
+
+## Functions
+
+### authHandler()
+
+```ts
+function authHandler<Params, AuthData>(fn): AuthHandler<Params, AuthData>;
+```
+
+Defined in: [auth/mod.ts:8](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/auth/mod.ts#L8)
+
+#### Type Parameters
+
+##### Params
+
+`Params` *extends* `object`
+
+##### AuthData
+
+`AuthData` *extends* \{
+  `userID`: `string`;
+\}
+
+#### Parameters
+
+##### fn
+
+(`params`) => `Promise`\<`AuthData` \| `null`\>
+
+#### Returns
+
+[`AuthHandler`](#authhandler)\<`Params`, `AuthData`\>

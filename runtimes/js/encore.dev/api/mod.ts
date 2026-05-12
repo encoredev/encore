@@ -149,6 +149,7 @@ export interface StreamOptions {
   sensitive?: boolean;
 }
 
+/** @internal */
 type HandlerFn<Params, Response> = Params extends void
   ? () => Promise<Response>
   : (params: Params) => Promise<Response>;
@@ -402,6 +403,8 @@ export class MiddlewareRequest {
 
   /**
    * rawRequest is set when the handler is a raw request handler.
+   *
+   * The returned value is a Node.js `http.IncomingMessage`.
    */
   public get rawRequest(): RawRequest | undefined {
     return this._rawReq;
@@ -409,6 +412,8 @@ export class MiddlewareRequest {
 
   /**
    * rawResponse is set when the handler is a raw request handler.
+   *
+   * The returned value is a Node.js `http.ServerResponse`.
    */
   public get rawResponse(): RawResponse | undefined {
     return this._rawResp;
@@ -492,6 +497,7 @@ export class HandlerResponse {
 
   /**
    * __internalToResponse converts a response to the internal representation
+   * @internal
    */
   __internalToResponse(): InternalHandlerResponse {
     return {
@@ -548,11 +554,15 @@ export interface CallOpts {
   /* authData?: AuthData */
 }
 
+export { HttpStatusValues } from "./httpstatus";
 import { HttpStatusValues } from "./httpstatus";
+/** A map of HTTP status code names to their numeric values. */
 export const HttpStatus = HttpStatusValues;
+/** The union of all HTTP status code numeric values. */
 export type HttpStatus =
   (typeof HttpStatusValues)[keyof typeof HttpStatusValues];
 
 export { APIError, ErrCode } from "./error";
+export type { ErrDetails } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";
 export { IterableSocket, IterableStream, Sink } from "./stream";

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "plugin": ["typedoc-plugin-markdown", "typedoc-plugin-frontmatter"],
+  "entryPoints": [
+    "./mod.ts",
+    "./api/mod.ts",
+    "./auth/mod.ts",
+    "./config/mod.ts",
+    "./cron/mod.ts",
+    "./log/mod.ts",
+    "./metrics/mod.ts",
+    "./pubsub/mod.ts",
+    "./service/mod.ts",
+    "./storage/cache/mod.ts",
+    "./storage/objects/mod.ts",
+    "./storage/sqldb/mod.ts",
+    "./types/mod.ts",
+    "./validate/mod.ts"
+  ],
+  "entryPointStrategy": "resolve",
+  "tsconfig": "./tsconfig.json",
+  "out": "../../../docs/ts/runtime",
+  "name": "encore.dev",
+  "readme": "none",
+  "includeVersion": false,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "exclude": ["**/internal/**", "**/*.test.ts", "**/dist/**"],
+  "intentionallyNotExported": [
+    "brandedAttribute",
+    "allBrandedTypes",
+    "HandlerFn",
+    "DurationString",
+    "RawRequest",
+    "RawResponse",
+    "StringLiteral"
+  ],
+  "skipErrorChecking": true,
+  "treatWarningsAsErrors": true,
+  "outputFileStrategy": "modules",
+  "flattenOutputFiles": true,
+  "fileExtension": ".md",
+  "entryFileName": "index",
+  "hideBreadcrumbs": true,
+  "hidePageHeader": true,
+  "useCodeBlocks": true,
+  "expandObjects": true,
+  "frontmatterGlobals": {
+    "lang": "ts",
+    "toc": true
+  }
+}

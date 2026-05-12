@@ -5,13 +5,15 @@ export type {
   CloudProvider,
   DeployMeta,
   EnvironmentMeta,
-  EnvironmentType
+  EnvironmentType,
+  HostedService
 } from "./app_meta";
 
 export { currentRequest } from "./req_meta";
 export type {
   APICallMeta,
   APIDesc,
+  BaseRequestMeta,
   Method,
   PubSubMessageMeta,
   RequestMeta,

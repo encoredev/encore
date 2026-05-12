@@ -5,92 +5,92 @@ export class APIError extends Error {
   public readonly code: ErrCode;
   public readonly details?: ErrDetails;
 
-  // Constructs an APIError with the Canceled error code.
+  /** Constructs an APIError with the Canceled error code. */
   static canceled(msg: string, cause?: Error) {
     return new APIError(ErrCode.Canceled, msg, cause);
   }
 
-  // Constructs an APIError with the Unknown error code.
+  /** Constructs an APIError with the Unknown error code. */
   static unknown(msg: string, cause?: Error) {
     return new APIError(ErrCode.Unknown, msg, cause);
   }
 
-  // Constructs an APIError with the InvalidArgument error code.
+  /** Constructs an APIError with the InvalidArgument error code. */
   static invalidArgument(msg: string, cause?: Error) {
     return new APIError(ErrCode.InvalidArgument, msg, cause);
   }
 
-  // Constructs an APIError with the DeadlineExceeded error code.
+  /** Constructs an APIError with the DeadlineExceeded error code. */
   static deadlineExceeded(msg: string, cause?: Error) {
     return new APIError(ErrCode.DeadlineExceeded, msg, cause);
   }
 
-  // Constructs an APIError with the NotFound error code.
+  /** Constructs an APIError with the NotFound error code. */
   static notFound(msg: string, cause?: Error) {
     return new APIError(ErrCode.NotFound, msg, cause);
   }
 
-  // Constructs an APIError with the AlreadyExists error code.
+  /** Constructs an APIError with the AlreadyExists error code. */
   static alreadyExists(msg: string, cause?: Error) {
     return new APIError(ErrCode.AlreadyExists, msg, cause);
   }
 
-  // Constructs an APIError with the PermissionDenied error code.
+  /** Constructs an APIError with the PermissionDenied error code. */
   static permissionDenied(msg: string, cause?: Error) {
     return new APIError(ErrCode.PermissionDenied, msg, cause);
   }
 
-  // Constructs an APIError with the ResourceExhausted error code.
+  /** Constructs an APIError with the ResourceExhausted error code. */
   static resourceExhausted(msg: string, cause?: Error) {
     return new APIError(ErrCode.ResourceExhausted, msg, cause);
   }
 
-  // Constructs an APIError with the FailedPrecondition error code.
+  /** Constructs an APIError with the FailedPrecondition error code. */
   static failedPrecondition(msg: string, cause?: Error) {
     return new APIError(ErrCode.FailedPrecondition, msg, cause);
   }
 
-  // Constructs an APIError with the Aborted error code.
+  /** Constructs an APIError with the Aborted error code. */
   static aborted(msg: string, cause?: Error) {
     return new APIError(ErrCode.Aborted, msg, cause);
   }
 
-  // Constructs an APIError with the OutOfRange error code.
+  /** Constructs an APIError with the OutOfRange error code. */
   static outOfRange(msg: string, cause?: Error) {
     return new APIError(ErrCode.OutOfRange, msg, cause);
   }
 
-  // Constructs an APIError with the Unimplemented error code.
+  /** Constructs an APIError with the Unimplemented error code. */
   static unimplemented(msg: string, cause?: Error) {
     return new APIError(ErrCode.Unimplemented, msg, cause);
   }
 
-  // Constructs an APIError with the Internal error code.
+  /** Constructs an APIError with the Internal error code. */
   static internal(msg: string, cause?: Error) {
     return new APIError(ErrCode.Internal, msg, cause);
   }
 
-  // Constructs an APIError with the Unavailable error code.
+  /** Constructs an APIError with the Unavailable error code. */
   static unavailable(msg: string, cause?: Error) {
     return new APIError(ErrCode.Unavailable, msg, cause);
   }
 
-  // Constructs an APIError with the DataLoss error code.
+  /** Constructs an APIError with the DataLoss error code. */
   static dataLoss(msg: string, cause?: Error) {
     return new APIError(ErrCode.DataLoss, msg, cause);
   }
 
-  // Constructs an APIError with the Unauthenticated error code.
+  /** Constructs an APIError with the Unauthenticated error code. */
   static unauthenticated(msg: string, cause?: Error) {
     return new APIError(ErrCode.Unauthenticated, msg, cause);
   }
 
-  // Constructs a new APIError from the previous one with the provided details
+  /** Constructs a new APIError from the previous one with the provided details */
   withDetails(details: ErrDetails): APIError {
     return new APIError(this.code, this.message, this.cause as Error, details);
   }
 
-  // Constructs an APIError with the given error code, message, and (optionally) cause.
+  /** Constructs an APIError with the given error code, message, and (optionally) cause. */
   constructor(code: ErrCode, msg: string, cause?: Error, details?: ErrDetails) {
     // extending errors causes issues after you construct them, unless you apply the following fixes
     super(msg, { cause });
@@ -111,6 +111,9 @@ export class APIError extends Error {
   }
 }
 
+/**
+ * Additional structured error details that can be attached to an APIError.
+ */
 export type ErrDetails = Record<string, any>;
 
 export enum ErrCode {

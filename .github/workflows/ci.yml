@@ -272,6 +272,26 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+  ts_runtime_docs:
+    name: "Verify TS runtime docs in sync"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+      - name: Install deps
+        run: cd runtimes/js/encore.dev && npm ci
+      - name: Regenerate docs
+        run: cd runtimes/js/encore.dev && npm run docs
+      - name: Verify docs are committed in sync with source
+        run: |
+          if ! git diff --exit-code -- docs/ts/runtime; then
+            echo "::error::Generated TS runtime docs are out of sync with source. Run 'npm run docs' in runtimes/js/encore.dev and commit the result."
+            exit 1
+          fi
+
   wasm_build:
     name: "Build tsparser WASM"
     runs-on: ubuntu-latest

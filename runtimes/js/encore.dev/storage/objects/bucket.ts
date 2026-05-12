@@ -4,6 +4,9 @@ import { StringLiteral } from "../../internal/utils/constraints";
 import { unwrapErr } from "./error";
 import { BucketPerms, Uploader, SignedUploader, Downloader, SignedDownloader, Attrser, Lister, Remover, PublicUrler } from "./refs";
 
+/**
+ * Configuration options for declaring a Bucket.
+ */
 export interface BucketConfig {
   /**
    * Whether the objects in the bucket should be publicly
@@ -149,6 +152,9 @@ export class Bucket extends BucketPerms implements Uploader, SignedUploader, Dow
   }
 }
 
+/**
+ * Options for listing objects in a bucket.
+ */
 export interface ListOptions {
   /**
    * Only include objects with this prefix in the listing.
@@ -160,6 +166,9 @@ export interface ListOptions {
   limit?: number;
 }
 
+/**
+ * Options for retrieving the attributes of an object.
+ */
 export interface AttrsOptions {
   /**
    * The object version to retrieve attributes for.
@@ -170,6 +179,9 @@ export interface AttrsOptions {
   version?: string;
 }
 
+/**
+ * Options for checking the existence of an object.
+ */
 export interface ExistsOptions {
   /**
    * The object version to check for existence.
@@ -180,6 +192,9 @@ export interface ExistsOptions {
   version?: string;
 }
 
+/**
+ * Options for deleting an object from a bucket.
+ */
 export interface DeleteOptions {
   /**
    * The object version to delete.
@@ -190,6 +205,9 @@ export interface DeleteOptions {
   version?: string;
 }
 
+/**
+ * Options for downloading an object from a bucket.
+ */
 export interface DownloadOptions {
   /**
    * The object version to download.
@@ -200,6 +218,9 @@ export interface DownloadOptions {
   version?: string;
 }
 
+/**
+ * Describes the attributes of an object stored in a bucket.
+ */
 export interface ObjectAttrs {
   name: string;
   size: number;
@@ -209,12 +230,18 @@ export interface ObjectAttrs {
   contentType?: string;
 }
 
+/**
+ * A single entry returned when listing objects in a bucket.
+ */
 export interface ListEntry {
   name: string;
   size: number;
   etag: string;
 }
 
+/**
+ * Options for uploading an object to a bucket.
+ */
 export interface UploadOptions {
   contentType?: string;
   preconditions?: {
@@ -222,6 +249,9 @@ export interface UploadOptions {
   }
 }
 
+/**
+ * Options for generating a signed upload URL.
+ */
 export interface UploadUrlOptions {
   /** The expiration time of the url, in seconds from signing. The maximum
    * value is seven days. If no value is given, a default of one hour is
@@ -229,10 +259,16 @@ export interface UploadUrlOptions {
   ttl?: number;
 }
 
+/**
+ * A signed URL that allows uploading an object without additional auth.
+ */
 export interface SignedUploadUrl {
   url: string;
 }
 
+/**
+ * Options for generating a signed download URL.
+ */
 export interface DownloadUrlOptions {
   /** The expiration time of the url, in seconds from signing. The maximum
    * value is seven days. If no value is given, a default of one hour is
@@ -240,6 +276,9 @@ export interface DownloadUrlOptions {
   ttl?: number;
 }
 
+/**
+ * A signed URL that allows downloading an object without additional auth.
+ */
 export interface SignedDownloadUrl {
   url: string;
 }
