@@ -200,11 +200,21 @@ func buildAndValidateInfraConfig(params EmbeddedInfraConfigParams) (*infra.Infra
 	}
 
 	caches := fns.MapAndFilter(md.CacheClusters, func(cache *meta.CacheCluster) (string, bool) {
-		return cache.Name, fns.Any(cache.Keyspaces, func(ks *meta.CacheCluster_Keyspace) bool {
+		viaService := fns.Any(md.Svcs, func(svc *meta.Service) bool {
+			return fns.Any(services, func(s string) bool {
+				return svc.Name == s && fns.Any(svc.CacheClusters, func(c string) bool {
+					return c == cache.Name
+				})
+			})
+		})
+		// Backwards compat with metadata produced before svc.CacheClusters existed:
+		// fall back to the per-keyspace Service field.
+		viaKeyspace := fns.Any(cache.Keyspaces, func(ks *meta.CacheCluster_Keyspace) bool {
 			return fns.Any(services, func(s string) bool {
 				return ks.Service == s
 			})
 		})
+		return cache.Name, viaService || viaKeyspace
 	})
 
 	for name := range infraCfg.Redis {

@@ -61,6 +61,7 @@ message Service {
   bool has_config = 6; // true if the service has uses config
   repeated BucketUsage buckets = 7; // buckets this service uses
   repeated string metrics = 8; // metrics this service uses
+  repeated string cache_clusters = 9; // cache clusters this service connects to
 }
 
 message BucketUsage {
@@ -424,6 +425,7 @@ message CacheCluster {
   message Keyspace {
     schema.v1.Type key_type = 1;
     schema.v1.Type value_type = 2;
+    // The service that defines the keyspace.
     string service = 3;
     string doc = 4;
     Path path_pattern = 5;

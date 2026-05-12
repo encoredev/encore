@@ -520,6 +520,9 @@ func (b *builder) Build() *meta.Data {
 				PathPattern: b.keyspacePath(r.Path),
 				Doc:         r.Doc,
 			})
+			if metaSvc, ok := svcByName[svc.Name]; ok {
+				metaSvc.CacheClusters = append(metaSvc.CacheClusters, cluster.Name)
+			}
 		}
 	}
 

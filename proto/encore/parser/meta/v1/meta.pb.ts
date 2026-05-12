@@ -69,6 +69,8 @@ export interface Service {
   databases: string[];
   /** true if the service has uses config */
   has_config: boolean;
+  /** cache clusters this service connects to */
+  cache_clusters: string[];
 }
 
 export interface Selector {
@@ -367,6 +369,7 @@ export interface CacheCluster {
 export interface CacheCluster_Keyspace {
   key_type: Type;
   value_type: Type;
+  /** The service that defines the keyspace. */
   service: string;
   doc: string;
   path_pattern: Path;

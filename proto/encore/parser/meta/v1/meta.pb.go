@@ -941,10 +941,11 @@ type Service struct {
 	RelPath       string                 `protobuf:"bytes,2,opt,name=rel_path,json=relPath,proto3" json:"rel_path,omitempty"` // import path relative to app root for the root package in the service
 	Rpcs          []*RPC                 `protobuf:"bytes,3,rep,name=rpcs,proto3" json:"rpcs,omitempty"`
 	Migrations    []*DBMigration         `protobuf:"bytes,4,rep,name=migrations,proto3" json:"migrations,omitempty"`
-	Databases     []string               `protobuf:"bytes,5,rep,name=databases,proto3" json:"databases,omitempty"`                   // databases this service connects to
-	HasConfig     bool                   `protobuf:"varint,6,opt,name=has_config,json=hasConfig,proto3" json:"has_config,omitempty"` // true if the service has uses config
-	Buckets       []*BucketUsage         `protobuf:"bytes,7,rep,name=buckets,proto3" json:"buckets,omitempty"`                       // buckets this service uses
-	Metrics       []string               `protobuf:"bytes,8,rep,name=metrics,proto3" json:"metrics,omitempty"`                       // metrics this service uses
+	Databases     []string               `protobuf:"bytes,5,rep,name=databases,proto3" json:"databases,omitempty"`                              // databases this service connects to
+	HasConfig     bool                   `protobuf:"varint,6,opt,name=has_config,json=hasConfig,proto3" json:"has_config,omitempty"`            // true if the service has uses config
+	Buckets       []*BucketUsage         `protobuf:"bytes,7,rep,name=buckets,proto3" json:"buckets,omitempty"`                                  // buckets this service uses
+	Metrics       []string               `protobuf:"bytes,8,rep,name=metrics,proto3" json:"metrics,omitempty"`                                  // metrics this service uses
+	CacheClusters []string               `protobuf:"bytes,9,rep,name=cache_clusters,json=cacheClusters,proto3" json:"cache_clusters,omitempty"` // cache clusters this service connects to
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1031,6 +1032,13 @@ func (x *Service) GetBuckets() []*BucketUsage {
 func (x *Service) GetMetrics() []string {
 	if x != nil {
 		return x.Metrics
+	}
+	return nil
+}
+
+func (x *Service) GetCacheClusters() []string {
+	if x != nil {
+		return x.CacheClusters
 	}
 	return nil
 }
@@ -3500,12 +3508,13 @@ func (x *PubSubTopic_RetryPolicy) GetMaxRetries() int64 {
 }
 
 type CacheCluster_Keyspace struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	KeyType       *v1.Type               `protobuf:"bytes,1,opt,name=key_type,json=keyType,proto3" json:"key_type,omitempty"`
-	ValueType     *v1.Type               `protobuf:"bytes,2,opt,name=value_type,json=valueType,proto3" json:"value_type,omitempty"`
-	Service       string                 `protobuf:"bytes,3,opt,name=service,proto3" json:"service,omitempty"`
-	Doc           string                 `protobuf:"bytes,4,opt,name=doc,proto3" json:"doc,omitempty"`
-	PathPattern   *Path                  `protobuf:"bytes,5,opt,name=path_pattern,json=pathPattern,proto3" json:"path_pattern,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	KeyType   *v1.Type               `protobuf:"bytes,1,opt,name=key_type,json=keyType,proto3" json:"key_type,omitempty"`
+	ValueType *v1.Type               `protobuf:"bytes,2,opt,name=value_type,json=valueType,proto3" json:"value_type,omitempty"`
+	// The service that defines the keyspace.
+	Service       string `protobuf:"bytes,3,opt,name=service,proto3" json:"service,omitempty"`
+	Doc           string `protobuf:"bytes,4,opt,name=doc,proto3" json:"doc,omitempty"`
+	PathPattern   *Path  `protobuf:"bytes,5,opt,name=path_pattern,json=pathPattern,proto3" json:"path_pattern,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3674,7 +3683,7 @@ const file_encore_parser_meta_v1_meta_proto_rawDesc = "" +
 	"\asecrets\x18\x05 \x03(\tR\asecrets\x12A\n" +
 	"\trpc_calls\x18\x06 \x03(\v2$.encore.parser.meta.v1.QualifiedNameR\brpcCalls\x12A\n" +
 	"\vtrace_nodes\x18\a \x03(\v2 .encore.parser.meta.v1.TraceNodeR\n" +
-	"traceNodes\"\xc1\x02\n" +
+	"traceNodes\"\xe8\x02\n" +
 	"\aService\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
 	"\brel_path\x18\x02 \x01(\tR\arelPath\x12.\n" +
@@ -3686,7 +3695,8 @@ const file_encore_parser_meta_v1_meta_proto_rawDesc = "" +
 	"\n" +
 	"has_config\x18\x06 \x01(\bR\thasConfig\x12<\n" +
 	"\abuckets\x18\a \x03(\v2\".encore.parser.meta.v1.BucketUsageR\abuckets\x12\x18\n" +
-	"\ametrics\x18\b \x03(\tR\ametrics\"\xd8\x02\n" +
+	"\ametrics\x18\b \x03(\tR\ametrics\x12%\n" +
+	"\x0ecache_clusters\x18\t \x03(\tR\rcacheClusters\"\xd8\x02\n" +
 	"\vBucketUsage\x12\x16\n" +
 	"\x06bucket\x18\x01 \x01(\tR\x06bucket\x12L\n" +
 	"\n" +

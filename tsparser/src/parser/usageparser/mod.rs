@@ -242,6 +242,7 @@ pub enum Usage {
     Bucket(infra::objects::BucketUsage),
     Metric(infra::metrics::MetricUsage),
     CacheCluster(infra::cache::CacheClusterUsage),
+    CacheKeyspace(infra::cache::CacheKeyspaceUsage),
 }
 
 pub struct ResolveUsageData<'a> {
@@ -298,6 +299,13 @@ impl UsageResolver<'_> {
                 Resource::CacheCluster(cluster) => {
                     if let Some(u) =
                         infra::cache::resolve_cache_cluster_usage(&data, cluster.clone())
+                    {
+                        usages.push(u)
+                    }
+                }
+                Resource::CacheKeyspace(keyspace) => {
+                    if let Some(u) =
+                        infra::cache::resolve_cache_keyspace_usage(&data, keyspace.clone())
                     {
                         usages.push(u)
                     }

@@ -646,3 +646,31 @@ pub struct CacheClusterUsage {
     pub cluster: Lrc<CacheCluster>,
     pub range: Range,
 }
+
+/// Resolves usage of a cache keyspace from a service: direct method/field
+/// access, or being passed as a function/constructor argument.
+pub fn resolve_cache_keyspace_usage(
+    data: &ResolveUsageData,
+    keyspace: Lrc<CacheKeyspace>,
+) -> Option<Usage> {
+    match &data.expr.kind {
+        UsageExprKind::MethodCall(_)
+        | UsageExprKind::FieldAccess(_)
+        | UsageExprKind::CallArg(_)
+        | UsageExprKind::ConstructorArg(_) => Some(Usage::CacheKeyspace(CacheKeyspaceUsage {
+            keyspace,
+            range: data.expr.range,
+        })),
+
+        UsageExprKind::TemplateCall(_) | UsageExprKind::Other(_) | UsageExprKind::Callee(_) => {
+            data.expr.err("invalid use of cache keyspace resource");
+            None
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CacheKeyspaceUsage {
+    pub keyspace: Lrc<CacheKeyspace>,
+    pub range: Range,
+}
