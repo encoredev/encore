@@ -187,6 +187,25 @@ Disaster recovery settings for stateful resources can be configured in two ways:
 
 Learn more about manual configuration in the [Infrastructure Configuration](/docs/platform/infrastructure/configuration) docs.
 
+### Restoring from backup
+
+The restore flow differs between cloud providers, since each handles backup restoration differently. In both cases, restores are initiated from the cloud provider's console using the automated backups or PITR snapshots that Encore Cloud provisions by default.
+
+**GCP (Cloud SQL)**
+
+Cloud SQL restores in place: the backup is applied to the existing instance, overwriting its current contents. No changes are needed on the Encore Cloud side. Once the restore completes in the GCP console, your application will be using the restored data automatically, since the instance identifier and connection details remain unchanged.
+
+**AWS (RDS)**
+
+RDS restores create a new instance (or cluster) rather than overwriting the existing one. After the restore completes in the AWS console, you need to point Encore Cloud at the new cluster so that your application connects to it:
+
+1. Go to the **Encore Cloud dashboard > (Select your environment) > Infrastructure**.
+2. Locate the RDS instance and click **Edit**.
+3. Click **Failover cluster** and enter the instance ID of the restored cluster.
+4. Save the change and deploy to apply.
+
+After the deployment, your application will connect to the restored cluster. Keep the original cluster running until you have verified that the restored data is correct and the application is healthy.
+
 ### Recommended practices
 
 For production environments with specific RTO/RPO targets, consider:
