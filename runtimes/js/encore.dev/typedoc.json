@@ -38,6 +38,7 @@
   ],
   "skipErrorChecking": true,
   "treatWarningsAsErrors": true,
+  "gitRevision": "main",
   "outputFileStrategy": "modules",
   "flattenOutputFiles": true,
   "fileExtension": ".md",

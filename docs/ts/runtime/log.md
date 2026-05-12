@@ -10,7 +10,7 @@ toc: true
 
 ### LogLevel
 
-Defined in: [log/mod.ts:28](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L28)
+Defined in: [log/mod.ts:28](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L28)
 
 #### Enumeration Members
 
@@ -20,7 +20,7 @@ Defined in: [log/mod.ts:28](https://github.com/encoredev/encore/blob/4043f36cb4a
 Debug: number;
 ```
 
-Defined in: [log/mod.ts:30](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L30)
+Defined in: [log/mod.ts:30](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L30)
 
 ##### Error
 
@@ -28,7 +28,7 @@ Defined in: [log/mod.ts:30](https://github.com/encoredev/encore/blob/4043f36cb4a
 Error: number;
 ```
 
-Defined in: [log/mod.ts:33](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L33)
+Defined in: [log/mod.ts:33](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L33)
 
 ##### Info
 
@@ -36,7 +36,7 @@ Defined in: [log/mod.ts:33](https://github.com/encoredev/encore/blob/4043f36cb4a
 Info: number;
 ```
 
-Defined in: [log/mod.ts:31](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L31)
+Defined in: [log/mod.ts:31](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L31)
 
 ##### Trace
 
@@ -44,7 +44,7 @@ Defined in: [log/mod.ts:31](https://github.com/encoredev/encore/blob/4043f36cb4a
 Trace: number;
 ```
 
-Defined in: [log/mod.ts:29](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L29)
+Defined in: [log/mod.ts:29](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L29)
 
 ##### Warn
 
@@ -52,13 +52,13 @@ Defined in: [log/mod.ts:29](https://github.com/encoredev/encore/blob/4043f36cb4a
 Warn: number;
 ```
 
-Defined in: [log/mod.ts:32](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L32)
+Defined in: [log/mod.ts:32](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L32)
 
 ## Interfaces
 
 ### Logger
 
-Defined in: [log/mod.ts:36](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L36)
+Defined in: [log/mod.ts:36](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L36)
 
 #### Methods
 
@@ -68,7 +68,7 @@ Defined in: [log/mod.ts:36](https://github.com/encoredev/encore/blob/4043f36cb4a
 debug(msg, fields?): void;
 ```
 
-Defined in: [log/mod.ts:67](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L67)
+Defined in: [log/mod.ts:67](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L67)
 
 Debug logs a message at the debug level.
 
@@ -94,7 +94,7 @@ Debug logs a message at the debug level.
 error(err, fields?): void;
 ```
 
-Defined in: [log/mod.ts:88](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L88)
+Defined in: [log/mod.ts:88](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L88)
 
 ###### Parameters
 
@@ -119,7 +119,7 @@ error(
    fields?): void;
 ```
 
-Defined in: [log/mod.ts:89](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L89)
+Defined in: [log/mod.ts:89](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L89)
 
 ###### Parameters
 
@@ -145,7 +145,7 @@ Defined in: [log/mod.ts:89](https://github.com/encoredev/encore/blob/4043f36cb4a
 error(msg, fields?): void;
 ```
 
-Defined in: [log/mod.ts:90](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L90)
+Defined in: [log/mod.ts:90](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L90)
 
 ###### Parameters
 
@@ -167,7 +167,7 @@ Defined in: [log/mod.ts:90](https://github.com/encoredev/encore/blob/4043f36cb4a
 info(msg, fields?): void;
 ```
 
-Defined in: [log/mod.ts:74](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L74)
+Defined in: [log/mod.ts:74](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L74)
 
 Info logs a message at the info level.
 
@@ -191,7 +191,7 @@ Info logs a message at the info level.
 trace(msg, fields?): void;
 ```
 
-Defined in: [log/mod.ts:60](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L60)
+Defined in: [log/mod.ts:60](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L60)
 
 Trace logs a message at the trace level.
 
@@ -217,7 +217,7 @@ Trace logs a message at the trace level.
 warn(err, fields?): void;
 ```
 
-Defined in: [log/mod.ts:81](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L81)
+Defined in: [log/mod.ts:81](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L81)
 
 Warn logs a message at the warn level.
 
@@ -244,7 +244,7 @@ warn(
    fields?): void;
 ```
 
-Defined in: [log/mod.ts:82](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L82)
+Defined in: [log/mod.ts:82](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L82)
 
 Warn logs a message at the warn level.
 
@@ -272,7 +272,7 @@ Warn logs a message at the warn level.
 warn(msg, fields?): void;
 ```
 
-Defined in: [log/mod.ts:83](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L83)
+Defined in: [log/mod.ts:83](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L83)
 
 Warn logs a message at the warn level.
 
@@ -296,7 +296,7 @@ Warn logs a message at the warn level.
 with(fields): Logger;
 ```
 
-Defined in: [log/mod.ts:53](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L53)
+Defined in: [log/mod.ts:53](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L53)
 
 Returns a new logger with the given fields added to the context.
 
@@ -316,7 +316,7 @@ Returns a new logger with the given fields added to the context.
 withLevel(level): Logger;
 ```
 
-Defined in: [log/mod.ts:46](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L46)
+Defined in: [log/mod.ts:46](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L46)
 
 Returns a new logger with the specified level.
 
@@ -338,7 +338,7 @@ Returns a new logger with the specified level.
 type FieldsObject = Record<string, FieldValue>;
 ```
 
-Defined in: [log/mod.ts:26](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L26)
+Defined in: [log/mod.ts:26](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L26)
 
 A map of fields that can be logged
 
@@ -357,7 +357,7 @@ type FieldValue =
   | FieldValue[];
 ```
 
-Defined in: [log/mod.ts:12](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L12)
+Defined in: [log/mod.ts:12](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L12)
 
 A field value we support logging
 
@@ -369,7 +369,7 @@ A field value we support logging
 const default: Logger;
 ```
 
-Defined in: [log/mod.ts:149](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L149)
+Defined in: [log/mod.ts:149](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L149)
 
 ## Functions
 
@@ -379,7 +379,7 @@ Defined in: [log/mod.ts:149](https://github.com/encoredev/encore/blob/4043f36cb4
 function debug(msg, fields?): void;
 ```
 
-Defined in: [log/mod.ts:166](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L166)
+Defined in: [log/mod.ts:166](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L166)
 
 Debug logs a message at the debug level
 
@@ -407,7 +407,7 @@ Debug logs a message at the debug level
 function error(err, fields?): void;
 ```
 
-Defined in: [log/mod.ts:204](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L204)
+Defined in: [log/mod.ts:204](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L204)
 
 Error logs a message at the error level
 
@@ -434,7 +434,7 @@ function error(
    fields?): void;
 ```
 
-Defined in: [log/mod.ts:205](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L205)
+Defined in: [log/mod.ts:205](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L205)
 
 Error logs a message at the error level
 
@@ -462,7 +462,7 @@ Error logs a message at the error level
 function error(msg, fields?): void;
 ```
 
-Defined in: [log/mod.ts:210](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L210)
+Defined in: [log/mod.ts:210](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L210)
 
 Error logs a message at the error level
 
@@ -488,7 +488,7 @@ Error logs a message at the error level
 function info(msg, fields?): void;
 ```
 
-Defined in: [log/mod.ts:173](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L173)
+Defined in: [log/mod.ts:173](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L173)
 
 Info logs a message at the info level
 
@@ -514,7 +514,7 @@ Info logs a message at the info level
 function trace(msg, fields?): void;
 ```
 
-Defined in: [log/mod.ts:159](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L159)
+Defined in: [log/mod.ts:159](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L159)
 
 Trace logs a message at the trace level
 
@@ -542,7 +542,7 @@ Trace logs a message at the trace level
 function warn(err, fields?): void;
 ```
 
-Defined in: [log/mod.ts:180](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L180)
+Defined in: [log/mod.ts:180](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L180)
 
 Warn logs a message at the warn level
 
@@ -569,7 +569,7 @@ function warn(
    fields?): void;
 ```
 
-Defined in: [log/mod.ts:181](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L181)
+Defined in: [log/mod.ts:181](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L181)
 
 Warn logs a message at the warn level
 
@@ -597,7 +597,7 @@ Warn logs a message at the warn level
 function warn(msg, fields?): void;
 ```
 
-Defined in: [log/mod.ts:186](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/log/mod.ts#L186)
+Defined in: [log/mod.ts:186](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L186)
 
 Warn logs a message at the warn level
 

@@ -10,7 +10,7 @@ toc: true
 
 ### Subscription
 
-Defined in: [pubsub/subscription.ts:6](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L6)
+Defined in: [pubsub/subscription.ts:6](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L6)
 
 #### Type Parameters
 
@@ -29,7 +29,7 @@ new Subscription<Msg>(
 cfg): Subscription<Msg>;
 ```
 
-Defined in: [pubsub/subscription.ts:11](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L11)
+Defined in: [pubsub/subscription.ts:11](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L11)
 
 ###### Parameters
 
@@ -53,7 +53,7 @@ Defined in: [pubsub/subscription.ts:11](https://github.com/encoredev/encore/blob
 
 ### Topic
 
-Defined in: [pubsub/topic.ts:10](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/topic.ts#L10)
+Defined in: [pubsub/topic.ts:10](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L10)
 
 A topic is a resource to which you can publish messages
 to be delivered to subscribers of that topic.
@@ -80,7 +80,7 @@ to be delivered to subscribers of that topic.
 new Topic<Msg>(name, cfg): Topic<Msg>;
 ```
 
-Defined in: [pubsub/topic.ts:18](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/topic.ts#L18)
+Defined in: [pubsub/topic.ts:18](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L18)
 
 ###### Parameters
 
@@ -110,7 +110,7 @@ TopicPerms.constructor
 readonly cfg: TopicConfig<Msg>;
 ```
 
-Defined in: [pubsub/topic.ts:15](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/topic.ts#L15)
+Defined in: [pubsub/topic.ts:15](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L15)
 
 ##### name
 
@@ -118,7 +118,7 @@ Defined in: [pubsub/topic.ts:15](https://github.com/encoredev/encore/blob/4043f3
 readonly name: string;
 ```
 
-Defined in: [pubsub/topic.ts:14](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/topic.ts#L14)
+Defined in: [pubsub/topic.ts:14](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L14)
 
 #### Methods
 
@@ -128,7 +128,7 @@ Defined in: [pubsub/topic.ts:14](https://github.com/encoredev/encore/blob/4043f3
 publish(msg): Promise<string>;
 ```
 
-Defined in: [pubsub/topic.ts:25](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/topic.ts#L25)
+Defined in: [pubsub/topic.ts:25](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L25)
 
 ###### Parameters
 
@@ -150,7 +150,7 @@ Defined in: [pubsub/topic.ts:25](https://github.com/encoredev/encore/blob/4043f3
 ref<P>(): P;
 ```
 
-Defined in: [pubsub/topic.ts:30](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/topic.ts#L30)
+Defined in: [pubsub/topic.ts:30](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L30)
 
 ###### Type Parameters
 
@@ -166,7 +166,7 @@ Defined in: [pubsub/topic.ts:30](https://github.com/encoredev/encore/blob/4043f3
 
 ### Publisher
 
-Defined in: [pubsub/refs.ts:5](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/refs.ts#L5)
+Defined in: [pubsub/refs.ts:5](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L5)
 
 #### Extends
 
@@ -186,7 +186,7 @@ Defined in: [pubsub/refs.ts:5](https://github.com/encoredev/encore/blob/4043f36c
 abstract publish(msg): Promise<string>;
 ```
 
-Defined in: [pubsub/refs.ts:6](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/refs.ts#L6)
+Defined in: [pubsub/refs.ts:6](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L6)
 
 ###### Parameters
 
@@ -202,7 +202,7 @@ Defined in: [pubsub/refs.ts:6](https://github.com/encoredev/encore/blob/4043f36c
 
 ### RetryPolicy
 
-Defined in: [pubsub/subscription.ts:111](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L111)
+Defined in: [pubsub/subscription.ts:111](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L111)
 
 RetryPolicy defines how a subscription should handle retries
 after errors either delivering the message or processing the message.
@@ -222,7 +222,7 @@ by the target cloud).
 optional maxBackoff?: DurationString;
 ```
 
-Defined in: [pubsub/subscription.ts:120](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L120)
+Defined in: [pubsub/subscription.ts:120](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L120)
 
 The maximum time to wait between retries. Defaults to 10 minutes.
 
@@ -232,7 +232,7 @@ The maximum time to wait between retries. Defaults to 10 minutes.
 optional maxRetries?: number;
 ```
 
-Defined in: [pubsub/subscription.ts:128](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L128)
+Defined in: [pubsub/subscription.ts:128](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L128)
 
 MaxRetries is used to control deadletter queuing logic, when:
   n == 0: A default value of 100 retries will be used
@@ -245,7 +245,7 @@ MaxRetries is used to control deadletter queuing logic, when:
 optional minBackoff?: DurationString;
 ```
 
-Defined in: [pubsub/subscription.ts:115](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L115)
+Defined in: [pubsub/subscription.ts:115](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L115)
 
 The minimum time to wait between retries. Defaults to 10 seconds.
 
@@ -253,7 +253,7 @@ The minimum time to wait between retries. Defaults to 10 seconds.
 
 ### SubscriptionConfig
 
-Defined in: [pubsub/subscription.ts:44](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L44)
+Defined in: [pubsub/subscription.ts:44](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L44)
 
 SubscriptionConfig is used when creating a subscription
 
@@ -275,7 +275,7 @@ by the target cloud pubsub implementation).
 optional ackDeadline?: DurationString;
 ```
 
-Defined in: [pubsub/subscription.ts:83](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L83)
+Defined in: [pubsub/subscription.ts:83](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L83)
 
 AckDeadline is the time a consumer has to process a message
 before it's returned to the subscription
@@ -289,7 +289,7 @@ Default is 30 seconds, however the ack deadline must be at least
 handler: (msg) => Promise<unknown>;
 ```
 
-Defined in: [pubsub/subscription.ts:53](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L53)
+Defined in: [pubsub/subscription.ts:53](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L53)
 
 Handler is the function which will be called to process a message
 sent on the topic.
@@ -314,7 +314,7 @@ attempt to be made (unless the retry policy's MaxRetries has been reached).
 optional maxConcurrency?: number;
 ```
 
-Defined in: [pubsub/subscription.ts:74](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L74)
+Defined in: [pubsub/subscription.ts:74](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L74)
 
 MaxConcurrency is the maximum number of messages which will be processed
 simultaneously per instance of the service for this subscription.
@@ -340,7 +340,7 @@ If not set, it uses a reasonable default based on the cloud provider.
 optional messageRetention?: DurationString;
 ```
 
-Defined in: [pubsub/subscription.ts:91](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L91)
+Defined in: [pubsub/subscription.ts:91](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L91)
 
 MessageRetention is how long an undelivered message is kept
 on the topic before it's purged.
@@ -353,7 +353,7 @@ Default is 7 days.
 optional retryPolicy?: RetryPolicy;
 ```
 
-Defined in: [pubsub/subscription.ts:97](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/subscription.ts#L97)
+Defined in: [pubsub/subscription.ts:97](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L97)
 
 RetryPolicy defines how a message should be retried when
 the subscriber returns an error
@@ -362,7 +362,7 @@ the subscriber returns an error
 
 ### TopicConfig
 
-Defined in: [pubsub/topic.ts:80](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/topic.ts#L80)
+Defined in: [pubsub/topic.ts:80](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L80)
 
 TopicConfig is used when creating a Topic
 
@@ -380,7 +380,7 @@ TopicConfig is used when creating a Topic
 deliveryGuarantee: DeliveryGuarantee;
 ```
 
-Defined in: [pubsub/topic.ts:84](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/topic.ts#L84)
+Defined in: [pubsub/topic.ts:84](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L84)
 
 DeliveryGuarantee is used to configure the delivery guarantee of a Topic
 
@@ -390,7 +390,7 @@ DeliveryGuarantee is used to configure the delivery guarantee of a Topic
 optional orderingAttribute?: keyof { [Key in string | number | symbol as Extract<Msg[Key], brandedAttribute<string> | brandedAttribute<number> | brandedAttribute<false> | brandedAttribute<true>> extends never ? never : Key]: never };
 ```
 
-Defined in: [pubsub/topic.ts:131](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/topic.ts#L131)
+Defined in: [pubsub/topic.ts:131](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L131)
 
 OrderingAttribute is the message attribute to use as a ordering key for
 messages and delivery will ensure that messages with the same value will
@@ -440,7 +440,7 @@ Note: OrderingAttribute currently has no effect during local development.
 
 ### TopicPerms
 
-Defined in: [pubsub/refs.ts:1](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/refs.ts#L1)
+Defined in: [pubsub/refs.ts:1](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L1)
 
 #### Extended by
 
@@ -455,7 +455,7 @@ Defined in: [pubsub/refs.ts:1](https://github.com/encoredev/encore/blob/4043f36c
 type Attribute<T> = T | brandedAttribute<T>;
 ```
 
-Defined in: [pubsub/mod.ts:35](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/mod.ts#L35)
+Defined in: [pubsub/mod.ts:35](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L35)
 
 Attribute represents a field on a message that should be sent
 as an attribute in a PubSub message, rather than in the message
@@ -493,7 +493,7 @@ to extract the keys of said type.
 type AttributesOf<T> = keyof { [Key in keyof T as Extract<T[Key], allBrandedTypes> extends never ? never : Key]: never };
 ```
 
-Defined in: [pubsub/mod.ts:52](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/mod.ts#L52)
+Defined in: [pubsub/mod.ts:52](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L52)
 
 AttributesOf is a helper type to extract all keys from an object
 who's type is an Attribute type.
@@ -521,6 +521,6 @@ For example:
 type DeliveryGuarantee = "at-least-once" | "exactly-once";
 ```
 
-Defined in: [pubsub/topic.ts:38](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/pubsub/topic.ts#L38)
+Defined in: [pubsub/topic.ts:38](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L38)
 
 DeliveryGuarantee is used to configure the delivery contract for a topic.

@@ -10,7 +10,7 @@ toc: true
 
 ### Decimal
 
-Defined in: [types/mod.ts:10](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/types/mod.ts#L10)
+Defined in: [types/mod.ts:10](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L10)
 
 A decimal type that can hold values with arbitrary precision.
 Unlike JavaScript's native number type, this can accurately represent
@@ -24,7 +24,7 @@ decimal values without floating-point precision errors.
 new Decimal(value): Decimal;
 ```
 
-Defined in: [types/mod.ts:13](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/types/mod.ts#L13)
+Defined in: [types/mod.ts:13](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L13)
 
 ###### Parameters
 
@@ -46,7 +46,7 @@ Defined in: [types/mod.ts:13](https://github.com/encoredev/encore/blob/4043f36cb
 get value(): string;
 ```
 
-Defined in: [types/mod.ts:57](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/types/mod.ts#L57)
+Defined in: [types/mod.ts:57](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L57)
 
 ###### Returns
 
@@ -60,7 +60,7 @@ Defined in: [types/mod.ts:57](https://github.com/encoredev/encore/blob/4043f36cb
 toPrimitive: string | number;
 ```
 
-Defined in: [types/mod.ts:68](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/types/mod.ts#L68)
+Defined in: [types/mod.ts:68](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L68)
 
 ###### Parameters
 
@@ -78,7 +78,7 @@ Defined in: [types/mod.ts:68](https://github.com/encoredev/encore/blob/4043f36cb
 add(d): Decimal;
 ```
 
-Defined in: [types/mod.ts:32](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/types/mod.ts#L32)
+Defined in: [types/mod.ts:32](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L32)
 
 Adds this decimal to another decimal value.
 
@@ -98,7 +98,7 @@ Adds this decimal to another decimal value.
 div(d): Decimal;
 ```
 
-Defined in: [types/mod.ts:53](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/types/mod.ts#L53)
+Defined in: [types/mod.ts:53](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L53)
 
 Divides this decimal by another decimal value.
 
@@ -118,7 +118,7 @@ Divides this decimal by another decimal value.
 mul(d): Decimal;
 ```
 
-Defined in: [types/mod.ts:46](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/types/mod.ts#L46)
+Defined in: [types/mod.ts:46](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L46)
 
 Multiplies this decimal by another decimal value.
 
@@ -138,7 +138,7 @@ Multiplies this decimal by another decimal value.
 sub(d): Decimal;
 ```
 
-Defined in: [types/mod.ts:39](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/types/mod.ts#L39)
+Defined in: [types/mod.ts:39](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L39)
 
 Subtracts another decimal value from this decimal.
 
@@ -158,7 +158,7 @@ Subtracts another decimal value from this decimal.
 toJSON(): string;
 ```
 
-Defined in: [types/mod.ts:61](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/types/mod.ts#L61)
+Defined in: [types/mod.ts:61](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L61)
 
 ###### Returns
 
@@ -170,7 +170,7 @@ Defined in: [types/mod.ts:61](https://github.com/encoredev/encore/blob/4043f36cb
 toString(): string;
 ```
 
-Defined in: [types/mod.ts:64](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/types/mod.ts#L64)
+Defined in: [types/mod.ts:64](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L64)
 
 ###### Returns
 
@@ -184,4 +184,4 @@ Defined in: [types/mod.ts:64](https://github.com/encoredev/encore/blob/4043f36cb
 type ToDecimal = string | number | bigint;
 ```
 
-Defined in: [types/mod.ts:3](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/types/mod.ts#L3)
+Defined in: [types/mod.ts:3](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L3)

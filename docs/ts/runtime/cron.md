@@ -10,7 +10,7 @@ toc: true
 
 ### CronJob
 
-Defined in: [cron/mod.ts:5](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/cron/mod.ts#L5)
+Defined in: [cron/mod.ts:5](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L5)
 
 #### Constructors
 
@@ -20,7 +20,7 @@ Defined in: [cron/mod.ts:5](https://github.com/encoredev/encore/blob/4043f36cb4a
 new CronJob(name, cfg): CronJob;
 ```
 
-Defined in: [cron/mod.ts:8](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/cron/mod.ts#L8)
+Defined in: [cron/mod.ts:8](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L8)
 
 ###### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [cron/mod.ts:8](https://github.com/encoredev/encore/blob/4043f36cb4a
 readonly cfg: CronJobConfig;
 ```
 
-Defined in: [cron/mod.ts:7](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/cron/mod.ts#L7)
+Defined in: [cron/mod.ts:7](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L7)
 
 ##### name
 
@@ -52,7 +52,7 @@ Defined in: [cron/mod.ts:7](https://github.com/encoredev/encore/blob/4043f36cb4a
 readonly name: string;
 ```
 
-Defined in: [cron/mod.ts:6](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/cron/mod.ts#L6)
+Defined in: [cron/mod.ts:6](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L6)
 
 ## Type Aliases
 
@@ -71,7 +71,7 @@ type CronJobConfig = {
 };
 ```
 
-Defined in: [cron/mod.ts:14](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/cron/mod.ts#L14)
+Defined in: [cron/mod.ts:14](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L14)
 
 #### Type Declaration
 

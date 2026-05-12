@@ -10,7 +10,7 @@ toc: true
 
 ### Service
 
-Defined in: [service/mod.ts:12](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/service/mod.ts#L12)
+Defined in: [service/mod.ts:12](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L12)
 
 Defines an Encore backend service.
 
@@ -28,7 +28,7 @@ efficiently identify possible service definitions.
 new Service(name, cfg?): Service;
 ```
 
-Defined in: [service/mod.ts:16](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/service/mod.ts#L16)
+Defined in: [service/mod.ts:16](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L16)
 
 ###### Parameters
 
@@ -52,7 +52,7 @@ Defined in: [service/mod.ts:16](https://github.com/encoredev/encore/blob/4043f36
 readonly cfg: ServiceConfig;
 ```
 
-Defined in: [service/mod.ts:14](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/service/mod.ts#L14)
+Defined in: [service/mod.ts:14](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L14)
 
 ##### name
 
@@ -60,13 +60,13 @@ Defined in: [service/mod.ts:14](https://github.com/encoredev/encore/blob/4043f36
 readonly name: string;
 ```
 
-Defined in: [service/mod.ts:13](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/service/mod.ts#L13)
+Defined in: [service/mod.ts:13](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L13)
 
 ## Interfaces
 
 ### ServiceConfig
 
-Defined in: [service/mod.ts:22](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/service/mod.ts#L22)
+Defined in: [service/mod.ts:22](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L22)
 
 #### Properties
 
@@ -76,4 +76,4 @@ Defined in: [service/mod.ts:22](https://github.com/encoredev/encore/blob/4043f36
 optional middlewares?: Middleware[];
 ```
 
-Defined in: [service/mod.ts:23](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/service/mod.ts#L23)
+Defined in: [service/mod.ts:23](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L23)

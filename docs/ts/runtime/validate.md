@@ -18,7 +18,7 @@ type EndsWith<S> = {
 };
 ```
 
-Defined in: [validate/mod.ts:39](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L39)
+Defined in: [validate/mod.ts:39](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L39)
 
 #### Type Parameters
 
@@ -36,7 +36,7 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:40](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L40)
+Defined in: [validate/mod.ts:40](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L40)
 
 ###### endsWith
 
@@ -56,7 +56,7 @@ type IsEmail = {
 };
 ```
 
-Defined in: [validate/mod.ts:45](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L45)
+Defined in: [validate/mod.ts:45](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L45)
 
 #### Properties
 
@@ -68,7 +68,7 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:46](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L46)
+Defined in: [validate/mod.ts:46](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L46)
 
 ###### isEmail
 
@@ -88,7 +88,7 @@ type IsURL = {
 };
 ```
 
-Defined in: [validate/mod.ts:51](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L51)
+Defined in: [validate/mod.ts:51](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L51)
 
 #### Properties
 
@@ -100,7 +100,7 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:52](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L52)
+Defined in: [validate/mod.ts:52](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L52)
 
 ###### isURL
 
@@ -120,7 +120,7 @@ type MatchesRegexp<S> = {
 };
 ```
 
-Defined in: [validate/mod.ts:27](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L27)
+Defined in: [validate/mod.ts:27](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L27)
 
 #### Type Parameters
 
@@ -138,7 +138,7 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:28](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L28)
+Defined in: [validate/mod.ts:28](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L28)
 
 ###### matchesRegexp
 
@@ -158,7 +158,7 @@ type Max<N> = {
 };
 ```
 
-Defined in: [validate/mod.ts:9](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L9)
+Defined in: [validate/mod.ts:9](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L9)
 
 #### Type Parameters
 
@@ -176,7 +176,7 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:10](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L10)
+Defined in: [validate/mod.ts:10](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L10)
 
 ###### maxValue
 
@@ -196,7 +196,7 @@ type MaxLen<N> = {
 };
 ```
 
-Defined in: [validate/mod.ts:21](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L21)
+Defined in: [validate/mod.ts:21](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L21)
 
 #### Type Parameters
 
@@ -214,7 +214,7 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:22](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L22)
+Defined in: [validate/mod.ts:22](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L22)
 
 ###### maxLen
 
@@ -234,7 +234,7 @@ type Min<N> = {
 };
 ```
 
-Defined in: [validate/mod.ts:3](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L3)
+Defined in: [validate/mod.ts:3](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L3)
 
 #### Type Parameters
 
@@ -252,7 +252,7 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:4](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L4)
+Defined in: [validate/mod.ts:4](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L4)
 
 ###### minValue
 
@@ -272,7 +272,7 @@ type MinLen<N> = {
 };
 ```
 
-Defined in: [validate/mod.ts:15](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L15)
+Defined in: [validate/mod.ts:15](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L15)
 
 #### Type Parameters
 
@@ -290,7 +290,7 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:16](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L16)
+Defined in: [validate/mod.ts:16](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L16)
 
 ###### minLen
 
@@ -310,7 +310,7 @@ type StartsWith<S> = {
 };
 ```
 
-Defined in: [validate/mod.ts:33](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L33)
+Defined in: [validate/mod.ts:33](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L33)
 
 #### Type Parameters
 
@@ -328,7 +328,7 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:34](https://github.com/encoredev/encore/blob/4043f36cb4a881aeecf61aa6afc4f3c4ec76deca/runtimes/js/encore.dev/validate/mod.ts#L34)
+Defined in: [validate/mod.ts:34](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L34)
 
 ###### startsWith
 
