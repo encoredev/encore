@@ -42,6 +42,10 @@ const dir = new URL(DOCS_DIR);
 
 const files = await readdir(dir);
 
+if (files.includes("index.md")) {
+  await unlink(new URL("index.md", dir));
+}
+
 for (const [from, to] of Object.entries(RENAMES)) {
   if (files.includes(from)) {
     await rename(new URL(from, dir), new URL(to, dir));

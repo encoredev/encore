@@ -902,11 +902,6 @@
 				text: "Encore API Reference"
 				accordion: [{
 					kind: "basic"
-					text: "API reference overview"
-					path: "/ts/runtime"
-					file: "ts/runtime/index"
-				}, {
-					kind: "basic"
 					text: "encore.dev"
 					path: "/ts/runtime/encore-dev"
 					file: "ts/runtime/encore-dev"
