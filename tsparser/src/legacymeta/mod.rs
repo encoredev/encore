@@ -86,12 +86,12 @@ impl MetaBuilder<'_> {
             self.data.svcs.push(v1::Service {
                 name: svc.name.clone(),
                 rel_path,
-                rpcs: vec![],           // filled in later
-                databases: vec![],      // filled in later
-                buckets: vec![],        // filled in later
-                metrics: vec![],        // filled in later
-                cache_clusters: vec![], // filled in later
-                has_config: false,      // TODO change when config is supported
+                rpcs: vec![],            // filled in later
+                databases: vec![],       // filled in later
+                buckets: vec![],         // filled in later
+                metrics: vec![],         // filled in later
+                cache_keyspaces: vec![], // filled in later
+                has_config: false,       // TODO change when config is supported
 
                 // We no longer care about migrations in a service, so just set
                 // this to the empty array. The field is required for backwards compatibility.
@@ -589,7 +589,7 @@ impl MetaBuilder<'_> {
                         key_type,
                         value_type,
                         doc: keyspace.doc.clone().unwrap_or_default(),
-                        path_pattern: Some(path_pattern),
+                        path_pattern: Some(path_pattern.clone()),
                     };
 
                     if let Some(&cluster_idx) = cache_cluster_idx.get(&keyspace.cluster.id) {
@@ -598,10 +598,15 @@ impl MetaBuilder<'_> {
                             .keyspaces
                             .push(ks_info);
 
-                        // The defining service connects to the cluster.
+                        // The defining service uses this keyspace.
                         if !svc_name.is_empty() {
                             if let Some(svc_idx) = svc_index.get(&svc_name) {
-                                self.data.svcs[*svc_idx].cache_clusters.push(cluster_name);
+                                self.data.svcs[*svc_idx].cache_keyspaces.push(
+                                    v1::CacheKeyspaceUsage {
+                                        cluster: cluster_name,
+                                        keyspace_path: Some(path_pattern),
+                                    },
+                                );
                             }
                         }
                     } else {
@@ -710,25 +715,16 @@ impl MetaBuilder<'_> {
                     }
                 }
 
-                Usage::CacheCluster(access) => {
-                    // Track which services use which cache clusters.
-                    let Some(svc) = self.service_for_range(&access.range) else {
-                        access
-                            .range
-                            .err("cannot determine which service is accessing this cache cluster");
-                        continue;
-                    };
-
-                    let svc_idx = *svc_index.get(&svc.name).unwrap();
-                    self.data.svcs[svc_idx]
-                        .cache_clusters
-                        .push(access.cluster.name.clone());
+                Usage::CacheCluster(_) => {
+                    // The only meaningful cluster usage is being passed to a
+                    // keyspace constructor, which is captured separately when
+                    // that keyspace is registered. Nothing to do here.
                 }
 
                 Usage::CacheKeyspace(access) => {
                     // A service is using a keyspace (directly, or by passing it
                     // to a function or constructor). Record the service as a user
-                    // of the keyspace's cluster, so the cluster gets included in
+                    // of this specific keyspace, so the cluster gets included in
                     // that service's runtime config.
                     let Some(svc) = self.service_for_range(&access.range) else {
                         access
@@ -742,8 +738,14 @@ impl MetaBuilder<'_> {
                         continue;
                     };
                     let cluster_name = self.data.cache_clusters[cluster_idx].name.clone();
+                    let keyspace_path = parse_key_pattern(&access.keyspace.key_pattern);
                     let svc_idx = *svc_index.get(&svc.name).unwrap();
-                    self.data.svcs[svc_idx].cache_clusters.push(cluster_name);
+                    self.data.svcs[svc_idx]
+                        .cache_keyspaces
+                        .push(v1::CacheKeyspaceUsage {
+                            cluster: cluster_name,
+                            keyspace_path: Some(keyspace_path),
+                        });
                 }
 
                 Usage::CallEndpoint(call) => {
@@ -807,9 +809,15 @@ impl MetaBuilder<'_> {
             svc.databases.sort();
             svc.databases.dedup();
 
-            // Remove duplicate cache cluster access.
-            svc.cache_clusters.sort();
-            svc.cache_clusters.dedup();
+            // Remove duplicate cache keyspace access (a service may both
+            // define and use a keyspace, or use it from multiple call sites).
+            svc.cache_keyspaces.sort_by(|a, b| {
+                a.cluster.cmp(&b.cluster).then_with(|| {
+                    format!("{:?}", a.keyspace_path).cmp(&format!("{:?}", b.keyspace_path))
+                })
+            });
+            svc.cache_keyspaces
+                .dedup_by(|a, b| a.cluster == b.cluster && a.keyspace_path == b.keyspace_path);
 
             // Sort buckets by name for deterministic output.
             svc.buckets.sort_by(|a, b| a.bucket.cmp(&b.bucket));
@@ -1383,15 +1391,24 @@ export async function bumpCounter(k: string) {
             assert_eq!(ks.service, "svc", "defining service should be 'svc'");
         }
 
-        // Both services should list the cluster on their accessor list:
-        // svc because it defines (and uses via the keyspace constructor),
+        // Both services should list the keyspaces they use:
+        // svc because it defines (and uses via the keyspace constructors),
         // other because of the .get() and .increment() calls.
-        let svc_clusters = |name: &str| {
-            meta.svcs
+        let svc_clusters = |name: &str| -> Vec<String> {
+            let mut clusters = meta
+                .svcs
                 .iter()
                 .find(|s| s.name == name)
-                .map(|s| s.cache_clusters.clone())
-                .unwrap_or_default()
+                .map(|s| {
+                    s.cache_keyspaces
+                        .iter()
+                        .map(|u| u.cluster.clone())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            clusters.sort();
+            clusters.dedup();
+            clusters
         };
         assert_eq!(svc_clusters("svc"), vec!["myCluster".to_string()]);
         assert_eq!(svc_clusters("other"), vec!["myCluster".to_string()]);
@@ -1443,12 +1460,21 @@ export async function bump(ks: IntKeyspace<string>, k: string) {
         let tmp_dir = TempDir::new("tsparser-cache-utility-test")?;
         let meta = parse(tmp_dir.path(), src)?;
 
-        let svc_clusters = |name: &str| {
-            meta.svcs
+        let svc_clusters = |name: &str| -> Vec<String> {
+            let mut clusters = meta
+                .svcs
                 .iter()
                 .find(|s| s.name == name)
-                .map(|s| s.cache_clusters.clone())
-                .unwrap_or_default()
+                .map(|s| {
+                    s.cache_keyspaces
+                        .iter()
+                        .map(|u| u.cluster.clone())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            clusters.sort();
+            clusters.dedup();
+            clusters
         };
 
         // "other" passes the keyspace to a utility (no direct method call).

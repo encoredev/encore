@@ -147,7 +147,7 @@ func (x BucketUsage_Operation) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use BucketUsage_Operation.Descriptor instead.
 func (BucketUsage_Operation) EnumDescriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{4, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{5, 0}
 }
 
 type Selector_Type int32
@@ -196,7 +196,7 @@ func (x Selector_Type) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Selector_Type.Descriptor instead.
 func (Selector_Type) EnumDescriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{5, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{6, 0}
 }
 
 type RPC_AccessType int32
@@ -245,7 +245,7 @@ func (x RPC_AccessType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RPC_AccessType.Descriptor instead.
 func (RPC_AccessType) EnumDescriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{6, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{7, 0}
 }
 
 type RPC_Protocol int32
@@ -291,7 +291,7 @@ func (x RPC_Protocol) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RPC_Protocol.Descriptor instead.
 func (RPC_Protocol) EnumDescriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{6, 1}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{7, 1}
 }
 
 type StaticCallNode_Package int32
@@ -340,7 +340,7 @@ func (x StaticCallNode_Package) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StaticCallNode_Package.Descriptor instead.
 func (StaticCallNode_Package) EnumDescriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{12, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{13, 0}
 }
 
 type Path_Type int32
@@ -386,7 +386,7 @@ func (x Path_Type) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Path_Type.Descriptor instead.
 func (Path_Type) EnumDescriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{20, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{21, 0}
 }
 
 type PathSegment_SegmentType int32
@@ -438,7 +438,7 @@ func (x PathSegment_SegmentType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PathSegment_SegmentType.Descriptor instead.
 func (PathSegment_SegmentType) EnumDescriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{21, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{22, 0}
 }
 
 type PathSegment_ParamType int32
@@ -517,7 +517,7 @@ func (x PathSegment_ParamType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PathSegment_ParamType.Descriptor instead.
 func (PathSegment_ParamType) EnumDescriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{21, 1}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{22, 1}
 }
 
 type PubSubTopic_DeliveryGuarantee int32
@@ -563,7 +563,7 @@ func (x PubSubTopic_DeliveryGuarantee) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PubSubTopic_DeliveryGuarantee.Descriptor instead.
 func (PubSubTopic_DeliveryGuarantee) EnumDescriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{27, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{28, 0}
 }
 
 type Metric_MetricKind int32
@@ -612,7 +612,7 @@ func (x Metric_MetricKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Metric_MetricKind.Descriptor instead.
 func (Metric_MetricKind) EnumDescriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{29, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{30, 0}
 }
 
 // Data is the metadata associated with an app version.
@@ -936,18 +936,18 @@ func (x *Package) GetTraceNodes() []*TraceNode {
 }
 
 type Service struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	RelPath       string                 `protobuf:"bytes,2,opt,name=rel_path,json=relPath,proto3" json:"rel_path,omitempty"` // import path relative to app root for the root package in the service
-	Rpcs          []*RPC                 `protobuf:"bytes,3,rep,name=rpcs,proto3" json:"rpcs,omitempty"`
-	Migrations    []*DBMigration         `protobuf:"bytes,4,rep,name=migrations,proto3" json:"migrations,omitempty"`
-	Databases     []string               `protobuf:"bytes,5,rep,name=databases,proto3" json:"databases,omitempty"`                              // databases this service connects to
-	HasConfig     bool                   `protobuf:"varint,6,opt,name=has_config,json=hasConfig,proto3" json:"has_config,omitempty"`            // true if the service has uses config
-	Buckets       []*BucketUsage         `protobuf:"bytes,7,rep,name=buckets,proto3" json:"buckets,omitempty"`                                  // buckets this service uses
-	Metrics       []string               `protobuf:"bytes,8,rep,name=metrics,proto3" json:"metrics,omitempty"`                                  // metrics this service uses
-	CacheClusters []string               `protobuf:"bytes,9,rep,name=cache_clusters,json=cacheClusters,proto3" json:"cache_clusters,omitempty"` // cache clusters this service connects to
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	RelPath        string                 `protobuf:"bytes,2,opt,name=rel_path,json=relPath,proto3" json:"rel_path,omitempty"` // import path relative to app root for the root package in the service
+	Rpcs           []*RPC                 `protobuf:"bytes,3,rep,name=rpcs,proto3" json:"rpcs,omitempty"`
+	Migrations     []*DBMigration         `protobuf:"bytes,4,rep,name=migrations,proto3" json:"migrations,omitempty"`
+	Databases      []string               `protobuf:"bytes,5,rep,name=databases,proto3" json:"databases,omitempty"`                                 // databases this service connects to
+	HasConfig      bool                   `protobuf:"varint,6,opt,name=has_config,json=hasConfig,proto3" json:"has_config,omitempty"`               // true if the service has uses config
+	Buckets        []*BucketUsage         `protobuf:"bytes,7,rep,name=buckets,proto3" json:"buckets,omitempty"`                                     // buckets this service uses
+	Metrics        []string               `protobuf:"bytes,8,rep,name=metrics,proto3" json:"metrics,omitempty"`                                     // metrics this service uses
+	CacheKeyspaces []*CacheKeyspaceUsage  `protobuf:"bytes,9,rep,name=cache_keyspaces,json=cacheKeyspaces,proto3" json:"cache_keyspaces,omitempty"` // cache keyspaces this service uses
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Service) Reset() {
@@ -1036,9 +1036,63 @@ func (x *Service) GetMetrics() []string {
 	return nil
 }
 
-func (x *Service) GetCacheClusters() []string {
+func (x *Service) GetCacheKeyspaces() []*CacheKeyspaceUsage {
 	if x != nil {
-		return x.CacheClusters
+		return x.CacheKeyspaces
+	}
+	return nil
+}
+
+type CacheKeyspaceUsage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The cache cluster the keyspace belongs to.
+	Cluster string `protobuf:"bytes,1,opt,name=cluster,proto3" json:"cluster,omitempty"`
+	// The keyspace's path pattern (matches CacheCluster.Keyspace.path_pattern).
+	KeyspacePath  *Path `protobuf:"bytes,2,opt,name=keyspace_path,json=keyspacePath,proto3" json:"keyspace_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CacheKeyspaceUsage) Reset() {
+	*x = CacheKeyspaceUsage{}
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CacheKeyspaceUsage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CacheKeyspaceUsage) ProtoMessage() {}
+
+func (x *CacheKeyspaceUsage) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CacheKeyspaceUsage.ProtoReflect.Descriptor instead.
+func (*CacheKeyspaceUsage) Descriptor() ([]byte, []int) {
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CacheKeyspaceUsage) GetCluster() string {
+	if x != nil {
+		return x.Cluster
+	}
+	return ""
+}
+
+func (x *CacheKeyspaceUsage) GetKeyspacePath() *Path {
+	if x != nil {
+		return x.KeyspacePath
 	}
 	return nil
 }
@@ -1055,7 +1109,7 @@ type BucketUsage struct {
 
 func (x *BucketUsage) Reset() {
 	*x = BucketUsage{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[4]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1067,7 +1121,7 @@ func (x *BucketUsage) String() string {
 func (*BucketUsage) ProtoMessage() {}
 
 func (x *BucketUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[4]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1080,7 +1134,7 @@ func (x *BucketUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BucketUsage.ProtoReflect.Descriptor instead.
 func (*BucketUsage) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{4}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *BucketUsage) GetBucket() string {
@@ -1107,7 +1161,7 @@ type Selector struct {
 
 func (x *Selector) Reset() {
 	*x = Selector{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[5]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1119,7 +1173,7 @@ func (x *Selector) String() string {
 func (*Selector) ProtoMessage() {}
 
 func (x *Selector) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[5]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1132,7 +1186,7 @@ func (x *Selector) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Selector.ProtoReflect.Descriptor instead.
 func (*Selector) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{5}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Selector) GetType() Selector_Type {
@@ -1184,7 +1238,7 @@ type RPC struct {
 
 func (x *RPC) Reset() {
 	*x = RPC{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[6]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1196,7 +1250,7 @@ func (x *RPC) String() string {
 func (*RPC) ProtoMessage() {}
 
 func (x *RPC) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[6]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1209,7 +1263,7 @@ func (x *RPC) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RPC.ProtoReflect.Descriptor instead.
 func (*RPC) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{6}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RPC) GetName() string {
@@ -1361,7 +1415,7 @@ type AuthHandler struct {
 
 func (x *AuthHandler) Reset() {
 	*x = AuthHandler{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[7]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1373,7 +1427,7 @@ func (x *AuthHandler) String() string {
 func (*AuthHandler) ProtoMessage() {}
 
 func (x *AuthHandler) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[7]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1386,7 +1440,7 @@ func (x *AuthHandler) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthHandler.ProtoReflect.Descriptor instead.
 func (*AuthHandler) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{7}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AuthHandler) GetName() string {
@@ -1459,7 +1513,7 @@ type Middleware struct {
 
 func (x *Middleware) Reset() {
 	*x = Middleware{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[8]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1471,7 +1525,7 @@ func (x *Middleware) String() string {
 func (*Middleware) ProtoMessage() {}
 
 func (x *Middleware) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[8]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1484,7 +1538,7 @@ func (x *Middleware) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Middleware.ProtoReflect.Descriptor instead.
 func (*Middleware) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{8}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Middleware) GetName() *QualifiedName {
@@ -1558,7 +1612,7 @@ type TraceNode struct {
 
 func (x *TraceNode) Reset() {
 	*x = TraceNode{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[9]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1570,7 +1624,7 @@ func (x *TraceNode) String() string {
 func (*TraceNode) ProtoMessage() {}
 
 func (x *TraceNode) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[9]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1583,7 +1637,7 @@ func (x *TraceNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TraceNode.ProtoReflect.Descriptor instead.
 func (*TraceNode) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{9}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *TraceNode) GetId() int32 {
@@ -1814,7 +1868,7 @@ type RPCDefNode struct {
 
 func (x *RPCDefNode) Reset() {
 	*x = RPCDefNode{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[10]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1826,7 +1880,7 @@ func (x *RPCDefNode) String() string {
 func (*RPCDefNode) ProtoMessage() {}
 
 func (x *RPCDefNode) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[10]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1839,7 +1893,7 @@ func (x *RPCDefNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RPCDefNode.ProtoReflect.Descriptor instead.
 func (*RPCDefNode) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{10}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RPCDefNode) GetServiceName() string {
@@ -1874,7 +1928,7 @@ type RPCCallNode struct {
 
 func (x *RPCCallNode) Reset() {
 	*x = RPCCallNode{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[11]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1886,7 +1940,7 @@ func (x *RPCCallNode) String() string {
 func (*RPCCallNode) ProtoMessage() {}
 
 func (x *RPCCallNode) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[11]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1899,7 +1953,7 @@ func (x *RPCCallNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RPCCallNode.ProtoReflect.Descriptor instead.
 func (*RPCCallNode) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{11}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RPCCallNode) GetServiceName() string {
@@ -1934,7 +1988,7 @@ type StaticCallNode struct {
 
 func (x *StaticCallNode) Reset() {
 	*x = StaticCallNode{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[12]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1946,7 +2000,7 @@ func (x *StaticCallNode) String() string {
 func (*StaticCallNode) ProtoMessage() {}
 
 func (x *StaticCallNode) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[12]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1959,7 +2013,7 @@ func (x *StaticCallNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StaticCallNode.ProtoReflect.Descriptor instead.
 func (*StaticCallNode) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{12}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *StaticCallNode) GetPackage() StaticCallNode_Package {
@@ -1994,7 +2048,7 @@ type AuthHandlerDefNode struct {
 
 func (x *AuthHandlerDefNode) Reset() {
 	*x = AuthHandlerDefNode{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[13]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2006,7 +2060,7 @@ func (x *AuthHandlerDefNode) String() string {
 func (*AuthHandlerDefNode) ProtoMessage() {}
 
 func (x *AuthHandlerDefNode) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[13]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2019,7 +2073,7 @@ func (x *AuthHandlerDefNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthHandlerDefNode.ProtoReflect.Descriptor instead.
 func (*AuthHandlerDefNode) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{13}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *AuthHandlerDefNode) GetServiceName() string {
@@ -2053,7 +2107,7 @@ type PubSubTopicDefNode struct {
 
 func (x *PubSubTopicDefNode) Reset() {
 	*x = PubSubTopicDefNode{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[14]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2065,7 +2119,7 @@ func (x *PubSubTopicDefNode) String() string {
 func (*PubSubTopicDefNode) ProtoMessage() {}
 
 func (x *PubSubTopicDefNode) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[14]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2078,7 +2132,7 @@ func (x *PubSubTopicDefNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubTopicDefNode.ProtoReflect.Descriptor instead.
 func (*PubSubTopicDefNode) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{14}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PubSubTopicDefNode) GetTopicName() string {
@@ -2105,7 +2159,7 @@ type PubSubPublishNode struct {
 
 func (x *PubSubPublishNode) Reset() {
 	*x = PubSubPublishNode{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[15]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2117,7 +2171,7 @@ func (x *PubSubPublishNode) String() string {
 func (*PubSubPublishNode) ProtoMessage() {}
 
 func (x *PubSubPublishNode) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[15]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2130,7 +2184,7 @@ func (x *PubSubPublishNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubPublishNode.ProtoReflect.Descriptor instead.
 func (*PubSubPublishNode) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{15}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *PubSubPublishNode) GetTopicName() string {
@@ -2159,7 +2213,7 @@ type PubSubSubscriberNode struct {
 
 func (x *PubSubSubscriberNode) Reset() {
 	*x = PubSubSubscriberNode{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[16]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2171,7 +2225,7 @@ func (x *PubSubSubscriberNode) String() string {
 func (*PubSubSubscriberNode) ProtoMessage() {}
 
 func (x *PubSubSubscriberNode) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[16]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2184,7 +2238,7 @@ func (x *PubSubSubscriberNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubSubscriberNode.ProtoReflect.Descriptor instead.
 func (*PubSubSubscriberNode) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{16}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PubSubSubscriberNode) GetTopicName() string {
@@ -2226,7 +2280,7 @@ type ServiceInitNode struct {
 
 func (x *ServiceInitNode) Reset() {
 	*x = ServiceInitNode{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[17]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2238,7 +2292,7 @@ func (x *ServiceInitNode) String() string {
 func (*ServiceInitNode) ProtoMessage() {}
 
 func (x *ServiceInitNode) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[17]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2251,7 +2305,7 @@ func (x *ServiceInitNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceInitNode.ProtoReflect.Descriptor instead.
 func (*ServiceInitNode) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{17}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ServiceInitNode) GetServiceName() string {
@@ -2287,7 +2341,7 @@ type MiddlewareDefNode struct {
 
 func (x *MiddlewareDefNode) Reset() {
 	*x = MiddlewareDefNode{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[18]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2299,7 +2353,7 @@ func (x *MiddlewareDefNode) String() string {
 func (*MiddlewareDefNode) ProtoMessage() {}
 
 func (x *MiddlewareDefNode) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[18]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2312,7 +2366,7 @@ func (x *MiddlewareDefNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MiddlewareDefNode.ProtoReflect.Descriptor instead.
 func (*MiddlewareDefNode) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{18}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *MiddlewareDefNode) GetPkgRelPath() string {
@@ -2355,7 +2409,7 @@ type CacheKeyspaceDefNode struct {
 
 func (x *CacheKeyspaceDefNode) Reset() {
 	*x = CacheKeyspaceDefNode{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[19]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2367,7 +2421,7 @@ func (x *CacheKeyspaceDefNode) String() string {
 func (*CacheKeyspaceDefNode) ProtoMessage() {}
 
 func (x *CacheKeyspaceDefNode) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[19]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2380,7 +2434,7 @@ func (x *CacheKeyspaceDefNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CacheKeyspaceDefNode.ProtoReflect.Descriptor instead.
 func (*CacheKeyspaceDefNode) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{19}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CacheKeyspaceDefNode) GetPkgRelPath() string {
@@ -2421,7 +2475,7 @@ type Path struct {
 
 func (x *Path) Reset() {
 	*x = Path{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[20]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2433,7 +2487,7 @@ func (x *Path) String() string {
 func (*Path) ProtoMessage() {}
 
 func (x *Path) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[20]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2446,7 +2500,7 @@ func (x *Path) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Path.ProtoReflect.Descriptor instead.
 func (*Path) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{20}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Path) GetSegments() []*PathSegment {
@@ -2475,7 +2529,7 @@ type PathSegment struct {
 
 func (x *PathSegment) Reset() {
 	*x = PathSegment{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[21]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2487,7 +2541,7 @@ func (x *PathSegment) String() string {
 func (*PathSegment) ProtoMessage() {}
 
 func (x *PathSegment) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[21]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2500,7 +2554,7 @@ func (x *PathSegment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathSegment.ProtoReflect.Descriptor instead.
 func (*PathSegment) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{21}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *PathSegment) GetType() PathSegment_SegmentType {
@@ -2542,7 +2596,7 @@ type Gateway struct {
 
 func (x *Gateway) Reset() {
 	*x = Gateway{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[22]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2554,7 +2608,7 @@ func (x *Gateway) String() string {
 func (*Gateway) ProtoMessage() {}
 
 func (x *Gateway) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[22]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2567,7 +2621,7 @@ func (x *Gateway) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gateway.ProtoReflect.Descriptor instead.
 func (*Gateway) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{22}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *Gateway) GetEncoreName() string {
@@ -2597,7 +2651,7 @@ type CronJob struct {
 
 func (x *CronJob) Reset() {
 	*x = CronJob{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[23]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2609,7 +2663,7 @@ func (x *CronJob) String() string {
 func (*CronJob) ProtoMessage() {}
 
 func (x *CronJob) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[23]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2622,7 +2676,7 @@ func (x *CronJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CronJob.ProtoReflect.Descriptor instead.
 func (*CronJob) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{23}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CronJob) GetId() string {
@@ -2675,7 +2729,7 @@ type SQLDatabase struct {
 
 func (x *SQLDatabase) Reset() {
 	*x = SQLDatabase{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[24]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2687,7 +2741,7 @@ func (x *SQLDatabase) String() string {
 func (*SQLDatabase) ProtoMessage() {}
 
 func (x *SQLDatabase) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[24]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2700,7 +2754,7 @@ func (x *SQLDatabase) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SQLDatabase.ProtoReflect.Descriptor instead.
 func (*SQLDatabase) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{24}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *SQLDatabase) GetName() string {
@@ -2749,7 +2803,7 @@ type DBMigration struct {
 
 func (x *DBMigration) Reset() {
 	*x = DBMigration{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[25]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2761,7 +2815,7 @@ func (x *DBMigration) String() string {
 func (*DBMigration) ProtoMessage() {}
 
 func (x *DBMigration) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[25]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2774,7 +2828,7 @@ func (x *DBMigration) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DBMigration.ProtoReflect.Descriptor instead.
 func (*DBMigration) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{25}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *DBMigration) GetFilename() string {
@@ -2810,7 +2864,7 @@ type Bucket struct {
 
 func (x *Bucket) Reset() {
 	*x = Bucket{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[26]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2822,7 +2876,7 @@ func (x *Bucket) String() string {
 func (*Bucket) ProtoMessage() {}
 
 func (x *Bucket) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[26]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2835,7 +2889,7 @@ func (x *Bucket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bucket.ProtoReflect.Descriptor instead.
 func (*Bucket) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{26}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *Bucket) GetName() string {
@@ -2881,7 +2935,7 @@ type PubSubTopic struct {
 
 func (x *PubSubTopic) Reset() {
 	*x = PubSubTopic{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[27]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2893,7 +2947,7 @@ func (x *PubSubTopic) String() string {
 func (*PubSubTopic) ProtoMessage() {}
 
 func (x *PubSubTopic) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[27]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2906,7 +2960,7 @@ func (x *PubSubTopic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubTopic.ProtoReflect.Descriptor instead.
 func (*PubSubTopic) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{27}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *PubSubTopic) GetName() string {
@@ -2970,7 +3024,7 @@ type CacheCluster struct {
 
 func (x *CacheCluster) Reset() {
 	*x = CacheCluster{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[28]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2982,7 +3036,7 @@ func (x *CacheCluster) String() string {
 func (*CacheCluster) ProtoMessage() {}
 
 func (x *CacheCluster) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[28]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2995,7 +3049,7 @@ func (x *CacheCluster) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CacheCluster.ProtoReflect.Descriptor instead.
 func (*CacheCluster) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{28}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *CacheCluster) GetName() string {
@@ -3040,7 +3094,7 @@ type Metric struct {
 
 func (x *Metric) Reset() {
 	*x = Metric{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[29]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3052,7 +3106,7 @@ func (x *Metric) String() string {
 func (*Metric) ProtoMessage() {}
 
 func (x *Metric) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[29]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3065,7 +3119,7 @@ func (x *Metric) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Metric.ProtoReflect.Descriptor instead.
 func (*Metric) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{29}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *Metric) GetName() string {
@@ -3118,7 +3172,7 @@ type RPC_ExposeOptions struct {
 
 func (x *RPC_ExposeOptions) Reset() {
 	*x = RPC_ExposeOptions{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[31]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3130,7 +3184,7 @@ func (x *RPC_ExposeOptions) String() string {
 func (*RPC_ExposeOptions) ProtoMessage() {}
 
 func (x *RPC_ExposeOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[31]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3143,7 +3197,7 @@ func (x *RPC_ExposeOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RPC_ExposeOptions.ProtoReflect.Descriptor instead.
 func (*RPC_ExposeOptions) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{6, 1}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{7, 1}
 }
 
 type RPC_StaticAssets struct {
@@ -3162,7 +3216,7 @@ type RPC_StaticAssets struct {
 
 func (x *RPC_StaticAssets) Reset() {
 	*x = RPC_StaticAssets{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[32]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3174,7 +3228,7 @@ func (x *RPC_StaticAssets) String() string {
 func (*RPC_StaticAssets) ProtoMessage() {}
 
 func (x *RPC_StaticAssets) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[32]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3187,7 +3241,7 @@ func (x *RPC_StaticAssets) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RPC_StaticAssets.ProtoReflect.Descriptor instead.
 func (*RPC_StaticAssets) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{6, 2}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{7, 2}
 }
 
 func (x *RPC_StaticAssets) GetDirRelPath() string {
@@ -3229,7 +3283,7 @@ type RPC_StaticAssets_HeaderValues struct {
 
 func (x *RPC_StaticAssets_HeaderValues) Reset() {
 	*x = RPC_StaticAssets_HeaderValues{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[33]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3241,7 +3295,7 @@ func (x *RPC_StaticAssets_HeaderValues) String() string {
 func (*RPC_StaticAssets_HeaderValues) ProtoMessage() {}
 
 func (x *RPC_StaticAssets_HeaderValues) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[33]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3254,7 +3308,7 @@ func (x *RPC_StaticAssets_HeaderValues) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RPC_StaticAssets_HeaderValues.ProtoReflect.Descriptor instead.
 func (*RPC_StaticAssets_HeaderValues) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{6, 2, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{7, 2, 0}
 }
 
 func (x *RPC_StaticAssets_HeaderValues) GetValues() []string {
@@ -3275,7 +3329,7 @@ type Gateway_Explicit struct {
 
 func (x *Gateway_Explicit) Reset() {
 	*x = Gateway_Explicit{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[35]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3287,7 +3341,7 @@ func (x *Gateway_Explicit) String() string {
 func (*Gateway_Explicit) ProtoMessage() {}
 
 func (x *Gateway_Explicit) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[35]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3300,7 +3354,7 @@ func (x *Gateway_Explicit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gateway_Explicit.ProtoReflect.Descriptor instead.
 func (*Gateway_Explicit) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{22, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{23, 0}
 }
 
 func (x *Gateway_Explicit) GetServiceName() string {
@@ -3326,7 +3380,7 @@ type PubSubTopic_Publisher struct {
 
 func (x *PubSubTopic_Publisher) Reset() {
 	*x = PubSubTopic_Publisher{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[36]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3338,7 +3392,7 @@ func (x *PubSubTopic_Publisher) String() string {
 func (*PubSubTopic_Publisher) ProtoMessage() {}
 
 func (x *PubSubTopic_Publisher) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[36]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3351,7 +3405,7 @@ func (x *PubSubTopic_Publisher) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubTopic_Publisher.ProtoReflect.Descriptor instead.
 func (*PubSubTopic_Publisher) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{27, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{28, 0}
 }
 
 func (x *PubSubTopic_Publisher) GetServiceName() string {
@@ -3377,7 +3431,7 @@ type PubSubTopic_Subscription struct {
 
 func (x *PubSubTopic_Subscription) Reset() {
 	*x = PubSubTopic_Subscription{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[37]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3389,7 +3443,7 @@ func (x *PubSubTopic_Subscription) String() string {
 func (*PubSubTopic_Subscription) ProtoMessage() {}
 
 func (x *PubSubTopic_Subscription) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[37]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3402,7 +3456,7 @@ func (x *PubSubTopic_Subscription) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubTopic_Subscription.ProtoReflect.Descriptor instead.
 func (*PubSubTopic_Subscription) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{27, 1}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{28, 1}
 }
 
 func (x *PubSubTopic_Subscription) GetName() string {
@@ -3458,7 +3512,7 @@ type PubSubTopic_RetryPolicy struct {
 
 func (x *PubSubTopic_RetryPolicy) Reset() {
 	*x = PubSubTopic_RetryPolicy{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[38]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3470,7 +3524,7 @@ func (x *PubSubTopic_RetryPolicy) String() string {
 func (*PubSubTopic_RetryPolicy) ProtoMessage() {}
 
 func (x *PubSubTopic_RetryPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[38]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3483,7 +3537,7 @@ func (x *PubSubTopic_RetryPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubTopic_RetryPolicy.ProtoReflect.Descriptor instead.
 func (*PubSubTopic_RetryPolicy) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{27, 2}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{28, 2}
 }
 
 func (x *PubSubTopic_RetryPolicy) GetMinBackoff() int64 {
@@ -3521,7 +3575,7 @@ type CacheCluster_Keyspace struct {
 
 func (x *CacheCluster_Keyspace) Reset() {
 	*x = CacheCluster_Keyspace{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[39]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3533,7 +3587,7 @@ func (x *CacheCluster_Keyspace) String() string {
 func (*CacheCluster_Keyspace) ProtoMessage() {}
 
 func (x *CacheCluster_Keyspace) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[39]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3546,7 +3600,7 @@ func (x *CacheCluster_Keyspace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CacheCluster_Keyspace.ProtoReflect.Descriptor instead.
 func (*CacheCluster_Keyspace) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{28, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{29, 0}
 }
 
 func (x *CacheCluster_Keyspace) GetKeyType() *v1.Type {
@@ -3595,7 +3649,7 @@ type Metric_Label struct {
 
 func (x *Metric_Label) Reset() {
 	*x = Metric_Label{}
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[40]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3607,7 +3661,7 @@ func (x *Metric_Label) String() string {
 func (*Metric_Label) ProtoMessage() {}
 
 func (x *Metric_Label) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[40]
+	mi := &file_encore_parser_meta_v1_meta_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3620,7 +3674,7 @@ func (x *Metric_Label) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Metric_Label.ProtoReflect.Descriptor instead.
 func (*Metric_Label) Descriptor() ([]byte, []int) {
-	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{29, 0}
+	return file_encore_parser_meta_v1_meta_proto_rawDescGZIP(), []int{30, 0}
 }
 
 func (x *Metric_Label) GetKey() string {
@@ -3683,7 +3737,7 @@ const file_encore_parser_meta_v1_meta_proto_rawDesc = "" +
 	"\asecrets\x18\x05 \x03(\tR\asecrets\x12A\n" +
 	"\trpc_calls\x18\x06 \x03(\v2$.encore.parser.meta.v1.QualifiedNameR\brpcCalls\x12A\n" +
 	"\vtrace_nodes\x18\a \x03(\v2 .encore.parser.meta.v1.TraceNodeR\n" +
-	"traceNodes\"\xe8\x02\n" +
+	"traceNodes\"\x95\x03\n" +
 	"\aService\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
 	"\brel_path\x18\x02 \x01(\tR\arelPath\x12.\n" +
@@ -3695,8 +3749,11 @@ const file_encore_parser_meta_v1_meta_proto_rawDesc = "" +
 	"\n" +
 	"has_config\x18\x06 \x01(\bR\thasConfig\x12<\n" +
 	"\abuckets\x18\a \x03(\v2\".encore.parser.meta.v1.BucketUsageR\abuckets\x12\x18\n" +
-	"\ametrics\x18\b \x03(\tR\ametrics\x12%\n" +
-	"\x0ecache_clusters\x18\t \x03(\tR\rcacheClusters\"\xd8\x02\n" +
+	"\ametrics\x18\b \x03(\tR\ametrics\x12R\n" +
+	"\x0fcache_keyspaces\x18\t \x03(\v2).encore.parser.meta.v1.CacheKeyspaceUsageR\x0ecacheKeyspaces\"p\n" +
+	"\x12CacheKeyspaceUsage\x12\x18\n" +
+	"\acluster\x18\x01 \x01(\tR\acluster\x12@\n" +
+	"\rkeyspace_path\x18\x02 \x01(\v2\x1b.encore.parser.meta.v1.PathR\fkeyspacePath\"\xd8\x02\n" +
 	"\vBucketUsage\x12\x16\n" +
 	"\x06bucket\x18\x01 \x01(\tR\x06bucket\x12L\n" +
 	"\n" +
@@ -4024,7 +4081,7 @@ func file_encore_parser_meta_v1_meta_proto_rawDescGZIP() []byte {
 }
 
 var file_encore_parser_meta_v1_meta_proto_enumTypes = make([]protoimpl.EnumInfo, 11)
-var file_encore_parser_meta_v1_meta_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_encore_parser_meta_v1_meta_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
 var file_encore_parser_meta_v1_meta_proto_goTypes = []any{
 	(Lang)(0),                             // 0: encore.parser.meta.v1.Lang
 	(BucketUsage_Operation)(0),            // 1: encore.parser.meta.v1.BucketUsage.Operation
@@ -4041,128 +4098,131 @@ var file_encore_parser_meta_v1_meta_proto_goTypes = []any{
 	(*QualifiedName)(nil),                 // 12: encore.parser.meta.v1.QualifiedName
 	(*Package)(nil),                       // 13: encore.parser.meta.v1.Package
 	(*Service)(nil),                       // 14: encore.parser.meta.v1.Service
-	(*BucketUsage)(nil),                   // 15: encore.parser.meta.v1.BucketUsage
-	(*Selector)(nil),                      // 16: encore.parser.meta.v1.Selector
-	(*RPC)(nil),                           // 17: encore.parser.meta.v1.RPC
-	(*AuthHandler)(nil),                   // 18: encore.parser.meta.v1.AuthHandler
-	(*Middleware)(nil),                    // 19: encore.parser.meta.v1.Middleware
-	(*TraceNode)(nil),                     // 20: encore.parser.meta.v1.TraceNode
-	(*RPCDefNode)(nil),                    // 21: encore.parser.meta.v1.RPCDefNode
-	(*RPCCallNode)(nil),                   // 22: encore.parser.meta.v1.RPCCallNode
-	(*StaticCallNode)(nil),                // 23: encore.parser.meta.v1.StaticCallNode
-	(*AuthHandlerDefNode)(nil),            // 24: encore.parser.meta.v1.AuthHandlerDefNode
-	(*PubSubTopicDefNode)(nil),            // 25: encore.parser.meta.v1.PubSubTopicDefNode
-	(*PubSubPublishNode)(nil),             // 26: encore.parser.meta.v1.PubSubPublishNode
-	(*PubSubSubscriberNode)(nil),          // 27: encore.parser.meta.v1.PubSubSubscriberNode
-	(*ServiceInitNode)(nil),               // 28: encore.parser.meta.v1.ServiceInitNode
-	(*MiddlewareDefNode)(nil),             // 29: encore.parser.meta.v1.MiddlewareDefNode
-	(*CacheKeyspaceDefNode)(nil),          // 30: encore.parser.meta.v1.CacheKeyspaceDefNode
-	(*Path)(nil),                          // 31: encore.parser.meta.v1.Path
-	(*PathSegment)(nil),                   // 32: encore.parser.meta.v1.PathSegment
-	(*Gateway)(nil),                       // 33: encore.parser.meta.v1.Gateway
-	(*CronJob)(nil),                       // 34: encore.parser.meta.v1.CronJob
-	(*SQLDatabase)(nil),                   // 35: encore.parser.meta.v1.SQLDatabase
-	(*DBMigration)(nil),                   // 36: encore.parser.meta.v1.DBMigration
-	(*Bucket)(nil),                        // 37: encore.parser.meta.v1.Bucket
-	(*PubSubTopic)(nil),                   // 38: encore.parser.meta.v1.PubSubTopic
-	(*CacheCluster)(nil),                  // 39: encore.parser.meta.v1.CacheCluster
-	(*Metric)(nil),                        // 40: encore.parser.meta.v1.Metric
-	nil,                                   // 41: encore.parser.meta.v1.RPC.ExposeEntry
-	(*RPC_ExposeOptions)(nil),             // 42: encore.parser.meta.v1.RPC.ExposeOptions
-	(*RPC_StaticAssets)(nil),              // 43: encore.parser.meta.v1.RPC.StaticAssets
-	(*RPC_StaticAssets_HeaderValues)(nil), // 44: encore.parser.meta.v1.RPC.StaticAssets.HeaderValues
-	nil,                                   // 45: encore.parser.meta.v1.RPC.StaticAssets.HeadersEntry
-	(*Gateway_Explicit)(nil),              // 46: encore.parser.meta.v1.Gateway.Explicit
-	(*PubSubTopic_Publisher)(nil),         // 47: encore.parser.meta.v1.PubSubTopic.Publisher
-	(*PubSubTopic_Subscription)(nil),      // 48: encore.parser.meta.v1.PubSubTopic.Subscription
-	(*PubSubTopic_RetryPolicy)(nil),       // 49: encore.parser.meta.v1.PubSubTopic.RetryPolicy
-	(*CacheCluster_Keyspace)(nil),         // 50: encore.parser.meta.v1.CacheCluster.Keyspace
-	(*Metric_Label)(nil),                  // 51: encore.parser.meta.v1.Metric.Label
-	(*v1.Decl)(nil),                       // 52: encore.parser.schema.v1.Decl
-	(*v1.Type)(nil),                       // 53: encore.parser.schema.v1.Type
-	(*v1.Loc)(nil),                        // 54: encore.parser.schema.v1.Loc
-	(*v1.ValidationExpr)(nil),             // 55: encore.parser.schema.v1.ValidationExpr
-	(v1.Builtin)(0),                       // 56: encore.parser.schema.v1.Builtin
+	(*CacheKeyspaceUsage)(nil),            // 15: encore.parser.meta.v1.CacheKeyspaceUsage
+	(*BucketUsage)(nil),                   // 16: encore.parser.meta.v1.BucketUsage
+	(*Selector)(nil),                      // 17: encore.parser.meta.v1.Selector
+	(*RPC)(nil),                           // 18: encore.parser.meta.v1.RPC
+	(*AuthHandler)(nil),                   // 19: encore.parser.meta.v1.AuthHandler
+	(*Middleware)(nil),                    // 20: encore.parser.meta.v1.Middleware
+	(*TraceNode)(nil),                     // 21: encore.parser.meta.v1.TraceNode
+	(*RPCDefNode)(nil),                    // 22: encore.parser.meta.v1.RPCDefNode
+	(*RPCCallNode)(nil),                   // 23: encore.parser.meta.v1.RPCCallNode
+	(*StaticCallNode)(nil),                // 24: encore.parser.meta.v1.StaticCallNode
+	(*AuthHandlerDefNode)(nil),            // 25: encore.parser.meta.v1.AuthHandlerDefNode
+	(*PubSubTopicDefNode)(nil),            // 26: encore.parser.meta.v1.PubSubTopicDefNode
+	(*PubSubPublishNode)(nil),             // 27: encore.parser.meta.v1.PubSubPublishNode
+	(*PubSubSubscriberNode)(nil),          // 28: encore.parser.meta.v1.PubSubSubscriberNode
+	(*ServiceInitNode)(nil),               // 29: encore.parser.meta.v1.ServiceInitNode
+	(*MiddlewareDefNode)(nil),             // 30: encore.parser.meta.v1.MiddlewareDefNode
+	(*CacheKeyspaceDefNode)(nil),          // 31: encore.parser.meta.v1.CacheKeyspaceDefNode
+	(*Path)(nil),                          // 32: encore.parser.meta.v1.Path
+	(*PathSegment)(nil),                   // 33: encore.parser.meta.v1.PathSegment
+	(*Gateway)(nil),                       // 34: encore.parser.meta.v1.Gateway
+	(*CronJob)(nil),                       // 35: encore.parser.meta.v1.CronJob
+	(*SQLDatabase)(nil),                   // 36: encore.parser.meta.v1.SQLDatabase
+	(*DBMigration)(nil),                   // 37: encore.parser.meta.v1.DBMigration
+	(*Bucket)(nil),                        // 38: encore.parser.meta.v1.Bucket
+	(*PubSubTopic)(nil),                   // 39: encore.parser.meta.v1.PubSubTopic
+	(*CacheCluster)(nil),                  // 40: encore.parser.meta.v1.CacheCluster
+	(*Metric)(nil),                        // 41: encore.parser.meta.v1.Metric
+	nil,                                   // 42: encore.parser.meta.v1.RPC.ExposeEntry
+	(*RPC_ExposeOptions)(nil),             // 43: encore.parser.meta.v1.RPC.ExposeOptions
+	(*RPC_StaticAssets)(nil),              // 44: encore.parser.meta.v1.RPC.StaticAssets
+	(*RPC_StaticAssets_HeaderValues)(nil), // 45: encore.parser.meta.v1.RPC.StaticAssets.HeaderValues
+	nil,                                   // 46: encore.parser.meta.v1.RPC.StaticAssets.HeadersEntry
+	(*Gateway_Explicit)(nil),              // 47: encore.parser.meta.v1.Gateway.Explicit
+	(*PubSubTopic_Publisher)(nil),         // 48: encore.parser.meta.v1.PubSubTopic.Publisher
+	(*PubSubTopic_Subscription)(nil),      // 49: encore.parser.meta.v1.PubSubTopic.Subscription
+	(*PubSubTopic_RetryPolicy)(nil),       // 50: encore.parser.meta.v1.PubSubTopic.RetryPolicy
+	(*CacheCluster_Keyspace)(nil),         // 51: encore.parser.meta.v1.CacheCluster.Keyspace
+	(*Metric_Label)(nil),                  // 52: encore.parser.meta.v1.Metric.Label
+	(*v1.Decl)(nil),                       // 53: encore.parser.schema.v1.Decl
+	(*v1.Type)(nil),                       // 54: encore.parser.schema.v1.Type
+	(*v1.Loc)(nil),                        // 55: encore.parser.schema.v1.Loc
+	(*v1.ValidationExpr)(nil),             // 56: encore.parser.schema.v1.ValidationExpr
+	(v1.Builtin)(0),                       // 57: encore.parser.schema.v1.Builtin
 }
 var file_encore_parser_meta_v1_meta_proto_depIdxs = []int32{
-	52, // 0: encore.parser.meta.v1.Data.decls:type_name -> encore.parser.schema.v1.Decl
+	53, // 0: encore.parser.meta.v1.Data.decls:type_name -> encore.parser.schema.v1.Decl
 	13, // 1: encore.parser.meta.v1.Data.pkgs:type_name -> encore.parser.meta.v1.Package
 	14, // 2: encore.parser.meta.v1.Data.svcs:type_name -> encore.parser.meta.v1.Service
-	18, // 3: encore.parser.meta.v1.Data.auth_handler:type_name -> encore.parser.meta.v1.AuthHandler
-	34, // 4: encore.parser.meta.v1.Data.cron_jobs:type_name -> encore.parser.meta.v1.CronJob
-	38, // 5: encore.parser.meta.v1.Data.pubsub_topics:type_name -> encore.parser.meta.v1.PubSubTopic
-	19, // 6: encore.parser.meta.v1.Data.middleware:type_name -> encore.parser.meta.v1.Middleware
-	39, // 7: encore.parser.meta.v1.Data.cache_clusters:type_name -> encore.parser.meta.v1.CacheCluster
-	40, // 8: encore.parser.meta.v1.Data.metrics:type_name -> encore.parser.meta.v1.Metric
-	35, // 9: encore.parser.meta.v1.Data.sql_databases:type_name -> encore.parser.meta.v1.SQLDatabase
-	33, // 10: encore.parser.meta.v1.Data.gateways:type_name -> encore.parser.meta.v1.Gateway
+	19, // 3: encore.parser.meta.v1.Data.auth_handler:type_name -> encore.parser.meta.v1.AuthHandler
+	35, // 4: encore.parser.meta.v1.Data.cron_jobs:type_name -> encore.parser.meta.v1.CronJob
+	39, // 5: encore.parser.meta.v1.Data.pubsub_topics:type_name -> encore.parser.meta.v1.PubSubTopic
+	20, // 6: encore.parser.meta.v1.Data.middleware:type_name -> encore.parser.meta.v1.Middleware
+	40, // 7: encore.parser.meta.v1.Data.cache_clusters:type_name -> encore.parser.meta.v1.CacheCluster
+	41, // 8: encore.parser.meta.v1.Data.metrics:type_name -> encore.parser.meta.v1.Metric
+	36, // 9: encore.parser.meta.v1.Data.sql_databases:type_name -> encore.parser.meta.v1.SQLDatabase
+	34, // 10: encore.parser.meta.v1.Data.gateways:type_name -> encore.parser.meta.v1.Gateway
 	0,  // 11: encore.parser.meta.v1.Data.language:type_name -> encore.parser.meta.v1.Lang
-	37, // 12: encore.parser.meta.v1.Data.buckets:type_name -> encore.parser.meta.v1.Bucket
+	38, // 12: encore.parser.meta.v1.Data.buckets:type_name -> encore.parser.meta.v1.Bucket
 	12, // 13: encore.parser.meta.v1.Package.rpc_calls:type_name -> encore.parser.meta.v1.QualifiedName
-	20, // 14: encore.parser.meta.v1.Package.trace_nodes:type_name -> encore.parser.meta.v1.TraceNode
-	17, // 15: encore.parser.meta.v1.Service.rpcs:type_name -> encore.parser.meta.v1.RPC
-	36, // 16: encore.parser.meta.v1.Service.migrations:type_name -> encore.parser.meta.v1.DBMigration
-	15, // 17: encore.parser.meta.v1.Service.buckets:type_name -> encore.parser.meta.v1.BucketUsage
-	1,  // 18: encore.parser.meta.v1.BucketUsage.operations:type_name -> encore.parser.meta.v1.BucketUsage.Operation
-	2,  // 19: encore.parser.meta.v1.Selector.type:type_name -> encore.parser.meta.v1.Selector.Type
-	3,  // 20: encore.parser.meta.v1.RPC.access_type:type_name -> encore.parser.meta.v1.RPC.AccessType
-	53, // 21: encore.parser.meta.v1.RPC.request_schema:type_name -> encore.parser.schema.v1.Type
-	53, // 22: encore.parser.meta.v1.RPC.response_schema:type_name -> encore.parser.schema.v1.Type
-	4,  // 23: encore.parser.meta.v1.RPC.proto:type_name -> encore.parser.meta.v1.RPC.Protocol
-	54, // 24: encore.parser.meta.v1.RPC.loc:type_name -> encore.parser.schema.v1.Loc
-	31, // 25: encore.parser.meta.v1.RPC.path:type_name -> encore.parser.meta.v1.Path
-	16, // 26: encore.parser.meta.v1.RPC.tags:type_name -> encore.parser.meta.v1.Selector
-	41, // 27: encore.parser.meta.v1.RPC.expose:type_name -> encore.parser.meta.v1.RPC.ExposeEntry
-	53, // 28: encore.parser.meta.v1.RPC.handshake_schema:type_name -> encore.parser.schema.v1.Type
-	43, // 29: encore.parser.meta.v1.RPC.static_assets:type_name -> encore.parser.meta.v1.RPC.StaticAssets
-	54, // 30: encore.parser.meta.v1.AuthHandler.loc:type_name -> encore.parser.schema.v1.Loc
-	53, // 31: encore.parser.meta.v1.AuthHandler.auth_data:type_name -> encore.parser.schema.v1.Type
-	53, // 32: encore.parser.meta.v1.AuthHandler.params:type_name -> encore.parser.schema.v1.Type
-	12, // 33: encore.parser.meta.v1.Middleware.name:type_name -> encore.parser.meta.v1.QualifiedName
-	54, // 34: encore.parser.meta.v1.Middleware.loc:type_name -> encore.parser.schema.v1.Loc
-	16, // 35: encore.parser.meta.v1.Middleware.target:type_name -> encore.parser.meta.v1.Selector
-	21, // 36: encore.parser.meta.v1.TraceNode.rpc_def:type_name -> encore.parser.meta.v1.RPCDefNode
-	22, // 37: encore.parser.meta.v1.TraceNode.rpc_call:type_name -> encore.parser.meta.v1.RPCCallNode
-	23, // 38: encore.parser.meta.v1.TraceNode.static_call:type_name -> encore.parser.meta.v1.StaticCallNode
-	24, // 39: encore.parser.meta.v1.TraceNode.auth_handler_def:type_name -> encore.parser.meta.v1.AuthHandlerDefNode
-	25, // 40: encore.parser.meta.v1.TraceNode.pubsub_topic_def:type_name -> encore.parser.meta.v1.PubSubTopicDefNode
-	26, // 41: encore.parser.meta.v1.TraceNode.pubsub_publish:type_name -> encore.parser.meta.v1.PubSubPublishNode
-	27, // 42: encore.parser.meta.v1.TraceNode.pubsub_subscriber:type_name -> encore.parser.meta.v1.PubSubSubscriberNode
-	28, // 43: encore.parser.meta.v1.TraceNode.service_init:type_name -> encore.parser.meta.v1.ServiceInitNode
-	29, // 44: encore.parser.meta.v1.TraceNode.middleware_def:type_name -> encore.parser.meta.v1.MiddlewareDefNode
-	30, // 45: encore.parser.meta.v1.TraceNode.cache_keyspace:type_name -> encore.parser.meta.v1.CacheKeyspaceDefNode
-	5,  // 46: encore.parser.meta.v1.StaticCallNode.package:type_name -> encore.parser.meta.v1.StaticCallNode.Package
-	16, // 47: encore.parser.meta.v1.MiddlewareDefNode.target:type_name -> encore.parser.meta.v1.Selector
-	32, // 48: encore.parser.meta.v1.Path.segments:type_name -> encore.parser.meta.v1.PathSegment
-	6,  // 49: encore.parser.meta.v1.Path.type:type_name -> encore.parser.meta.v1.Path.Type
-	7,  // 50: encore.parser.meta.v1.PathSegment.type:type_name -> encore.parser.meta.v1.PathSegment.SegmentType
-	8,  // 51: encore.parser.meta.v1.PathSegment.value_type:type_name -> encore.parser.meta.v1.PathSegment.ParamType
-	55, // 52: encore.parser.meta.v1.PathSegment.validation:type_name -> encore.parser.schema.v1.ValidationExpr
-	46, // 53: encore.parser.meta.v1.Gateway.explicit:type_name -> encore.parser.meta.v1.Gateway.Explicit
-	12, // 54: encore.parser.meta.v1.CronJob.endpoint:type_name -> encore.parser.meta.v1.QualifiedName
-	36, // 55: encore.parser.meta.v1.SQLDatabase.migrations:type_name -> encore.parser.meta.v1.DBMigration
-	53, // 56: encore.parser.meta.v1.PubSubTopic.message_type:type_name -> encore.parser.schema.v1.Type
-	9,  // 57: encore.parser.meta.v1.PubSubTopic.delivery_guarantee:type_name -> encore.parser.meta.v1.PubSubTopic.DeliveryGuarantee
-	47, // 58: encore.parser.meta.v1.PubSubTopic.publishers:type_name -> encore.parser.meta.v1.PubSubTopic.Publisher
-	48, // 59: encore.parser.meta.v1.PubSubTopic.subscriptions:type_name -> encore.parser.meta.v1.PubSubTopic.Subscription
-	50, // 60: encore.parser.meta.v1.CacheCluster.keyspaces:type_name -> encore.parser.meta.v1.CacheCluster.Keyspace
-	56, // 61: encore.parser.meta.v1.Metric.value_type:type_name -> encore.parser.schema.v1.Builtin
-	10, // 62: encore.parser.meta.v1.Metric.kind:type_name -> encore.parser.meta.v1.Metric.MetricKind
-	51, // 63: encore.parser.meta.v1.Metric.labels:type_name -> encore.parser.meta.v1.Metric.Label
-	42, // 64: encore.parser.meta.v1.RPC.ExposeEntry.value:type_name -> encore.parser.meta.v1.RPC.ExposeOptions
-	45, // 65: encore.parser.meta.v1.RPC.StaticAssets.headers:type_name -> encore.parser.meta.v1.RPC.StaticAssets.HeadersEntry
-	44, // 66: encore.parser.meta.v1.RPC.StaticAssets.HeadersEntry.value:type_name -> encore.parser.meta.v1.RPC.StaticAssets.HeaderValues
-	18, // 67: encore.parser.meta.v1.Gateway.Explicit.auth_handler:type_name -> encore.parser.meta.v1.AuthHandler
-	49, // 68: encore.parser.meta.v1.PubSubTopic.Subscription.retry_policy:type_name -> encore.parser.meta.v1.PubSubTopic.RetryPolicy
-	53, // 69: encore.parser.meta.v1.CacheCluster.Keyspace.key_type:type_name -> encore.parser.schema.v1.Type
-	53, // 70: encore.parser.meta.v1.CacheCluster.Keyspace.value_type:type_name -> encore.parser.schema.v1.Type
-	31, // 71: encore.parser.meta.v1.CacheCluster.Keyspace.path_pattern:type_name -> encore.parser.meta.v1.Path
-	56, // 72: encore.parser.meta.v1.Metric.Label.type:type_name -> encore.parser.schema.v1.Builtin
-	73, // [73:73] is the sub-list for method output_type
-	73, // [73:73] is the sub-list for method input_type
-	73, // [73:73] is the sub-list for extension type_name
-	73, // [73:73] is the sub-list for extension extendee
-	0,  // [0:73] is the sub-list for field type_name
+	21, // 14: encore.parser.meta.v1.Package.trace_nodes:type_name -> encore.parser.meta.v1.TraceNode
+	18, // 15: encore.parser.meta.v1.Service.rpcs:type_name -> encore.parser.meta.v1.RPC
+	37, // 16: encore.parser.meta.v1.Service.migrations:type_name -> encore.parser.meta.v1.DBMigration
+	16, // 17: encore.parser.meta.v1.Service.buckets:type_name -> encore.parser.meta.v1.BucketUsage
+	15, // 18: encore.parser.meta.v1.Service.cache_keyspaces:type_name -> encore.parser.meta.v1.CacheKeyspaceUsage
+	32, // 19: encore.parser.meta.v1.CacheKeyspaceUsage.keyspace_path:type_name -> encore.parser.meta.v1.Path
+	1,  // 20: encore.parser.meta.v1.BucketUsage.operations:type_name -> encore.parser.meta.v1.BucketUsage.Operation
+	2,  // 21: encore.parser.meta.v1.Selector.type:type_name -> encore.parser.meta.v1.Selector.Type
+	3,  // 22: encore.parser.meta.v1.RPC.access_type:type_name -> encore.parser.meta.v1.RPC.AccessType
+	54, // 23: encore.parser.meta.v1.RPC.request_schema:type_name -> encore.parser.schema.v1.Type
+	54, // 24: encore.parser.meta.v1.RPC.response_schema:type_name -> encore.parser.schema.v1.Type
+	4,  // 25: encore.parser.meta.v1.RPC.proto:type_name -> encore.parser.meta.v1.RPC.Protocol
+	55, // 26: encore.parser.meta.v1.RPC.loc:type_name -> encore.parser.schema.v1.Loc
+	32, // 27: encore.parser.meta.v1.RPC.path:type_name -> encore.parser.meta.v1.Path
+	17, // 28: encore.parser.meta.v1.RPC.tags:type_name -> encore.parser.meta.v1.Selector
+	42, // 29: encore.parser.meta.v1.RPC.expose:type_name -> encore.parser.meta.v1.RPC.ExposeEntry
+	54, // 30: encore.parser.meta.v1.RPC.handshake_schema:type_name -> encore.parser.schema.v1.Type
+	44, // 31: encore.parser.meta.v1.RPC.static_assets:type_name -> encore.parser.meta.v1.RPC.StaticAssets
+	55, // 32: encore.parser.meta.v1.AuthHandler.loc:type_name -> encore.parser.schema.v1.Loc
+	54, // 33: encore.parser.meta.v1.AuthHandler.auth_data:type_name -> encore.parser.schema.v1.Type
+	54, // 34: encore.parser.meta.v1.AuthHandler.params:type_name -> encore.parser.schema.v1.Type
+	12, // 35: encore.parser.meta.v1.Middleware.name:type_name -> encore.parser.meta.v1.QualifiedName
+	55, // 36: encore.parser.meta.v1.Middleware.loc:type_name -> encore.parser.schema.v1.Loc
+	17, // 37: encore.parser.meta.v1.Middleware.target:type_name -> encore.parser.meta.v1.Selector
+	22, // 38: encore.parser.meta.v1.TraceNode.rpc_def:type_name -> encore.parser.meta.v1.RPCDefNode
+	23, // 39: encore.parser.meta.v1.TraceNode.rpc_call:type_name -> encore.parser.meta.v1.RPCCallNode
+	24, // 40: encore.parser.meta.v1.TraceNode.static_call:type_name -> encore.parser.meta.v1.StaticCallNode
+	25, // 41: encore.parser.meta.v1.TraceNode.auth_handler_def:type_name -> encore.parser.meta.v1.AuthHandlerDefNode
+	26, // 42: encore.parser.meta.v1.TraceNode.pubsub_topic_def:type_name -> encore.parser.meta.v1.PubSubTopicDefNode
+	27, // 43: encore.parser.meta.v1.TraceNode.pubsub_publish:type_name -> encore.parser.meta.v1.PubSubPublishNode
+	28, // 44: encore.parser.meta.v1.TraceNode.pubsub_subscriber:type_name -> encore.parser.meta.v1.PubSubSubscriberNode
+	29, // 45: encore.parser.meta.v1.TraceNode.service_init:type_name -> encore.parser.meta.v1.ServiceInitNode
+	30, // 46: encore.parser.meta.v1.TraceNode.middleware_def:type_name -> encore.parser.meta.v1.MiddlewareDefNode
+	31, // 47: encore.parser.meta.v1.TraceNode.cache_keyspace:type_name -> encore.parser.meta.v1.CacheKeyspaceDefNode
+	5,  // 48: encore.parser.meta.v1.StaticCallNode.package:type_name -> encore.parser.meta.v1.StaticCallNode.Package
+	17, // 49: encore.parser.meta.v1.MiddlewareDefNode.target:type_name -> encore.parser.meta.v1.Selector
+	33, // 50: encore.parser.meta.v1.Path.segments:type_name -> encore.parser.meta.v1.PathSegment
+	6,  // 51: encore.parser.meta.v1.Path.type:type_name -> encore.parser.meta.v1.Path.Type
+	7,  // 52: encore.parser.meta.v1.PathSegment.type:type_name -> encore.parser.meta.v1.PathSegment.SegmentType
+	8,  // 53: encore.parser.meta.v1.PathSegment.value_type:type_name -> encore.parser.meta.v1.PathSegment.ParamType
+	56, // 54: encore.parser.meta.v1.PathSegment.validation:type_name -> encore.parser.schema.v1.ValidationExpr
+	47, // 55: encore.parser.meta.v1.Gateway.explicit:type_name -> encore.parser.meta.v1.Gateway.Explicit
+	12, // 56: encore.parser.meta.v1.CronJob.endpoint:type_name -> encore.parser.meta.v1.QualifiedName
+	37, // 57: encore.parser.meta.v1.SQLDatabase.migrations:type_name -> encore.parser.meta.v1.DBMigration
+	54, // 58: encore.parser.meta.v1.PubSubTopic.message_type:type_name -> encore.parser.schema.v1.Type
+	9,  // 59: encore.parser.meta.v1.PubSubTopic.delivery_guarantee:type_name -> encore.parser.meta.v1.PubSubTopic.DeliveryGuarantee
+	48, // 60: encore.parser.meta.v1.PubSubTopic.publishers:type_name -> encore.parser.meta.v1.PubSubTopic.Publisher
+	49, // 61: encore.parser.meta.v1.PubSubTopic.subscriptions:type_name -> encore.parser.meta.v1.PubSubTopic.Subscription
+	51, // 62: encore.parser.meta.v1.CacheCluster.keyspaces:type_name -> encore.parser.meta.v1.CacheCluster.Keyspace
+	57, // 63: encore.parser.meta.v1.Metric.value_type:type_name -> encore.parser.schema.v1.Builtin
+	10, // 64: encore.parser.meta.v1.Metric.kind:type_name -> encore.parser.meta.v1.Metric.MetricKind
+	52, // 65: encore.parser.meta.v1.Metric.labels:type_name -> encore.parser.meta.v1.Metric.Label
+	43, // 66: encore.parser.meta.v1.RPC.ExposeEntry.value:type_name -> encore.parser.meta.v1.RPC.ExposeOptions
+	46, // 67: encore.parser.meta.v1.RPC.StaticAssets.headers:type_name -> encore.parser.meta.v1.RPC.StaticAssets.HeadersEntry
+	45, // 68: encore.parser.meta.v1.RPC.StaticAssets.HeadersEntry.value:type_name -> encore.parser.meta.v1.RPC.StaticAssets.HeaderValues
+	19, // 69: encore.parser.meta.v1.Gateway.Explicit.auth_handler:type_name -> encore.parser.meta.v1.AuthHandler
+	50, // 70: encore.parser.meta.v1.PubSubTopic.Subscription.retry_policy:type_name -> encore.parser.meta.v1.PubSubTopic.RetryPolicy
+	54, // 71: encore.parser.meta.v1.CacheCluster.Keyspace.key_type:type_name -> encore.parser.schema.v1.Type
+	54, // 72: encore.parser.meta.v1.CacheCluster.Keyspace.value_type:type_name -> encore.parser.schema.v1.Type
+	32, // 73: encore.parser.meta.v1.CacheCluster.Keyspace.path_pattern:type_name -> encore.parser.meta.v1.Path
+	57, // 74: encore.parser.meta.v1.Metric.Label.type:type_name -> encore.parser.schema.v1.Builtin
+	75, // [75:75] is the sub-list for method output_type
+	75, // [75:75] is the sub-list for method input_type
+	75, // [75:75] is the sub-list for extension type_name
+	75, // [75:75] is the sub-list for extension extendee
+	0,  // [0:75] is the sub-list for field type_name
 }
 
 func init() { file_encore_parser_meta_v1_meta_proto_init() }
@@ -4171,10 +4231,10 @@ func file_encore_parser_meta_v1_meta_proto_init() {
 		return
 	}
 	file_encore_parser_meta_v1_meta_proto_msgTypes[0].OneofWrappers = []any{}
-	file_encore_parser_meta_v1_meta_proto_msgTypes[6].OneofWrappers = []any{}
 	file_encore_parser_meta_v1_meta_proto_msgTypes[7].OneofWrappers = []any{}
 	file_encore_parser_meta_v1_meta_proto_msgTypes[8].OneofWrappers = []any{}
-	file_encore_parser_meta_v1_meta_proto_msgTypes[9].OneofWrappers = []any{
+	file_encore_parser_meta_v1_meta_proto_msgTypes[9].OneofWrappers = []any{}
+	file_encore_parser_meta_v1_meta_proto_msgTypes[10].OneofWrappers = []any{
 		(*TraceNode_RpcDef)(nil),
 		(*TraceNode_RpcCall)(nil),
 		(*TraceNode_StaticCall)(nil),
@@ -4186,23 +4246,23 @@ func file_encore_parser_meta_v1_meta_proto_init() {
 		(*TraceNode_MiddlewareDef)(nil),
 		(*TraceNode_CacheKeyspace)(nil),
 	}
-	file_encore_parser_meta_v1_meta_proto_msgTypes[21].OneofWrappers = []any{}
 	file_encore_parser_meta_v1_meta_proto_msgTypes[22].OneofWrappers = []any{}
 	file_encore_parser_meta_v1_meta_proto_msgTypes[23].OneofWrappers = []any{}
 	file_encore_parser_meta_v1_meta_proto_msgTypes[24].OneofWrappers = []any{}
-	file_encore_parser_meta_v1_meta_proto_msgTypes[26].OneofWrappers = []any{}
+	file_encore_parser_meta_v1_meta_proto_msgTypes[25].OneofWrappers = []any{}
 	file_encore_parser_meta_v1_meta_proto_msgTypes[27].OneofWrappers = []any{}
-	file_encore_parser_meta_v1_meta_proto_msgTypes[29].OneofWrappers = []any{}
-	file_encore_parser_meta_v1_meta_proto_msgTypes[32].OneofWrappers = []any{}
-	file_encore_parser_meta_v1_meta_proto_msgTypes[35].OneofWrappers = []any{}
-	file_encore_parser_meta_v1_meta_proto_msgTypes[37].OneofWrappers = []any{}
+	file_encore_parser_meta_v1_meta_proto_msgTypes[28].OneofWrappers = []any{}
+	file_encore_parser_meta_v1_meta_proto_msgTypes[30].OneofWrappers = []any{}
+	file_encore_parser_meta_v1_meta_proto_msgTypes[33].OneofWrappers = []any{}
+	file_encore_parser_meta_v1_meta_proto_msgTypes[36].OneofWrappers = []any{}
+	file_encore_parser_meta_v1_meta_proto_msgTypes[38].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_encore_parser_meta_v1_meta_proto_rawDesc), len(file_encore_parser_meta_v1_meta_proto_rawDesc)),
 			NumEnums:      11,
-			NumMessages:   41,
+			NumMessages:   42,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

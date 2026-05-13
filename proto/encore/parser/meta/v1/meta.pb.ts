@@ -69,8 +69,15 @@ export interface Service {
   databases: string[];
   /** true if the service has uses config */
   has_config: boolean;
-  /** cache clusters this service connects to */
-  cache_clusters: string[];
+  /** cache keyspaces this service uses */
+  cache_keyspaces: CacheKeyspaceUsage[];
+}
+
+export interface CacheKeyspaceUsage {
+  /** The cache cluster the keyspace belongs to. */
+  cluster: string;
+  /** The keyspace's path pattern (matches CacheCluster_Keyspace.path_pattern). */
+  keyspace_path: Path;
 }
 
 export interface Selector {

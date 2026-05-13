@@ -7,6 +7,7 @@ import (
 	gotoken "go/token"
 	"slices"
 	"sort"
+	"strings"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/paths"
@@ -507,13 +508,19 @@ func (b *builder) Build() *meta.Data {
 				continue
 			}
 
+			keyspacePath := b.keyspacePath(r.Path)
+			usage := &meta.CacheKeyspaceUsage{
+				Cluster:      cluster.Name,
+				KeyspacePath: keyspacePath,
+			}
+
 			// A keyspace may live in a non-service package (shared across services).
 			// If it does, its defining-service field is empty.
 			var definingSvcName string
 			if svc, ok := b.app.ServiceForPath(r.File.Pkg.FSPath); ok {
 				definingSvcName = svc.Name
 				if metaSvc, ok := svcByName[svc.Name]; ok {
-					metaSvc.CacheClusters = append(metaSvc.CacheClusters, cluster.Name)
+					metaSvc.CacheKeyspaces = append(metaSvc.CacheKeyspaces, usage)
 				}
 			}
 
@@ -521,7 +528,7 @@ func (b *builder) Build() *meta.Data {
 				Service:     definingSvcName,
 				KeyType:     b.schemaType(r.KeyType),
 				ValueType:   b.schemaType(r.ValueType),
-				PathPattern: b.keyspacePath(r.Path),
+				PathPattern: keyspacePath,
 				Doc:         r.Doc,
 			})
 
@@ -533,18 +540,25 @@ func (b *builder) Build() *meta.Data {
 					continue
 				}
 				if metaSvc, ok := svcByName[useSvc.Name]; ok {
-					metaSvc.CacheClusters = append(metaSvc.CacheClusters, cluster.Name)
+					metaSvc.CacheKeyspaces = append(metaSvc.CacheKeyspaces, usage)
 				}
 			}
 		}
 	}
 
-	// Dedup the per-service cache cluster lists, since a service may both
-	// define and use a keyspace on the same cluster.
+	// Dedup the per-service cache keyspace lists, since a service may both
+	// define and use a keyspace, or use it from multiple call sites.
 	for _, svc := range md.Svcs {
-		if len(svc.CacheClusters) > 1 {
-			slices.Sort(svc.CacheClusters)
-			svc.CacheClusters = slices.Compact(svc.CacheClusters)
+		if len(svc.CacheKeyspaces) > 1 {
+			slices.SortFunc(svc.CacheKeyspaces, func(a, b *meta.CacheKeyspaceUsage) int {
+				if c := strings.Compare(a.Cluster, b.Cluster); c != 0 {
+					return c
+				}
+				return strings.Compare(flattenPath(a.KeyspacePath), flattenPath(b.KeyspacePath))
+			})
+			svc.CacheKeyspaces = slices.CompactFunc(svc.CacheKeyspaces, func(a, b *meta.CacheKeyspaceUsage) bool {
+				return a.Cluster == b.Cluster && flattenPath(a.KeyspacePath) == flattenPath(b.KeyspacePath)
+			})
 		}
 	}
 
@@ -635,6 +649,26 @@ func transformMigration(res sqldb.MigrationFile) *meta.DBMigration {
 		Number:      uint64(res.Number),
 		Description: res.Description,
 	}
+}
+
+func flattenPath(pattern *meta.Path) string {
+	if pattern == nil {
+		return ""
+	}
+	var b strings.Builder
+	for _, segment := range pattern.Segments {
+		if b.Len() > 0 {
+			b.WriteByte('/')
+		}
+		switch segment.Type {
+		case meta.PathSegment_PARAM:
+			b.WriteByte(':')
+		case meta.PathSegment_WILDCARD:
+			b.WriteByte('*')
+		}
+		b.WriteString(segment.Value)
+	}
+	return b.String()
 }
 
 func (b *builder) keyspacePath(path *resourcepaths.Path) *meta.Path {
