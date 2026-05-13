@@ -507,22 +507,44 @@ func (b *builder) Build() *meta.Data {
 				continue
 			}
 
-			svc, ok := b.app.ServiceForPath(r.File.Pkg.FSPath)
-			if !ok {
-				b.errs.Addf(r.ASTExpr().Pos(), "cache keyspace must be defined within a service")
-				continue
+			// A keyspace may live in a non-service package (shared across services).
+			// If it does, its defining-service field is empty.
+			var definingSvcName string
+			if svc, ok := b.app.ServiceForPath(r.File.Pkg.FSPath); ok {
+				definingSvcName = svc.Name
+				if metaSvc, ok := svcByName[svc.Name]; ok {
+					metaSvc.CacheClusters = append(metaSvc.CacheClusters, cluster.Name)
+				}
 			}
 
 			cluster.Keyspaces = append(cluster.Keyspaces, &meta.CacheCluster_Keyspace{
-				Service:     svc.Name,
+				Service:     definingSvcName,
 				KeyType:     b.schemaType(r.KeyType),
 				ValueType:   b.schemaType(r.ValueType),
 				PathPattern: b.keyspacePath(r.Path),
 				Doc:         r.Doc,
 			})
-			if metaSvc, ok := svcByName[svc.Name]; ok {
-				metaSvc.CacheClusters = append(metaSvc.CacheClusters, cluster.Name)
+
+			// Any service that uses the keyspace (method call, function arg, etc.)
+			// also needs the cluster's connection in its runtime config.
+			for _, u := range b.app.Parse.Usages(r) {
+				useSvc, ok := b.app.ServiceForPath(u.DeclaredIn().FSPath)
+				if !ok {
+					continue
+				}
+				if metaSvc, ok := svcByName[useSvc.Name]; ok {
+					metaSvc.CacheClusters = append(metaSvc.CacheClusters, cluster.Name)
+				}
 			}
+		}
+	}
+
+	// Dedup the per-service cache cluster lists, since a service may both
+	// define and use a keyspace on the same cluster.
+	for _, svc := range md.Svcs {
+		if len(svc.CacheClusters) > 1 {
+			slices.Sort(svc.CacheClusters)
+			svc.CacheClusters = slices.Compact(svc.CacheClusters)
 		}
 	}
 

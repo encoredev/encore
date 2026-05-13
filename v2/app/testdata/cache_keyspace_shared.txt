@@ -1,0 +1,62 @@
+parse
+expectOut 'cacheKeyspace Counters'
+expectOut 'cacheKeyspaceUser Counters svc1'
+expectOut 'cacheKeyspaceUser Counters svc2'
+
+-- shared/cache.go --
+package shared
+
+import (
+    "encore.dev/storage/cache"
+)
+
+var Cluster = cache.NewCluster("shared-cache", cache.ClusterConfig{})
+
+var Counters = cache.NewIntKeyspace[string](Cluster, cache.KeyspaceConfig{
+    KeyPattern: "counters/:key",
+})
+
+-- svc1/svc1.go --
+package svc1
+
+import (
+    "context"
+
+    "test/shared"
+)
+
+//encore:api public
+func Inc(ctx context.Context) error {
+    _, err := shared.Counters.Increment(ctx, "k", 1)
+    return err
+}
+
+-- svc2/svc2.go --
+package svc2
+
+import (
+    "context"
+
+    "test/shared"
+    "test/util"
+)
+
+//encore:api public
+func Read(ctx context.Context) error {
+    return util.Bump(ctx, shared.Counters)
+}
+
+-- util/util.go --
+package util
+
+import (
+    "context"
+
+    "encore.dev/storage/cache"
+)
+
+// Bump exercises the "pass keyspace as a function argument" path.
+func Bump(ctx context.Context, ks *cache.IntKeyspace[string]) error {
+    _, err := ks.Increment(ctx, "k", 1)
+    return err
+}
