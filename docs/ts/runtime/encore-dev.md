@@ -20,17 +20,11 @@ Describes an API call being processed.
 
 `api: APIDesc`
 
-<!-- source: req\_meta.ts:38 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L38)
-
 Describes the API Endpoint being called.
 
 ##### headers
 
 `headers: Record<string, string | string[]>`
-
-<!-- source: req\_meta.ts:71 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L71)
 
 The request headers from the HTTP request.
 The values are arrays if the header contains multiple values,
@@ -40,26 +34,17 @@ either separated by ";" or when the header key appears more than once.
 
 `method: Method`
 
-<!-- source: req\_meta.ts:41 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L41)
-
 The HTTP method used in the API call.
 
 ##### middlewareData?
 
 `optional middlewareData?: Record<string, any>`
 
-<!-- source: req\_meta.ts:83 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L83)
-
 Contains values set in middlewares via `MiddlewareRequest.data`.
 
 ##### parsedPayload?
 
 `optional parsedPayload?: Record<string, any>`
-
-<!-- source: req\_meta.ts:78 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L78)
 
 The parsed request payload, as expected by the application code.
 Not provided for raw endpoints or when the API endpoint expects no
@@ -69,9 +54,6 @@ request data.
 
 `path: string`
 
-<!-- source: req\_meta.ts:48 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L48)
-
 The request URL path used in the API call,
 excluding any query string parameters.
 For example "/path/to/endpoint".
@@ -80,9 +62,6 @@ For example "/path/to/endpoint".
 
 `pathAndQuery: string`
 
-<!-- source: req\_meta.ts:55 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L55)
-
 The request URL path used in the API call,
 including any query string parameters.
 For example "/path/to/endpoint?with=querystring".
@@ -90,9 +69,6 @@ For example "/path/to/endpoint?with=querystring".
 ##### pathParams
 
 `pathParams: Record<string, any>`
-
-<!-- source: req\_meta.ts:64 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L64)
 
 The parsed path parameters for the API endpoint.
 The keys are the names of the path parameters,
@@ -103,9 +79,6 @@ For example {id: 5}.
 ##### type
 
 `type: "api-call"`
-
-<!-- source: req\_meta.ts:35 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L35)
 
 Specifies that the request is an API call.
 
@@ -127,17 +100,11 @@ Describes an API endpoint.
 
 `auth: boolean`
 
-<!-- source: req\_meta.ts:15 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L15)
-
 Whether the endpoint requires auth.
 
 ##### endpoint
 
 `endpoint: string`
-
-<!-- source: req\_meta.ts:9 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L9)
 
 The name of the endpoint itself.
 
@@ -145,26 +112,17 @@ The name of the endpoint itself.
 
 `raw: boolean`
 
-<!-- source: req\_meta.ts:12 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L12)
-
 Whether the endpoint is a raw endpoint.
 
 ##### service
 
 `service: string`
 
-<!-- source: req\_meta.ts:6 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L6)
-
 The name of the service that the endpoint belongs to.
 
 ##### tags
 
 `tags: string[]`
-
-<!-- source: req\_meta.ts:18 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L18)
 
 Tags specified on the endpoint.
 
@@ -186,9 +144,6 @@ Describes the running Encore application.
 
 `apiBaseUrl: string`
 
-<!-- source: app\_meta.ts:19 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L19)
-
 The base URL which can be used to call the API of this running application.
 
 For local development it is "http://localhost:<port>", typically "http://localhost:4000".
@@ -200,9 +155,6 @@ changes only take effect at the time of deployment while custom domains can be u
 
 `appId: string`
 
-<!-- source: app\_meta.ts:9 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L9)
-
 The Encore application ID. If the application is not linked to the Encore platform this will be an empty string.
 To link to the Encore platform run `encore app link` from your terminal in the root directory of the Encore app.
 
@@ -210,26 +162,17 @@ To link to the Encore platform run `encore app link` from your terminal in the r
 
 `build: BuildMeta`
 
-<!-- source: app\_meta.ts:25 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L25)
-
 Information about the build.
 
 ##### deploy
 
 `deploy: DeployMeta`
 
-<!-- source: app\_meta.ts:28 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L28)
-
 Information about the deployment.
 
 ##### environment
 
 `environment: EnvironmentMeta`
-
-<!-- source: app\_meta.ts:22 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L22)
 
 Information about the environment the app is running in.
 
@@ -251,9 +194,6 @@ Common fields shared by all request meta types.
 
 `optional trace?: TraceData`
 
-<!-- source: req\_meta.ts:147 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L147)
-
 Information about the trace, if the request is being traced
 
 ***
@@ -274,17 +214,11 @@ Information about the build that formed the running application.
 
 `revision: string`
 
-<!-- source: app\_meta.ts:74 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L74)
-
 The git commit that formed the base of this build.
 
 ##### uncommittedChanges
 
 `uncommittedChanges: boolean`
-
-<!-- source: app\_meta.ts:77 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L77)
 
 Whether there were uncommitted changes on top of the commit.
 
@@ -306,17 +240,11 @@ Information about the deployment of the running application.
 
 `hostedServices: Record<string, HostedService>`
 
-<!-- source: app\_meta.ts:86 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L86)
-
 The services hosted by this deployment, keyed by the service name.
 
 ##### id
 
 `id: string`
-
-<!-- source: app\_meta.ts:83 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L83)
 
 The unique id of the deployment. Generated by the Encore Platform.
 
@@ -338,9 +266,6 @@ Describes the environment the Encore application is running in.
 
 `cloud: CloudProvider`
 
-<!-- source: app\_meta.ts:49 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L49)
-
 The cloud this is running in.
 For local development it is "local".
 
@@ -348,18 +273,12 @@ For local development it is "local".
 
 `name: string`
 
-<!-- source: app\_meta.ts:37 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L37)
-
 The name of environment that this application.
 For local development it is "local".
 
 ##### type
 
 `type: EnvironmentType`
-
-<!-- source: app\_meta.ts:43 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L43)
 
 The type of environment is this application running in.
 For local development it is "development".
@@ -379,9 +298,6 @@ For local development it is "development".
 ##### name
 
 `name: string`
-
-<!-- source: app\_meta.ts:91 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/app_meta.ts#L91)
 
 The name of the service
 
@@ -403,18 +319,12 @@ Describes a Pub/Sub message being processed.
 
 `deliveryAttempt: number`
 
-<!-- source: req\_meta.ts:111 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L111)
-
 The delivery attempt. The first attempt starts at 1,
 and increases by 1 for each retry.
 
 ##### messageId
 
 `messageId: string`
-
-<!-- source: req\_meta.ts:105 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L105)
 
 The unique id of the Pub/Sub message.
 It is the same id returned by `topic.publish()`.
@@ -424,17 +334,11 @@ The message id stays the same across delivery attempts.
 
 `optional parsedPayload?: Record<string, any>`
 
-<!-- source: req\_meta.ts:116 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L116)
-
 The parsed request payload, as expected by the application code.
 
 ##### service
 
 `service: string`
-
-<!-- source: req\_meta.ts:92 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L92)
 
 The service processing the message.
 
@@ -442,26 +346,17 @@ The service processing the message.
 
 `subscription: string`
 
-<!-- source: req\_meta.ts:98 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L98)
-
 The name of the Pub/Sub subscription.
 
 ##### topic
 
 `topic: string`
 
-<!-- source: req\_meta.ts:95 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L95)
-
 The name of the Pub/Sub topic.
 
 ##### type
 
 `type: "pubsub-message"`
-
-<!-- source: req\_meta.ts:89 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L89)
 
 Specifies that the request is a Pub/Sub message.
 
@@ -483,9 +378,6 @@ Provides information about the active trace.
 
 `optional extCorrelationId?: string`
 
-<!-- source: req\_meta.ts:141 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L141)
-
 The external correlation id provided when the trace
 was created, if any.
 For example via the `Request-Id` or `X-Correlation-Id` headers.
@@ -494,17 +386,11 @@ For example via the `Request-Id` or `X-Correlation-Id` headers.
 
 `optional parentSpanId?: string`
 
-<!-- source: req\_meta.ts:134 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L134)
-
 The span that initiated this span, if any.
 
 ##### parentTraceId?
 
 `optional parentTraceId?: string`
-
-<!-- source: req\_meta.ts:129 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L129)
 
 The trace id that initiated this trace, if any.
 
@@ -512,17 +398,11 @@ The trace id that initiated this trace, if any.
 
 `spanId: string`
 
-<!-- source: req\_meta.ts:124 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L124)
-
 The current span id.
 
 ##### traceId
 
 `traceId: string`
-
-<!-- source: req\_meta.ts:122 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L122)
 
 The trace id.
 

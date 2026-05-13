@@ -64,9 +64,6 @@ Creates a new bucket with the given name and configuration
 
 `impl: Bucket`
 
-<!-- source: storage/objects/bucket.ts:28 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L28)
-
 #### Methods
 
 ##### attrs()
@@ -556,9 +553,6 @@ Options for retrieving the attributes of an object.
 
 `optional version?: string`
 
-<!-- source: storage/objects/bucket.ts:179 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L179)
-
 The object version to retrieve attributes for.
 Defaults to the lastest version if unset.
 
@@ -582,18 +576,12 @@ Configuration options for declaring a Bucket.
 
 `optional public?: boolean`
 
-<!-- source: storage/objects/bucket.ts:15 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L15)
-
 Whether the objects in the bucket should be publicly
 accessible, via CDN. Defaults to false if unset.
 
 ##### versioned?
 
 `optional versioned?: boolean`
-
-<!-- source: storage/objects/bucket.ts:21 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L21)
 
 Whether to enable versioning of the objects in the bucket.
 Defaults to false if unset.
@@ -637,9 +625,6 @@ Options for deleting an object from a bucket.
 ##### version?
 
 `optional version?: string`
-
-<!-- source: storage/objects/bucket.ts:205 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L205)
 
 The object version to delete.
 Defaults to the lastest version if unset.
@@ -701,9 +686,6 @@ Options for downloading an object from a bucket.
 
 `optional version?: string`
 
-<!-- source: storage/objects/bucket.ts:218 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L218)
-
 The object version to download.
 Defaults to the lastest version if unset.
 
@@ -727,9 +709,6 @@ Options for generating a signed download URL.
 
 `optional ttl?: number`
 
-<!-- source: storage/objects/bucket.ts:276 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L276)
-
 The expiration time of the url, in seconds from signing. The maximum
 value is seven days. If no value is given, a default of one hour is
 used.
@@ -751,9 +730,6 @@ Options for checking the existence of an object.
 ##### version?
 
 `optional version?: string`
-
-<!-- source: storage/objects/bucket.ts:192 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L192)
 
 The object version to check for existence.
 Defaults to the lastest version if unset.
@@ -778,22 +754,13 @@ A single entry returned when listing objects in a bucket.
 
 `etag: string`
 
-<!-- source: storage/objects/bucket.ts:239 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L239)
-
 ##### name
 
 `name: string`
 
-<!-- source: storage/objects/bucket.ts:237 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L237)
-
 ##### size
 
 `size: number`
-
-<!-- source: storage/objects/bucket.ts:238 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L238)
 
 ***
 
@@ -846,17 +813,11 @@ Options for listing objects in a bucket.
 
 `optional limit?: number`
 
-<!-- source: storage/objects/bucket.ts:166 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L166)
-
 Maximum number of objects to return. Defaults to no limit.
 
 ##### prefix?
 
 `optional prefix?: string`
-
-<!-- source: storage/objects/bucket.ts:163 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L163)
 
 Only include objects with this prefix in the listing.
 If unset, all objects are included.
@@ -879,36 +840,21 @@ Describes the attributes of an object stored in a bucket.
 
 `optional contentType?: string`
 
-<!-- source: storage/objects/bucket.ts:230 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L230)
-
 ##### etag
 
 `etag: string`
-
-<!-- source: storage/objects/bucket.ts:229 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L229)
 
 ##### name
 
 `name: string`
 
-<!-- source: storage/objects/bucket.ts:225 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L225)
-
 ##### size
 
 `size: number`
 
-<!-- source: storage/objects/bucket.ts:226 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L226)
-
 ##### version?
 
 `optional version?: string`
-
-<!-- source: storage/objects/bucket.ts:228 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L228)
 
 The version of the object, if bucket versioning is enabled.
 
@@ -1037,9 +983,6 @@ A signed URL that allows downloading an object without additional auth.
 
 `url: string`
 
-<!-- source: storage/objects/bucket.ts:283 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L283)
-
 ***
 
 <!-- symbol-end -->
@@ -1094,9 +1037,6 @@ A signed URL that allows uploading an object without additional auth.
 ##### url
 
 `url: string`
-
-<!-- source: storage/objects/bucket.ts:266 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L266)
 
 ***
 
@@ -1162,9 +1102,6 @@ Options for uploading an object to a bucket.
 
 `optional contentType?: string`
 
-<!-- source: storage/objects/bucket.ts:246 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L246)
-
 ##### preconditions?
 
 ```ts
@@ -1172,9 +1109,6 @@ optional preconditions?: {
   notExists?: boolean;
 };
 ```
-
-<!-- source: storage/objects/bucket.ts:247 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L247)
 
 ###### notExists?
 
@@ -1197,9 +1131,6 @@ Options for generating a signed upload URL.
 ##### ttl?
 
 `optional ttl?: number`
-
-<!-- source: storage/objects/bucket.ts:259 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L259)
 
 The expiration time of the url, in seconds from signing. The maximum
 value is seven days. If no value is given, a default of one hour is

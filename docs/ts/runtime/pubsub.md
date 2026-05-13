@@ -110,15 +110,9 @@ to be delivered to subscribers of that topic.
 
 `readonly cfg: TopicConfig<Msg>`
 
-<!-- source: pubsub/topic.ts:15 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L15)
-
 ##### name
 
 `readonly name: string`
-
-<!-- source: pubsub/topic.ts:14 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L14)
 
 #### Methods
 
@@ -225,17 +219,11 @@ by the target cloud).
 
 `optional maxBackoff?: DurationString`
 
-<!-- source: pubsub/subscription.ts:120 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L120)
-
 The maximum time to wait between retries. Defaults to 10 minutes.
 
 ##### maxRetries?
 
 `optional maxRetries?: number`
-
-<!-- source: pubsub/subscription.ts:128 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L128)
 
 MaxRetries is used to control deadletter queuing logic, when:
   n == 0: A default value of 100 retries will be used
@@ -245,9 +233,6 @@ MaxRetries is used to control deadletter queuing logic, when:
 ##### minBackoff?
 
 `optional minBackoff?: DurationString`
-
-<!-- source: pubsub/subscription.ts:115 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L115)
 
 The minimum time to wait between retries. Defaults to 10 seconds.
 
@@ -279,9 +264,6 @@ by the target cloud pubsub implementation).
 
 `optional ackDeadline?: DurationString`
 
-<!-- source: pubsub/subscription.ts:83 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L83)
-
 AckDeadline is the time a consumer has to process a message
 before it's returned to the subscription
 
@@ -291,9 +273,6 @@ Default is 30 seconds, however the ack deadline must be at least
 ##### handler
 
 `handler: (msg) => Promise<unknown>`
-
-<!-- source: pubsub/subscription.ts:53 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L53)
 
 Handler is the function which will be called to process a message
 sent on the topic.
@@ -315,9 +294,6 @@ attempt to be made (unless the retry policy's MaxRetries has been reached).
 ##### maxConcurrency?
 
 `optional maxConcurrency?: number`
-
-<!-- source: pubsub/subscription.ts:74 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L74)
 
 MaxConcurrency is the maximum number of messages which will be processed
 simultaneously per instance of the service for this subscription.
@@ -341,9 +317,6 @@ If not set, it uses a reasonable default based on the cloud provider.
 
 `optional messageRetention?: DurationString`
 
-<!-- source: pubsub/subscription.ts:91 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L91)
-
 MessageRetention is how long an undelivered message is kept
 on the topic before it's purged.
 
@@ -352,9 +325,6 @@ Default is 7 days.
 ##### retryPolicy?
 
 `optional retryPolicy?: RetryPolicy`
-
-<!-- source: pubsub/subscription.ts:97 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L97)
 
 RetryPolicy defines how a message should be retried when
 the subscriber returns an error
@@ -383,17 +353,11 @@ TopicConfig is used when creating a Topic
 
 `deliveryGuarantee: DeliveryGuarantee`
 
-<!-- source: pubsub/topic.ts:84 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L84)
-
 DeliveryGuarantee is used to configure the delivery guarantee of a Topic
 
 ##### orderingAttribute?
 
 `optional orderingAttribute?: keyof { [Key in string | number | symbol as Extract<Msg[Key], brandedAttribute<string> | brandedAttribute<number> | brandedAttribute<false> | brandedAttribute<true>> extends never ? never : Key]: never }`
-
-<!-- source: pubsub/topic.ts:131 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L131)
 
 OrderingAttribute is the message attribute to use as a ordering key for
 messages and delivery will ensure that messages with the same value will

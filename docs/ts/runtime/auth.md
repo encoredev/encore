@@ -48,9 +48,6 @@ type AuthHandlerBrand = {
 
 `readonly __authHandlerBrand: unique symbol`
 
-<!-- source: auth/mod.ts:6 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L6)
-
 <!-- symbol-end -->
 
 ## Functions

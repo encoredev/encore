@@ -85,6 +85,39 @@ for (const file of finalFiles) {
     (_, code) => `\`${code.replace(/;$/, "")}\``
   );
 
+  {
+    const lines = content.split("\n");
+    const filtered = [];
+    let headingLevel = 0;
+    let headingText = "";
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      const headingMatch = line.match(/^(#+) (.+)$/);
+      if (headingMatch) {
+        headingLevel = headingMatch[1].length;
+        headingText = headingMatch[2];
+      }
+      if (
+        line.startsWith("<!-- source:") &&
+        (lines[i + 1] ?? "").startsWith("[source](")
+      ) {
+        const keep =
+          headingLevel <= 3 ||
+          /\(\)$/.test(headingText) ||
+          headingText === "Constructor";
+        if (!keep) {
+          i += 2;
+          if (lines[i] === "") i++;
+          continue;
+        }
+      }
+      filtered.push(line);
+      i++;
+    }
+    content = filtered.join("\n");
+  }
+
   if (file !== "index.md") {
     const lines = content.split("\n");
     const out = [];

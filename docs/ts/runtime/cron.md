@@ -41,15 +41,9 @@ toc: true
 
 `readonly cfg: CronJobConfig`
 
-<!-- source: cron/mod.ts:7 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L7)
-
 ##### name
 
 `readonly name: string`
-
-<!-- source: cron/mod.ts:6 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L6)
 
 <!-- symbol-end -->
 

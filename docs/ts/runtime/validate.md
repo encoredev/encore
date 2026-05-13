@@ -36,9 +36,6 @@ optional [___validate]?: {
 };
 ```
 
-<!-- source: validate/mod.ts:40 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L40)
-
 ###### endsWith
 
 `endsWith: S`
@@ -71,9 +68,6 @@ optional [___validate]?: {
 };
 ```
 
-<!-- source: validate/mod.ts:46 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L46)
-
 ###### isEmail
 
 `isEmail: true`
@@ -105,9 +99,6 @@ optional [___validate]?: {
   isURL: true;
 };
 ```
-
-<!-- source: validate/mod.ts:52 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L52)
 
 ###### isURL
 
@@ -147,9 +138,6 @@ optional [___validate]?: {
 };
 ```
 
-<!-- source: validate/mod.ts:28 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L28)
-
 ###### matchesRegexp
 
 `matchesRegexp: S`
@@ -187,9 +175,6 @@ optional [___validate]?: {
   maxValue: N;
 };
 ```
-
-<!-- source: validate/mod.ts:10 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L10)
 
 ###### maxValue
 
@@ -229,9 +214,6 @@ optional [___validate]?: {
 };
 ```
 
-<!-- source: validate/mod.ts:22 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L22)
-
 ###### maxLen
 
 `maxLen: N`
@@ -269,9 +251,6 @@ optional [___validate]?: {
   minValue: N;
 };
 ```
-
-<!-- source: validate/mod.ts:4 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L4)
 
 ###### minValue
 
@@ -311,9 +290,6 @@ optional [___validate]?: {
 };
 ```
 
-<!-- source: validate/mod.ts:16 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L16)
-
 ###### minLen
 
 `minLen: N`
@@ -351,9 +327,6 @@ optional [___validate]?: {
   startsWith: S;
 };
 ```
-
-<!-- source: validate/mod.ts:34 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L34)
 
 ###### startsWith
 

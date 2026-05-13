@@ -273,9 +273,6 @@ const newScore = await scores.increment("player1", 10.25);
 
 `protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
-
 ###### Inherited from
 
 `BasicKeyspace.cluster`
@@ -284,9 +281,6 @@ const newScore = await scores.increment("player1", 10.25);
 
 `protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
-
 ###### Inherited from
 
 `BasicKeyspace.config`
@@ -294,9 +288,6 @@ const newScore = await scores.increment("player1", 10.25);
 ##### keyMapper
 
 `protected readonly keyMapper: (key) => string`
-
-<!-- source: storage/cache/keyspace.ts:48 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -890,9 +881,6 @@ const newCount = await counters.increment("page-views", 1);
 
 `protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
-
 ###### Inherited from
 
 `BasicKeyspace.cluster`
@@ -901,9 +889,6 @@ const newCount = await counters.increment("page-views", 1);
 
 `protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
-
 ###### Inherited from
 
 `BasicKeyspace.config`
@@ -911,9 +896,6 @@ const newCount = await counters.increment("page-views", 1);
 ##### keyMapper
 
 `protected readonly keyMapper: (key) => string`
-
-<!-- source: storage/cache/keyspace.ts:48 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -1505,9 +1487,6 @@ const allScores = await scores.items("game1");
 
 `protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
-
 ###### Inherited from
 
 `ListKeyspace.cluster`
@@ -1516,9 +1495,6 @@ const allScores = await scores.items("game1");
 
 `protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
-
 ###### Inherited from
 
 `ListKeyspace.config`
@@ -1526,9 +1502,6 @@ const allScores = await scores.items("game1");
 ##### keyMapper
 
 `protected readonly keyMapper: (key) => string`
-
-<!-- source: storage/cache/keyspace.ts:48 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -2512,9 +2485,6 @@ const hasScore = await scores.contains("game1", 100);
 
 `protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
-
 ###### Inherited from
 
 `SetKeyspace.cluster`
@@ -2523,9 +2493,6 @@ const hasScore = await scores.contains("game1", 100);
 
 `protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
-
 ###### Inherited from
 
 `SetKeyspace.config`
@@ -2533,9 +2500,6 @@ const hasScore = await scores.contains("game1", 100);
 ##### keyMapper
 
 `protected readonly keyMapper: (key) => string`
-
-<!-- source: storage/cache/keyspace.ts:48 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -3526,9 +3490,6 @@ const token = await tokens.get("abc123");
 
 `protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
-
 ###### Inherited from
 
 [`IntKeyspace`](#intkeyspace).[`cluster`](#cluster-1)
@@ -3537,9 +3498,6 @@ const token = await tokens.get("abc123");
 
 `protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
-
 ###### Inherited from
 
 `BasicKeyspace.config`
@@ -3547,9 +3505,6 @@ const token = await tokens.get("abc123");
 ##### keyMapper
 
 `protected readonly keyMapper: (key) => string`
-
-<!-- source: storage/cache/keyspace.ts:48 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -4222,9 +4177,6 @@ const views = await recentViews.items("user1");
 
 `protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
-
 ###### Inherited from
 
 `ListKeyspace.cluster`
@@ -4233,9 +4185,6 @@ const views = await recentViews.items("user1");
 
 `protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
-
 ###### Inherited from
 
 `ListKeyspace.config`
@@ -4243,9 +4192,6 @@ const views = await recentViews.items("user1");
 ##### keyMapper
 
 `protected readonly keyMapper: (key) => string`
-
-<!-- source: storage/cache/keyspace.ts:48 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -5231,9 +5177,6 @@ const tagSet = await tags.itemsSet("article1");
 
 `protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
-
 ###### Inherited from
 
 `SetKeyspace.cluster`
@@ -5242,9 +5185,6 @@ const tagSet = await tags.itemsSet("article1");
 
 `protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
-
 ###### Inherited from
 
 `SetKeyspace.config`
@@ -5252,9 +5192,6 @@ const tagSet = await tags.itemsSet("article1");
 ##### keyMapper
 
 `protected readonly keyMapper: (key) => string`
-
-<!-- source: storage/cache/keyspace.ts:48 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -6255,9 +6192,6 @@ const user = await users.get("user1");
 
 `protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
-
 ###### Inherited from
 
 `BasicKeyspace.cluster`
@@ -6266,9 +6200,6 @@ const user = await users.get("user1");
 
 `protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
-
 ###### Inherited from
 
 `BasicKeyspace.config`
@@ -6276,9 +6207,6 @@ const user = await users.get("user1");
 ##### keyMapper
 
 `protected readonly keyMapper: (key) => string`
-
-<!-- source: storage/cache/keyspace.ts:48 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -6726,9 +6654,6 @@ Configuration options for a cache cluster.
 
 `optional evictionPolicy?: EvictionPolicy`
 
-<!-- source: storage/cache/cluster.ts:25 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L25)
-
 The eviction policy to use when the cache is full.
 Defaults to "allkeys-lru".
 
@@ -6756,18 +6681,12 @@ Configuration for a cache keyspace.
 
 `optional defaultExpiry?: Expiry`
 
-<!-- source: storage/cache/keyspace.ts:26 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L26)
-
 Default expiry for cache entries in this keyspace.
 If not set, entries do not expire.
 
 ##### keyPattern
 
 `keyPattern: string`
-
-<!-- source: storage/cache/keyspace.ts:20 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L20)
 
 The pattern for generating cache keys.
 Use `:fieldName` to include a field from the key type.
@@ -6799,9 +6718,6 @@ Options for write operations.
 ##### expiry?
 
 `optional expiry?: Expiry`
-
-<!-- source: storage/cache/keyspace.ts:37 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L37)
 
 Expiry for this specific write operation.
 Overrides the keyspace's defaultExpiry.

@@ -43,9 +43,6 @@ decimal values without floating-point precision errors.
 
 `get value(): string`
 
-<!-- source: types/mod.ts:70 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L70)
-
 ###### Returns
 
 `string`

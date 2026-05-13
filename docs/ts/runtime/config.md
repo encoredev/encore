@@ -35,9 +35,6 @@ function doFoo(s: Secret<"foo">): void {
 
 `Secret(): string`
 
-<!-- source: config/secrets.ts:27 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L27)
-
 Returns the current value of the secret.
 
 Encore will periodically refresh the value of the secret, so this
@@ -54,9 +51,6 @@ minutes. If you need to ensure you have the latest value, use
 ##### name
 
 `readonly name: Name`
-
-<!-- source: config/secrets.ts:32 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L32)
 
 The name of the secret.
 

@@ -47,9 +47,6 @@ Represents a dedicated connection to a database.
 
 `protected readonly impl: SQLConn`
 
-<!-- source: storage/sqldb/database.ts:361 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L361)
-
 ###### Overrides
 
 `BaseQueryExecutor.impl`
@@ -475,9 +472,6 @@ compile error to create duplicate databases.
 
 `protected readonly impl: SQLDatabase`
 
-<!-- source: storage/sqldb/database.ts:274 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L274)
-
 ###### Overrides
 
 `BaseQueryExecutor.impl`
@@ -489,9 +483,6 @@ compile error to create duplicate databases.
 ###### Get Signature
 
 `get connectionString(): string`
-
-<!-- source: storage/sqldb/database.ts:291 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L291)
 
 Returns the connection string for the database
 
@@ -965,9 +956,6 @@ Make sure to always call `rollback` or `commit` to prevent hanging transactions.
 
 `protected readonly impl: Transaction`
 
-<!-- source: storage/sqldb/database.ts:325 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L325)
-
 ###### Overrides
 
 `BaseQueryExecutor.impl`
@@ -1386,9 +1374,6 @@ Configuration for a `SQLDatabase`.
 
 `optional migrations?: string | SQLMigrationsConfig`
 
-<!-- source: storage/sqldb/database.ts:16 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L16)
-
 ***
 
 <!-- symbol-end -->
@@ -1407,15 +1392,9 @@ Configures how database migrations are managed for a `SQLDatabase`.
 
 `path: string`
 
-<!-- source: storage/sqldb/database.ts:9 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L9)
-
 ##### source?
 
 `optional source?: "prisma" | "drizzle" | "drizzle/v1"`
-
-<!-- source: storage/sqldb/database.ts:10 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L10)
 
 <!-- symbol-end -->
 

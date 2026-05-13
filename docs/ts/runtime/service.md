@@ -49,15 +49,9 @@ efficiently identify possible service definitions.
 
 `readonly cfg: ServiceConfig`
 
-<!-- source: service/mod.ts:14 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L14)
-
 ##### name
 
 `readonly name: string`
-
-<!-- source: service/mod.ts:13 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L13)
 
 <!-- symbol-end -->
 
@@ -74,9 +68,6 @@ efficiently identify possible service definitions.
 ##### middlewares?
 
 `optional middlewares?: Middleware[]`
-
-<!-- source: service/mod.ts:23 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L23)
 
 
 <!-- symbol-end -->
