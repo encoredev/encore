@@ -81,7 +81,7 @@ $ encore exec -- <command>
 | --- | --- |
 | `-n, --namespace` | Namespace to use (defaults to active namespace) |
 
-##### Example
+**Example**
 
 Run a database seed script
 
