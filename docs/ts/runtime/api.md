@@ -1035,11 +1035,11 @@ new MiddlewareRequest(
 
 ###### rawReq?
 
-`RawRequest`
+[`RawRequest`](#rawrequest-1)
 
 ###### rawResp?
 
-`RawResponse`
+[`RawResponse`](#rawresponse-1)
 
 ###### Returns
 
@@ -1078,7 +1078,7 @@ The returned value is a Node.js `http.IncomingMessage`.
 
 ###### Returns
 
-`RawRequest` \| `undefined`
+[`RawRequest`](#rawrequest-1) \| `undefined`
 
 ##### rawResponse
 
@@ -1095,7 +1095,7 @@ The returned value is a Node.js `http.ServerResponse`.
 
 ###### Returns
 
-`RawResponse` \| `undefined`
+[`RawResponse`](#rawresponse-1) \| `undefined`
 
 ##### requestMeta
 
@@ -1136,6 +1136,804 @@ stream is set when the handler is a stream handler.
   \| [`IterableSocket`](#iterablesocket)
   \| [`Sink`](#sink)
   \| `undefined`
+
+***
+
+<!-- symbol-end -->
+
+<!-- symbol-start: RawRequest -->
+### RawRequest
+
+<!-- source: api/node\_http.ts:10 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L10)
+
+#### Extends
+
+- `Readable`
+
+#### Constructors
+
+##### Constructor
+
+`new RawRequest(req, body): RawRequest`
+
+<!-- source: api/node\_http.ts:23 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L23)
+
+###### Parameters
+
+###### req
+
+`Request`
+
+###### body
+
+`BodyReader`
+
+###### Returns
+
+[`RawRequest`](#rawrequest-1)
+
+###### Overrides
+
+`stream.Readable.constructor`
+
+#### Properties
+
+##### \_headersDistinct
+
+`_headersDistinct: Dict<string[]> | undefined`
+
+<!-- source: api/node\_http.ts:59 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L59)
+
+##### \_rawHeaders
+
+`_rawHeaders: string[] | undefined`
+
+<!-- source: api/node\_http.ts:76 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L76)
+
+##### \_url
+
+`_url: string | undefined`
+
+<!-- source: api/node\_http.ts:44 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L44)
+
+##### complete
+
+`complete: boolean`
+
+<!-- source: api/node\_http.ts:11 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L11)
+
+##### connection
+
+`readonly connection: Socket | null`
+
+<!-- source: api/node\_http.ts:17 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L17)
+
+##### rawTrailers
+
+`rawTrailers: string[]`
+
+<!-- source: api/node\_http.ts:15 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L15)
+
+##### socket
+
+`readonly socket: Socket | null`
+
+<!-- source: api/node\_http.ts:18 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L18)
+
+##### trailers
+
+`trailers: Dict<string>`
+
+<!-- source: api/node\_http.ts:13 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L13)
+
+##### trailersDistinct
+
+`trailersDistinct: Dict<string[]>`
+
+<!-- source: api/node\_http.ts:14 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L14)
+
+#### Accessors
+
+##### headers
+
+###### Get Signature
+
+`get headers(): IncomingHttpHeaders`
+
+<!-- source: api/node\_http.ts:55 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L55)
+
+###### Returns
+
+`IncomingHttpHeaders`
+
+##### headersDistinct
+
+###### Get Signature
+
+`get headersDistinct(): Dict<string[]>`
+
+<!-- source: api/node\_http.ts:60 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L60)
+
+###### Returns
+
+`Dict`\<`string`[]\>
+
+##### method
+
+###### Get Signature
+
+`get method(): string`
+
+<!-- source: api/node\_http.ts:40 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L40)
+
+###### Returns
+
+`string`
+
+##### rawHeaders
+
+###### Get Signature
+
+`get rawHeaders(): string[]`
+
+<!-- source: api/node\_http.ts:77 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L77)
+
+###### Returns
+
+`string`[]
+
+##### url
+
+###### Get Signature
+
+`get url(): string`
+
+<!-- source: api/node\_http.ts:45 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L45)
+
+###### Returns
+
+`string`
+
+###### Set Signature
+
+`set url(value): void`
+
+<!-- source: api/node\_http.ts:51 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L51)
+
+###### Parameters
+
+###### value
+
+`string`
+
+###### Returns
+
+`void`
+
+#### Methods
+
+##### \_read()
+
+`_read(size): void`
+
+<!-- source: api/node\_http.ts:105 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L105)
+
+###### Parameters
+
+###### size
+
+`number`
+
+###### Returns
+
+`void`
+
+###### Overrides
+
+`stream.Readable._read`
+
+##### setTimeout()
+
+`setTimeout(msecs, callback?): this`
+
+<!-- source: api/node\_http.ts:109 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L109)
+
+###### Parameters
+
+###### msecs
+
+`number`
+
+###### callback?
+
+() => `void`
+
+###### Returns
+
+`this`
+
+***
+
+<!-- symbol-end -->
+
+<!-- symbol-start: RawResponse -->
+### RawResponse
+
+<!-- source: api/node\_http.ts:115 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L115)
+
+#### Extends
+
+- `Writable`
+
+#### Constructors
+
+##### Constructor
+
+`new RawResponse(req, w): RawResponse`
+
+<!-- source: api/node\_http.ts:134 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L134)
+
+###### Parameters
+
+###### req
+
+[`RawRequest`](#rawrequest-1)
+
+###### w
+
+`ResponseWriter`
+
+###### Returns
+
+[`RawResponse`](#rawresponse-1)
+
+###### Overrides
+
+`stream.Writable.constructor`
+
+#### Properties
+
+##### chunkedEncoding
+
+`chunkedEncoding: boolean`
+
+<!-- source: api/node\_http.ts:117 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L117)
+
+##### connection
+
+`readonly connection: Socket | null`
+
+<!-- source: api/node\_http.ts:128 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L128)
+
+##### finished
+
+`finished: boolean`
+
+<!-- source: api/node\_http.ts:124 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L124)
+
+##### headersSent
+
+`headersSent: boolean`
+
+<!-- source: api/node\_http.ts:125 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L125)
+
+##### req
+
+`readonly req: RawRequest`
+
+<!-- source: api/node\_http.ts:116 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L116)
+
+##### sendDate
+
+`sendDate: boolean`
+
+<!-- source: api/node\_http.ts:120 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L120)
+
+##### shouldKeepAlive
+
+`shouldKeepAlive: boolean`
+
+<!-- source: api/node\_http.ts:118 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L118)
+
+##### socket
+
+`readonly socket: Socket | null`
+
+<!-- source: api/node\_http.ts:129 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L129)
+
+##### statusCode
+
+`statusCode: number`
+
+<!-- source: api/node\_http.ts:121 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L121)
+
+##### statusMessage
+
+`statusMessage: string | undefined`
+
+<!-- source: api/node\_http.ts:122 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L122)
+
+##### strictContentLength
+
+`strictContentLength: boolean`
+
+<!-- source: api/node\_http.ts:126 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L126)
+
+#### Methods
+
+##### \_final()
+
+`_final(callback): void`
+
+<!-- source: api/node\_http.ts:204 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L204)
+
+###### Parameters
+
+###### callback
+
+(`error?`) => `void`
+
+###### Returns
+
+`void`
+
+###### Overrides
+
+`stream.Writable._final`
+
+##### \_implicitHeader()
+
+`_implicitHeader(): void`
+
+<!-- source: api/node\_http.ts:170 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L170)
+
+###### Returns
+
+`void`
+
+##### \_write()
+
+```ts
+_write(
+   chunk, 
+   _encoding, 
+   callback): void;
+```
+
+<!-- source: api/node\_http.ts:184 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L184)
+
+###### Parameters
+
+###### chunk
+
+`Buffer`
+
+###### \_encoding
+
+`BufferEncoding`
+
+###### callback
+
+(`error?`) => `void`
+
+###### Returns
+
+`void`
+
+###### Overrides
+
+`stream.Writable._write`
+
+##### \_writeHeaderIfNeeded()
+
+`_writeHeaderIfNeeded(): void`
+
+<!-- source: api/node\_http.ts:174 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L174)
+
+###### Returns
+
+`void`
+
+##### \_writev()
+
+`_writev(chunks, callback): void`
+
+<!-- source: api/node\_http.ts:193 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L193)
+
+###### Parameters
+
+###### chunks
+
+\{
+  `chunk`: `Buffer`;
+\}[]
+
+###### callback
+
+(`error?`) => `void`
+
+###### Returns
+
+`void`
+
+###### Overrides
+
+`stream.Writable._writev`
+
+##### addTrailers()
+
+`addTrailers(headers): void`
+
+<!-- source: api/node\_http.ts:255 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L255)
+
+###### Parameters
+
+###### headers
+
+`OutgoingHttpHeaders` \| readonly \[`string`, `string`\][]
+
+###### Returns
+
+`void`
+
+##### appendHeader()
+
+`appendHeader(name, value): this`
+
+<!-- source: api/node\_http.ts:219 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L219)
+
+###### Parameters
+
+###### name
+
+`string`
+
+###### value
+
+`string` \| `number` \| `string`[]
+
+###### Returns
+
+`this`
+
+##### flushHeaders()
+
+`flushHeaders(): void`
+
+<!-- source: api/node\_http.ts:261 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L261)
+
+###### Returns
+
+`void`
+
+##### getHeader()
+
+`getHeader(name): string | number | string[] | undefined`
+
+<!-- source: api/node\_http.ts:235 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L235)
+
+###### Parameters
+
+###### name
+
+`string`
+
+###### Returns
+
+`string` \| `number` \| `string`[] \| `undefined`
+
+##### getHeaderNames()
+
+`getHeaderNames(): string[]`
+
+<!-- source: api/node\_http.ts:243 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L243)
+
+###### Returns
+
+`string`[]
+
+##### getHeaders()
+
+`getHeaders(): OutgoingHttpHeaders`
+
+<!-- source: api/node\_http.ts:239 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L239)
+
+###### Returns
+
+`OutgoingHttpHeaders`
+
+##### hasHeader()
+
+`hasHeader(name): boolean`
+
+<!-- source: api/node\_http.ts:247 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L247)
+
+###### Parameters
+
+###### name
+
+`string`
+
+###### Returns
+
+`boolean`
+
+##### removeHeader()
+
+`removeHeader(name): void`
+
+<!-- source: api/node\_http.ts:251 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L251)
+
+###### Parameters
+
+###### name
+
+`string`
+
+###### Returns
+
+`void`
+
+##### setHeader()
+
+`setHeader(name, value): this`
+
+<!-- source: api/node\_http.ts:214 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L214)
+
+###### Parameters
+
+###### name
+
+`string`
+
+###### value
+
+`string` \| `number` \| `string`[]
+
+###### Returns
+
+`this`
+
+##### setTimeout()
+
+`setTimeout(msecs, callback?): this`
+
+<!-- source: api/node\_http.ts:209 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L209)
+
+###### Parameters
+
+###### msecs
+
+`number`
+
+###### callback?
+
+() => `void`
+
+###### Returns
+
+`this`
+
+##### write()
+
+###### Call Signature
+
+`write(chunk, callback?): boolean`
+
+<!-- source: api/node\_http.ts:154 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L154)
+
+The `writable.write()` method writes some data to the stream, and calls the
+supplied `callback` once the data has been fully handled. If an error
+occurs, the `callback` will be called with the error as its
+first argument. The `callback` is called asynchronously and before `'error'` is
+emitted.
+
+The return value is `true` if the internal buffer is less than the`highWaterMark` configured when the stream was created after admitting `chunk`.
+If `false` is returned, further attempts to write data to the stream should
+stop until the `'drain'` event is emitted.
+
+While a stream is not draining, calls to `write()` will buffer `chunk`, and
+return false. Once all currently buffered chunks are drained (accepted for
+delivery by the operating system), the `'drain'` event will be emitted.
+Once `write()` returns false, do not write more chunks
+until the `'drain'` event is emitted. While calling `write()` on a stream that
+is not draining is allowed, Node.js will buffer all written chunks until
+maximum memory usage occurs, at which point it will abort unconditionally.
+Even before it aborts, high memory usage will cause poor garbage collector
+performance and high RSS (which is not typically released back to the system,
+even after the memory is no longer required). Since TCP sockets may never
+drain if the remote peer does not read the data, writing a socket that is
+not draining may lead to a remotely exploitable vulnerability.
+
+Writing data while the stream is not draining is particularly
+problematic for a `Transform`, because the `Transform` streams are paused
+by default until they are piped or a `'data'` or `'readable'` event handler
+is added.
+
+If the data to be written can be generated or fetched on demand, it is
+recommended to encapsulate the logic into a `Readable` and use [pipe](https://nodejs.org/api/stream.html#readablepipedestination-options). However, if calling `write()` is preferred, it is
+possible to respect backpressure and avoid memory issues using the `'drain'` event:
+
+```js
+function write(data, cb) {
+  if (!stream.write(data)) {
+    stream.once('drain', cb);
+  } else {
+    process.nextTick(cb);
+  }
+}
+
+// Wait for cb to be called before doing any other write.
+write('hello', () => {
+  console.log('Write completed, do more writes now.');
+});
+```
+
+A `Writable` stream in object mode will always ignore the `encoding` argument.
+
+###### Parameters
+
+###### chunk
+
+`any`
+
+Optional data to write. For streams not operating in object mode, `chunk` must be a string, `Buffer` or `Uint8Array`. For object mode streams, `chunk` may be any
+JavaScript value other than `null`.
+
+###### callback?
+
+(`error`) => `void`
+
+Callback for when this chunk of data is flushed.
+
+###### Returns
+
+`boolean`
+
+`false` if the stream wishes for the calling code to wait for the `'drain'` event to be emitted before continuing to write additional data; otherwise `true`.
+
+###### Since
+
+v0.9.4
+
+###### Overrides
+
+`stream.Writable.write`
+
+###### Call Signature
+
+```ts
+write(
+   chunk, 
+   encoding, 
+   callback?): boolean;
+```
+
+<!-- source: api/node\_http.ts:158 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L158)
+
+###### Parameters
+
+###### chunk
+
+`any`
+
+###### encoding
+
+`BufferEncoding`
+
+###### callback?
+
+(`error`) => `void`
+
+###### Returns
+
+`boolean`
+
+###### Overrides
+
+`stream.Writable.write`
+
+##### writeHead()
+
+###### Call Signature
+
+`writeHead(statusCode, headers?): this`
+
+<!-- source: api/node\_http.ts:265 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L265)
+
+###### Parameters
+
+###### statusCode
+
+`number`
+
+###### headers?
+
+`OutgoingHttpHeaders` \| `OutgoingHttpHeader`[]
+
+###### Returns
+
+`this`
+
+###### Call Signature
+
+```ts
+writeHead(
+   statusCode, 
+   statusMessage?, 
+   headers?): this;
+```
+
+<!-- source: api/node\_http.ts:269 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L269)
+
+###### Parameters
+
+###### statusCode
+
+`number`
+
+###### statusMessage?
+
+`string`
+
+###### headers?
+
+`OutgoingHttpHeaders` \| `OutgoingHttpHeader`[]
+
+###### Returns
+
+`this`
 
 ***
 

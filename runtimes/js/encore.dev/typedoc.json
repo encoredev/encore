@@ -30,12 +30,15 @@
   "intentionallyNotExported": [
     "brandedAttribute",
     "allBrandedTypes",
+    "durationComponent",
     "HandlerFn",
-    "DurationString",
-    "RawRequest",
-    "RawResponse",
     "StringLiteral"
   ],
+  "externalSymbolLinkMappings": {
+    "@types/node": {
+      "internal.pipe": "https://nodejs.org/api/stream.html#readablepipedestination-options"
+    }
+  },
   "skipErrorChecking": true,
   "treatWarningsAsErrors": true,
   "gitRevision": "main",

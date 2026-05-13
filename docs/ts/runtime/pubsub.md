@@ -465,8 +465,8 @@ Note: OrderingAttribute currently has no effect during local development.
 
 `type Attribute<T> = T | brandedAttribute<T>`
 
-<!-- source: pubsub/mod.ts:35 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L35)
+<!-- source: pubsub/mod.ts:34 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L34)
 
 Attribute represents a field on a message that should be sent
 as an attribute in a PubSub message, rather than in the message
@@ -505,8 +505,8 @@ to extract the keys of said type.
 
 `type AttributesOf<T> = keyof { [Key in keyof T as Extract<T[Key], allBrandedTypes> extends never ? never : Key]: never }`
 
-<!-- source: pubsub/mod.ts:52 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L52)
+<!-- source: pubsub/mod.ts:51 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L51)
 
 AttributesOf is a helper type to extract all keys from an object
 who's type is an Attribute type.
@@ -539,6 +539,15 @@ For example:
 [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L38)
 
 DeliveryGuarantee is used to configure the delivery contract for a topic.
+
+<!-- symbol-end -->
+
+## References
+
+<!-- symbol-start: DurationString -->
+### DurationString
+
+Re-exports [DurationString](/ts/runtime/types.mod#durationstring)
 
 
 <!-- symbol-end -->

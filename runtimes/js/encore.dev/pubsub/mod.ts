@@ -6,8 +6,7 @@ export type { SubscriptionConfig, RetryPolicy } from "./subscription";
 
 export type { TopicPerms, Publisher } from "./refs";
 
-/** A string representing a duration (e.g. "10s", "5m"). */
-export type { DurationString } from "../internal/types/mod";
+export type { DurationString } from "../types/mod";
 
 /**
  * Attribute represents a field on a message that should be sent

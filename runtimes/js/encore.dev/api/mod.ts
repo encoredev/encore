@@ -6,7 +6,7 @@ import { RawResponse } from "./mod";
 import { RawRequest } from "./mod";
 import { InternalHandlerResponse } from "../internal/appinit/mod";
 import { IterableSocket, IterableStream, Sink } from "./stream";
-export { RawRequest, RawResponse } from "../internal/api/node_http";
+export { RawRequest, RawResponse } from "./node_http";
 
 export type Method =
   | "GET"
