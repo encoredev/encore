@@ -7,19 +7,13 @@ toc: true
 ## Classes
 
 <!-- symbol-start: CronJob -->
-### CronJob
-
-<!-- source: cron/mod.ts:5 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L5)
+### CronJob [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L5)
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L8)
 
 `new CronJob(name, cfg): CronJob`
-
-<!-- source: cron/mod.ts:8 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L8)
 
 ###### Parameters
 
@@ -50,7 +44,7 @@ toc: true
 ## Type Aliases
 
 <!-- symbol-start: CronJobConfig -->
-### CronJobConfig
+### CronJobConfig [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L14)
 
 ```ts
 type CronJobConfig = {
@@ -64,9 +58,6 @@ type CronJobConfig = {
   schedule: string;
 };
 ```
-
-<!-- source: cron/mod.ts:14 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L14)
 
 #### Type Declaration
 

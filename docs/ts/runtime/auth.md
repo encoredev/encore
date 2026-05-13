@@ -7,12 +7,9 @@ toc: true
 ## Type Aliases
 
 <!-- symbol-start: AuthHandler -->
-### AuthHandler
+### AuthHandler [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L1)
 
 `type AuthHandler<Params, AuthData> = (params) => Promise<AuthData | null> & AuthHandlerBrand`
-
-<!-- source: auth/mod.ts:1 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L1)
 
 #### Type Parameters
 
@@ -31,16 +28,13 @@ toc: true
 <!-- symbol-end -->
 
 <!-- symbol-start: AuthHandlerBrand -->
-### AuthHandlerBrand
+### AuthHandlerBrand [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L6)
 
 ```ts
 type AuthHandlerBrand = {
   __authHandlerBrand: unique symbol;
 };
 ```
-
-<!-- source: auth/mod.ts:6 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L6)
 
 #### Properties
 
@@ -53,12 +47,9 @@ type AuthHandlerBrand = {
 ## Functions
 
 <!-- symbol-start: authHandler() -->
-### authHandler()
+### authHandler() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L8)
 
 `function authHandler<Params, AuthData>(fn): AuthHandler<Params, AuthData>`
-
-<!-- source: auth/mod.ts:8 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L8)
 
 #### Type Parameters
 

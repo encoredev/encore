@@ -7,10 +7,7 @@ toc: true
 ## Interfaces
 
 <!-- symbol-start: Secret() -->
-### Secret()
-
-<!-- source: config/secrets.ts:18 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L18)
+### Secret() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L18)
 
 Secret represents a single secret value that is loaded
 into the application. It is strongly typed for that secret,
@@ -59,12 +56,9 @@ The name of the secret.
 ## Type Aliases
 
 <!-- symbol-start: AnySecret -->
-### AnySecret
+### AnySecret [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L39)
 
 `type AnySecret = Secret<string>`
-
-<!-- source: config/secrets.ts:39 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L39)
 
 AnySecret is a type which can be used to represent any [Secret](#secret)
 without knowing its name.
@@ -74,12 +68,9 @@ without knowing its name.
 ## Functions
 
 <!-- symbol-start: secret() -->
-### secret()
+### secret() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L50)
 
 `function secret<Name>(name): Secret<Name>`
-
-<!-- source: config/secrets.ts:50 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L50)
 
 secret is used to load a single [Secret](#secret) into the application.
 

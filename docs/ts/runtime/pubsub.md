@@ -7,10 +7,7 @@ toc: true
 ## Classes
 
 <!-- symbol-start: Subscription -->
-### Subscription
-
-<!-- source: pubsub/subscription.ts:6 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L6)
+### Subscription [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L6)
 
 #### Type Parameters
 
@@ -20,7 +17,7 @@ toc: true
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L11)
 
 ```ts
 new Subscription<Msg>(
@@ -28,9 +25,6 @@ new Subscription<Msg>(
    name, 
 cfg): Subscription<Msg>;
 ```
-
-<!-- source: pubsub/subscription.ts:11 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L11)
 
 ###### Parameters
 
@@ -55,10 +49,7 @@ cfg): Subscription<Msg>;
 <!-- symbol-end -->
 
 <!-- symbol-start: Topic -->
-### Topic
-
-<!-- source: pubsub/topic.ts:10 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L10)
+### Topic [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L10)
 
 A topic is a resource to which you can publish messages
 to be delivered to subscribers of that topic.
@@ -79,12 +70,9 @@ to be delivered to subscribers of that topic.
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L18)
 
 `new Topic<Msg>(name, cfg): Topic<Msg>`
-
-<!-- source: pubsub/topic.ts:18 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L18)
 
 ###### Parameters
 
@@ -116,12 +104,9 @@ to be delivered to subscribers of that topic.
 
 #### Methods
 
-##### publish()
+##### publish() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L25)
 
 `publish(msg): Promise<string>`
-
-<!-- source: pubsub/topic.ts:25 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L25)
 
 ###### Parameters
 
@@ -137,12 +122,9 @@ to be delivered to subscribers of that topic.
 
 [`Publisher`](#publisher).[`publish`](#publish-1)
 
-##### ref()
+##### ref() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L30)
 
 `ref<P>(): P`
-
-<!-- source: pubsub/topic.ts:30 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L30)
 
 ###### Type Parameters
 
@@ -159,10 +141,7 @@ to be delivered to subscribers of that topic.
 ## Interfaces
 
 <!-- symbol-start: Publisher -->
-### Publisher
-
-<!-- source: pubsub/refs.ts:5 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L5)
+### Publisher [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L5)
 
 #### Extends
 
@@ -176,12 +155,9 @@ to be delivered to subscribers of that topic.
 
 #### Methods
 
-##### publish()
+##### publish() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L6)
 
 `abstract publish(msg): Promise<string>`
-
-<!-- source: pubsub/refs.ts:6 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L6)
 
 ###### Parameters
 
@@ -198,10 +174,7 @@ to be delivered to subscribers of that topic.
 <!-- symbol-end -->
 
 <!-- symbol-start: RetryPolicy -->
-### RetryPolicy
-
-<!-- source: pubsub/subscription.ts:111 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L111)
+### RetryPolicy [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L111)
 
 RetryPolicy defines how a subscription should handle retries
 after errors either delivering the message or processing the message.
@@ -241,10 +214,7 @@ The minimum time to wait between retries. Defaults to 10 seconds.
 <!-- symbol-end -->
 
 <!-- symbol-start: SubscriptionConfig -->
-### SubscriptionConfig
-
-<!-- source: pubsub/subscription.ts:44 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L44)
+### SubscriptionConfig [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L44)
 
 SubscriptionConfig is used when creating a subscription
 
@@ -334,10 +304,7 @@ the subscriber returns an error
 <!-- symbol-end -->
 
 <!-- symbol-start: TopicConfig -->
-### TopicConfig
-
-<!-- source: pubsub/topic.ts:80 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L80)
+### TopicConfig [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L80)
 
 TopicConfig is used when creating a Topic
 
@@ -408,10 +375,7 @@ Note: OrderingAttribute currently has no effect during local development.
 <!-- symbol-end -->
 
 <!-- symbol-start: TopicPerms -->
-### TopicPerms
-
-<!-- source: pubsub/refs.ts:1 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L1)
+### TopicPerms [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L1)
 
 #### Extended by
 
@@ -423,12 +387,9 @@ Note: OrderingAttribute currently has no effect during local development.
 ## Type Aliases
 
 <!-- symbol-start: Attribute -->
-### Attribute
+### Attribute [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L34)
 
 `type Attribute<T> = T | brandedAttribute<T>`
-
-<!-- source: pubsub/mod.ts:34 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L34)
 
 Attribute represents a field on a message that should be sent
 as an attribute in a PubSub message, rather than in the message
@@ -463,12 +424,9 @@ to extract the keys of said type.
 <!-- symbol-end -->
 
 <!-- symbol-start: AttributesOf -->
-### AttributesOf
+### AttributesOf [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L51)
 
 `type AttributesOf<T> = keyof { [Key in keyof T as Extract<T[Key], allBrandedTypes> extends never ? never : Key]: never }`
-
-<!-- source: pubsub/mod.ts:51 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L51)
 
 AttributesOf is a helper type to extract all keys from an object
 who's type is an Attribute type.
@@ -493,12 +451,9 @@ For example:
 <!-- symbol-end -->
 
 <!-- symbol-start: DeliveryGuarantee -->
-### DeliveryGuarantee
+### DeliveryGuarantee [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L38)
 
 `type DeliveryGuarantee = "at-least-once" | "exactly-once"`
-
-<!-- source: pubsub/topic.ts:38 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L38)
 
 DeliveryGuarantee is used to configure the delivery contract for a topic.
 

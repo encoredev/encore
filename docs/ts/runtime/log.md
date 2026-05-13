@@ -7,10 +7,7 @@ toc: true
 ## Enumerations
 
 <!-- symbol-start: LogLevel -->
-### LogLevel
-
-<!-- source: log/mod.ts:28 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L28)
+### LogLevel [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L28)
 
 #### Enumeration Members
 
@@ -39,19 +36,13 @@ toc: true
 ## Interfaces
 
 <!-- symbol-start: Logger -->
-### Logger
-
-<!-- source: log/mod.ts:36 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L36)
+### Logger [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L36)
 
 #### Methods
 
-##### debug()
+##### debug() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L67)
 
 `debug(msg, fields?): void`
-
-<!-- source: log/mod.ts:67 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L67)
 
 Debug logs a message at the debug level.
 
@@ -134,12 +125,9 @@ error(
 
 `void`
 
-##### info()
+##### info() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L74)
 
 `info(msg, fields?): void`
-
-<!-- source: log/mod.ts:74 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L74)
 
 Info logs a message at the info level.
 
@@ -157,12 +145,9 @@ Info logs a message at the info level.
 
 `void`
 
-##### trace()
+##### trace() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L60)
 
 `trace(msg, fields?): void`
-
-<!-- source: log/mod.ts:60 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L60)
 
 Trace logs a message at the trace level.
 
@@ -251,12 +236,9 @@ Warn logs a message at the warn level.
 
 `void`
 
-##### with()
+##### with() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L53)
 
 `with(fields): Logger`
-
-<!-- source: log/mod.ts:53 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L53)
 
 Returns a new logger with the given fields added to the context.
 
@@ -270,12 +252,9 @@ Returns a new logger with the given fields added to the context.
 
 [`Logger`](#logger)
 
-##### withLevel()
+##### withLevel() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L46)
 
 `withLevel(level): Logger`
-
-<!-- source: log/mod.ts:46 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L46)
 
 Returns a new logger with the specified level.
 
@@ -294,12 +273,9 @@ Returns a new logger with the specified level.
 ## Type Aliases
 
 <!-- symbol-start: FieldsObject -->
-### FieldsObject
+### FieldsObject [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L26)
 
 `type FieldsObject = Record<string, FieldValue>`
-
-<!-- source: log/mod.ts:26 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L26)
 
 A map of fields that can be logged
 
@@ -308,7 +284,7 @@ A map of fields that can be logged
 <!-- symbol-end -->
 
 <!-- symbol-start: FieldValue -->
-### FieldValue
+### FieldValue [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L12)
 
 ```ts
 type FieldValue = 
@@ -321,9 +297,6 @@ type FieldValue =
   | FieldValue[];
 ```
 
-<!-- source: log/mod.ts:12 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L12)
-
 A field value we support logging
 
 <!-- symbol-end -->
@@ -331,24 +304,18 @@ A field value we support logging
 ## Variables
 
 <!-- symbol-start: default -->
-### default
+### default [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L149)
 
 `const default: Logger`
-
-<!-- source: log/mod.ts:149 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L149)
 
 <!-- symbol-end -->
 
 ## Functions
 
 <!-- symbol-start: debug() -->
-### debug()
+### debug() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L166)
 
 `function debug(msg, fields?): void`
-
-<!-- source: log/mod.ts:166 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L166)
 
 Debug logs a message at the debug level
 
@@ -447,12 +414,9 @@ Error logs a message at the error level
 <!-- symbol-end -->
 
 <!-- symbol-start: info() -->
-### info()
+### info() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L173)
 
 `function info(msg, fields?): void`
-
-<!-- source: log/mod.ts:173 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L173)
 
 Info logs a message at the info level
 
@@ -475,12 +439,9 @@ Info logs a message at the info level
 <!-- symbol-end -->
 
 <!-- symbol-start: trace() -->
-### trace()
+### trace() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L159)
 
 `function trace(msg, fields?): void`
-
-<!-- source: log/mod.ts:159 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L159)
 
 Trace logs a message at the trace level
 

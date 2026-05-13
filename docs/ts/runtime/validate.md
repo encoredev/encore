@@ -7,7 +7,7 @@ toc: true
 ## Type Aliases
 
 <!-- symbol-start: EndsWith -->
-### EndsWith
+### EndsWith [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L39)
 
 ```ts
 type EndsWith<S> = {
@@ -16,9 +16,6 @@ type EndsWith<S> = {
   };
 };
 ```
-
-<!-- source: validate/mod.ts:39 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L39)
 
 #### Type Parameters
 
@@ -45,7 +42,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: IsEmail -->
-### IsEmail
+### IsEmail [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L45)
 
 ```ts
 type IsEmail = {
@@ -54,9 +51,6 @@ type IsEmail = {
   };
 };
 ```
-
-<!-- source: validate/mod.ts:45 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L45)
 
 #### Properties
 
@@ -77,7 +71,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: IsURL -->
-### IsURL
+### IsURL [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L51)
 
 ```ts
 type IsURL = {
@@ -86,9 +80,6 @@ type IsURL = {
   };
 };
 ```
-
-<!-- source: validate/mod.ts:51 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L51)
 
 #### Properties
 
@@ -109,7 +100,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: MatchesRegexp -->
-### MatchesRegexp
+### MatchesRegexp [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L27)
 
 ```ts
 type MatchesRegexp<S> = {
@@ -118,9 +109,6 @@ type MatchesRegexp<S> = {
   };
 };
 ```
-
-<!-- source: validate/mod.ts:27 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L27)
 
 #### Type Parameters
 
@@ -147,7 +135,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: Max -->
-### Max
+### Max [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L9)
 
 ```ts
 type Max<N> = {
@@ -156,9 +144,6 @@ type Max<N> = {
   };
 };
 ```
-
-<!-- source: validate/mod.ts:9 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L9)
 
 #### Type Parameters
 
@@ -185,7 +170,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: MaxLen -->
-### MaxLen
+### MaxLen [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L21)
 
 ```ts
 type MaxLen<N> = {
@@ -194,9 +179,6 @@ type MaxLen<N> = {
   };
 };
 ```
-
-<!-- source: validate/mod.ts:21 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L21)
 
 #### Type Parameters
 
@@ -223,7 +205,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: Min -->
-### Min
+### Min [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L3)
 
 ```ts
 type Min<N> = {
@@ -232,9 +214,6 @@ type Min<N> = {
   };
 };
 ```
-
-<!-- source: validate/mod.ts:3 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L3)
 
 #### Type Parameters
 
@@ -261,7 +240,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: MinLen -->
-### MinLen
+### MinLen [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L15)
 
 ```ts
 type MinLen<N> = {
@@ -270,9 +249,6 @@ type MinLen<N> = {
   };
 };
 ```
-
-<!-- source: validate/mod.ts:15 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L15)
 
 #### Type Parameters
 
@@ -299,7 +275,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: StartsWith -->
-### StartsWith
+### StartsWith [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L33)
 
 ```ts
 type StartsWith<S> = {
@@ -308,9 +284,6 @@ type StartsWith<S> = {
   };
 };
 ```
-
-<!-- source: validate/mod.ts:33 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L33)
 
 #### Type Parameters
 

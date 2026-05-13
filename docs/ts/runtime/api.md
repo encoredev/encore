@@ -7,10 +7,7 @@ toc: true
 ## Enumerations
 
 <!-- symbol-start: ErrCode -->
-### ErrCode
-
-<!-- source: api/error.ts:119 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L119)
+### ErrCode [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L119)
 
 #### Enumeration Members
 
@@ -229,10 +226,7 @@ Encore will generate this error code in the above two mentioned cases.
 ## Classes
 
 <!-- symbol-start: APIError -->
-### APIError
-
-<!-- source: api/error.ts:1 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L1)
+### APIError [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L1)
 
 #### Extends
 
@@ -240,7 +234,7 @@ Encore will generate this error code in the above two mentioned cases.
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L94)
 
 ```ts
 new APIError(
@@ -249,9 +243,6 @@ new APIError(
    cause?, 
    details?): APIError;
 ```
-
-<!-- source: api/error.ts:94 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L94)
 
 Constructs an APIError with the given error code, message, and (optionally) cause.
 
@@ -295,12 +286,9 @@ The error code.
 
 #### Methods
 
-##### withDetails()
+##### withDetails() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L89)
 
 `withDetails(details): APIError`
-
-<!-- source: api/error.ts:89 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L89)
 
 Constructs a new APIError from the previous one with the provided details
 
@@ -314,12 +302,9 @@ Constructs a new APIError from the previous one with the provided details
 
 [`APIError`](#apierror)
 
-##### aborted()
+##### aborted() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L54)
 
 `static aborted(msg, cause?): APIError`
-
-<!-- source: api/error.ts:54 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L54)
 
 Constructs an APIError with the Aborted error code.
 
@@ -337,12 +322,9 @@ Constructs an APIError with the Aborted error code.
 
 [`APIError`](#apierror)
 
-##### alreadyExists()
+##### alreadyExists() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L34)
 
 `static alreadyExists(msg, cause?): APIError`
-
-<!-- source: api/error.ts:34 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L34)
 
 Constructs an APIError with the AlreadyExists error code.
 
@@ -360,12 +342,9 @@ Constructs an APIError with the AlreadyExists error code.
 
 [`APIError`](#apierror)
 
-##### canceled()
+##### canceled() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L9)
 
 `static canceled(msg, cause?): APIError`
-
-<!-- source: api/error.ts:9 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L9)
 
 Constructs an APIError with the Canceled error code.
 
@@ -383,12 +362,9 @@ Constructs an APIError with the Canceled error code.
 
 [`APIError`](#apierror)
 
-##### dataLoss()
+##### dataLoss() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L79)
 
 `static dataLoss(msg, cause?): APIError`
-
-<!-- source: api/error.ts:79 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L79)
 
 Constructs an APIError with the DataLoss error code.
 
@@ -406,12 +382,9 @@ Constructs an APIError with the DataLoss error code.
 
 [`APIError`](#apierror)
 
-##### deadlineExceeded()
+##### deadlineExceeded() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L24)
 
 `static deadlineExceeded(msg, cause?): APIError`
-
-<!-- source: api/error.ts:24 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L24)
 
 Constructs an APIError with the DeadlineExceeded error code.
 
@@ -429,12 +402,9 @@ Constructs an APIError with the DeadlineExceeded error code.
 
 [`APIError`](#apierror)
 
-##### failedPrecondition()
+##### failedPrecondition() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L49)
 
 `static failedPrecondition(msg, cause?): APIError`
-
-<!-- source: api/error.ts:49 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L49)
 
 Constructs an APIError with the FailedPrecondition error code.
 
@@ -452,12 +422,9 @@ Constructs an APIError with the FailedPrecondition error code.
 
 [`APIError`](#apierror)
 
-##### internal()
+##### internal() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L69)
 
 `static internal(msg, cause?): APIError`
-
-<!-- source: api/error.ts:69 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L69)
 
 Constructs an APIError with the Internal error code.
 
@@ -475,12 +442,9 @@ Constructs an APIError with the Internal error code.
 
 [`APIError`](#apierror)
 
-##### invalidArgument()
+##### invalidArgument() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L19)
 
 `static invalidArgument(msg, cause?): APIError`
-
-<!-- source: api/error.ts:19 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L19)
 
 Constructs an APIError with the InvalidArgument error code.
 
@@ -498,12 +462,9 @@ Constructs an APIError with the InvalidArgument error code.
 
 [`APIError`](#apierror)
 
-##### notFound()
+##### notFound() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L29)
 
 `static notFound(msg, cause?): APIError`
-
-<!-- source: api/error.ts:29 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L29)
 
 Constructs an APIError with the NotFound error code.
 
@@ -521,12 +482,9 @@ Constructs an APIError with the NotFound error code.
 
 [`APIError`](#apierror)
 
-##### outOfRange()
+##### outOfRange() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L59)
 
 `static outOfRange(msg, cause?): APIError`
-
-<!-- source: api/error.ts:59 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L59)
 
 Constructs an APIError with the OutOfRange error code.
 
@@ -544,12 +502,9 @@ Constructs an APIError with the OutOfRange error code.
 
 [`APIError`](#apierror)
 
-##### permissionDenied()
+##### permissionDenied() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L39)
 
 `static permissionDenied(msg, cause?): APIError`
-
-<!-- source: api/error.ts:39 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L39)
 
 Constructs an APIError with the PermissionDenied error code.
 
@@ -567,12 +522,9 @@ Constructs an APIError with the PermissionDenied error code.
 
 [`APIError`](#apierror)
 
-##### resourceExhausted()
+##### resourceExhausted() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L44)
 
 `static resourceExhausted(msg, cause?): APIError`
-
-<!-- source: api/error.ts:44 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L44)
 
 Constructs an APIError with the ResourceExhausted error code.
 
@@ -590,12 +542,9 @@ Constructs an APIError with the ResourceExhausted error code.
 
 [`APIError`](#apierror)
 
-##### unauthenticated()
+##### unauthenticated() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L84)
 
 `static unauthenticated(msg, cause?): APIError`
-
-<!-- source: api/error.ts:84 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L84)
 
 Constructs an APIError with the Unauthenticated error code.
 
@@ -613,12 +562,9 @@ Constructs an APIError with the Unauthenticated error code.
 
 [`APIError`](#apierror)
 
-##### unavailable()
+##### unavailable() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L74)
 
 `static unavailable(msg, cause?): APIError`
-
-<!-- source: api/error.ts:74 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L74)
 
 Constructs an APIError with the Unavailable error code.
 
@@ -636,12 +582,9 @@ Constructs an APIError with the Unavailable error code.
 
 [`APIError`](#apierror)
 
-##### unimplemented()
+##### unimplemented() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L64)
 
 `static unimplemented(msg, cause?): APIError`
-
-<!-- source: api/error.ts:64 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L64)
 
 Constructs an APIError with the Unimplemented error code.
 
@@ -659,12 +602,9 @@ Constructs an APIError with the Unimplemented error code.
 
 [`APIError`](#apierror)
 
-##### unknown()
+##### unknown() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L14)
 
 `static unknown(msg, cause?): APIError`
-
-<!-- source: api/error.ts:14 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L14)
 
 Constructs an APIError with the Unknown error code.
 
@@ -687,19 +627,13 @@ Constructs an APIError with the Unknown error code.
 <!-- symbol-end -->
 
 <!-- symbol-start: Gateway -->
-### Gateway
-
-<!-- source: api/gateway.ts:5 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/gateway.ts#L5)
+### Gateway [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/gateway.ts#L5)
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/gateway.ts#L10)
 
 `new Gateway(cfg): Gateway`
-
-<!-- source: api/gateway.ts:10 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/gateway.ts#L10)
 
 ###### Parameters
 
@@ -726,19 +660,13 @@ Constructs an APIError with the Unknown error code.
 <!-- symbol-end -->
 
 <!-- symbol-start: HandlerResponse -->
-### HandlerResponse
-
-<!-- source: api/mod.ts:464 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L464)
+### HandlerResponse [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L464)
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L474)
 
 `new HandlerResponse(payload): HandlerResponse`
-
-<!-- source: api/mod.ts:474 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L474)
 
 ###### Parameters
 
@@ -798,19 +726,13 @@ Override the http status code for successful requests for typed endpoints.
 <!-- symbol-end -->
 
 <!-- symbol-start: IterableSocket -->
-### IterableSocket
-
-<!-- source: api/stream.ts:25 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L25)
+### IterableSocket [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L25)
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L28)
 
 `new IterableSocket(socket): IterableSocket`
-
-<!-- source: api/stream.ts:28 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L28)
 
 ###### Parameters
 
@@ -824,45 +746,33 @@ Override the http status code for successful requests for typed endpoints.
 
 #### Methods
 
-##### \[asyncIterator\]()
+##### \[asyncIterator\]() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L43)
 
 `asyncIterator: AsyncGenerator<any, void, unknown>`
-
-<!-- source: api/stream.ts:43 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L43)
 
 ###### Returns
 
 `AsyncGenerator`\<`any`, `void`, `unknown`\>
 
-##### close()
+##### close() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L39)
 
 `close(): void`
-
-<!-- source: api/stream.ts:39 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L39)
 
 ###### Returns
 
 `void`
 
-##### recv()
+##### recv() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L35)
 
 `recv(): Promise<Record<string, any>>`
-
-<!-- source: api/stream.ts:35 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L35)
 
 ###### Returns
 
 `Promise`\<`Record`\<`string`, `any`\>\>
 
-##### send()
+##### send() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L32)
 
 `send(msg): void`
-
-<!-- source: api/stream.ts:32 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L32)
 
 ###### Parameters
 
@@ -879,19 +789,13 @@ Override the http status code for successful requests for typed endpoints.
 <!-- symbol-end -->
 
 <!-- symbol-start: IterableStream -->
-### IterableStream
-
-<!-- source: api/stream.ts:3 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L3)
+### IterableStream [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L3)
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L6)
 
 `new IterableStream(stream): IterableStream`
-
-<!-- source: api/stream.ts:6 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L6)
 
 ###### Parameters
 
@@ -905,23 +809,17 @@ Override the http status code for successful requests for typed endpoints.
 
 #### Methods
 
-##### \[asyncIterator\]()
+##### \[asyncIterator\]() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L14)
 
 `asyncIterator: AsyncGenerator<any, void, unknown>`
-
-<!-- source: api/stream.ts:14 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L14)
 
 ###### Returns
 
 `AsyncGenerator`\<`any`, `void`, `unknown`\>
 
-##### recv()
+##### recv() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L10)
 
 `recv(): Promise<Record<string, any>>`
-
-<!-- source: api/stream.ts:10 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L10)
 
 ###### Returns
 
@@ -932,14 +830,11 @@ Override the http status code for successful requests for typed endpoints.
 <!-- symbol-end -->
 
 <!-- symbol-start: MiddlewareRequest -->
-### MiddlewareRequest
-
-<!-- source: api/mod.ts:372 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L372)
+### MiddlewareRequest [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L372)
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L379)
 
 ```ts
 new MiddlewareRequest(
@@ -947,9 +842,6 @@ new MiddlewareRequest(
    rawReq?, 
    rawResp?): MiddlewareRequest;
 ```
-
-<!-- source: api/mod.ts:379 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L379)
 
 ###### Parameters
 
@@ -1053,10 +945,7 @@ stream is set when the handler is a stream handler.
 <!-- symbol-end -->
 
 <!-- symbol-start: RawRequest -->
-### RawRequest
-
-<!-- source: api/node\_http.ts:10 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L10)
+### RawRequest [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L10)
 
 #### Extends
 
@@ -1064,12 +953,9 @@ stream is set when the handler is a stream handler.
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L23)
 
 `new RawRequest(req, body): RawRequest`
-
-<!-- source: api/node\_http.ts:23 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L23)
 
 ###### Parameters
 
@@ -1195,12 +1081,9 @@ stream is set when the handler is a stream handler.
 
 #### Methods
 
-##### \_read()
+##### \_read() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L105)
 
 `_read(size): void`
-
-<!-- source: api/node\_http.ts:105 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L105)
 
 ###### Parameters
 
@@ -1216,12 +1099,9 @@ stream is set when the handler is a stream handler.
 
 `stream.Readable._read`
 
-##### setTimeout()
+##### setTimeout() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L109)
 
 `setTimeout(msecs, callback?): this`
-
-<!-- source: api/node\_http.ts:109 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L109)
 
 ###### Parameters
 
@@ -1242,10 +1122,7 @@ stream is set when the handler is a stream handler.
 <!-- symbol-end -->
 
 <!-- symbol-start: RawResponse -->
-### RawResponse
-
-<!-- source: api/node\_http.ts:115 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L115)
+### RawResponse [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L115)
 
 #### Extends
 
@@ -1253,12 +1130,9 @@ stream is set when the handler is a stream handler.
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L134)
 
 `new RawResponse(req, w): RawResponse`
-
-<!-- source: api/node\_http.ts:134 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L134)
 
 ###### Parameters
 
@@ -1326,12 +1200,9 @@ stream is set when the handler is a stream handler.
 
 #### Methods
 
-##### \_final()
+##### \_final() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L204)
 
 `_final(callback): void`
-
-<!-- source: api/node\_http.ts:204 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L204)
 
 ###### Parameters
 
@@ -1347,18 +1218,15 @@ stream is set when the handler is a stream handler.
 
 `stream.Writable._final`
 
-##### \_implicitHeader()
+##### \_implicitHeader() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L170)
 
 `_implicitHeader(): void`
-
-<!-- source: api/node\_http.ts:170 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L170)
 
 ###### Returns
 
 `void`
 
-##### \_write()
+##### \_write() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L184)
 
 ```ts
 _write(
@@ -1366,9 +1234,6 @@ _write(
    _encoding, 
    callback): void;
 ```
-
-<!-- source: api/node\_http.ts:184 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L184)
 
 ###### Parameters
 
@@ -1392,23 +1257,17 @@ _write(
 
 `stream.Writable._write`
 
-##### \_writeHeaderIfNeeded()
+##### \_writeHeaderIfNeeded() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L174)
 
 `_writeHeaderIfNeeded(): void`
-
-<!-- source: api/node\_http.ts:174 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L174)
 
 ###### Returns
 
 `void`
 
-##### \_writev()
+##### \_writev() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L193)
 
 `_writev(chunks, callback): void`
-
-<!-- source: api/node\_http.ts:193 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L193)
 
 ###### Parameters
 
@@ -1430,12 +1289,9 @@ _write(
 
 `stream.Writable._writev`
 
-##### addTrailers()
+##### addTrailers() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L255)
 
 `addTrailers(headers): void`
-
-<!-- source: api/node\_http.ts:255 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L255)
 
 ###### Parameters
 
@@ -1447,12 +1303,9 @@ _write(
 
 `void`
 
-##### appendHeader()
+##### appendHeader() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L219)
 
 `appendHeader(name, value): this`
-
-<!-- source: api/node\_http.ts:219 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L219)
 
 ###### Parameters
 
@@ -1468,23 +1321,17 @@ _write(
 
 `this`
 
-##### flushHeaders()
+##### flushHeaders() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L261)
 
 `flushHeaders(): void`
-
-<!-- source: api/node\_http.ts:261 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L261)
 
 ###### Returns
 
 `void`
 
-##### getHeader()
+##### getHeader() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L235)
 
 `getHeader(name): string | number | string[] | undefined`
-
-<!-- source: api/node\_http.ts:235 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L235)
 
 ###### Parameters
 
@@ -1496,34 +1343,25 @@ _write(
 
 `string` \| `number` \| `string`[] \| `undefined`
 
-##### getHeaderNames()
+##### getHeaderNames() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L243)
 
 `getHeaderNames(): string[]`
-
-<!-- source: api/node\_http.ts:243 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L243)
 
 ###### Returns
 
 `string`[]
 
-##### getHeaders()
+##### getHeaders() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L239)
 
 `getHeaders(): OutgoingHttpHeaders`
-
-<!-- source: api/node\_http.ts:239 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L239)
 
 ###### Returns
 
 `OutgoingHttpHeaders`
 
-##### hasHeader()
+##### hasHeader() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L247)
 
 `hasHeader(name): boolean`
-
-<!-- source: api/node\_http.ts:247 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L247)
 
 ###### Parameters
 
@@ -1535,12 +1373,9 @@ _write(
 
 `boolean`
 
-##### removeHeader()
+##### removeHeader() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L251)
 
 `removeHeader(name): void`
-
-<!-- source: api/node\_http.ts:251 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L251)
 
 ###### Parameters
 
@@ -1552,12 +1387,9 @@ _write(
 
 `void`
 
-##### setHeader()
+##### setHeader() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L214)
 
 `setHeader(name, value): this`
-
-<!-- source: api/node\_http.ts:214 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L214)
 
 ###### Parameters
 
@@ -1573,12 +1405,9 @@ _write(
 
 `this`
 
-##### setTimeout()
+##### setTimeout() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L209)
 
 `setTimeout(msecs, callback?): this`
-
-<!-- source: api/node\_http.ts:209 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/node_http.ts#L209)
 
 ###### Parameters
 
@@ -1761,19 +1590,13 @@ writeHead(
 <!-- symbol-end -->
 
 <!-- symbol-start: ResponseHeader -->
-### ResponseHeader
-
-<!-- source: api/mod.ts:434 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L434)
+### ResponseHeader [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L434)
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L437)
 
 `new ResponseHeader(): ResponseHeader`
-
-<!-- source: api/mod.ts:437 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L437)
 
 ###### Returns
 
@@ -1787,12 +1610,9 @@ writeHead(
 
 #### Methods
 
-##### add()
+##### add() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L453)
 
 `add(key, value): void`
-
-<!-- source: api/mod.ts:453 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L453)
 
 add adds a header value to a key, if a previous middleware has
 already set a value, they will be appended.
@@ -1811,12 +1631,9 @@ already set a value, they will be appended.
 
 `void`
 
-##### set()
+##### set() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L445)
 
 `set(key, value): void`
-
-<!-- source: api/mod.ts:445 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L445)
 
 set will set a header value for a key, if a previous middleware has
 already set a value, it will be overridden.
@@ -1840,19 +1657,13 @@ already set a value, it will be overridden.
 <!-- symbol-end -->
 
 <!-- symbol-start: Sink -->
-### Sink
-
-<!-- source: api/stream.ts:54 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L54)
+### Sink [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L54)
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L57)
 
 `new Sink(sink): Sink`
-
-<!-- source: api/stream.ts:57 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L57)
 
 ###### Parameters
 
@@ -1866,23 +1677,17 @@ already set a value, it will be overridden.
 
 #### Methods
 
-##### close()
+##### close() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L65)
 
 `close(): void`
-
-<!-- source: api/stream.ts:65 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L65)
 
 ###### Returns
 
 `void`
 
-##### send()
+##### send() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L61)
 
 `send(msg): void`
-
-<!-- source: api/stream.ts:61 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/stream.ts#L61)
 
 ###### Parameters
 
@@ -1899,19 +1704,13 @@ already set a value, it will be overridden.
 <!-- symbol-end -->
 
 <!-- symbol-start: StaticAssets -->
-### StaticAssets
-
-<!-- source: api/mod.ts:324 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L324)
+### StaticAssets [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L324)
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L327)
 
 `new StaticAssets(options): StaticAssets`
-
-<!-- source: api/mod.ts:327 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L327)
 
 ###### Parameters
 
@@ -1934,10 +1733,7 @@ already set a value, it will be overridden.
 ## Interfaces
 
 <!-- symbol-start: APIOptions -->
-### APIOptions
-
-<!-- source: api/mod.ts:59 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L59)
+### APIOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L59)
 
 #### Properties
 
@@ -2005,10 +1801,7 @@ Tags to filter endpoints when generating clients and in middlewares.
 <!-- symbol-end -->
 
 <!-- symbol-start: CallOpts -->
-### CallOpts
-
-<!-- source: api/mod.ts:553 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L553)
+### CallOpts [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L553)
 
 Options when making api calls.
 
@@ -2020,10 +1813,7 @@ app's generated code.
 <!-- symbol-end -->
 
 <!-- symbol-start: GatewayConfig -->
-### GatewayConfig
-
-<!-- source: api/gateway.ts:29 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/gateway.ts#L29)
+### GatewayConfig [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/gateway.ts#L29)
 
 #### Properties
 
@@ -2036,10 +1826,7 @@ app's generated code.
 <!-- symbol-end -->
 
 <!-- symbol-start: Middleware() -->
-### Middleware()
-
-<!-- source: api/mod.ts:518 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L518)
+### Middleware() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L518)
 
 #### Extends
 
@@ -2072,10 +1859,7 @@ app's generated code.
 <!-- symbol-end -->
 
 <!-- symbol-start: MiddlewareOptions -->
-### MiddlewareOptions
-
-<!-- source: api/mod.ts:336 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L336)
+### MiddlewareOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L336)
 
 #### Properties
 
@@ -2132,10 +1916,7 @@ API if the API has at least one of those tags.
 <!-- symbol-end -->
 
 <!-- symbol-start: StaticOptions -->
-### StaticOptions
-
-<!-- source: api/mod.ts:263 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L263)
+### StaticOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L263)
 
 #### Properties
 
@@ -2211,10 +1992,7 @@ If not specified, it defaults to `/<service-name>.<endpoint-name>`.
 <!-- symbol-end -->
 
 <!-- symbol-start: StreamIn -->
-### StreamIn
-
-<!-- source: api/mod.ts:182 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L182)
+### StreamIn [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L182)
 
 #### Extends
 
@@ -2241,10 +2019,7 @@ If not specified, it defaults to `/<service-name>.<endpoint-name>`.
 <!-- symbol-end -->
 
 <!-- symbol-start: StreamOptions -->
-### StreamOptions
-
-<!-- source: api/mod.ts:113 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L113)
+### StreamOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L113)
 
 #### Properties
 
@@ -2295,10 +2070,7 @@ Tags to filter endpoints when generating clients and in middlewares.
 <!-- symbol-end -->
 
 <!-- symbol-start: StreamOut -->
-### StreamOut
-
-<!-- source: api/mod.ts:190 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L190)
+### StreamOut [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L190)
 
 #### Extended by
 
@@ -2339,10 +2111,7 @@ Tags to filter endpoints when generating clients and in middlewares.
 <!-- symbol-end -->
 
 <!-- symbol-start: StreamOutWithResponse -->
-### StreamOutWithResponse
-
-<!-- source: api/mod.ts:185 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L185)
+### StreamOutWithResponse [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L185)
 
 #### Extends
 
@@ -2403,12 +2172,9 @@ Tags to filter endpoints when generating clients and in middlewares.
 ## Type Aliases
 
 <!-- symbol-start: Cookie -->
-### Cookie
+### Cookie [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L52)
 
 `type Cookie<TypeOrName, Name> = TypeOrName extends string ? CookieWithOptions<string> : CookieWithOptions<TypeOrName>`
-
-<!-- source: api/mod.ts:52 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L52)
 
 #### Type Parameters
 
@@ -2425,7 +2191,7 @@ Tags to filter endpoints when generating clients and in middlewares.
 <!-- symbol-end -->
 
 <!-- symbol-start: CookieWithOptions -->
-### CookieWithOptions
+### CookieWithOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L40)
 
 ```ts
 type CookieWithOptions<T> = {
@@ -2440,9 +2206,6 @@ type CookieWithOptions<T> = {
   value: T;
 };
 ```
-
-<!-- source: api/mod.ts:40 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L40)
 
 #### Type Parameters
 
@@ -2493,12 +2256,9 @@ type CookieWithOptions<T> = {
 <!-- symbol-end -->
 
 <!-- symbol-start: ErrDetails -->
-### ErrDetails
+### ErrDetails [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L117)
 
 `type ErrDetails = Record<string, any>`
-
-<!-- source: api/error.ts:117 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/error.ts#L117)
 
 Additional structured error details that can be attached to an APIError.
 
@@ -2507,12 +2267,9 @@ Additional structured error details that can be attached to an APIError.
 <!-- symbol-end -->
 
 <!-- symbol-start: Header -->
-### Header
+### Header [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L22)
 
 `type Header<TypeOrName, Name> = TypeOrName extends string ? string : TypeOrName`
-
-<!-- source: api/mod.ts:22 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L22)
 
 #### Type Parameters
 
@@ -2529,12 +2286,9 @@ Additional structured error details that can be attached to an APIError.
 <!-- symbol-end -->
 
 <!-- symbol-start: HttpStatus -->
-### HttpStatus
+### HttpStatus [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L560)
 
 `type HttpStatus = typeof HttpStatusValues[keyof typeof HttpStatusValues]`
-
-<!-- source: api/mod.ts:560 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L560)
 
 The union of all HTTP status code numeric values.
 
@@ -2543,7 +2297,7 @@ The union of all HTTP status code numeric values.
 <!-- symbol-end -->
 
 <!-- symbol-start: Method -->
-### Method
+### Method [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L11)
 
 ```ts
 type Method = 
@@ -2558,20 +2312,14 @@ type Method =
   | "CONNECT";
 ```
 
-<!-- source: api/mod.ts:11 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L11)
-
 ***
 
 <!-- symbol-end -->
 
 <!-- symbol-start: MiddlewareFn -->
-### MiddlewareFn
+### MiddlewareFn [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L513)
 
 `type MiddlewareFn = (req, next) => Promise<HandlerResponse>`
-
-<!-- source: api/mod.ts:513 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L513)
 
 #### Parameters
 
@@ -2592,12 +2340,9 @@ type Method =
 <!-- symbol-end -->
 
 <!-- symbol-start: Next -->
-### Next
+### Next [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L511)
 
 `type Next = (req) => Promise<HandlerResponse>`
-
-<!-- source: api/mod.ts:511 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L511)
 
 #### Parameters
 
@@ -2614,12 +2359,9 @@ type Method =
 <!-- symbol-end -->
 
 <!-- symbol-start: Query -->
-### Query
+### Query [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L27)
 
 `type Query<TypeOrName, Name> = TypeOrName extends string ? string : TypeOrName`
-
-<!-- source: api/mod.ts:27 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L27)
 
 #### Type Parameters
 
@@ -2636,12 +2378,9 @@ type Method =
 <!-- symbol-end -->
 
 <!-- symbol-start: RawHandler -->
-### RawHandler
+### RawHandler [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L176)
 
 `type RawHandler = (req, resp) => void`
-
-<!-- source: api/mod.ts:176 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L176)
 
 #### Parameters
 
@@ -2662,12 +2401,9 @@ type Method =
 <!-- symbol-end -->
 
 <!-- symbol-start: StreamInHandlerFn -->
-### StreamInHandlerFn
+### StreamInHandlerFn [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L208)
 
 `type StreamInHandlerFn<HandshakeData, Request, Response> = HandshakeData extends void ? (stream) => Promise<Response> : (data, stream) => Promise<Response>`
-
-<!-- source: api/mod.ts:208 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L208)
 
 #### Type Parameters
 
@@ -2688,12 +2424,9 @@ type Method =
 <!-- symbol-end -->
 
 <!-- symbol-start: StreamInOut -->
-### StreamInOut
+### StreamInOut [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L213)
 
 `type StreamInOut<Request, Response> = StreamIn<Request> & StreamOut<Response>`
-
-<!-- source: api/mod.ts:213 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L213)
 
 #### Type Parameters
 
@@ -2710,12 +2443,9 @@ type Method =
 <!-- symbol-end -->
 
 <!-- symbol-start: StreamInOutHandlerFn -->
-### StreamInOutHandlerFn
+### StreamInOutHandlerFn [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L195)
 
 `type StreamInOutHandlerFn<HandshakeData, Request, Response> = HandshakeData extends void ? (stream) => Promise<void> : (data, stream) => Promise<void>`
-
-<!-- source: api/mod.ts:195 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L195)
 
 #### Type Parameters
 
@@ -2736,12 +2466,9 @@ type Method =
 <!-- symbol-end -->
 
 <!-- symbol-start: StreamOutHandlerFn -->
-### StreamOutHandlerFn
+### StreamOutHandlerFn [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L203)
 
 `type StreamOutHandlerFn<HandshakeData, Response> = HandshakeData extends void ? (stream) => Promise<void> : (data, stream) => Promise<void>`
-
-<!-- source: api/mod.ts:203 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L203)
 
 #### Type Parameters
 
@@ -2758,7 +2485,7 @@ type Method =
 ## Variables
 
 <!-- symbol-start: HttpStatus -->
-### HttpStatus
+### HttpStatus [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L560)
 
 ```ts
 const HttpStatus: {
@@ -2827,9 +2554,6 @@ const HttpStatus: {
   VariantAlsoNegotiates: 506;
 } = HttpStatusValues;
 ```
-
-<!-- source: api/mod.ts:560 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/mod.ts#L560)
 
 A map of HTTP status code names to their numeric values.
 
@@ -3092,7 +2816,7 @@ A map of HTTP status code names to their numeric values.
 <!-- symbol-end -->
 
 <!-- symbol-start: HttpStatusValues -->
-### HttpStatusValues
+### HttpStatusValues [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/httpstatus.ts#L1)
 
 ```ts
 const HttpStatusValues: {
@@ -3161,9 +2885,6 @@ const HttpStatusValues: {
   VariantAlsoNegotiates: 506;
 };
 ```
-
-<!-- source: api/httpstatus.ts:1 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/api/httpstatus.ts#L1)
 
 #### Type Declaration
 

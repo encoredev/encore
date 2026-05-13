@@ -7,10 +7,7 @@ toc: true
 ## Classes
 
 <!-- symbol-start: Service -->
-### Service
-
-<!-- source: service/mod.ts:12 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L12)
+### Service [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L12)
 
 Defines an Encore backend service.
 
@@ -22,12 +19,9 @@ efficiently identify possible service definitions.
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L16)
 
 `new Service(name, cfg?): Service`
-
-<!-- source: service/mod.ts:16 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L16)
 
 ###### Parameters
 
@@ -58,10 +52,7 @@ efficiently identify possible service definitions.
 ## Interfaces
 
 <!-- symbol-start: ServiceConfig -->
-### ServiceConfig
-
-<!-- source: service/mod.ts:22 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L22)
+### ServiceConfig [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L22)
 
 #### Properties
 

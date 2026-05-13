@@ -7,10 +7,7 @@ toc: true
 ## Classes
 
 <!-- symbol-start: Decimal -->
-### Decimal
-
-<!-- source: types/mod.ts:23 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L23)
+### Decimal [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L23)
 
 A decimal type that can hold values with arbitrary precision.
 Unlike JavaScript's native number type, this can accurately represent
@@ -18,12 +15,9 @@ decimal values without floating-point precision errors.
 
 #### Constructors
 
-##### Constructor
+##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L26)
 
 `new Decimal(value): Decimal`
-
-<!-- source: types/mod.ts:26 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L26)
 
 ###### Parameters
 
@@ -49,12 +43,9 @@ decimal values without floating-point precision errors.
 
 #### Methods
 
-##### \[toPrimitive\]()
+##### \[toPrimitive\]() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L81)
 
 `toPrimitive: string | number`
-
-<!-- source: types/mod.ts:81 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L81)
 
 ###### Parameters
 
@@ -66,12 +57,9 @@ decimal values without floating-point precision errors.
 
 `string` \| `number`
 
-##### add()
+##### add() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L45)
 
 `add(d): Decimal`
-
-<!-- source: types/mod.ts:45 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L45)
 
 Adds this decimal to another decimal value.
 
@@ -85,12 +73,9 @@ Adds this decimal to another decimal value.
 
 [`Decimal`](#decimal)
 
-##### div()
+##### div() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L66)
 
 `div(d): Decimal`
-
-<!-- source: types/mod.ts:66 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L66)
 
 Divides this decimal by another decimal value.
 
@@ -104,12 +89,9 @@ Divides this decimal by another decimal value.
 
 [`Decimal`](#decimal)
 
-##### mul()
+##### mul() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L59)
 
 `mul(d): Decimal`
-
-<!-- source: types/mod.ts:59 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L59)
 
 Multiplies this decimal by another decimal value.
 
@@ -123,12 +105,9 @@ Multiplies this decimal by another decimal value.
 
 [`Decimal`](#decimal)
 
-##### sub()
+##### sub() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L52)
 
 `sub(d): Decimal`
-
-<!-- source: types/mod.ts:52 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L52)
 
 Subtracts another decimal value from this decimal.
 
@@ -142,23 +121,17 @@ Subtracts another decimal value from this decimal.
 
 [`Decimal`](#decimal)
 
-##### toJSON()
+##### toJSON() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L74)
 
 `toJSON(): string`
-
-<!-- source: types/mod.ts:74 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L74)
 
 ###### Returns
 
 `string`
 
-##### toString()
+##### toString() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L77)
 
 `toString(): string`
-
-<!-- source: types/mod.ts:77 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L77)
 
 ###### Returns
 
@@ -169,7 +142,7 @@ Subtracts another decimal value from this decimal.
 ## Type Aliases
 
 <!-- symbol-start: DurationString -->
-### DurationString
+### DurationString [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L11)
 
 ```ts
 type DurationString = 
@@ -177,9 +150,6 @@ type DurationString =
   | `${durationComponent}${durationComponent}`
   | `${durationComponent} ${durationComponent}`;
 ```
-
-<!-- source: types/mod.ts:11 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L11)
 
 A duration is a string representing a length of time.
 
@@ -190,12 +160,9 @@ Examples: `"10s"`, `"500ms"`, `"5m"`, `"1h30m"`, `"1h 30m"`.
 <!-- symbol-end -->
 
 <!-- symbol-start: ToDecimal -->
-### ToDecimal
+### ToDecimal [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L16)
 
 `type ToDecimal = string | number | bigint`
-
-<!-- source: types/mod.ts:16 -->
-[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L16)
 
 
 <!-- symbol-end -->
