@@ -73,13 +73,38 @@ for (const file of finalFiles) {
 
   content = content.replace(
     /^Defined in: \[([^\]]+)\]\(([^)]+)\)$/gm,
-    "<!-- source: $1 url=$2 -->"
+    "<!-- source: $1 -->\n[source]($2)"
   );
 
   content = content.replace(
     /```(?:ts|typescript)\n([^\n]+)\n```/g,
-    (_, code) => `\`${code}\``
+    (_, code) => `\`${code.replace(/;$/, "")}\``
   );
+
+  if (file !== "index.md") {
+    const lines = content.split("\n");
+    const out = [];
+    let openSymbol = null;
+    for (const line of lines) {
+      const h3 = line.match(/^### (.+)$/);
+      const h2 = line.match(/^## .+$/);
+      if (openSymbol && (h3 || h2)) {
+        out.push("<!-- symbol-end -->");
+        out.push("");
+        openSymbol = null;
+      }
+      if (h3) {
+        openSymbol = h3[1];
+        out.push(`<!-- symbol-start: ${openSymbol} -->`);
+      }
+      out.push(line);
+    }
+    if (openSymbol) {
+      out.push("");
+      out.push("<!-- symbol-end -->");
+    }
+    content = out.join("\n");
+  }
 
   const title = TITLES[file];
   if (title) {

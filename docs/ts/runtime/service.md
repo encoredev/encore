@@ -8,9 +8,11 @@ toc: true
 
 ## Classes
 
+<!-- symbol-start: Service -->
 ### Service
 
-<!-- source: service/mod.ts:12 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L12 -->
+<!-- source: service/mod.ts:12 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L12)
 
 Defines an Encore backend service.
 
@@ -24,9 +26,10 @@ efficiently identify possible service definitions.
 
 ##### Constructor
 
-`new Service(name, cfg?): Service;`
+`new Service(name, cfg?): Service`
 
-<!-- source: service/mod.ts:16 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L16 -->
+<!-- source: service/mod.ts:16 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L16)
 
 ###### Parameters
 
@@ -46,26 +49,36 @@ efficiently identify possible service definitions.
 
 ##### cfg
 
-`readonly cfg: ServiceConfig;`
+`readonly cfg: ServiceConfig`
 
-<!-- source: service/mod.ts:14 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L14 -->
+<!-- source: service/mod.ts:14 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L14)
 
 ##### name
 
-`readonly name: string;`
+`readonly name: string`
 
-<!-- source: service/mod.ts:13 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L13 -->
+<!-- source: service/mod.ts:13 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L13)
+
+<!-- symbol-end -->
 
 ## Interfaces
 
+<!-- symbol-start: ServiceConfig -->
 ### ServiceConfig
 
-<!-- source: service/mod.ts:22 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L22 -->
+<!-- source: service/mod.ts:22 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L22)
 
 #### Properties
 
 ##### middlewares?
 
-`optional middlewares?: Middleware[];`
+`optional middlewares?: Middleware[]`
 
-<!-- source: service/mod.ts:23 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L23 -->
+<!-- source: service/mod.ts:23 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L23)
+
+
+<!-- symbol-end -->

@@ -8,9 +8,11 @@ toc: true
 
 ## Interfaces
 
+<!-- symbol-start: Secret() -->
 ### Secret()
 
-<!-- source: config/secrets.ts:18 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L18 -->
+<!-- source: config/secrets.ts:18 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L18)
 
 Secret represents a single secret value that is loaded
 into the application. It is strongly typed for that secret,
@@ -33,9 +35,10 @@ function doFoo(s: Secret<"foo">): void {
 
 `Name` *extends* `string`
 
-`Secret(): string;`
+`Secret(): string`
 
-<!-- source: config/secrets.ts:27 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L27 -->
+<!-- source: config/secrets.ts:27 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L27)
 
 Returns the current value of the secret.
 
@@ -52,30 +55,39 @@ minutes. If you need to ensure you have the latest value, use
 
 ##### name
 
-`readonly name: Name;`
+`readonly name: Name`
 
-<!-- source: config/secrets.ts:32 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L32 -->
+<!-- source: config/secrets.ts:32 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L32)
 
 The name of the secret.
 
+<!-- symbol-end -->
+
 ## Type Aliases
 
+<!-- symbol-start: AnySecret -->
 ### AnySecret
 
-`type AnySecret = Secret<string>;`
+`type AnySecret = Secret<string>`
 
-<!-- source: config/secrets.ts:39 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L39 -->
+<!-- source: config/secrets.ts:39 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L39)
 
 AnySecret is a type which can be used to represent any [Secret](#secret)
 without knowing its name.
 
+<!-- symbol-end -->
+
 ## Functions
 
+<!-- symbol-start: secret() -->
 ### secret()
 
-`function secret<Name>(name): Secret<Name>;`
+`function secret<Name>(name): Secret<Name>`
 
-<!-- source: config/secrets.ts:50 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L50 -->
+<!-- source: config/secrets.ts:50 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L50)
 
 secret is used to load a single [Secret](#secret) into the application.
 
@@ -104,3 +116,6 @@ loading a single secret
  import {secret} from "encore.dev/config/secrets";
  const foo = secret<"foo">();
 ```
+
+
+<!-- symbol-end -->

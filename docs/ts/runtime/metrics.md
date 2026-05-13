@@ -8,9 +8,11 @@ toc: true
 
 ## Classes
 
+<!-- symbol-start: Counter -->
 ### Counter
 
-<!-- source: metrics/mod.ts:71 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L71 -->
+<!-- source: metrics/mod.ts:71 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L71)
 
 A Counter tracks cumulative values that only increase.
 Use counters for metrics like request counts, errors, etc.
@@ -19,9 +21,10 @@ Use counters for metrics like request counts, errors, etc.
 
 ##### Constructor
 
-`new Counter(name, cfg?): Counter;`
+`new Counter(name, cfg?): Counter`
 
-<!-- source: metrics/mod.ts:77 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L77 -->
+<!-- source: metrics/mod.ts:77 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L77)
 
 ###### Parameters
 
@@ -41,9 +44,10 @@ Use counters for metrics like request counts, errors, etc.
 
 ##### increment()
 
-`increment(value?): void;`
+`increment(value?): void`
 
-<!-- source: metrics/mod.ts:87 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L87 -->
+<!-- source: metrics/mod.ts:87 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L87)
 
 Increment the counter by the given value (default 1).
 
@@ -59,9 +63,10 @@ Increment the counter by the given value (default 1).
 
 ##### ref()
 
-`ref(): Counter;`
+`ref(): Counter`
 
-<!-- source: metrics/mod.ts:116 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L116 -->
+<!-- source: metrics/mod.ts:116 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L116)
 
 ###### Returns
 
@@ -69,9 +74,13 @@ Increment the counter by the given value (default 1).
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: CounterGroup -->
 ### CounterGroup
 
-<!-- source: metrics/mod.ts:128 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L128 -->
+<!-- source: metrics/mod.ts:128 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L128)
 
 A CounterGroup tracks counters with labels.
 Each unique combination of label values creates a separate counter time series.
@@ -89,9 +98,10 @@ Note: Number values in labels are converted to integers using Math.floor().
 
 ##### Constructor
 
-`new CounterGroup<L>(name, cfg?): CounterGroup<L>;`
+`new CounterGroup<L>(name, cfg?): CounterGroup<L>`
 
-<!-- source: metrics/mod.ts:135 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L135 -->
+<!-- source: metrics/mod.ts:135 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L135)
 
 ###### Parameters
 
@@ -111,9 +121,10 @@ Note: Number values in labels are converted to integers using Math.floor().
 
 ##### ref()
 
-`ref(): CounterGroup<L>;`
+`ref(): CounterGroup<L>`
 
-<!-- source: metrics/mod.ts:163 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L163 -->
+<!-- source: metrics/mod.ts:163 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L163)
 
 ###### Returns
 
@@ -121,9 +132,10 @@ Note: Number values in labels are converted to integers using Math.floor().
 
 ##### with()
 
-`with(labels): Counter;`
+`with(labels): Counter`
 
-<!-- source: metrics/mod.ts:146 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L146 -->
+<!-- source: metrics/mod.ts:146 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L146)
 
 Get a counter for the given label values.
 
@@ -141,9 +153,13 @@ Note: Number values in labels are converted to integers using Math.floor().
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: Gauge -->
 ### Gauge
 
-<!-- source: metrics/mod.ts:172 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L172 -->
+<!-- source: metrics/mod.ts:172 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L172)
 
 A Gauge tracks values that can go up or down.
 Use gauges for metrics like memory usage, active connections, temperature, etc.
@@ -152,9 +168,10 @@ Use gauges for metrics like memory usage, active connections, temperature, etc.
 
 ##### Constructor
 
-`new Gauge(name, cfg?): Gauge;`
+`new Gauge(name, cfg?): Gauge`
 
-<!-- source: metrics/mod.ts:178 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L178 -->
+<!-- source: metrics/mod.ts:178 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L178)
 
 ###### Parameters
 
@@ -174,9 +191,10 @@ Use gauges for metrics like memory usage, active connections, temperature, etc.
 
 ##### ref()
 
-`ref(): Gauge;`
+`ref(): Gauge`
 
-<!-- source: metrics/mod.ts:217 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L217 -->
+<!-- source: metrics/mod.ts:217 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L217)
 
 ###### Returns
 
@@ -184,9 +202,10 @@ Use gauges for metrics like memory usage, active connections, temperature, etc.
 
 ##### set()
 
-`set(value): void;`
+`set(value): void`
 
-<!-- source: metrics/mod.ts:188 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L188 -->
+<!-- source: metrics/mod.ts:188 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L188)
 
 Set the gauge to the given value.
 
@@ -202,9 +221,13 @@ Set the gauge to the given value.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: GaugeGroup -->
 ### GaugeGroup
 
-<!-- source: metrics/mod.ts:222 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L222 -->
+<!-- source: metrics/mod.ts:222 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L222)
 
 #### Type Parameters
 
@@ -216,9 +239,10 @@ Set the gauge to the given value.
 
 ##### Constructor
 
-`new GaugeGroup<L>(name, cfg?): GaugeGroup<L>;`
+`new GaugeGroup<L>(name, cfg?): GaugeGroup<L>`
 
-<!-- source: metrics/mod.ts:227 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L227 -->
+<!-- source: metrics/mod.ts:227 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L227)
 
 ###### Parameters
 
@@ -238,9 +262,10 @@ Set the gauge to the given value.
 
 ##### ref()
 
-`ref(): GaugeGroup<L>;`
+`ref(): GaugeGroup<L>`
 
-<!-- source: metrics/mod.ts:255 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L255 -->
+<!-- source: metrics/mod.ts:255 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L255)
 
 ###### Returns
 
@@ -248,9 +273,10 @@ Set the gauge to the given value.
 
 ##### with()
 
-`with(labels): Gauge;`
+`with(labels): Gauge`
 
-<!-- source: metrics/mod.ts:238 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L238 -->
+<!-- source: metrics/mod.ts:238 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L238)
 
 Get a gauge for the given label values.
 
@@ -266,8 +292,15 @@ Note: Number values in labels are converted to integers using Math.floor().
 
 [`Gauge`](#gauge)
 
+<!-- symbol-end -->
+
 ## Interfaces
 
+<!-- symbol-start: MetricConfig -->
 ### MetricConfig
 
-<!-- source: metrics/mod.ts:41 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L41 -->
+<!-- source: metrics/mod.ts:41 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/metrics/mod.ts#L41)
+
+
+<!-- symbol-end -->

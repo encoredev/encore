@@ -8,9 +8,11 @@ toc: true
 
 ## Classes
 
+<!-- symbol-start: CacheCluster -->
 ### CacheCluster
 
-<!-- source: storage/cache/cluster.ts:43 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L43 -->
+<!-- source: storage/cache/cluster.ts:43 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L43)
 
 CacheCluster represents a Redis cache cluster.
 
@@ -31,9 +33,10 @@ const myCache = new CacheCluster("my-cache", {
 
 ##### Constructor
 
-`new CacheCluster(name, cfg?): CacheCluster;`
+`new CacheCluster(name, cfg?): CacheCluster`
 
-<!-- source: storage/cache/cluster.ts:55 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L55 -->
+<!-- source: storage/cache/cluster.ts:55 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L55)
 
 Creates a new cache cluster with the given name and configuration.
 
@@ -59,9 +62,10 @@ Optional configuration for the cluster
 
 ##### named()
 
-`static named<Name>(name): CacheCluster;`
+`static named<Name>(name): CacheCluster`
 
-<!-- source: storage/cache/cluster.ts:64 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L64 -->
+<!-- source: storage/cache/cluster.ts:64 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L64)
 
 Reference an existing cache cluster by name.
 To create a new cache cluster, use `new CacheCluster(...)` instead.
@@ -84,9 +88,13 @@ To create a new cache cluster, use `new CacheCluster(...)` instead.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: CacheError -->
 ### CacheError
 
-<!-- source: storage/cache/errors.ts:4 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L4 -->
+<!-- source: storage/cache/errors.ts:4 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L4)
 
 CacheError is the base class for all cache-related errors.
 
@@ -103,9 +111,10 @@ CacheError is the base class for all cache-related errors.
 
 ##### Constructor
 
-`new CacheError(msg): CacheError;`
+`new CacheError(msg): CacheError`
 
-<!-- source: storage/cache/errors.ts:5 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L5 -->
+<!-- source: storage/cache/errors.ts:5 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L5)
 
 ###### Parameters
 
@@ -123,9 +132,13 @@ CacheError is the base class for all cache-related errors.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: CacheKeyExists -->
 ### CacheKeyExists
 
-<!-- source: storage/cache/errors.ts:49 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L49 -->
+<!-- source: storage/cache/errors.ts:49 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L49)
 
 CacheKeyExists is thrown when attempting to set a key that already exists
 using setIfNotExists.
@@ -138,9 +151,10 @@ using setIfNotExists.
 
 ##### Constructor
 
-`new CacheKeyExists(key): CacheKeyExists;`
+`new CacheKeyExists(key): CacheKeyExists`
 
-<!-- source: storage/cache/errors.ts:50 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L50 -->
+<!-- source: storage/cache/errors.ts:50 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L50)
 
 ###### Parameters
 
@@ -158,9 +172,13 @@ using setIfNotExists.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: CacheMiss -->
 ### CacheMiss
 
-<!-- source: storage/cache/errors.ts:26 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L26 -->
+<!-- source: storage/cache/errors.ts:26 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L26)
 
 CacheMiss is thrown when a cache key is not found.
 
@@ -172,9 +190,10 @@ CacheMiss is thrown when a cache key is not found.
 
 ##### Constructor
 
-`new CacheMiss(key): CacheMiss;`
+`new CacheMiss(key): CacheMiss`
 
-<!-- source: storage/cache/errors.ts:27 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L27 -->
+<!-- source: storage/cache/errors.ts:27 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L27)
 
 ###### Parameters
 
@@ -192,9 +211,13 @@ CacheMiss is thrown when a cache key is not found.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: FloatKeyspace -->
 ### FloatKeyspace
 
-<!-- source: storage/cache/basic.ts:410 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L410 -->
+<!-- source: storage/cache/basic.ts:410 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L410)
 
 FloatKeyspace stores 64-bit floating point values.
 
@@ -223,9 +246,10 @@ const newScore = await scores.increment("player1", 10.25);
 
 ##### Constructor
 
-`new FloatKeyspace<K>(cluster, config): FloatKeyspace<K>;`
+`new FloatKeyspace<K>(cluster, config): FloatKeyspace<K>`
 
-<!-- source: storage/cache/basic.ts:411 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L411 -->
+<!-- source: storage/cache/basic.ts:411 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L411)
 
 ###### Parameters
 
@@ -249,9 +273,10 @@ const newScore = await scores.increment("player1", 10.25);
 
 ##### cluster
 
-`protected readonly cluster: CacheCluster;`
+`protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46 -->
+<!-- source: storage/cache/keyspace.ts:46 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
 
 ###### Inherited from
 
@@ -259,9 +284,10 @@ const newScore = await scores.increment("player1", 10.25);
 
 ##### config
 
-`protected readonly config: KeyspaceConfig<K>;`
+`protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47 -->
+<!-- source: storage/cache/keyspace.ts:47 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
 
 ###### Inherited from
 
@@ -269,9 +295,10 @@ const newScore = await scores.increment("player1", 10.25);
 
 ##### keyMapper
 
-`protected readonly keyMapper: (key) => string;`
+`protected readonly keyMapper: (key) => string`
 
-<!-- source: storage/cache/keyspace.ts:48 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48 -->
+<!-- source: storage/cache/keyspace.ts:48 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -298,7 +325,8 @@ decrement(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/basic.ts:462 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L462 -->
+<!-- source: storage/cache/basic.ts:462 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L462)
 
 Decrements the number stored at key by `delta`.
 
@@ -338,9 +366,10 @@ https://redis.io/commands/incrbyfloat/
 
 ##### delete()
 
-`delete(...keys): Promise<number>;`
+`delete(...keys): Promise<number>`
 
-<!-- source: storage/cache/keyspace.ts:137 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137 -->
+<!-- source: storage/cache/keyspace.ts:137 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137)
 
 Deletes the specified keys.
 If a key does not exist it is ignored.
@@ -367,9 +396,10 @@ https://redis.io/commands/del/
 
 ##### deserialize()
 
-`protected deserialize(data): number;`
+`protected deserialize(data): number`
 
-<!-- source: storage/cache/basic.ts:419 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L419 -->
+<!-- source: storage/cache/basic.ts:419 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L419)
 
 Deserializes a Buffer from storage to a value.
 
@@ -389,9 +419,10 @@ Deserializes a Buffer from storage to a value.
 
 ##### get()
 
-`get(key): Promise<number | undefined>;`
+`get(key): Promise<number | undefined>`
 
-<!-- source: storage/cache/basic.ts:33 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33 -->
+<!-- source: storage/cache/basic.ts:33 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33)
 
 Gets the value stored at key.
 If the key does not exist, it returns `undefined`.
@@ -418,9 +449,10 @@ https://redis.io/commands/get/
 
 ##### getAndDelete()
 
-`getAndDelete(key): Promise<number | undefined>;`
+`getAndDelete(key): Promise<number | undefined>`
 
-<!-- source: storage/cache/basic.ts:165 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165 -->
+<!-- source: storage/cache/basic.ts:165 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165)
 
 Deletes the key and returns the previously stored value.
 If the key does not already exist, it returns `undefined`.
@@ -454,7 +486,8 @@ getAndSet(
 options?): Promise<number | undefined>;
 ```
 
-<!-- source: storage/cache/basic.ts:134 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134 -->
+<!-- source: storage/cache/basic.ts:134 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134)
 
 Updates the value of key to val and returns the previously stored value.
 If the key does not already exist, it sets it and returns `undefined`.
@@ -496,7 +529,8 @@ increment(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/basic.ts:437 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L437 -->
+<!-- source: storage/cache/basic.ts:437 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L437)
 
 Increments the number stored at key by `delta`.
 
@@ -536,9 +570,10 @@ https://redis.io/commands/incrbyfloat/
 
 ##### mapKey()
 
-`protected mapKey(key): string;`
+`protected mapKey(key): string`
 
-<!-- source: storage/cache/keyspace.ts:91 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91 -->
+<!-- source: storage/cache/keyspace.ts:91 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91)
 
 Maps a key to its Redis key string.
 
@@ -558,9 +593,10 @@ Maps a key to its Redis key string.
 
 ##### multiGet()
 
-`multiGet(...keys): Promise<(number | undefined)[]>;`
+`multiGet(...keys): Promise<(number | undefined)[]>`
 
-<!-- source: storage/cache/basic.ts:52 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52 -->
+<!-- source: storage/cache/basic.ts:52 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52)
 
 Gets the values stored at multiple keys.
 
@@ -594,7 +630,8 @@ replace(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:109 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109 -->
+<!-- source: storage/cache/basic.ts:109 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109)
 
 Replaces the existing value stored at key to val.
 
@@ -630,9 +667,10 @@ https://redis.io/commands/set/
 
 ##### resolveTtl()
 
-`protected resolveTtl(options?): number | undefined;`
+`protected resolveTtl(options?): number | undefined`
 
-<!-- source: storage/cache/keyspace.ts:103 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103 -->
+<!-- source: storage/cache/keyspace.ts:103 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103)
 
 Resolves the TTL for a write operation.
 Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/NeverExpire, >=0=ms
@@ -653,9 +691,10 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 ##### serialize()
 
-`protected serialize(value): Buffer;`
+`protected serialize(value): Buffer`
 
-<!-- source: storage/cache/basic.ts:415 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L415 -->
+<!-- source: storage/cache/basic.ts:415 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L415)
 
 Serializes a value to a Buffer for storage.
 
@@ -682,7 +721,8 @@ set(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:66 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66 -->
+<!-- source: storage/cache/basic.ts:66 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66)
 
 Updates the value stored at key to val.
 
@@ -721,7 +761,8 @@ setIfNotExists(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:81 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81 -->
+<!-- source: storage/cache/basic.ts:81 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81)
 
 Sets the value stored at key to val, but only if the key does not exist beforehand.
 
@@ -757,9 +798,10 @@ https://redis.io/commands/setnx/
 
 ##### with()
 
-`with(options): this;`
+`with(options): this`
 
-<!-- source: storage/cache/keyspace.ts:123 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123 -->
+<!-- source: storage/cache/keyspace.ts:123 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123)
 
 Returns a shallow clone of this keyspace with the specified write options applied.
 This allows setting expiry for a chain of operations.
@@ -776,7 +818,7 @@ This allows setting expiry for a chain of operations.
 
 ###### Example
 
-`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value);`
+`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value)`
 
 ###### Inherited from
 
@@ -784,9 +826,13 @@ This allows setting expiry for a chain of operations.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: IntKeyspace -->
 ### IntKeyspace
 
-<!-- source: storage/cache/basic.ts:323 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L323 -->
+<!-- source: storage/cache/basic.ts:323 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L323)
 
 IntKeyspace stores 64-bit integer values.
 Values are floored to integers using `Math.floor`.
@@ -817,9 +863,10 @@ const newCount = await counters.increment("page-views", 1);
 
 ##### Constructor
 
-`new IntKeyspace<K>(cluster, config): IntKeyspace<K>;`
+`new IntKeyspace<K>(cluster, config): IntKeyspace<K>`
 
-<!-- source: storage/cache/basic.ts:324 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L324 -->
+<!-- source: storage/cache/basic.ts:324 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L324)
 
 ###### Parameters
 
@@ -843,9 +890,10 @@ const newCount = await counters.increment("page-views", 1);
 
 ##### cluster
 
-`protected readonly cluster: CacheCluster;`
+`protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46 -->
+<!-- source: storage/cache/keyspace.ts:46 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
 
 ###### Inherited from
 
@@ -853,9 +901,10 @@ const newCount = await counters.increment("page-views", 1);
 
 ##### config
 
-`protected readonly config: KeyspaceConfig<K>;`
+`protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47 -->
+<!-- source: storage/cache/keyspace.ts:47 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
 
 ###### Inherited from
 
@@ -863,9 +912,10 @@ const newCount = await counters.increment("page-views", 1);
 
 ##### keyMapper
 
-`protected readonly keyMapper: (key) => string;`
+`protected readonly keyMapper: (key) => string`
 
-<!-- source: storage/cache/keyspace.ts:48 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48 -->
+<!-- source: storage/cache/keyspace.ts:48 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -892,7 +942,8 @@ decrement(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/basic.ts:380 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L380 -->
+<!-- source: storage/cache/basic.ts:380 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L380)
 
 Decrements the number stored at key by `delta`.
 
@@ -932,9 +983,10 @@ https://redis.io/commands/decrby/
 
 ##### delete()
 
-`delete(...keys): Promise<number>;`
+`delete(...keys): Promise<number>`
 
-<!-- source: storage/cache/keyspace.ts:137 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137 -->
+<!-- source: storage/cache/keyspace.ts:137 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137)
 
 Deletes the specified keys.
 If a key does not exist it is ignored.
@@ -961,9 +1013,10 @@ https://redis.io/commands/del/
 
 ##### deserialize()
 
-`protected deserialize(data): number;`
+`protected deserialize(data): number`
 
-<!-- source: storage/cache/basic.ts:332 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L332 -->
+<!-- source: storage/cache/basic.ts:332 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L332)
 
 Deserializes a Buffer from storage to a value.
 
@@ -983,9 +1036,10 @@ Deserializes a Buffer from storage to a value.
 
 ##### get()
 
-`get(key): Promise<number | undefined>;`
+`get(key): Promise<number | undefined>`
 
-<!-- source: storage/cache/basic.ts:33 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33 -->
+<!-- source: storage/cache/basic.ts:33 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33)
 
 Gets the value stored at key.
 If the key does not exist, it returns `undefined`.
@@ -1012,9 +1066,10 @@ https://redis.io/commands/get/
 
 ##### getAndDelete()
 
-`getAndDelete(key): Promise<number | undefined>;`
+`getAndDelete(key): Promise<number | undefined>`
 
-<!-- source: storage/cache/basic.ts:165 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165 -->
+<!-- source: storage/cache/basic.ts:165 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165)
 
 Deletes the key and returns the previously stored value.
 If the key does not already exist, it returns `undefined`.
@@ -1048,7 +1103,8 @@ getAndSet(
 options?): Promise<number | undefined>;
 ```
 
-<!-- source: storage/cache/basic.ts:134 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134 -->
+<!-- source: storage/cache/basic.ts:134 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134)
 
 Updates the value of key to val and returns the previously stored value.
 If the key does not already exist, it sets it and returns `undefined`.
@@ -1090,7 +1146,8 @@ increment(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/basic.ts:350 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L350 -->
+<!-- source: storage/cache/basic.ts:350 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L350)
 
 Increments the number stored at key by `delta`.
 
@@ -1130,9 +1187,10 @@ https://redis.io/commands/incrby/
 
 ##### mapKey()
 
-`protected mapKey(key): string;`
+`protected mapKey(key): string`
 
-<!-- source: storage/cache/keyspace.ts:91 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91 -->
+<!-- source: storage/cache/keyspace.ts:91 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91)
 
 Maps a key to its Redis key string.
 
@@ -1152,9 +1210,10 @@ Maps a key to its Redis key string.
 
 ##### multiGet()
 
-`multiGet(...keys): Promise<(number | undefined)[]>;`
+`multiGet(...keys): Promise<(number | undefined)[]>`
 
-<!-- source: storage/cache/basic.ts:52 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52 -->
+<!-- source: storage/cache/basic.ts:52 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52)
 
 Gets the values stored at multiple keys.
 
@@ -1188,7 +1247,8 @@ replace(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:109 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109 -->
+<!-- source: storage/cache/basic.ts:109 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109)
 
 Replaces the existing value stored at key to val.
 
@@ -1224,9 +1284,10 @@ https://redis.io/commands/set/
 
 ##### resolveTtl()
 
-`protected resolveTtl(options?): number | undefined;`
+`protected resolveTtl(options?): number | undefined`
 
-<!-- source: storage/cache/keyspace.ts:103 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103 -->
+<!-- source: storage/cache/keyspace.ts:103 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103)
 
 Resolves the TTL for a write operation.
 Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/NeverExpire, >=0=ms
@@ -1247,9 +1308,10 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 ##### serialize()
 
-`protected serialize(value): Buffer;`
+`protected serialize(value): Buffer`
 
-<!-- source: storage/cache/basic.ts:328 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L328 -->
+<!-- source: storage/cache/basic.ts:328 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L328)
 
 Serializes a value to a Buffer for storage.
 
@@ -1276,7 +1338,8 @@ set(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:66 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66 -->
+<!-- source: storage/cache/basic.ts:66 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66)
 
 Updates the value stored at key to val.
 
@@ -1315,7 +1378,8 @@ setIfNotExists(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:81 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81 -->
+<!-- source: storage/cache/basic.ts:81 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81)
 
 Sets the value stored at key to val, but only if the key does not exist beforehand.
 
@@ -1351,9 +1415,10 @@ https://redis.io/commands/setnx/
 
 ##### with()
 
-`with(options): this;`
+`with(options): this`
 
-<!-- source: storage/cache/keyspace.ts:123 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123 -->
+<!-- source: storage/cache/keyspace.ts:123 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123)
 
 Returns a shallow clone of this keyspace with the specified write options applied.
 This allows setting expiry for a chain of operations.
@@ -1370,7 +1435,7 @@ This allows setting expiry for a chain of operations.
 
 ###### Example
 
-`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value);`
+`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value)`
 
 ###### Inherited from
 
@@ -1378,9 +1443,13 @@ This allows setting expiry for a chain of operations.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: NumberListKeyspace -->
 ### NumberListKeyspace
 
-<!-- source: storage/cache/list.ts:484 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L484 -->
+<!-- source: storage/cache/list.ts:484 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L484)
 
 NumberListKeyspace stores lists of numeric values.
 
@@ -1409,9 +1478,10 @@ const allScores = await scores.items("game1");
 
 ##### Constructor
 
-`new NumberListKeyspace<K>(cluster, config): NumberListKeyspace<K>;`
+`new NumberListKeyspace<K>(cluster, config): NumberListKeyspace<K>`
 
-<!-- source: storage/cache/list.ts:485 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L485 -->
+<!-- source: storage/cache/list.ts:485 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L485)
 
 ###### Parameters
 
@@ -1435,9 +1505,10 @@ const allScores = await scores.items("game1");
 
 ##### cluster
 
-`protected readonly cluster: CacheCluster;`
+`protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46 -->
+<!-- source: storage/cache/keyspace.ts:46 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
 
 ###### Inherited from
 
@@ -1445,9 +1516,10 @@ const allScores = await scores.items("game1");
 
 ##### config
 
-`protected readonly config: KeyspaceConfig<K>;`
+`protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47 -->
+<!-- source: storage/cache/keyspace.ts:47 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
 
 ###### Inherited from
 
@@ -1455,9 +1527,10 @@ const allScores = await scores.items("game1");
 
 ##### keyMapper
 
-`protected readonly keyMapper: (key) => string;`
+`protected readonly keyMapper: (key) => string`
 
-<!-- source: storage/cache/keyspace.ts:48 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48 -->
+<!-- source: storage/cache/keyspace.ts:48 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -1477,9 +1550,10 @@ const allScores = await scores.items("game1");
 
 ##### delete()
 
-`delete(...keys): Promise<number>;`
+`delete(...keys): Promise<number>`
 
-<!-- source: storage/cache/keyspace.ts:137 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137 -->
+<!-- source: storage/cache/keyspace.ts:137 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137)
 
 Deletes the specified keys.
 If a key does not exist it is ignored.
@@ -1506,9 +1580,10 @@ https://redis.io/commands/del/
 
 ##### deserializeItem()
 
-`protected deserializeItem(data): number;`
+`protected deserializeItem(data): number`
 
-<!-- source: storage/cache/list.ts:493 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L493 -->
+<!-- source: storage/cache/list.ts:493 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L493)
 
 ###### Parameters
 
@@ -1526,9 +1601,10 @@ https://redis.io/commands/del/
 
 ##### get()
 
-`get(key, index): Promise<number | undefined>;`
+`get(key, index): Promise<number | undefined>`
 
-<!-- source: storage/cache/list.ts:187 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L187 -->
+<!-- source: storage/cache/list.ts:187 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L187)
 
 Returns the value of the list element at the given index.
 
@@ -1572,7 +1648,8 @@ getRange(
 stop): Promise<number[]>;
 ```
 
-<!-- source: storage/cache/list.ts:229 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L229 -->
+<!-- source: storage/cache/list.ts:229 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L229)
 
 Returns the elements in the list stored at key between `start` and `stop` (inclusive).
 Both are zero-based indices.
@@ -1626,7 +1703,8 @@ insertAfter(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/list.ts:284 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L284 -->
+<!-- source: storage/cache/list.ts:284 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L284)
 
 Inserts `value` into the list stored at key, at the position just after `pivot`.
 
@@ -1680,7 +1758,8 @@ insertBefore(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/list.ts:252 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L252 -->
+<!-- source: storage/cache/list.ts:252 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L252)
 
 Inserts `value` into the list stored at key, at the position just before `pivot`.
 
@@ -1726,9 +1805,10 @@ https://redis.io/commands/linsert/
 
 ##### items()
 
-`items(key): Promise<number[]>;`
+`items(key): Promise<number[]>`
 
-<!-- source: storage/cache/list.ts:207 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L207 -->
+<!-- source: storage/cache/list.ts:207 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L207)
 
 Returns all the elements in the list stored at key.
 
@@ -1756,9 +1836,10 @@ https://redis.io/commands/lrange/
 
 ##### len()
 
-`len(key): Promise<number>;`
+`len(key): Promise<number>`
 
-<!-- source: storage/cache/list.ts:117 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L117 -->
+<!-- source: storage/cache/list.ts:117 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L117)
 
 Returns the length of the list stored at key.
 
@@ -1786,9 +1867,10 @@ https://redis.io/commands/llen/
 
 ##### mapKey()
 
-`protected mapKey(key): string;`
+`protected mapKey(key): string`
 
-<!-- source: storage/cache/keyspace.ts:91 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91 -->
+<!-- source: storage/cache/keyspace.ts:91 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91)
 
 Maps a key to its Redis key string.
 
@@ -1817,7 +1899,8 @@ move(
 options?): Promise<number | undefined>;
 ```
 
-<!-- source: storage/cache/list.ts:417 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L417 -->
+<!-- source: storage/cache/list.ts:417 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L417)
 
 Atomically moves an element from the list stored at `src` to the list stored at `dst`.
 
@@ -1874,9 +1957,10 @@ https://redis.io/commands/lmove/
 
 ##### popLeft()
 
-`popLeft(key, options?): Promise<number | undefined>;`
+`popLeft(key, options?): Promise<number | undefined>`
 
-<!-- source: storage/cache/list.ts:81 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L81 -->
+<!-- source: storage/cache/list.ts:81 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L81)
 
 Pops a single element off the head of the list stored at key.
 
@@ -1906,9 +1990,10 @@ https://redis.io/commands/lpop/
 
 ##### popRight()
 
-`popRight(key, options?): Promise<number | undefined>;`
+`popRight(key, options?): Promise<number | undefined>`
 
-<!-- source: storage/cache/list.ts:98 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L98 -->
+<!-- source: storage/cache/list.ts:98 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L98)
 
 Pops a single element off the tail of the list stored at key.
 
@@ -1938,9 +2023,10 @@ https://redis.io/commands/rpop/
 
 ##### pushLeft()
 
-`pushLeft(key, ...values): Promise<number>;`
+`pushLeft(key, ...values): Promise<number>`
 
-<!-- source: storage/cache/list.ts:35 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L35 -->
+<!-- source: storage/cache/list.ts:35 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L35)
 
 Pushes one or more values at the head of the list stored at key.
 If the key does not already exist, it is first created as an empty list.
@@ -1976,9 +2062,10 @@ https://redis.io/commands/lpush/
 
 ##### pushRight()
 
-`pushRight(key, ...values): Promise<number>;`
+`pushRight(key, ...values): Promise<number>`
 
-<!-- source: storage/cache/list.ts:61 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L61 -->
+<!-- source: storage/cache/list.ts:61 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L61)
 
 Pushes one or more values at the tail of the list stored at key.
 If the key does not already exist, it is first created as an empty list.
@@ -2021,7 +2108,8 @@ removeAll(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/list.ts:315 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L315 -->
+<!-- source: storage/cache/list.ts:315 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L315)
 
 Removes all occurrences of `value` in the list stored at key.
 
@@ -2069,7 +2157,8 @@ removeFirst(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/list.ts:341 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L341 -->
+<!-- source: storage/cache/list.ts:341 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L341)
 
 Removes the first `count` occurrences of `value` in the list stored at key,
 scanning from head to tail.
@@ -2124,7 +2213,8 @@ removeLast(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/list.ts:376 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L376 -->
+<!-- source: storage/cache/list.ts:376 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L376)
 
 Removes the last `count` occurrences of `value` in the list stored at key,
 scanning from tail to head.
@@ -2171,9 +2261,10 @@ https://redis.io/commands/lrem/
 
 ##### resolveTtl()
 
-`protected resolveTtl(options?): number | undefined;`
+`protected resolveTtl(options?): number | undefined`
 
-<!-- source: storage/cache/keyspace.ts:103 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103 -->
+<!-- source: storage/cache/keyspace.ts:103 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103)
 
 Resolves the TTL for a write operation.
 Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/NeverExpire, >=0=ms
@@ -2194,9 +2285,10 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 ##### serializeItem()
 
-`protected serializeItem(value): Buffer;`
+`protected serializeItem(value): Buffer`
 
-<!-- source: storage/cache/list.ts:489 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L489 -->
+<!-- source: storage/cache/list.ts:489 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L489)
 
 ###### Parameters
 
@@ -2222,7 +2314,8 @@ set(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/list.ts:163 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L163 -->
+<!-- source: storage/cache/list.ts:163 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L163)
 
 Updates the list element at the given index.
 
@@ -2279,7 +2372,8 @@ trim(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/list.ts:139 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L139 -->
+<!-- source: storage/cache/list.ts:139 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L139)
 
 Trims the list stored at key to only contain the elements between the indices
 `start` and `stop` (inclusive). Both are zero-based indices.
@@ -2328,9 +2422,10 @@ https://redis.io/commands/ltrim/
 
 ##### with()
 
-`with(options): this;`
+`with(options): this`
 
-<!-- source: storage/cache/keyspace.ts:123 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123 -->
+<!-- source: storage/cache/keyspace.ts:123 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123)
 
 Returns a shallow clone of this keyspace with the specified write options applied.
 This allows setting expiry for a chain of operations.
@@ -2347,7 +2442,7 @@ This allows setting expiry for a chain of operations.
 
 ###### Example
 
-`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value);`
+`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value)`
 
 ###### Inherited from
 
@@ -2355,9 +2450,13 @@ This allows setting expiry for a chain of operations.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: NumberSetKeyspace -->
 ### NumberSetKeyspace
 
-<!-- source: storage/cache/set.ts:479 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L479 -->
+<!-- source: storage/cache/set.ts:479 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L479)
 
 NumberSetKeyspace stores sets of unique numeric values.
 
@@ -2386,9 +2485,10 @@ const hasScore = await scores.contains("game1", 100);
 
 ##### Constructor
 
-`new NumberSetKeyspace<K>(cluster, config): NumberSetKeyspace<K>;`
+`new NumberSetKeyspace<K>(cluster, config): NumberSetKeyspace<K>`
 
-<!-- source: storage/cache/set.ts:480 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L480 -->
+<!-- source: storage/cache/set.ts:480 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L480)
 
 ###### Parameters
 
@@ -2412,9 +2512,10 @@ const hasScore = await scores.contains("game1", 100);
 
 ##### cluster
 
-`protected readonly cluster: CacheCluster;`
+`protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46 -->
+<!-- source: storage/cache/keyspace.ts:46 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
 
 ###### Inherited from
 
@@ -2422,9 +2523,10 @@ const hasScore = await scores.contains("game1", 100);
 
 ##### config
 
-`protected readonly config: KeyspaceConfig<K>;`
+`protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47 -->
+<!-- source: storage/cache/keyspace.ts:47 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
 
 ###### Inherited from
 
@@ -2432,9 +2534,10 @@ const hasScore = await scores.contains("game1", 100);
 
 ##### keyMapper
 
-`protected readonly keyMapper: (key) => string;`
+`protected readonly keyMapper: (key) => string`
 
-<!-- source: storage/cache/keyspace.ts:48 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48 -->
+<!-- source: storage/cache/keyspace.ts:48 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -2454,9 +2557,10 @@ const hasScore = await scores.contains("game1", 100);
 
 ##### add()
 
-`add(key, ...members): Promise<number>;`
+`add(key, ...members): Promise<number>`
 
-<!-- source: storage/cache/set.ts:26 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L26 -->
+<!-- source: storage/cache/set.ts:26 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L26)
 
 Adds one or more values to the set stored at key.
 If the key does not already exist, it is first created as an empty set.
@@ -2488,9 +2592,10 @@ https://redis.io/commands/sadd/
 
 ##### contains()
 
-`contains(key, member): Promise<boolean>;`
+`contains(key, member): Promise<boolean>`
 
-<!-- source: storage/cache/set.ts:111 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L111 -->
+<!-- source: storage/cache/set.ts:111 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L111)
 
 Reports whether the set stored at key contains the given value.
 
@@ -2522,9 +2627,10 @@ https://redis.io/commands/sismember/
 
 ##### delete()
 
-`delete(...keys): Promise<number>;`
+`delete(...keys): Promise<number>`
 
-<!-- source: storage/cache/keyspace.ts:137 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137 -->
+<!-- source: storage/cache/keyspace.ts:137 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137)
 
 Deletes the specified keys.
 If a key does not exist it is ignored.
@@ -2551,9 +2657,10 @@ https://redis.io/commands/del/
 
 ##### deserializeItem()
 
-`protected deserializeItem(data): number;`
+`protected deserializeItem(data): number`
 
-<!-- source: storage/cache/set.ts:488 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L488 -->
+<!-- source: storage/cache/set.ts:488 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L488)
 
 ###### Parameters
 
@@ -2571,9 +2678,10 @@ https://redis.io/commands/del/
 
 ##### diff()
 
-`diff(...keys): Promise<number[]>;`
+`diff(...keys): Promise<number[]>`
 
-<!-- source: storage/cache/set.ts:174 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L174 -->
+<!-- source: storage/cache/set.ts:174 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L174)
 
 Computes the set difference between the first set and all the consecutive sets.
 
@@ -2610,9 +2718,10 @@ https://redis.io/commands/sdiff/
 
 ##### diffSet()
 
-`diffSet(...keys): Promise<Set<number>>;`
+`diffSet(...keys): Promise<Set<number>>`
 
-<!-- source: storage/cache/set.ts:189 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L189 -->
+<!-- source: storage/cache/set.ts:189 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L189)
 
 Identical to [diff](#diff) except it returns the values as a `Set`.
 
@@ -2636,9 +2745,10 @@ https://redis.io/commands/sdiff/
 
 ##### diffStore()
 
-`diffStore(destination, ...keys): Promise<number>;`
+`diffStore(destination, ...keys): Promise<number>`
 
-<!-- source: storage/cache/set.ts:203 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L203 -->
+<!-- source: storage/cache/set.ts:203 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L203)
 
 Computes the set difference between keys (like [diff](#diff)) and stores the result
 in `destination`.
@@ -2673,9 +2783,10 @@ https://redis.io/commands/sdiffstore/
 
 ##### intersect()
 
-`intersect(...keys): Promise<number[]>;`
+`intersect(...keys): Promise<number[]>`
 
-<!-- source: storage/cache/set.ts:233 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L233 -->
+<!-- source: storage/cache/set.ts:233 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L233)
 
 Computes the set intersection between the sets stored at the given keys.
 
@@ -2712,9 +2823,10 @@ https://redis.io/commands/sinter/
 
 ##### intersectSet()
 
-`intersectSet(...keys): Promise<Set<number>>;`
+`intersectSet(...keys): Promise<Set<number>>`
 
-<!-- source: storage/cache/set.ts:248 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L248 -->
+<!-- source: storage/cache/set.ts:248 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L248)
 
 Identical to [intersect](#intersect) except it returns the values as a `Set`.
 
@@ -2738,9 +2850,10 @@ https://redis.io/commands/sinter/
 
 ##### intersectStore()
 
-`intersectStore(destination, ...keys): Promise<number>;`
+`intersectStore(destination, ...keys): Promise<number>`
 
-<!-- source: storage/cache/set.ts:262 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L262 -->
+<!-- source: storage/cache/set.ts:262 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L262)
 
 Computes the set intersection between keys (like [intersect](#intersect)) and stores the result
 in `destination`.
@@ -2775,9 +2888,10 @@ https://redis.io/commands/sinterstore/
 
 ##### items()
 
-`items(key): Promise<number[]>;`
+`items(key): Promise<number[]>`
 
-<!-- source: storage/cache/set.ts:141 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L141 -->
+<!-- source: storage/cache/set.ts:141 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L141)
 
 Returns the elements in the set stored at key.
 
@@ -2805,9 +2919,10 @@ https://redis.io/commands/smembers/
 
 ##### itemsSet()
 
-`itemsSet(key): Promise<Set<number>>;`
+`itemsSet(key): Promise<Set<number>>`
 
-<!-- source: storage/cache/set.ts:156 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L156 -->
+<!-- source: storage/cache/set.ts:156 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L156)
 
 Identical to [items](#items-1) except it returns the values as a `Set`.
 
@@ -2835,9 +2950,10 @@ https://redis.io/commands/smembers/
 
 ##### len()
 
-`len(key): Promise<number>;`
+`len(key): Promise<number>`
 
-<!-- source: storage/cache/set.ts:126 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L126 -->
+<!-- source: storage/cache/set.ts:126 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L126)
 
 Returns the number of elements in the set stored at key.
 
@@ -2865,9 +2981,10 @@ https://redis.io/commands/scard/
 
 ##### mapKey()
 
-`protected mapKey(key): string;`
+`protected mapKey(key): string`
 
-<!-- source: storage/cache/keyspace.ts:91 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91 -->
+<!-- source: storage/cache/keyspace.ts:91 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91)
 
 Maps a key to its Redis key string.
 
@@ -2895,7 +3012,8 @@ move(
 options?): Promise<boolean>;
 ```
 
-<!-- source: storage/cache/set.ts:416 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L416 -->
+<!-- source: storage/cache/set.ts:416 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L416)
 
 Atomically moves the given member from the set stored at `src`
 to the set stored at `dst`.
@@ -2949,7 +3067,8 @@ pop(
 options?): Promise<number[]>;
 ```
 
-<!-- source: storage/cache/set.ts:90 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L90 -->
+<!-- source: storage/cache/set.ts:90 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L90)
 
 Removes up to `count` random elements (bounded by the set's size)
 from the set stored at key and returns them.
@@ -2990,9 +3109,10 @@ https://redis.io/commands/spop/
 
 ##### popOne()
 
-`popOne(key, options?): Promise<number | undefined>;`
+`popOne(key, options?): Promise<number | undefined>`
 
-<!-- source: storage/cache/set.ts:68 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L68 -->
+<!-- source: storage/cache/set.ts:68 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L68)
 
 Removes a random element from the set stored at key and returns it.
 
@@ -3022,9 +3142,10 @@ https://redis.io/commands/spop/
 
 ##### remove()
 
-`remove(key, ...members): Promise<number>;`
+`remove(key, ...members): Promise<number>`
 
-<!-- source: storage/cache/set.ts:48 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L48 -->
+<!-- source: storage/cache/set.ts:48 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L48)
 
 Removes one or more values from the set stored at key.
 Values not present in the set are ignored.
@@ -3056,9 +3177,10 @@ https://redis.io/commands/srem/
 
 ##### resolveTtl()
 
-`protected resolveTtl(options?): number | undefined;`
+`protected resolveTtl(options?): number | undefined`
 
-<!-- source: storage/cache/keyspace.ts:103 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103 -->
+<!-- source: storage/cache/keyspace.ts:103 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103)
 
 Resolves the TTL for a write operation.
 Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/NeverExpire, >=0=ms
@@ -3079,9 +3201,10 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 ##### sample()
 
-`sample(key, count): Promise<number[]>;`
+`sample(key, count): Promise<number[]>`
 
-<!-- source: storage/cache/set.ts:364 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L364 -->
+<!-- source: storage/cache/set.ts:364 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L364)
 
 Returns up to `count` distinct random elements from the set stored at key.
 The same element is never returned multiple times.
@@ -3118,9 +3241,10 @@ https://redis.io/commands/srandmember/
 
 ##### sampleOne()
 
-`sampleOne(key): Promise<number | undefined>;`
+`sampleOne(key): Promise<number | undefined>`
 
-<!-- source: storage/cache/set.ts:343 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L343 -->
+<!-- source: storage/cache/set.ts:343 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L343)
 
 Returns a random member from the set stored at key without removing it.
 
@@ -3146,9 +3270,10 @@ https://redis.io/commands/srandmember/
 
 ##### sampleWithReplacement()
 
-`sampleWithReplacement(key, count): Promise<number[]>;`
+`sampleWithReplacement(key, count): Promise<number[]>`
 
-<!-- source: storage/cache/set.ts:389 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L389 -->
+<!-- source: storage/cache/set.ts:389 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L389)
 
 Returns `count` random elements from the set stored at key.
 The same element may be returned multiple times.
@@ -3185,9 +3310,10 @@ https://redis.io/commands/srandmember/
 
 ##### serializeItem()
 
-`protected serializeItem(value): Buffer;`
+`protected serializeItem(value): Buffer`
 
-<!-- source: storage/cache/set.ts:484 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L484 -->
+<!-- source: storage/cache/set.ts:484 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L484)
 
 ###### Parameters
 
@@ -3205,9 +3331,10 @@ https://redis.io/commands/srandmember/
 
 ##### union()
 
-`union(...keys): Promise<number[]>;`
+`union(...keys): Promise<number[]>`
 
-<!-- source: storage/cache/set.ts:291 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L291 -->
+<!-- source: storage/cache/set.ts:291 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L291)
 
 Computes the set union between the sets stored at the given keys.
 
@@ -3243,9 +3370,10 @@ https://redis.io/commands/sunion/
 
 ##### unionSet()
 
-`unionSet(...keys): Promise<Set<number>>;`
+`unionSet(...keys): Promise<Set<number>>`
 
-<!-- source: storage/cache/set.ts:306 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L306 -->
+<!-- source: storage/cache/set.ts:306 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L306)
 
 Identical to [union](#union) except it returns the values as a `Set`.
 
@@ -3269,9 +3397,10 @@ https://redis.io/commands/sunion/
 
 ##### unionStore()
 
-`unionStore(destination, ...keys): Promise<number>;`
+`unionStore(destination, ...keys): Promise<number>`
 
-<!-- source: storage/cache/set.ts:320 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L320 -->
+<!-- source: storage/cache/set.ts:320 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L320)
 
 Computes the set union between sets (like [union](#union)) and stores the result
 in `destination`.
@@ -3306,9 +3435,10 @@ https://redis.io/commands/sunionstore/
 
 ##### with()
 
-`with(options): this;`
+`with(options): this`
 
-<!-- source: storage/cache/keyspace.ts:123 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123 -->
+<!-- source: storage/cache/keyspace.ts:123 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123)
 
 Returns a shallow clone of this keyspace with the specified write options applied.
 This allows setting expiry for a chain of operations.
@@ -3325,7 +3455,7 @@ This allows setting expiry for a chain of operations.
 
 ###### Example
 
-`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value);`
+`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value)`
 
 ###### Inherited from
 
@@ -3333,9 +3463,13 @@ This allows setting expiry for a chain of operations.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: StringKeyspace -->
 ### StringKeyspace
 
-<!-- source: storage/cache/basic.ts:193 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L193 -->
+<!-- source: storage/cache/basic.ts:193 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L193)
 
 StringKeyspace stores string values.
 
@@ -3365,9 +3499,10 @@ const token = await tokens.get("abc123");
 
 ##### Constructor
 
-`new StringKeyspace<K>(cluster, config): StringKeyspace<K>;`
+`new StringKeyspace<K>(cluster, config): StringKeyspace<K>`
 
-<!-- source: storage/cache/basic.ts:194 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L194 -->
+<!-- source: storage/cache/basic.ts:194 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L194)
 
 ###### Parameters
 
@@ -3391,9 +3526,10 @@ const token = await tokens.get("abc123");
 
 ##### cluster
 
-`protected readonly cluster: CacheCluster;`
+`protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46 -->
+<!-- source: storage/cache/keyspace.ts:46 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
 
 ###### Inherited from
 
@@ -3401,9 +3537,10 @@ const token = await tokens.get("abc123");
 
 ##### config
 
-`protected readonly config: KeyspaceConfig<K>;`
+`protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47 -->
+<!-- source: storage/cache/keyspace.ts:47 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
 
 ###### Inherited from
 
@@ -3411,9 +3548,10 @@ const token = await tokens.get("abc123");
 
 ##### keyMapper
 
-`protected readonly keyMapper: (key) => string;`
+`protected readonly keyMapper: (key) => string`
 
-<!-- source: storage/cache/keyspace.ts:48 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48 -->
+<!-- source: storage/cache/keyspace.ts:48 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -3440,7 +3578,8 @@ append(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/basic.ts:215 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L215 -->
+<!-- source: storage/cache/basic.ts:215 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L215)
 
 Appends a string to the value stored at key.
 
@@ -3473,9 +3612,10 @@ https://redis.io/commands/append/
 
 ##### delete()
 
-`delete(...keys): Promise<number>;`
+`delete(...keys): Promise<number>`
 
-<!-- source: storage/cache/keyspace.ts:137 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137 -->
+<!-- source: storage/cache/keyspace.ts:137 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137)
 
 Deletes the specified keys.
 If a key does not exist it is ignored.
@@ -3502,9 +3642,10 @@ https://redis.io/commands/del/
 
 ##### deserialize()
 
-`protected deserialize(data): string;`
+`protected deserialize(data): string`
 
-<!-- source: storage/cache/basic.ts:202 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L202 -->
+<!-- source: storage/cache/basic.ts:202 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L202)
 
 Deserializes a Buffer from storage to a value.
 
@@ -3524,9 +3665,10 @@ Deserializes a Buffer from storage to a value.
 
 ##### get()
 
-`get(key): Promise<string | undefined>;`
+`get(key): Promise<string | undefined>`
 
-<!-- source: storage/cache/basic.ts:33 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33 -->
+<!-- source: storage/cache/basic.ts:33 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33)
 
 Gets the value stored at key.
 If the key does not exist, it returns `undefined`.
@@ -3553,9 +3695,10 @@ https://redis.io/commands/get/
 
 ##### getAndDelete()
 
-`getAndDelete(key): Promise<string | undefined>;`
+`getAndDelete(key): Promise<string | undefined>`
 
-<!-- source: storage/cache/basic.ts:165 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165 -->
+<!-- source: storage/cache/basic.ts:165 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165)
 
 Deletes the key and returns the previously stored value.
 If the key does not already exist, it returns `undefined`.
@@ -3589,7 +3732,8 @@ getAndSet(
 options?): Promise<string | undefined>;
 ```
 
-<!-- source: storage/cache/basic.ts:134 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134 -->
+<!-- source: storage/cache/basic.ts:134 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134)
 
 Updates the value of key to val and returns the previously stored value.
 If the key does not already exist, it sets it and returns `undefined`.
@@ -3631,7 +3775,8 @@ getRange(
 end): Promise<string>;
 ```
 
-<!-- source: storage/cache/basic.ts:245 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L245 -->
+<!-- source: storage/cache/basic.ts:245 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L245)
 
 Returns a substring of the string value stored at key.
 
@@ -3675,9 +3820,10 @@ https://redis.io/commands/getrange/
 
 ##### len()
 
-`len(key): Promise<number>;`
+`len(key): Promise<number>`
 
-<!-- source: storage/cache/basic.ts:300 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L300 -->
+<!-- source: storage/cache/basic.ts:300 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L300)
 
 Returns the length of the string value stored at key.
 
@@ -3701,9 +3847,10 @@ https://redis.io/commands/strlen/
 
 ##### mapKey()
 
-`protected mapKey(key): string;`
+`protected mapKey(key): string`
 
-<!-- source: storage/cache/keyspace.ts:91 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91 -->
+<!-- source: storage/cache/keyspace.ts:91 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91)
 
 Maps a key to its Redis key string.
 
@@ -3723,9 +3870,10 @@ Maps a key to its Redis key string.
 
 ##### multiGet()
 
-`multiGet(...keys): Promise<(string | undefined)[]>;`
+`multiGet(...keys): Promise<(string | undefined)[]>`
 
-<!-- source: storage/cache/basic.ts:52 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52 -->
+<!-- source: storage/cache/basic.ts:52 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52)
 
 Gets the values stored at multiple keys.
 
@@ -3759,7 +3907,8 @@ replace(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:109 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109 -->
+<!-- source: storage/cache/basic.ts:109 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109)
 
 Replaces the existing value stored at key to val.
 
@@ -3795,9 +3944,10 @@ https://redis.io/commands/set/
 
 ##### resolveTtl()
 
-`protected resolveTtl(options?): number | undefined;`
+`protected resolveTtl(options?): number | undefined`
 
-<!-- source: storage/cache/keyspace.ts:103 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103 -->
+<!-- source: storage/cache/keyspace.ts:103 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103)
 
 Resolves the TTL for a write operation.
 Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/NeverExpire, >=0=ms
@@ -3818,9 +3968,10 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 ##### serialize()
 
-`protected serialize(value): Buffer;`
+`protected serialize(value): Buffer`
 
-<!-- source: storage/cache/basic.ts:198 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L198 -->
+<!-- source: storage/cache/basic.ts:198 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L198)
 
 Serializes a value to a Buffer for storage.
 
@@ -3847,7 +3998,8 @@ set(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:66 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66 -->
+<!-- source: storage/cache/basic.ts:66 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66)
 
 Updates the value stored at key to val.
 
@@ -3886,7 +4038,8 @@ setIfNotExists(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:81 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81 -->
+<!-- source: storage/cache/basic.ts:81 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81)
 
 Sets the value stored at key to val, but only if the key does not exist beforehand.
 
@@ -3930,7 +4083,8 @@ setRange(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/basic.ts:273 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L273 -->
+<!-- source: storage/cache/basic.ts:273 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L273)
 
 Overwrites part of the string stored at key, starting at
 the zero-based `offset` and for the entire length of `value`, extending
@@ -3977,9 +4131,10 @@ https://redis.io/commands/setrange/
 
 ##### with()
 
-`with(options): this;`
+`with(options): this`
 
-<!-- source: storage/cache/keyspace.ts:123 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123 -->
+<!-- source: storage/cache/keyspace.ts:123 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123)
 
 Returns a shallow clone of this keyspace with the specified write options applied.
 This allows setting expiry for a chain of operations.
@@ -3996,7 +4151,7 @@ This allows setting expiry for a chain of operations.
 
 ###### Example
 
-`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value);`
+`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value)`
 
 ###### Inherited from
 
@@ -4004,9 +4159,13 @@ This allows setting expiry for a chain of operations.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: StringListKeyspace -->
 ### StringListKeyspace
 
-<!-- source: storage/cache/list.ts:457 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L457 -->
+<!-- source: storage/cache/list.ts:457 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L457)
 
 StringListKeyspace stores lists of string values.
 
@@ -4036,9 +4195,10 @@ const views = await recentViews.items("user1");
 
 ##### Constructor
 
-`new StringListKeyspace<K>(cluster, config): StringListKeyspace<K>;`
+`new StringListKeyspace<K>(cluster, config): StringListKeyspace<K>`
 
-<!-- source: storage/cache/list.ts:458 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L458 -->
+<!-- source: storage/cache/list.ts:458 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L458)
 
 ###### Parameters
 
@@ -4062,9 +4222,10 @@ const views = await recentViews.items("user1");
 
 ##### cluster
 
-`protected readonly cluster: CacheCluster;`
+`protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46 -->
+<!-- source: storage/cache/keyspace.ts:46 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
 
 ###### Inherited from
 
@@ -4072,9 +4233,10 @@ const views = await recentViews.items("user1");
 
 ##### config
 
-`protected readonly config: KeyspaceConfig<K>;`
+`protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47 -->
+<!-- source: storage/cache/keyspace.ts:47 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
 
 ###### Inherited from
 
@@ -4082,9 +4244,10 @@ const views = await recentViews.items("user1");
 
 ##### keyMapper
 
-`protected readonly keyMapper: (key) => string;`
+`protected readonly keyMapper: (key) => string`
 
-<!-- source: storage/cache/keyspace.ts:48 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48 -->
+<!-- source: storage/cache/keyspace.ts:48 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -4104,9 +4267,10 @@ const views = await recentViews.items("user1");
 
 ##### delete()
 
-`delete(...keys): Promise<number>;`
+`delete(...keys): Promise<number>`
 
-<!-- source: storage/cache/keyspace.ts:137 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137 -->
+<!-- source: storage/cache/keyspace.ts:137 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137)
 
 Deletes the specified keys.
 If a key does not exist it is ignored.
@@ -4133,9 +4297,10 @@ https://redis.io/commands/del/
 
 ##### deserializeItem()
 
-`protected deserializeItem(data): string;`
+`protected deserializeItem(data): string`
 
-<!-- source: storage/cache/list.ts:466 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L466 -->
+<!-- source: storage/cache/list.ts:466 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L466)
 
 ###### Parameters
 
@@ -4153,9 +4318,10 @@ https://redis.io/commands/del/
 
 ##### get()
 
-`get(key, index): Promise<string | undefined>;`
+`get(key, index): Promise<string | undefined>`
 
-<!-- source: storage/cache/list.ts:187 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L187 -->
+<!-- source: storage/cache/list.ts:187 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L187)
 
 Returns the value of the list element at the given index.
 
@@ -4199,7 +4365,8 @@ getRange(
 stop): Promise<string[]>;
 ```
 
-<!-- source: storage/cache/list.ts:229 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L229 -->
+<!-- source: storage/cache/list.ts:229 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L229)
 
 Returns the elements in the list stored at key between `start` and `stop` (inclusive).
 Both are zero-based indices.
@@ -4253,7 +4420,8 @@ insertAfter(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/list.ts:284 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L284 -->
+<!-- source: storage/cache/list.ts:284 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L284)
 
 Inserts `value` into the list stored at key, at the position just after `pivot`.
 
@@ -4307,7 +4475,8 @@ insertBefore(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/list.ts:252 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L252 -->
+<!-- source: storage/cache/list.ts:252 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L252)
 
 Inserts `value` into the list stored at key, at the position just before `pivot`.
 
@@ -4353,9 +4522,10 @@ https://redis.io/commands/linsert/
 
 ##### items()
 
-`items(key): Promise<string[]>;`
+`items(key): Promise<string[]>`
 
-<!-- source: storage/cache/list.ts:207 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L207 -->
+<!-- source: storage/cache/list.ts:207 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L207)
 
 Returns all the elements in the list stored at key.
 
@@ -4383,9 +4553,10 @@ https://redis.io/commands/lrange/
 
 ##### len()
 
-`len(key): Promise<number>;`
+`len(key): Promise<number>`
 
-<!-- source: storage/cache/list.ts:117 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L117 -->
+<!-- source: storage/cache/list.ts:117 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L117)
 
 Returns the length of the list stored at key.
 
@@ -4413,9 +4584,10 @@ https://redis.io/commands/llen/
 
 ##### mapKey()
 
-`protected mapKey(key): string;`
+`protected mapKey(key): string`
 
-<!-- source: storage/cache/keyspace.ts:91 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91 -->
+<!-- source: storage/cache/keyspace.ts:91 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91)
 
 Maps a key to its Redis key string.
 
@@ -4444,7 +4616,8 @@ move(
 options?): Promise<string | undefined>;
 ```
 
-<!-- source: storage/cache/list.ts:417 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L417 -->
+<!-- source: storage/cache/list.ts:417 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L417)
 
 Atomically moves an element from the list stored at `src` to the list stored at `dst`.
 
@@ -4501,9 +4674,10 @@ https://redis.io/commands/lmove/
 
 ##### popLeft()
 
-`popLeft(key, options?): Promise<string | undefined>;`
+`popLeft(key, options?): Promise<string | undefined>`
 
-<!-- source: storage/cache/list.ts:81 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L81 -->
+<!-- source: storage/cache/list.ts:81 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L81)
 
 Pops a single element off the head of the list stored at key.
 
@@ -4533,9 +4707,10 @@ https://redis.io/commands/lpop/
 
 ##### popRight()
 
-`popRight(key, options?): Promise<string | undefined>;`
+`popRight(key, options?): Promise<string | undefined>`
 
-<!-- source: storage/cache/list.ts:98 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L98 -->
+<!-- source: storage/cache/list.ts:98 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L98)
 
 Pops a single element off the tail of the list stored at key.
 
@@ -4565,9 +4740,10 @@ https://redis.io/commands/rpop/
 
 ##### pushLeft()
 
-`pushLeft(key, ...values): Promise<number>;`
+`pushLeft(key, ...values): Promise<number>`
 
-<!-- source: storage/cache/list.ts:35 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L35 -->
+<!-- source: storage/cache/list.ts:35 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L35)
 
 Pushes one or more values at the head of the list stored at key.
 If the key does not already exist, it is first created as an empty list.
@@ -4603,9 +4779,10 @@ https://redis.io/commands/lpush/
 
 ##### pushRight()
 
-`pushRight(key, ...values): Promise<number>;`
+`pushRight(key, ...values): Promise<number>`
 
-<!-- source: storage/cache/list.ts:61 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L61 -->
+<!-- source: storage/cache/list.ts:61 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L61)
 
 Pushes one or more values at the tail of the list stored at key.
 If the key does not already exist, it is first created as an empty list.
@@ -4648,7 +4825,8 @@ removeAll(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/list.ts:315 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L315 -->
+<!-- source: storage/cache/list.ts:315 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L315)
 
 Removes all occurrences of `value` in the list stored at key.
 
@@ -4696,7 +4874,8 @@ removeFirst(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/list.ts:341 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L341 -->
+<!-- source: storage/cache/list.ts:341 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L341)
 
 Removes the first `count` occurrences of `value` in the list stored at key,
 scanning from head to tail.
@@ -4751,7 +4930,8 @@ removeLast(
 options?): Promise<number>;
 ```
 
-<!-- source: storage/cache/list.ts:376 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L376 -->
+<!-- source: storage/cache/list.ts:376 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L376)
 
 Removes the last `count` occurrences of `value` in the list stored at key,
 scanning from tail to head.
@@ -4798,9 +4978,10 @@ https://redis.io/commands/lrem/
 
 ##### resolveTtl()
 
-`protected resolveTtl(options?): number | undefined;`
+`protected resolveTtl(options?): number | undefined`
 
-<!-- source: storage/cache/keyspace.ts:103 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103 -->
+<!-- source: storage/cache/keyspace.ts:103 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103)
 
 Resolves the TTL for a write operation.
 Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/NeverExpire, >=0=ms
@@ -4821,9 +5002,10 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 ##### serializeItem()
 
-`protected serializeItem(value): Buffer;`
+`protected serializeItem(value): Buffer`
 
-<!-- source: storage/cache/list.ts:462 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L462 -->
+<!-- source: storage/cache/list.ts:462 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L462)
 
 ###### Parameters
 
@@ -4849,7 +5031,8 @@ set(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/list.ts:163 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L163 -->
+<!-- source: storage/cache/list.ts:163 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L163)
 
 Updates the list element at the given index.
 
@@ -4906,7 +5089,8 @@ trim(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/list.ts:139 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L139 -->
+<!-- source: storage/cache/list.ts:139 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L139)
 
 Trims the list stored at key to only contain the elements between the indices
 `start` and `stop` (inclusive). Both are zero-based indices.
@@ -4955,9 +5139,10 @@ https://redis.io/commands/ltrim/
 
 ##### with()
 
-`with(options): this;`
+`with(options): this`
 
-<!-- source: storage/cache/keyspace.ts:123 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123 -->
+<!-- source: storage/cache/keyspace.ts:123 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123)
 
 Returns a shallow clone of this keyspace with the specified write options applied.
 This allows setting expiry for a chain of operations.
@@ -4974,7 +5159,7 @@ This allows setting expiry for a chain of operations.
 
 ###### Example
 
-`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value);`
+`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value)`
 
 ###### Inherited from
 
@@ -4982,9 +5167,13 @@ This allows setting expiry for a chain of operations.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: StringSetKeyspace -->
 ### StringSetKeyspace
 
-<!-- source: storage/cache/set.ts:452 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L452 -->
+<!-- source: storage/cache/set.ts:452 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L452)
 
 StringSetKeyspace stores sets of unique string values.
 
@@ -5015,9 +5204,10 @@ const tagSet = await tags.itemsSet("article1");
 
 ##### Constructor
 
-`new StringSetKeyspace<K>(cluster, config): StringSetKeyspace<K>;`
+`new StringSetKeyspace<K>(cluster, config): StringSetKeyspace<K>`
 
-<!-- source: storage/cache/set.ts:453 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L453 -->
+<!-- source: storage/cache/set.ts:453 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L453)
 
 ###### Parameters
 
@@ -5041,9 +5231,10 @@ const tagSet = await tags.itemsSet("article1");
 
 ##### cluster
 
-`protected readonly cluster: CacheCluster;`
+`protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46 -->
+<!-- source: storage/cache/keyspace.ts:46 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
 
 ###### Inherited from
 
@@ -5051,9 +5242,10 @@ const tagSet = await tags.itemsSet("article1");
 
 ##### config
 
-`protected readonly config: KeyspaceConfig<K>;`
+`protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47 -->
+<!-- source: storage/cache/keyspace.ts:47 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
 
 ###### Inherited from
 
@@ -5061,9 +5253,10 @@ const tagSet = await tags.itemsSet("article1");
 
 ##### keyMapper
 
-`protected readonly keyMapper: (key) => string;`
+`protected readonly keyMapper: (key) => string`
 
-<!-- source: storage/cache/keyspace.ts:48 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48 -->
+<!-- source: storage/cache/keyspace.ts:48 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -5083,9 +5276,10 @@ const tagSet = await tags.itemsSet("article1");
 
 ##### add()
 
-`add(key, ...members): Promise<number>;`
+`add(key, ...members): Promise<number>`
 
-<!-- source: storage/cache/set.ts:26 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L26 -->
+<!-- source: storage/cache/set.ts:26 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L26)
 
 Adds one or more values to the set stored at key.
 If the key does not already exist, it is first created as an empty set.
@@ -5117,9 +5311,10 @@ https://redis.io/commands/sadd/
 
 ##### contains()
 
-`contains(key, member): Promise<boolean>;`
+`contains(key, member): Promise<boolean>`
 
-<!-- source: storage/cache/set.ts:111 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L111 -->
+<!-- source: storage/cache/set.ts:111 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L111)
 
 Reports whether the set stored at key contains the given value.
 
@@ -5151,9 +5346,10 @@ https://redis.io/commands/sismember/
 
 ##### delete()
 
-`delete(...keys): Promise<number>;`
+`delete(...keys): Promise<number>`
 
-<!-- source: storage/cache/keyspace.ts:137 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137 -->
+<!-- source: storage/cache/keyspace.ts:137 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137)
 
 Deletes the specified keys.
 If a key does not exist it is ignored.
@@ -5180,9 +5376,10 @@ https://redis.io/commands/del/
 
 ##### deserializeItem()
 
-`protected deserializeItem(data): string;`
+`protected deserializeItem(data): string`
 
-<!-- source: storage/cache/set.ts:461 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L461 -->
+<!-- source: storage/cache/set.ts:461 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L461)
 
 ###### Parameters
 
@@ -5200,9 +5397,10 @@ https://redis.io/commands/del/
 
 ##### diff()
 
-`diff(...keys): Promise<string[]>;`
+`diff(...keys): Promise<string[]>`
 
-<!-- source: storage/cache/set.ts:174 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L174 -->
+<!-- source: storage/cache/set.ts:174 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L174)
 
 Computes the set difference between the first set and all the consecutive sets.
 
@@ -5239,9 +5437,10 @@ https://redis.io/commands/sdiff/
 
 ##### diffSet()
 
-`diffSet(...keys): Promise<Set<string>>;`
+`diffSet(...keys): Promise<Set<string>>`
 
-<!-- source: storage/cache/set.ts:189 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L189 -->
+<!-- source: storage/cache/set.ts:189 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L189)
 
 Identical to [diff](#diff-1) except it returns the values as a `Set`.
 
@@ -5265,9 +5464,10 @@ https://redis.io/commands/sdiff/
 
 ##### diffStore()
 
-`diffStore(destination, ...keys): Promise<number>;`
+`diffStore(destination, ...keys): Promise<number>`
 
-<!-- source: storage/cache/set.ts:203 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L203 -->
+<!-- source: storage/cache/set.ts:203 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L203)
 
 Computes the set difference between keys (like [diff](#diff-1)) and stores the result
 in `destination`.
@@ -5302,9 +5502,10 @@ https://redis.io/commands/sdiffstore/
 
 ##### intersect()
 
-`intersect(...keys): Promise<string[]>;`
+`intersect(...keys): Promise<string[]>`
 
-<!-- source: storage/cache/set.ts:233 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L233 -->
+<!-- source: storage/cache/set.ts:233 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L233)
 
 Computes the set intersection between the sets stored at the given keys.
 
@@ -5341,9 +5542,10 @@ https://redis.io/commands/sinter/
 
 ##### intersectSet()
 
-`intersectSet(...keys): Promise<Set<string>>;`
+`intersectSet(...keys): Promise<Set<string>>`
 
-<!-- source: storage/cache/set.ts:248 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L248 -->
+<!-- source: storage/cache/set.ts:248 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L248)
 
 Identical to [intersect](#intersect-1) except it returns the values as a `Set`.
 
@@ -5367,9 +5569,10 @@ https://redis.io/commands/sinter/
 
 ##### intersectStore()
 
-`intersectStore(destination, ...keys): Promise<number>;`
+`intersectStore(destination, ...keys): Promise<number>`
 
-<!-- source: storage/cache/set.ts:262 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L262 -->
+<!-- source: storage/cache/set.ts:262 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L262)
 
 Computes the set intersection between keys (like [intersect](#intersect-1)) and stores the result
 in `destination`.
@@ -5404,9 +5607,10 @@ https://redis.io/commands/sinterstore/
 
 ##### items()
 
-`items(key): Promise<string[]>;`
+`items(key): Promise<string[]>`
 
-<!-- source: storage/cache/set.ts:141 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L141 -->
+<!-- source: storage/cache/set.ts:141 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L141)
 
 Returns the elements in the set stored at key.
 
@@ -5434,9 +5638,10 @@ https://redis.io/commands/smembers/
 
 ##### itemsSet()
 
-`itemsSet(key): Promise<Set<string>>;`
+`itemsSet(key): Promise<Set<string>>`
 
-<!-- source: storage/cache/set.ts:156 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L156 -->
+<!-- source: storage/cache/set.ts:156 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L156)
 
 Identical to [items](#items-3) except it returns the values as a `Set`.
 
@@ -5464,9 +5669,10 @@ https://redis.io/commands/smembers/
 
 ##### len()
 
-`len(key): Promise<number>;`
+`len(key): Promise<number>`
 
-<!-- source: storage/cache/set.ts:126 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L126 -->
+<!-- source: storage/cache/set.ts:126 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L126)
 
 Returns the number of elements in the set stored at key.
 
@@ -5494,9 +5700,10 @@ https://redis.io/commands/scard/
 
 ##### mapKey()
 
-`protected mapKey(key): string;`
+`protected mapKey(key): string`
 
-<!-- source: storage/cache/keyspace.ts:91 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91 -->
+<!-- source: storage/cache/keyspace.ts:91 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91)
 
 Maps a key to its Redis key string.
 
@@ -5524,7 +5731,8 @@ move(
 options?): Promise<boolean>;
 ```
 
-<!-- source: storage/cache/set.ts:416 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L416 -->
+<!-- source: storage/cache/set.ts:416 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L416)
 
 Atomically moves the given member from the set stored at `src`
 to the set stored at `dst`.
@@ -5578,7 +5786,8 @@ pop(
 options?): Promise<string[]>;
 ```
 
-<!-- source: storage/cache/set.ts:90 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L90 -->
+<!-- source: storage/cache/set.ts:90 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L90)
 
 Removes up to `count` random elements (bounded by the set's size)
 from the set stored at key and returns them.
@@ -5619,9 +5828,10 @@ https://redis.io/commands/spop/
 
 ##### popOne()
 
-`popOne(key, options?): Promise<string | undefined>;`
+`popOne(key, options?): Promise<string | undefined>`
 
-<!-- source: storage/cache/set.ts:68 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L68 -->
+<!-- source: storage/cache/set.ts:68 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L68)
 
 Removes a random element from the set stored at key and returns it.
 
@@ -5651,9 +5861,10 @@ https://redis.io/commands/spop/
 
 ##### remove()
 
-`remove(key, ...members): Promise<number>;`
+`remove(key, ...members): Promise<number>`
 
-<!-- source: storage/cache/set.ts:48 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L48 -->
+<!-- source: storage/cache/set.ts:48 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L48)
 
 Removes one or more values from the set stored at key.
 Values not present in the set are ignored.
@@ -5685,9 +5896,10 @@ https://redis.io/commands/srem/
 
 ##### resolveTtl()
 
-`protected resolveTtl(options?): number | undefined;`
+`protected resolveTtl(options?): number | undefined`
 
-<!-- source: storage/cache/keyspace.ts:103 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103 -->
+<!-- source: storage/cache/keyspace.ts:103 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103)
 
 Resolves the TTL for a write operation.
 Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/NeverExpire, >=0=ms
@@ -5708,9 +5920,10 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 ##### sample()
 
-`sample(key, count): Promise<string[]>;`
+`sample(key, count): Promise<string[]>`
 
-<!-- source: storage/cache/set.ts:364 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L364 -->
+<!-- source: storage/cache/set.ts:364 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L364)
 
 Returns up to `count` distinct random elements from the set stored at key.
 The same element is never returned multiple times.
@@ -5747,9 +5960,10 @@ https://redis.io/commands/srandmember/
 
 ##### sampleOne()
 
-`sampleOne(key): Promise<string | undefined>;`
+`sampleOne(key): Promise<string | undefined>`
 
-<!-- source: storage/cache/set.ts:343 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L343 -->
+<!-- source: storage/cache/set.ts:343 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L343)
 
 Returns a random member from the set stored at key without removing it.
 
@@ -5775,9 +5989,10 @@ https://redis.io/commands/srandmember/
 
 ##### sampleWithReplacement()
 
-`sampleWithReplacement(key, count): Promise<string[]>;`
+`sampleWithReplacement(key, count): Promise<string[]>`
 
-<!-- source: storage/cache/set.ts:389 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L389 -->
+<!-- source: storage/cache/set.ts:389 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L389)
 
 Returns `count` random elements from the set stored at key.
 The same element may be returned multiple times.
@@ -5814,9 +6029,10 @@ https://redis.io/commands/srandmember/
 
 ##### serializeItem()
 
-`protected serializeItem(value): Buffer;`
+`protected serializeItem(value): Buffer`
 
-<!-- source: storage/cache/set.ts:457 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L457 -->
+<!-- source: storage/cache/set.ts:457 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L457)
 
 ###### Parameters
 
@@ -5834,9 +6050,10 @@ https://redis.io/commands/srandmember/
 
 ##### union()
 
-`union(...keys): Promise<string[]>;`
+`union(...keys): Promise<string[]>`
 
-<!-- source: storage/cache/set.ts:291 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L291 -->
+<!-- source: storage/cache/set.ts:291 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L291)
 
 Computes the set union between the sets stored at the given keys.
 
@@ -5872,9 +6089,10 @@ https://redis.io/commands/sunion/
 
 ##### unionSet()
 
-`unionSet(...keys): Promise<Set<string>>;`
+`unionSet(...keys): Promise<Set<string>>`
 
-<!-- source: storage/cache/set.ts:306 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L306 -->
+<!-- source: storage/cache/set.ts:306 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L306)
 
 Identical to [union](#union-1) except it returns the values as a `Set`.
 
@@ -5898,9 +6116,10 @@ https://redis.io/commands/sunion/
 
 ##### unionStore()
 
-`unionStore(destination, ...keys): Promise<number>;`
+`unionStore(destination, ...keys): Promise<number>`
 
-<!-- source: storage/cache/set.ts:320 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L320 -->
+<!-- source: storage/cache/set.ts:320 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L320)
 
 Computes the set union between sets (like [union](#union-1)) and stores the result
 in `destination`.
@@ -5935,9 +6154,10 @@ https://redis.io/commands/sunionstore/
 
 ##### with()
 
-`with(options): this;`
+`with(options): this`
 
-<!-- source: storage/cache/keyspace.ts:123 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123 -->
+<!-- source: storage/cache/keyspace.ts:123 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123)
 
 Returns a shallow clone of this keyspace with the specified write options applied.
 This allows setting expiry for a chain of operations.
@@ -5954,7 +6174,7 @@ This allows setting expiry for a chain of operations.
 
 ###### Example
 
-`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value);`
+`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value)`
 
 ###### Inherited from
 
@@ -5962,9 +6182,13 @@ This allows setting expiry for a chain of operations.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: StructKeyspace -->
 ### StructKeyspace
 
-<!-- source: storage/cache/basic.ts:499 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L499 -->
+<!-- source: storage/cache/basic.ts:499 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L499)
 
 StructKeyspace stores arbitrary objects serialized as JSON.
 
@@ -6004,9 +6228,10 @@ const user = await users.get("user1");
 
 ##### Constructor
 
-`new StructKeyspace<K, V>(cluster, config): StructKeyspace<K, V>;`
+`new StructKeyspace<K, V>(cluster, config): StructKeyspace<K, V>`
 
-<!-- source: storage/cache/basic.ts:500 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L500 -->
+<!-- source: storage/cache/basic.ts:500 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L500)
 
 ###### Parameters
 
@@ -6030,9 +6255,10 @@ const user = await users.get("user1");
 
 ##### cluster
 
-`protected readonly cluster: CacheCluster;`
+`protected readonly cluster: CacheCluster`
 
-<!-- source: storage/cache/keyspace.ts:46 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46 -->
+<!-- source: storage/cache/keyspace.ts:46 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L46)
 
 ###### Inherited from
 
@@ -6040,9 +6266,10 @@ const user = await users.get("user1");
 
 ##### config
 
-`protected readonly config: KeyspaceConfig<K>;`
+`protected readonly config: KeyspaceConfig<K>`
 
-<!-- source: storage/cache/keyspace.ts:47 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47 -->
+<!-- source: storage/cache/keyspace.ts:47 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L47)
 
 ###### Inherited from
 
@@ -6050,9 +6277,10 @@ const user = await users.get("user1");
 
 ##### keyMapper
 
-`protected readonly keyMapper: (key) => string;`
+`protected readonly keyMapper: (key) => string`
 
-<!-- source: storage/cache/keyspace.ts:48 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48 -->
+<!-- source: storage/cache/keyspace.ts:48 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L48)
 
 ###### Parameters
 
@@ -6072,9 +6300,10 @@ const user = await users.get("user1");
 
 ##### delete()
 
-`delete(...keys): Promise<number>;`
+`delete(...keys): Promise<number>`
 
-<!-- source: storage/cache/keyspace.ts:137 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137 -->
+<!-- source: storage/cache/keyspace.ts:137 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137)
 
 Deletes the specified keys.
 If a key does not exist it is ignored.
@@ -6101,9 +6330,10 @@ https://redis.io/commands/del/
 
 ##### deserialize()
 
-`protected deserialize(data): V;`
+`protected deserialize(data): V`
 
-<!-- source: storage/cache/basic.ts:508 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L508 -->
+<!-- source: storage/cache/basic.ts:508 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L508)
 
 Deserializes a Buffer from storage to a value.
 
@@ -6123,9 +6353,10 @@ Deserializes a Buffer from storage to a value.
 
 ##### get()
 
-`get(key): Promise<V | undefined>;`
+`get(key): Promise<V | undefined>`
 
-<!-- source: storage/cache/basic.ts:33 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33 -->
+<!-- source: storage/cache/basic.ts:33 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33)
 
 Gets the value stored at key.
 If the key does not exist, it returns `undefined`.
@@ -6152,9 +6383,10 @@ https://redis.io/commands/get/
 
 ##### getAndDelete()
 
-`getAndDelete(key): Promise<V | undefined>;`
+`getAndDelete(key): Promise<V | undefined>`
 
-<!-- source: storage/cache/basic.ts:165 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165 -->
+<!-- source: storage/cache/basic.ts:165 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165)
 
 Deletes the key and returns the previously stored value.
 If the key does not already exist, it returns `undefined`.
@@ -6188,7 +6420,8 @@ getAndSet(
 options?): Promise<V | undefined>;
 ```
 
-<!-- source: storage/cache/basic.ts:134 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134 -->
+<!-- source: storage/cache/basic.ts:134 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134)
 
 Updates the value of key to val and returns the previously stored value.
 If the key does not already exist, it sets it and returns `undefined`.
@@ -6223,9 +6456,10 @@ https://redis.io/commands/getset/
 
 ##### mapKey()
 
-`protected mapKey(key): string;`
+`protected mapKey(key): string`
 
-<!-- source: storage/cache/keyspace.ts:91 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91 -->
+<!-- source: storage/cache/keyspace.ts:91 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91)
 
 Maps a key to its Redis key string.
 
@@ -6245,9 +6479,10 @@ Maps a key to its Redis key string.
 
 ##### multiGet()
 
-`multiGet(...keys): Promise<(V | undefined)[]>;`
+`multiGet(...keys): Promise<(V | undefined)[]>`
 
-<!-- source: storage/cache/basic.ts:52 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52 -->
+<!-- source: storage/cache/basic.ts:52 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52)
 
 Gets the values stored at multiple keys.
 
@@ -6281,7 +6516,8 @@ replace(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:109 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109 -->
+<!-- source: storage/cache/basic.ts:109 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109)
 
 Replaces the existing value stored at key to val.
 
@@ -6317,9 +6553,10 @@ https://redis.io/commands/set/
 
 ##### resolveTtl()
 
-`protected resolveTtl(options?): number | undefined;`
+`protected resolveTtl(options?): number | undefined`
 
-<!-- source: storage/cache/keyspace.ts:103 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103 -->
+<!-- source: storage/cache/keyspace.ts:103 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103)
 
 Resolves the TTL for a write operation.
 Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/NeverExpire, >=0=ms
@@ -6340,9 +6577,10 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 ##### serialize()
 
-`protected serialize(value): Buffer;`
+`protected serialize(value): Buffer`
 
-<!-- source: storage/cache/basic.ts:504 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L504 -->
+<!-- source: storage/cache/basic.ts:504 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L504)
 
 Serializes a value to a Buffer for storage.
 
@@ -6369,7 +6607,8 @@ set(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:66 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66 -->
+<!-- source: storage/cache/basic.ts:66 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66)
 
 Updates the value stored at key to val.
 
@@ -6408,7 +6647,8 @@ setIfNotExists(
 options?): Promise<void>;
 ```
 
-<!-- source: storage/cache/basic.ts:81 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81 -->
+<!-- source: storage/cache/basic.ts:81 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81)
 
 Sets the value stored at key to val, but only if the key does not exist beforehand.
 
@@ -6444,9 +6684,10 @@ https://redis.io/commands/setnx/
 
 ##### with()
 
-`with(options): this;`
+`with(options): this`
 
-<!-- source: storage/cache/keyspace.ts:123 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123 -->
+<!-- source: storage/cache/keyspace.ts:123 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123)
 
 Returns a shallow clone of this keyspace with the specified write options applied.
 This allows setting expiry for a chain of operations.
@@ -6463,17 +6704,21 @@ This allows setting expiry for a chain of operations.
 
 ###### Example
 
-`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value);`
+`await myKeyspace.with({ expiry: expireIn(5000) }).set(key, value)`
 
 ###### Inherited from
 
 `BasicKeyspace.with`
 
+<!-- symbol-end -->
+
 ## Interfaces
 
+<!-- symbol-start: CacheClusterConfig -->
 ### CacheClusterConfig
 
-<!-- source: storage/cache/cluster.ts:20 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L20 -->
+<!-- source: storage/cache/cluster.ts:20 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L20)
 
 Configuration options for a cache cluster.
 
@@ -6481,18 +6726,23 @@ Configuration options for a cache cluster.
 
 ##### evictionPolicy?
 
-`optional evictionPolicy?: EvictionPolicy;`
+`optional evictionPolicy?: EvictionPolicy`
 
-<!-- source: storage/cache/cluster.ts:25 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L25 -->
+<!-- source: storage/cache/cluster.ts:25 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L25)
 
 The eviction policy to use when the cache is full.
 Defaults to "allkeys-lru".
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: KeyspaceConfig -->
 ### KeyspaceConfig
 
-<!-- source: storage/cache/keyspace.ts:8 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L8 -->
+<!-- source: storage/cache/keyspace.ts:8 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L8)
 
 Configuration for a cache keyspace.
 
@@ -6506,18 +6756,20 @@ Configuration for a cache keyspace.
 
 ##### defaultExpiry?
 
-`optional defaultExpiry?: Expiry;`
+`optional defaultExpiry?: Expiry`
 
-<!-- source: storage/cache/keyspace.ts:26 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L26 -->
+<!-- source: storage/cache/keyspace.ts:26 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L26)
 
 Default expiry for cache entries in this keyspace.
 If not set, entries do not expire.
 
 ##### keyPattern
 
-`keyPattern: string;`
+`keyPattern: string`
 
-<!-- source: storage/cache/keyspace.ts:20 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L20 -->
+<!-- source: storage/cache/keyspace.ts:20 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L20)
 
 The pattern for generating cache keys.
 Use `:fieldName` to include a field from the key type.
@@ -6534,9 +6786,13 @@ keyPattern: "user/:userId/region/:region"
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: WriteOptions -->
 ### WriteOptions
 
-<!-- source: storage/cache/keyspace.ts:32 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L32 -->
+<!-- source: storage/cache/keyspace.ts:32 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L32)
 
 Options for write operations.
 
@@ -6544,15 +6800,19 @@ Options for write operations.
 
 ##### expiry?
 
-`optional expiry?: Expiry;`
+`optional expiry?: Expiry`
 
-<!-- source: storage/cache/keyspace.ts:37 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L37 -->
+<!-- source: storage/cache/keyspace.ts:37 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L37)
 
 Expiry for this specific write operation.
 Overrides the keyspace's defaultExpiry.
 
+<!-- symbol-end -->
+
 ## Type Aliases
 
+<!-- symbol-start: EvictionPolicy -->
 ### EvictionPolicy
 
 ```ts
@@ -6567,12 +6827,16 @@ type EvictionPolicy =
   | "volatile-random";
 ```
 
-<!-- source: storage/cache/cluster.ts:7 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L7 -->
+<!-- source: storage/cache/cluster.ts:7 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L7)
 
 Redis eviction policy that determines how keys are evicted when memory is full.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: Expiry -->
 ### Expiry
 
 ```ts
@@ -6591,45 +6855,61 @@ type Expiry =
   | "keep-ttl";
 ```
 
-<!-- source: storage/cache/expiry.ts:5 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L5 -->
+<!-- source: storage/cache/expiry.ts:5 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L5)
 
 Expiry represents a cache key expiration configuration.
 Use the helper functions to create expiry configurations.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: ListPosition -->
 ### ListPosition
 
-`type ListPosition = "left" | "right";`
+`type ListPosition = "left" | "right"`
 
-<!-- source: storage/cache/list.ts:8 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L8 -->
+<!-- source: storage/cache/list.ts:8 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L8)
 
 Position in a list (left/head or right/tail).
 
+<!-- symbol-end -->
+
 ## Variables
 
+<!-- symbol-start: keepTTL -->
 ### keepTTL
 
-`const keepTTL: Expiry = "keep-ttl";`
+`const keepTTL: Expiry = "keep-ttl"`
 
-<!-- source: storage/cache/expiry.ts:67 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L67 -->
+<!-- source: storage/cache/expiry.ts:67 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L67)
 
 keepTTL preserves the existing TTL when updating a cache entry.
 If the key doesn't exist, no TTL is set.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: neverExpire -->
 ### neverExpire
 
-`const neverExpire: Expiry = "never";`
+`const neverExpire: Expiry = "never"`
 
-<!-- source: storage/cache/expiry.ts:61 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L61 -->
+<!-- source: storage/cache/expiry.ts:61 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L61)
 
 neverExpire sets the cache entry to never expire.
 Note: Redis may still evict the key based on the eviction policy.
 
+<!-- symbol-end -->
+
 ## Functions
 
+<!-- symbol-start: expireDailyAt() -->
 ### expireDailyAt()
 
 ```ts
@@ -6639,7 +6919,8 @@ function expireDailyAt(
    seconds): Expiry;
 ```
 
-<!-- source: storage/cache/expiry.ts:49 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L49 -->
+<!-- source: storage/cache/expiry.ts:49 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L49)
 
 expireDailyAt sets the cache entry to expire at a specific time each day (UTC).
 
@@ -6669,11 +6950,15 @@ Seconds (0-59)
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: expireIn() -->
 ### expireIn()
 
-`function expireIn(ms): Expiry;`
+`function expireIn(ms): Expiry`
 
-<!-- source: storage/cache/expiry.ts:15 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L15 -->
+<!-- source: storage/cache/expiry.ts:15 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L15)
 
 expireIn sets the cache entry to expire after the specified duration.
 
@@ -6691,11 +6976,15 @@ Duration in milliseconds
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: expireInHours() -->
 ### expireInHours()
 
-`function expireInHours(hours): Expiry;`
+`function expireInHours(hours): Expiry`
 
-<!-- source: storage/cache/expiry.ts:39 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L39 -->
+<!-- source: storage/cache/expiry.ts:39 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L39)
 
 expireInHours sets the cache entry to expire after the specified hours.
 
@@ -6713,11 +7002,15 @@ Duration in hours
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: expireInMinutes() -->
 ### expireInMinutes()
 
-`function expireInMinutes(minutes): Expiry;`
+`function expireInMinutes(minutes): Expiry`
 
-<!-- source: storage/cache/expiry.ts:31 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L31 -->
+<!-- source: storage/cache/expiry.ts:31 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L31)
 
 expireInMinutes sets the cache entry to expire after the specified minutes.
 
@@ -6735,11 +7028,15 @@ Duration in minutes
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: expireInSeconds() -->
 ### expireInSeconds()
 
-`function expireInSeconds(seconds): Expiry;`
+`function expireInSeconds(seconds): Expiry`
 
-<!-- source: storage/cache/expiry.ts:23 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L23 -->
+<!-- source: storage/cache/expiry.ts:23 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L23)
 
 expireInSeconds sets the cache entry to expire after the specified seconds.
 
@@ -6754,3 +7051,6 @@ Duration in seconds
 #### Returns
 
 [`Expiry`](#expiry-1)
+
+
+<!-- symbol-end -->

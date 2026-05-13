@@ -8,9 +8,11 @@ toc: true
 
 ## Classes
 
+<!-- symbol-start: Bucket -->
 ### Bucket
 
-<!-- source: storage/objects/bucket.ts:27 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L27 -->
+<!-- source: storage/objects/bucket.ts:27 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L27)
 
 Defines a new Object Storage bucket infrastructure resource.
 
@@ -33,9 +35,10 @@ Defines a new Object Storage bucket infrastructure resource.
 
 ##### Constructor
 
-`new Bucket(name, cfg?): Bucket;`
+`new Bucket(name, cfg?): Bucket`
 
-<!-- source: storage/objects/bucket.ts:34 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L34 -->
+<!-- source: storage/objects/bucket.ts:34 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L34)
 
 Creates a new bucket with the given name and configuration
 
@@ -61,17 +64,19 @@ Creates a new bucket with the given name and configuration
 
 ##### impl
 
-`impl: Bucket;`
+`impl: Bucket`
 
-<!-- source: storage/objects/bucket.ts:28 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L28 -->
+<!-- source: storage/objects/bucket.ts:28 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L28)
 
 #### Methods
 
 ##### attrs()
 
-`attrs(name, options?): Promise<ObjectAttrs>;`
+`attrs(name, options?): Promise<ObjectAttrs>`
 
-<!-- source: storage/objects/bucket.ts:75 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L75 -->
+<!-- source: storage/objects/bucket.ts:75 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L75)
 
 Returns the object's attributes.
 Throws an error if the object does not exist.
@@ -96,9 +101,10 @@ Throws an error if the object does not exist.
 
 ##### download()
 
-`download(name, options?): Promise<Buffer>;`
+`download(name, options?): Promise<Buffer>`
 
-<!-- source: storage/objects/bucket.ts:121 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L121 -->
+<!-- source: storage/objects/bucket.ts:121 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L121)
 
 Downloads an object from the bucket and returns its contents.
 
@@ -122,9 +128,10 @@ Downloads an object from the bucket and returns its contents.
 
 ##### exists()
 
-`exists(name, options?): Promise<boolean>;`
+`exists(name, options?): Promise<boolean>`
 
-<!-- source: storage/objects/bucket.ts:64 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L64 -->
+<!-- source: storage/objects/bucket.ts:64 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L64)
 
 Returns whether the object exists in the bucket.
 Throws an error on network failure.
@@ -149,9 +156,10 @@ Throws an error on network failure.
 
 ##### list()
 
-`list(options): AsyncGenerator<ListEntry>;`
+`list(options): AsyncGenerator<ListEntry>`
 
-<!-- source: storage/objects/bucket.ts:47 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L47 -->
+<!-- source: storage/objects/bucket.ts:47 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L47)
 
 ###### Parameters
 
@@ -169,9 +177,10 @@ Throws an error on network failure.
 
 ##### publicUrl()
 
-`publicUrl(name): string;`
+`publicUrl(name): string`
 
-<!-- source: storage/objects/bucket.ts:145 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L145 -->
+<!-- source: storage/objects/bucket.ts:145 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L145)
 
 Returns the public URL for accessing the object with the given name.
 Throws an error if the bucket is not public.
@@ -192,9 +201,10 @@ Throws an error if the bucket is not public.
 
 ##### ref()
 
-`ref<P>(): P;`
+`ref<P>(): P`
 
-<!-- source: storage/objects/bucket.ts:150 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L150 -->
+<!-- source: storage/objects/bucket.ts:150 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L150)
 
 ###### Type Parameters
 
@@ -208,9 +218,10 @@ Throws an error if the bucket is not public.
 
 ##### remove()
 
-`remove(name, options?): Promise<void>;`
+`remove(name, options?): Promise<void>`
 
-<!-- source: storage/objects/bucket.ts:132 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L132 -->
+<!-- source: storage/objects/bucket.ts:132 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L132)
 
 Removes an object from the bucket.
 Throws an error on network failure.
@@ -235,9 +246,10 @@ Throws an error on network failure.
 
 ##### signedDownloadUrl()
 
-`signedDownloadUrl(name, options?): Promise<SignedDownloadUrl>;`
+`signedDownloadUrl(name, options?): Promise<SignedDownloadUrl>`
 
-<!-- source: storage/objects/bucket.ts:111 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L111 -->
+<!-- source: storage/objects/bucket.ts:111 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L111)
 
 Generate an external URL to allow downloading an object from the bucket.
 
@@ -264,9 +276,10 @@ any additional auth.
 
 ##### signedUploadUrl()
 
-`signedUploadUrl(name, options?): Promise<SignedUploadUrl>;`
+`signedUploadUrl(name, options?): Promise<SignedUploadUrl>`
 
-<!-- source: storage/objects/bucket.ts:98 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L98 -->
+<!-- source: storage/objects/bucket.ts:98 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L98)
 
 Generate an external URL to allow uploading an object to the bucket.
 
@@ -300,7 +313,8 @@ upload(
 options?): Promise<ObjectAttrs>;
 ```
 
-<!-- source: storage/objects/bucket.ts:85 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L85 -->
+<!-- source: storage/objects/bucket.ts:85 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L85)
 
 Uploads an object to the bucket.
 
@@ -328,9 +342,10 @@ Uploads an object to the bucket.
 
 ##### named()
 
-`static named<name>(name): Bucket;`
+`static named<name>(name): Bucket`
 
-<!-- source: storage/objects/bucket.ts:43 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L43 -->
+<!-- source: storage/objects/bucket.ts:43 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L43)
 
 Reference an existing bucket by name.
 To create a new storage bucket, use `new StorageBucket(...)` instead.
@@ -353,9 +368,13 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: ObjectNotFound -->
 ### ObjectNotFound
 
-<!-- source: storage/objects/error.ts:22 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L22 -->
+<!-- source: storage/objects/error.ts:22 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L22)
 
 #### Extends
 
@@ -365,9 +384,10 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 ##### Constructor
 
-`new ObjectNotFound(msg): ObjectNotFound;`
+`new ObjectNotFound(msg): ObjectNotFound`
 
-<!-- source: storage/objects/error.ts:23 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L23 -->
+<!-- source: storage/objects/error.ts:23 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L23)
 
 ###### Parameters
 
@@ -385,9 +405,13 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: ObjectsError -->
 ### ObjectsError
 
-<!-- source: storage/objects/error.ts:3 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L3 -->
+<!-- source: storage/objects/error.ts:3 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L3)
 
 #### Extends
 
@@ -402,9 +426,10 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 ##### Constructor
 
-`new ObjectsError(msg): ObjectsError;`
+`new ObjectsError(msg): ObjectsError`
 
-<!-- source: storage/objects/error.ts:4 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L4 -->
+<!-- source: storage/objects/error.ts:4 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L4)
 
 ###### Parameters
 
@@ -422,9 +447,13 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: PreconditionFailed -->
 ### PreconditionFailed
 
-<!-- source: storage/objects/error.ts:41 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L41 -->
+<!-- source: storage/objects/error.ts:41 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L41)
 
 #### Extends
 
@@ -434,9 +463,10 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 ##### Constructor
 
-`new PreconditionFailed(msg): PreconditionFailed;`
+`new PreconditionFailed(msg): PreconditionFailed`
 
-<!-- source: storage/objects/error.ts:42 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L42 -->
+<!-- source: storage/objects/error.ts:42 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L42)
 
 ###### Parameters
 
@@ -452,11 +482,15 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 [`ObjectsError`](#objectserror).[`constructor`](#constructor-2)
 
+<!-- symbol-end -->
+
 ## Interfaces
 
+<!-- symbol-start: Attrser -->
 ### Attrser
 
-<!-- source: storage/objects/refs.ts:24 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L24 -->
+<!-- source: storage/objects/refs.ts:24 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L24)
 
 #### Extends
 
@@ -466,9 +500,10 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 ##### attrs()
 
-`abstract attrs(name, options?): Promise<ObjectAttrs>;`
+`abstract attrs(name, options?): Promise<ObjectAttrs>`
 
-<!-- source: storage/objects/refs.ts:25 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L25 -->
+<!-- source: storage/objects/refs.ts:25 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L25)
 
 ###### Parameters
 
@@ -486,9 +521,10 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 ##### exists()
 
-`abstract exists(name, options?): Promise<boolean>;`
+`abstract exists(name, options?): Promise<boolean>`
 
-<!-- source: storage/objects/refs.ts:26 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L26 -->
+<!-- source: storage/objects/refs.ts:26 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L26)
 
 ###### Parameters
 
@@ -506,9 +542,13 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: AttrsOptions -->
 ### AttrsOptions
 
-<!-- source: storage/objects/bucket.ts:172 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L172 -->
+<!-- source: storage/objects/bucket.ts:172 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L172)
 
 Options for retrieving the attributes of an object.
 
@@ -516,9 +556,10 @@ Options for retrieving the attributes of an object.
 
 ##### version?
 
-`optional version?: string;`
+`optional version?: string`
 
-<!-- source: storage/objects/bucket.ts:179 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L179 -->
+<!-- source: storage/objects/bucket.ts:179 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L179)
 
 The object version to retrieve attributes for.
 Defaults to the lastest version if unset.
@@ -527,9 +568,13 @@ If bucket versioning is not enabled, this option is ignored.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: BucketConfig -->
 ### BucketConfig
 
-<!-- source: storage/objects/bucket.ts:10 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L10 -->
+<!-- source: storage/objects/bucket.ts:10 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L10)
 
 Configuration options for declaring a Bucket.
 
@@ -537,27 +582,33 @@ Configuration options for declaring a Bucket.
 
 ##### public?
 
-`optional public?: boolean;`
+`optional public?: boolean`
 
-<!-- source: storage/objects/bucket.ts:15 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L15 -->
+<!-- source: storage/objects/bucket.ts:15 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L15)
 
 Whether the objects in the bucket should be publicly
 accessible, via CDN. Defaults to false if unset.
 
 ##### versioned?
 
-`optional versioned?: boolean;`
+`optional versioned?: boolean`
 
-<!-- source: storage/objects/bucket.ts:21 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L21 -->
+<!-- source: storage/objects/bucket.ts:21 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L21)
 
 Whether to enable versioning of the objects in the bucket.
 Defaults to false if unset.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: BucketPerms -->
 ### BucketPerms
 
-<!-- source: storage/objects/refs.ts:4 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L4 -->
+<!-- source: storage/objects/refs.ts:4 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L4)
 
 #### Extended by
 
@@ -573,9 +624,13 @@ Defaults to false if unset.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: DeleteOptions -->
 ### DeleteOptions
 
-<!-- source: storage/objects/bucket.ts:198 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L198 -->
+<!-- source: storage/objects/bucket.ts:198 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L198)
 
 Options for deleting an object from a bucket.
 
@@ -583,9 +638,10 @@ Options for deleting an object from a bucket.
 
 ##### version?
 
-`optional version?: string;`
+`optional version?: string`
 
-<!-- source: storage/objects/bucket.ts:205 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L205 -->
+<!-- source: storage/objects/bucket.ts:205 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L205)
 
 The object version to delete.
 Defaults to the lastest version if unset.
@@ -594,9 +650,13 @@ If bucket versioning is not enabled, this option is ignored.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: Downloader -->
 ### Downloader
 
-<!-- source: storage/objects/refs.ts:16 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L16 -->
+<!-- source: storage/objects/refs.ts:16 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L16)
 
 #### Extends
 
@@ -606,9 +666,10 @@ If bucket versioning is not enabled, this option is ignored.
 
 ##### download()
 
-`abstract download(name, options?): Promise<Buffer>;`
+`abstract download(name, options?): Promise<Buffer>`
 
-<!-- source: storage/objects/refs.ts:17 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L17 -->
+<!-- source: storage/objects/refs.ts:17 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L17)
 
 ###### Parameters
 
@@ -626,9 +687,13 @@ If bucket versioning is not enabled, this option is ignored.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: DownloadOptions -->
 ### DownloadOptions
 
-<!-- source: storage/objects/bucket.ts:211 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L211 -->
+<!-- source: storage/objects/bucket.ts:211 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L211)
 
 Options for downloading an object from a bucket.
 
@@ -636,9 +701,10 @@ Options for downloading an object from a bucket.
 
 ##### version?
 
-`optional version?: string;`
+`optional version?: string`
 
-<!-- source: storage/objects/bucket.ts:218 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L218 -->
+<!-- source: storage/objects/bucket.ts:218 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L218)
 
 The object version to download.
 Defaults to the lastest version if unset.
@@ -647,9 +713,13 @@ If bucket versioning is not enabled, this option is ignored.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: DownloadUrlOptions -->
 ### DownloadUrlOptions
 
-<!-- source: storage/objects/bucket.ts:272 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L272 -->
+<!-- source: storage/objects/bucket.ts:272 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L272)
 
 Options for generating a signed download URL.
 
@@ -657,9 +727,10 @@ Options for generating a signed download URL.
 
 ##### ttl?
 
-`optional ttl?: number;`
+`optional ttl?: number`
 
-<!-- source: storage/objects/bucket.ts:276 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L276 -->
+<!-- source: storage/objects/bucket.ts:276 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L276)
 
 The expiration time of the url, in seconds from signing. The maximum
 value is seven days. If no value is given, a default of one hour is
@@ -667,9 +738,13 @@ used.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: ExistsOptions -->
 ### ExistsOptions
 
-<!-- source: storage/objects/bucket.ts:185 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L185 -->
+<!-- source: storage/objects/bucket.ts:185 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L185)
 
 Options for checking the existence of an object.
 
@@ -677,9 +752,10 @@ Options for checking the existence of an object.
 
 ##### version?
 
-`optional version?: string;`
+`optional version?: string`
 
-<!-- source: storage/objects/bucket.ts:192 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L192 -->
+<!-- source: storage/objects/bucket.ts:192 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L192)
 
 The object version to check for existence.
 Defaults to the lastest version if unset.
@@ -688,9 +764,13 @@ If bucket versioning is not enabled, this option is ignored.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: ListEntry -->
 ### ListEntry
 
-<!-- source: storage/objects/bucket.ts:236 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L236 -->
+<!-- source: storage/objects/bucket.ts:236 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L236)
 
 A single entry returned when listing objects in a bucket.
 
@@ -698,27 +778,34 @@ A single entry returned when listing objects in a bucket.
 
 ##### etag
 
-`etag: string;`
+`etag: string`
 
-<!-- source: storage/objects/bucket.ts:239 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L239 -->
+<!-- source: storage/objects/bucket.ts:239 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L239)
 
 ##### name
 
-`name: string;`
+`name: string`
 
-<!-- source: storage/objects/bucket.ts:237 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L237 -->
+<!-- source: storage/objects/bucket.ts:237 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L237)
 
 ##### size
 
-`size: number;`
+`size: number`
 
-<!-- source: storage/objects/bucket.ts:238 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L238 -->
+<!-- source: storage/objects/bucket.ts:238 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L238)
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: Lister -->
 ### Lister
 
-<!-- source: storage/objects/refs.ts:29 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L29 -->
+<!-- source: storage/objects/refs.ts:29 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L29)
 
 #### Extends
 
@@ -728,9 +815,10 @@ A single entry returned when listing objects in a bucket.
 
 ##### list()
 
-`abstract list(options): AsyncGenerator<ListEntry>;`
+`abstract list(options): AsyncGenerator<ListEntry>`
 
-<!-- source: storage/objects/refs.ts:30 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L30 -->
+<!-- source: storage/objects/refs.ts:30 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L30)
 
 ###### Parameters
 
@@ -744,9 +832,13 @@ A single entry returned when listing objects in a bucket.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: ListOptions -->
 ### ListOptions
 
-<!-- source: storage/objects/bucket.ts:158 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L158 -->
+<!-- source: storage/objects/bucket.ts:158 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L158)
 
 Options for listing objects in a bucket.
 
@@ -754,26 +846,32 @@ Options for listing objects in a bucket.
 
 ##### limit?
 
-`optional limit?: number;`
+`optional limit?: number`
 
-<!-- source: storage/objects/bucket.ts:166 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L166 -->
+<!-- source: storage/objects/bucket.ts:166 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L166)
 
 Maximum number of objects to return. Defaults to no limit.
 
 ##### prefix?
 
-`optional prefix?: string;`
+`optional prefix?: string`
 
-<!-- source: storage/objects/bucket.ts:163 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L163 -->
+<!-- source: storage/objects/bucket.ts:163 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L163)
 
 Only include objects with this prefix in the listing.
 If unset, all objects are included.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: ObjectAttrs -->
 ### ObjectAttrs
 
-<!-- source: storage/objects/bucket.ts:224 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L224 -->
+<!-- source: storage/objects/bucket.ts:224 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L224)
 
 Describes the attributes of an object stored in a bucket.
 
@@ -781,41 +879,50 @@ Describes the attributes of an object stored in a bucket.
 
 ##### contentType?
 
-`optional contentType?: string;`
+`optional contentType?: string`
 
-<!-- source: storage/objects/bucket.ts:230 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L230 -->
+<!-- source: storage/objects/bucket.ts:230 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L230)
 
 ##### etag
 
-`etag: string;`
+`etag: string`
 
-<!-- source: storage/objects/bucket.ts:229 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L229 -->
+<!-- source: storage/objects/bucket.ts:229 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L229)
 
 ##### name
 
-`name: string;`
+`name: string`
 
-<!-- source: storage/objects/bucket.ts:225 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L225 -->
+<!-- source: storage/objects/bucket.ts:225 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L225)
 
 ##### size
 
-`size: number;`
+`size: number`
 
-<!-- source: storage/objects/bucket.ts:226 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L226 -->
+<!-- source: storage/objects/bucket.ts:226 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L226)
 
 ##### version?
 
-`optional version?: string;`
+`optional version?: string`
 
-<!-- source: storage/objects/bucket.ts:228 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L228 -->
+<!-- source: storage/objects/bucket.ts:228 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L228)
 
 The version of the object, if bucket versioning is enabled.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: PublicUrler -->
 ### PublicUrler
 
-<!-- source: storage/objects/refs.ts:37 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L37 -->
+<!-- source: storage/objects/refs.ts:37 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L37)
 
 #### Extends
 
@@ -825,9 +932,10 @@ The version of the object, if bucket versioning is enabled.
 
 ##### publicUrl()
 
-`abstract publicUrl(name): string;`
+`abstract publicUrl(name): string`
 
-<!-- source: storage/objects/refs.ts:38 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L38 -->
+<!-- source: storage/objects/refs.ts:38 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L38)
 
 ###### Parameters
 
@@ -841,9 +949,13 @@ The version of the object, if bucket versioning is enabled.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: Remover -->
 ### Remover
 
-<!-- source: storage/objects/refs.ts:33 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L33 -->
+<!-- source: storage/objects/refs.ts:33 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L33)
 
 #### Extends
 
@@ -853,9 +965,10 @@ The version of the object, if bucket versioning is enabled.
 
 ##### remove()
 
-`abstract remove(name, options?): Promise<void>;`
+`abstract remove(name, options?): Promise<void>`
 
-<!-- source: storage/objects/refs.ts:34 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L34 -->
+<!-- source: storage/objects/refs.ts:34 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L34)
 
 ###### Parameters
 
@@ -873,9 +986,13 @@ The version of the object, if bucket versioning is enabled.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: SignedDownloader -->
 ### SignedDownloader
 
-<!-- source: storage/objects/refs.ts:20 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L20 -->
+<!-- source: storage/objects/refs.ts:20 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L20)
 
 #### Extends
 
@@ -885,9 +1002,10 @@ The version of the object, if bucket versioning is enabled.
 
 ##### signedDownloadUrl()
 
-`abstract signedDownloadUrl(name, options?): Promise<SignedDownloadUrl>;`
+`abstract signedDownloadUrl(name, options?): Promise<SignedDownloadUrl>`
 
-<!-- source: storage/objects/refs.ts:21 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L21 -->
+<!-- source: storage/objects/refs.ts:21 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L21)
 
 ###### Parameters
 
@@ -905,9 +1023,13 @@ The version of the object, if bucket versioning is enabled.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: SignedDownloadUrl -->
 ### SignedDownloadUrl
 
-<!-- source: storage/objects/bucket.ts:282 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L282 -->
+<!-- source: storage/objects/bucket.ts:282 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L282)
 
 A signed URL that allows downloading an object without additional auth.
 
@@ -915,15 +1037,20 @@ A signed URL that allows downloading an object without additional auth.
 
 ##### url
 
-`url: string;`
+`url: string`
 
-<!-- source: storage/objects/bucket.ts:283 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L283 -->
+<!-- source: storage/objects/bucket.ts:283 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L283)
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: SignedUploader -->
 ### SignedUploader
 
-<!-- source: storage/objects/refs.ts:12 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L12 -->
+<!-- source: storage/objects/refs.ts:12 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L12)
 
 #### Extends
 
@@ -933,9 +1060,10 @@ A signed URL that allows downloading an object without additional auth.
 
 ##### signedUploadUrl()
 
-`abstract signedUploadUrl(name, options?): Promise<SignedUploadUrl>;`
+`abstract signedUploadUrl(name, options?): Promise<SignedUploadUrl>`
 
-<!-- source: storage/objects/refs.ts:13 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L13 -->
+<!-- source: storage/objects/refs.ts:13 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L13)
 
 ###### Parameters
 
@@ -953,9 +1081,13 @@ A signed URL that allows downloading an object without additional auth.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: SignedUploadUrl -->
 ### SignedUploadUrl
 
-<!-- source: storage/objects/bucket.ts:265 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L265 -->
+<!-- source: storage/objects/bucket.ts:265 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L265)
 
 A signed URL that allows uploading an object without additional auth.
 
@@ -963,15 +1095,20 @@ A signed URL that allows uploading an object without additional auth.
 
 ##### url
 
-`url: string;`
+`url: string`
 
-<!-- source: storage/objects/bucket.ts:266 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L266 -->
+<!-- source: storage/objects/bucket.ts:266 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L266)
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: Uploader -->
 ### Uploader
 
-<!-- source: storage/objects/refs.ts:8 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L8 -->
+<!-- source: storage/objects/refs.ts:8 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L8)
 
 #### Extends
 
@@ -988,7 +1125,8 @@ abstract upload(
 options?): Promise<ObjectAttrs>;
 ```
 
-<!-- source: storage/objects/refs.ts:9 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L9 -->
+<!-- source: storage/objects/refs.ts:9 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L9)
 
 ###### Parameters
 
@@ -1010,9 +1148,13 @@ options?): Promise<ObjectAttrs>;
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: UploadOptions -->
 ### UploadOptions
 
-<!-- source: storage/objects/bucket.ts:245 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L245 -->
+<!-- source: storage/objects/bucket.ts:245 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L245)
 
 Options for uploading an object to a bucket.
 
@@ -1020,9 +1162,10 @@ Options for uploading an object to a bucket.
 
 ##### contentType?
 
-`optional contentType?: string;`
+`optional contentType?: string`
 
-<!-- source: storage/objects/bucket.ts:246 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L246 -->
+<!-- source: storage/objects/bucket.ts:246 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L246)
 
 ##### preconditions?
 
@@ -1032,17 +1175,22 @@ optional preconditions?: {
 };
 ```
 
-<!-- source: storage/objects/bucket.ts:247 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L247 -->
+<!-- source: storage/objects/bucket.ts:247 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L247)
 
 ###### notExists?
 
-`optional notExists?: boolean;`
+`optional notExists?: boolean`
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: UploadUrlOptions -->
 ### UploadUrlOptions
 
-<!-- source: storage/objects/bucket.ts:255 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L255 -->
+<!-- source: storage/objects/bucket.ts:255 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L255)
 
 Options for generating a signed upload URL.
 
@@ -1050,18 +1198,26 @@ Options for generating a signed upload URL.
 
 ##### ttl?
 
-`optional ttl?: number;`
+`optional ttl?: number`
 
-<!-- source: storage/objects/bucket.ts:259 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L259 -->
+<!-- source: storage/objects/bucket.ts:259 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L259)
 
 The expiration time of the url, in seconds from signing. The maximum
 value is seven days. If no value is given, a default of one hour is
 used.
 
+<!-- symbol-end -->
+
 ## Type Aliases
 
+<!-- symbol-start: ReadWriter -->
 ### ReadWriter
 
-`type ReadWriter = Uploader & SignedUploader & Downloader & SignedDownloader & Attrser & Lister & Remover;`
+`type ReadWriter = Uploader & SignedUploader & Downloader & SignedDownloader & Attrser & Lister & Remover`
 
-<!-- source: storage/objects/refs.ts:41 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L41 -->
+<!-- source: storage/objects/refs.ts:41 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L41)
+
+
+<!-- symbol-end -->

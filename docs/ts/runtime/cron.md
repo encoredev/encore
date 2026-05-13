@@ -8,17 +8,20 @@ toc: true
 
 ## Classes
 
+<!-- symbol-start: CronJob -->
 ### CronJob
 
-<!-- source: cron/mod.ts:5 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L5 -->
+<!-- source: cron/mod.ts:5 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L5)
 
 #### Constructors
 
 ##### Constructor
 
-`new CronJob(name, cfg): CronJob;`
+`new CronJob(name, cfg): CronJob`
 
-<!-- source: cron/mod.ts:8 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L8 -->
+<!-- source: cron/mod.ts:8 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L8)
 
 ###### Parameters
 
@@ -38,18 +41,23 @@ toc: true
 
 ##### cfg
 
-`readonly cfg: CronJobConfig;`
+`readonly cfg: CronJobConfig`
 
-<!-- source: cron/mod.ts:7 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L7 -->
+<!-- source: cron/mod.ts:7 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L7)
 
 ##### name
 
-`readonly name: string;`
+`readonly name: string`
 
-<!-- source: cron/mod.ts:6 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L6 -->
+<!-- source: cron/mod.ts:6 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L6)
+
+<!-- symbol-end -->
 
 ## Type Aliases
 
+<!-- symbol-start: CronJobConfig -->
 ### CronJobConfig
 
 ```ts
@@ -65,13 +73,14 @@ type CronJobConfig = {
 };
 ```
 
-<!-- source: cron/mod.ts:14 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L14 -->
+<!-- source: cron/mod.ts:14 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L14)
 
 #### Type Declaration
 
 ##### endpoint
 
-`endpoint: () => Promise<unknown>;`
+`endpoint: () => Promise<unknown>`
 
 ###### Returns
 
@@ -79,4 +88,7 @@ type CronJobConfig = {
 
 ##### title?
 
-`optional title?: string;`
+`optional title?: string`
+
+
+<!-- symbol-end -->

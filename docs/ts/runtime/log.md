@@ -8,55 +8,67 @@ toc: true
 
 ## Enumerations
 
+<!-- symbol-start: LogLevel -->
 ### LogLevel
 
-<!-- source: log/mod.ts:28 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L28 -->
+<!-- source: log/mod.ts:28 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L28)
 
 #### Enumeration Members
 
 ##### Debug
 
-`Debug: number;`
+`Debug: number`
 
-<!-- source: log/mod.ts:30 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L30 -->
+<!-- source: log/mod.ts:30 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L30)
 
 ##### Error
 
-`Error: number;`
+`Error: number`
 
-<!-- source: log/mod.ts:33 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L33 -->
+<!-- source: log/mod.ts:33 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L33)
 
 ##### Info
 
-`Info: number;`
+`Info: number`
 
-<!-- source: log/mod.ts:31 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L31 -->
+<!-- source: log/mod.ts:31 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L31)
 
 ##### Trace
 
-`Trace: number;`
+`Trace: number`
 
-<!-- source: log/mod.ts:29 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L29 -->
+<!-- source: log/mod.ts:29 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L29)
 
 ##### Warn
 
-`Warn: number;`
+`Warn: number`
 
-<!-- source: log/mod.ts:32 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L32 -->
+<!-- source: log/mod.ts:32 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L32)
+
+<!-- symbol-end -->
 
 ## Interfaces
 
+<!-- symbol-start: Logger -->
 ### Logger
 
-<!-- source: log/mod.ts:36 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L36 -->
+<!-- source: log/mod.ts:36 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L36)
 
 #### Methods
 
 ##### debug()
 
-`debug(msg, fields?): void;`
+`debug(msg, fields?): void`
 
-<!-- source: log/mod.ts:67 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L67 -->
+<!-- source: log/mod.ts:67 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L67)
 
 Debug logs a message at the debug level.
 
@@ -78,9 +90,10 @@ Debug logs a message at the debug level.
 
 ###### Call Signature
 
-`error(err, fields?): void;`
+`error(err, fields?): void`
 
-<!-- source: log/mod.ts:88 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L88 -->
+<!-- source: log/mod.ts:88 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L88)
 
 ###### Parameters
 
@@ -105,7 +118,8 @@ error(
    fields?): void;
 ```
 
-<!-- source: log/mod.ts:89 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L89 -->
+<!-- source: log/mod.ts:89 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L89)
 
 ###### Parameters
 
@@ -127,9 +141,10 @@ error(
 
 ###### Call Signature
 
-`error(msg, fields?): void;`
+`error(msg, fields?): void`
 
-<!-- source: log/mod.ts:90 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L90 -->
+<!-- source: log/mod.ts:90 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L90)
 
 ###### Parameters
 
@@ -147,9 +162,10 @@ error(
 
 ##### info()
 
-`info(msg, fields?): void;`
+`info(msg, fields?): void`
 
-<!-- source: log/mod.ts:74 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L74 -->
+<!-- source: log/mod.ts:74 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L74)
 
 Info logs a message at the info level.
 
@@ -169,9 +185,10 @@ Info logs a message at the info level.
 
 ##### trace()
 
-`trace(msg, fields?): void;`
+`trace(msg, fields?): void`
 
-<!-- source: log/mod.ts:60 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L60 -->
+<!-- source: log/mod.ts:60 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L60)
 
 Trace logs a message at the trace level.
 
@@ -193,9 +210,10 @@ Trace logs a message at the trace level.
 
 ###### Call Signature
 
-`warn(err, fields?): void;`
+`warn(err, fields?): void`
 
-<!-- source: log/mod.ts:81 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L81 -->
+<!-- source: log/mod.ts:81 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L81)
 
 Warn logs a message at the warn level.
 
@@ -222,7 +240,8 @@ warn(
    fields?): void;
 ```
 
-<!-- source: log/mod.ts:82 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L82 -->
+<!-- source: log/mod.ts:82 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L82)
 
 Warn logs a message at the warn level.
 
@@ -246,9 +265,10 @@ Warn logs a message at the warn level.
 
 ###### Call Signature
 
-`warn(msg, fields?): void;`
+`warn(msg, fields?): void`
 
-<!-- source: log/mod.ts:83 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L83 -->
+<!-- source: log/mod.ts:83 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L83)
 
 Warn logs a message at the warn level.
 
@@ -268,9 +288,10 @@ Warn logs a message at the warn level.
 
 ##### with()
 
-`with(fields): Logger;`
+`with(fields): Logger`
 
-<!-- source: log/mod.ts:53 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L53 -->
+<!-- source: log/mod.ts:53 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L53)
 
 Returns a new logger with the given fields added to the context.
 
@@ -286,9 +307,10 @@ Returns a new logger with the given fields added to the context.
 
 ##### withLevel()
 
-`withLevel(level): Logger;`
+`withLevel(level): Logger`
 
-<!-- source: log/mod.ts:46 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L46 -->
+<!-- source: log/mod.ts:46 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L46)
 
 Returns a new logger with the specified level.
 
@@ -302,18 +324,25 @@ Returns a new logger with the specified level.
 
 [`Logger`](#logger)
 
+<!-- symbol-end -->
+
 ## Type Aliases
 
+<!-- symbol-start: FieldsObject -->
 ### FieldsObject
 
-`type FieldsObject = Record<string, FieldValue>;`
+`type FieldsObject = Record<string, FieldValue>`
 
-<!-- source: log/mod.ts:26 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L26 -->
+<!-- source: log/mod.ts:26 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L26)
 
 A map of fields that can be logged
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: FieldValue -->
 ### FieldValue
 
 ```ts
@@ -327,25 +356,34 @@ type FieldValue =
   | FieldValue[];
 ```
 
-<!-- source: log/mod.ts:12 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L12 -->
+<!-- source: log/mod.ts:12 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L12)
 
 A field value we support logging
 
+<!-- symbol-end -->
+
 ## Variables
 
+<!-- symbol-start: default -->
 ### default
 
-`const default: Logger;`
+`const default: Logger`
 
-<!-- source: log/mod.ts:149 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L149 -->
+<!-- source: log/mod.ts:149 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L149)
+
+<!-- symbol-end -->
 
 ## Functions
 
+<!-- symbol-start: debug() -->
 ### debug()
 
-`function debug(msg, fields?): void;`
+`function debug(msg, fields?): void`
 
-<!-- source: log/mod.ts:166 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L166 -->
+<!-- source: log/mod.ts:166 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L166)
 
 Debug logs a message at the debug level
 
@@ -365,13 +403,17 @@ Debug logs a message at the debug level
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: error() -->
 ### error()
 
 #### Call Signature
 
-`function error(err, fields?): void;`
+`function error(err, fields?): void`
 
-<!-- source: log/mod.ts:204 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L204 -->
+<!-- source: log/mod.ts:204 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L204)
 
 Error logs a message at the error level
 
@@ -398,7 +440,8 @@ function error(
    fields?): void;
 ```
 
-<!-- source: log/mod.ts:205 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L205 -->
+<!-- source: log/mod.ts:205 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L205)
 
 Error logs a message at the error level
 
@@ -422,9 +465,10 @@ Error logs a message at the error level
 
 #### Call Signature
 
-`function error(msg, fields?): void;`
+`function error(msg, fields?): void`
 
-<!-- source: log/mod.ts:210 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L210 -->
+<!-- source: log/mod.ts:210 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L210)
 
 Error logs a message at the error level
 
@@ -444,11 +488,15 @@ Error logs a message at the error level
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: info() -->
 ### info()
 
-`function info(msg, fields?): void;`
+`function info(msg, fields?): void`
 
-<!-- source: log/mod.ts:173 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L173 -->
+<!-- source: log/mod.ts:173 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L173)
 
 Info logs a message at the info level
 
@@ -468,11 +516,15 @@ Info logs a message at the info level
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: trace() -->
 ### trace()
 
-`function trace(msg, fields?): void;`
+`function trace(msg, fields?): void`
 
-<!-- source: log/mod.ts:159 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L159 -->
+<!-- source: log/mod.ts:159 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L159)
 
 Trace logs a message at the trace level
 
@@ -492,13 +544,17 @@ Trace logs a message at the trace level
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: warn() -->
 ### warn()
 
 #### Call Signature
 
-`function warn(err, fields?): void;`
+`function warn(err, fields?): void`
 
-<!-- source: log/mod.ts:180 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L180 -->
+<!-- source: log/mod.ts:180 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L180)
 
 Warn logs a message at the warn level
 
@@ -525,7 +581,8 @@ function warn(
    fields?): void;
 ```
 
-<!-- source: log/mod.ts:181 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L181 -->
+<!-- source: log/mod.ts:181 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L181)
 
 Warn logs a message at the warn level
 
@@ -549,9 +606,10 @@ Warn logs a message at the warn level
 
 #### Call Signature
 
-`function warn(msg, fields?): void;`
+`function warn(msg, fields?): void`
 
-<!-- source: log/mod.ts:186 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L186 -->
+<!-- source: log/mod.ts:186 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/log/mod.ts#L186)
 
 Warn logs a message at the warn level
 
@@ -568,3 +626,6 @@ Warn logs a message at the warn level
 ##### Returns
 
 `void`
+
+
+<!-- symbol-end -->

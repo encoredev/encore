@@ -8,9 +8,11 @@ toc: true
 
 ## Classes
 
+<!-- symbol-start: Connection -->
 ### Connection
 
-<!-- source: storage/sqldb/database.ts:360 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L360 -->
+<!-- source: storage/sqldb/database.ts:360 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L360)
 
 Represents a dedicated connection to a database.
 
@@ -22,9 +24,10 @@ Represents a dedicated connection to a database.
 
 ##### Constructor
 
-`new Connection(impl): Connection;`
+`new Connection(impl): Connection`
 
-<!-- source: storage/sqldb/database.ts:363 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L363 -->
+<!-- source: storage/sqldb/database.ts:363 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L363)
 
 ###### Parameters
 
@@ -44,9 +47,10 @@ Represents a dedicated connection to a database.
 
 ##### impl
 
-`protected readonly impl: SQLConn;`
+`protected readonly impl: SQLConn`
 
-<!-- source: storage/sqldb/database.ts:361 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L361 -->
+<!-- source: storage/sqldb/database.ts:361 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L361)
 
 ###### Overrides
 
@@ -56,9 +60,10 @@ Represents a dedicated connection to a database.
 
 ##### close()
 
-`close(): Promise<void>;`
+`close(): Promise<void>`
 
-<!-- source: storage/sqldb/database.ts:370 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L370 -->
+<!-- source: storage/sqldb/database.ts:370 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L370)
 
 Returns the connection to the database pool.
 
@@ -68,9 +73,10 @@ Returns the connection to the database pool.
 
 ##### exec()
 
-`exec(strings, ...params): Promise<void>;`
+`exec(strings, ...params): Promise<void>`
 
-<!-- source: storage/sqldb/database.ts:229 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L229 -->
+<!-- source: storage/sqldb/database.ts:229 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L229)
 
 exec executes a query without returning any rows.
 
@@ -101,9 +107,10 @@ const result = database.exec`DELETE FROM users WHERE email=${email}`
 
 ##### query()
 
-`query<T>(strings, ...params): AsyncGenerator<T>;`
+`query<T>(strings, ...params): AsyncGenerator<T>`
 
-<!-- source: storage/sqldb/database.ts:69 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L69 -->
+<!-- source: storage/sqldb/database.ts:69 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L69)
 
 query queries the database using a template string, replacing your placeholders in the template
 with parametrised values without risking SQL injections.
@@ -146,9 +153,10 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 ##### queryAll()
 
-`queryAll<T>(strings, ...params): Promise<T[]>;`
+`queryAll<T>(strings, ...params): Promise<T[]>`
 
-<!-- source: storage/sqldb/database.ts:129 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L129 -->
+<!-- source: storage/sqldb/database.ts:129 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L129)
 
 queryAll queries the database using a template string, replacing your placeholders in the template
 with parametrised values without risking SQL injections.
@@ -190,9 +198,10 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 ##### queryRow()
 
-`queryRow<T>(strings, ...params): Promise<T | null>;`
+`queryRow<T>(strings, ...params): Promise<T | null>`
 
-<!-- source: storage/sqldb/database.ts:184 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L184 -->
+<!-- source: storage/sqldb/database.ts:184 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L184)
 
 queryRow is like query but returns only a single row.
 If the query selects no rows it returns null.
@@ -231,9 +240,10 @@ const result = database.queryRow`SELECT id FROM users WHERE email=${email}`
 
 ##### rawExec()
 
-`rawExec(query, ...params): Promise<void>;`
+`rawExec(query, ...params): Promise<void>`
 
-<!-- source: storage/sqldb/database.ts:255 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L255 -->
+<!-- source: storage/sqldb/database.ts:255 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L255)
 
 rawExec executes a query without returning any rows.
 
@@ -271,9 +281,10 @@ await database.rawExec(query, email);
 
 ##### rawQuery()
 
-`rawQuery<T>(query, ...params): AsyncGenerator<T>;`
+`rawQuery<T>(query, ...params): AsyncGenerator<T>`
 
-<!-- source: storage/sqldb/database.ts:101 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L101 -->
+<!-- source: storage/sqldb/database.ts:101 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L101)
 
 rawQuery queries the database using a raw parametrised SQL query and parameters.
 
@@ -322,9 +333,10 @@ for await (const row of database.rawQuery(query, email)) {
 
 ##### rawQueryAll()
 
-`rawQueryAll<T>(query, ...params): Promise<T[]>;`
+`rawQueryAll<T>(query, ...params): Promise<T[]>`
 
-<!-- source: storage/sqldb/database.ts:158 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L158 -->
+<!-- source: storage/sqldb/database.ts:158 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L158)
 
 rawQueryAll queries the database using a raw parametrised SQL query and parameters.
 
@@ -364,9 +376,10 @@ const rows = await database.rawQueryAll(query, email);
 
 ##### rawQueryRow()
 
-`rawQueryRow<T>(query, ...params): Promise<T | null>;`
+`rawQueryRow<T>(query, ...params): Promise<T | null>`
 
-<!-- source: storage/sqldb/database.ts:211 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L211 -->
+<!-- source: storage/sqldb/database.ts:211 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L211)
 
 rawQueryRow is like rawQuery but returns only a single row.
 If the query selects no rows, it returns null.
@@ -413,9 +426,13 @@ console.log(result);
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: SQLDatabase -->
 ### SQLDatabase
 
-<!-- source: storage/sqldb/database.ts:273 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L273 -->
+<!-- source: storage/sqldb/database.ts:273 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L273)
 
 Constructing a new database object will result in Encore provisioning a database with
 that name and returning this object to represent it.
@@ -431,9 +448,10 @@ compile error to create duplicate databases.
 
 ##### Constructor
 
-`new SQLDatabase(name, cfg?): SQLDatabase;`
+`new SQLDatabase(name, cfg?): SQLDatabase`
 
-<!-- source: storage/sqldb/database.ts:276 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L276 -->
+<!-- source: storage/sqldb/database.ts:276 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L276)
 
 ###### Parameters
 
@@ -457,9 +475,10 @@ compile error to create duplicate databases.
 
 ##### impl
 
-`protected readonly impl: SQLDatabase;`
+`protected readonly impl: SQLDatabase`
 
-<!-- source: storage/sqldb/database.ts:274 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L274 -->
+<!-- source: storage/sqldb/database.ts:274 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L274)
 
 ###### Overrides
 
@@ -471,9 +490,10 @@ compile error to create duplicate databases.
 
 ###### Get Signature
 
-`get connectionString(): string;`
+`get connectionString(): string`
 
-<!-- source: storage/sqldb/database.ts:291 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L291 -->
+<!-- source: storage/sqldb/database.ts:291 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L291)
 
 Returns the connection string for the database
 
@@ -485,9 +505,10 @@ Returns the connection string for the database
 
 ##### acquire()
 
-`acquire(): Promise<Connection>;`
+`acquire(): Promise<Connection>`
 
-<!-- source: storage/sqldb/database.ts:301 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L301 -->
+<!-- source: storage/sqldb/database.ts:301 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L301)
 
 Acquires a database connection from the database pool.
 
@@ -501,9 +522,10 @@ a new connection to the database
 
 ##### begin()
 
-`begin(): Promise<Transaction>;`
+`begin(): Promise<Transaction>`
 
-<!-- source: storage/sqldb/database.ts:312 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L312 -->
+<!-- source: storage/sqldb/database.ts:312 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L312)
 
 Begins a database transaction.
 
@@ -517,9 +539,10 @@ a transaction object that implements AsycDisposable
 
 ##### exec()
 
-`exec(strings, ...params): Promise<void>;`
+`exec(strings, ...params): Promise<void>`
 
-<!-- source: storage/sqldb/database.ts:229 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L229 -->
+<!-- source: storage/sqldb/database.ts:229 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L229)
 
 exec executes a query without returning any rows.
 
@@ -550,9 +573,10 @@ const result = database.exec`DELETE FROM users WHERE email=${email}`
 
 ##### query()
 
-`query<T>(strings, ...params): AsyncGenerator<T>;`
+`query<T>(strings, ...params): AsyncGenerator<T>`
 
-<!-- source: storage/sqldb/database.ts:69 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L69 -->
+<!-- source: storage/sqldb/database.ts:69 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L69)
 
 query queries the database using a template string, replacing your placeholders in the template
 with parametrised values without risking SQL injections.
@@ -595,9 +619,10 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 ##### queryAll()
 
-`queryAll<T>(strings, ...params): Promise<T[]>;`
+`queryAll<T>(strings, ...params): Promise<T[]>`
 
-<!-- source: storage/sqldb/database.ts:129 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L129 -->
+<!-- source: storage/sqldb/database.ts:129 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L129)
 
 queryAll queries the database using a template string, replacing your placeholders in the template
 with parametrised values without risking SQL injections.
@@ -639,9 +664,10 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 ##### queryRow()
 
-`queryRow<T>(strings, ...params): Promise<T | null>;`
+`queryRow<T>(strings, ...params): Promise<T | null>`
 
-<!-- source: storage/sqldb/database.ts:184 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L184 -->
+<!-- source: storage/sqldb/database.ts:184 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L184)
 
 queryRow is like query but returns only a single row.
 If the query selects no rows it returns null.
@@ -680,9 +706,10 @@ const result = database.queryRow`SELECT id FROM users WHERE email=${email}`
 
 ##### rawExec()
 
-`rawExec(query, ...params): Promise<void>;`
+`rawExec(query, ...params): Promise<void>`
 
-<!-- source: storage/sqldb/database.ts:255 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L255 -->
+<!-- source: storage/sqldb/database.ts:255 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L255)
 
 rawExec executes a query without returning any rows.
 
@@ -720,9 +747,10 @@ await database.rawExec(query, email);
 
 ##### rawQuery()
 
-`rawQuery<T>(query, ...params): AsyncGenerator<T>;`
+`rawQuery<T>(query, ...params): AsyncGenerator<T>`
 
-<!-- source: storage/sqldb/database.ts:101 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L101 -->
+<!-- source: storage/sqldb/database.ts:101 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L101)
 
 rawQuery queries the database using a raw parametrised SQL query and parameters.
 
@@ -771,9 +799,10 @@ for await (const row of database.rawQuery(query, email)) {
 
 ##### rawQueryAll()
 
-`rawQueryAll<T>(query, ...params): Promise<T[]>;`
+`rawQueryAll<T>(query, ...params): Promise<T[]>`
 
-<!-- source: storage/sqldb/database.ts:158 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L158 -->
+<!-- source: storage/sqldb/database.ts:158 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L158)
 
 rawQueryAll queries the database using a raw parametrised SQL query and parameters.
 
@@ -813,9 +842,10 @@ const rows = await database.rawQueryAll(query, email);
 
 ##### rawQueryRow()
 
-`rawQueryRow<T>(query, ...params): Promise<T | null>;`
+`rawQueryRow<T>(query, ...params): Promise<T | null>`
 
-<!-- source: storage/sqldb/database.ts:211 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L211 -->
+<!-- source: storage/sqldb/database.ts:211 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L211)
 
 rawQueryRow is like rawQuery but returns only a single row.
 If the query selects no rows, it returns null.
@@ -862,9 +892,10 @@ console.log(result);
 
 ##### named()
 
-`static named<name>(name): SQLDatabase;`
+`static named<name>(name): SQLDatabase`
 
-<!-- source: storage/sqldb/database.ts:284 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L284 -->
+<!-- source: storage/sqldb/database.ts:284 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L284)
 
 Reference an existing database by name, if the database doesn't
 exist yet, use `new Database(name)` instead.
@@ -887,9 +918,13 @@ exist yet, use `new Database(name)` instead.
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: Transaction -->
 ### Transaction
 
-<!-- source: storage/sqldb/database.ts:324 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L324 -->
+<!-- source: storage/sqldb/database.ts:324 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L324)
 
 Represents a database transaction.
 
@@ -907,9 +942,10 @@ Make sure to always call `rollback` or `commit` to prevent hanging transactions.
 
 ##### Constructor
 
-`new Transaction(impl): Transaction;`
+`new Transaction(impl): Transaction`
 
-<!-- source: storage/sqldb/database.ts:328 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L328 -->
+<!-- source: storage/sqldb/database.ts:328 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L328)
 
 ###### Parameters
 
@@ -929,9 +965,10 @@ Make sure to always call `rollback` or `commit` to prevent hanging transactions.
 
 ##### impl
 
-`protected readonly impl: Transaction;`
+`protected readonly impl: Transaction`
 
-<!-- source: storage/sqldb/database.ts:325 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L325 -->
+<!-- source: storage/sqldb/database.ts:325 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L325)
 
 ###### Overrides
 
@@ -941,9 +978,10 @@ Make sure to always call `rollback` or `commit` to prevent hanging transactions.
 
 ##### \[asyncDispose\]()
 
-`asyncDispose: Promise<void>;`
+`asyncDispose: Promise<void>`
 
-<!-- source: storage/sqldb/database.ts:350 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L350 -->
+<!-- source: storage/sqldb/database.ts:350 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L350)
 
 ###### Returns
 
@@ -955,9 +993,10 @@ Make sure to always call `rollback` or `commit` to prevent hanging transactions.
 
 ##### commit()
 
-`commit(): Promise<void>;`
+`commit(): Promise<void>`
 
-<!-- source: storage/sqldb/database.ts:335 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L335 -->
+<!-- source: storage/sqldb/database.ts:335 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L335)
 
 Commit the transaction.
 
@@ -967,9 +1006,10 @@ Commit the transaction.
 
 ##### exec()
 
-`exec(strings, ...params): Promise<void>;`
+`exec(strings, ...params): Promise<void>`
 
-<!-- source: storage/sqldb/database.ts:229 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L229 -->
+<!-- source: storage/sqldb/database.ts:229 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L229)
 
 exec executes a query without returning any rows.
 
@@ -1000,9 +1040,10 @@ const result = database.exec`DELETE FROM users WHERE email=${email}`
 
 ##### query()
 
-`query<T>(strings, ...params): AsyncGenerator<T>;`
+`query<T>(strings, ...params): AsyncGenerator<T>`
 
-<!-- source: storage/sqldb/database.ts:69 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L69 -->
+<!-- source: storage/sqldb/database.ts:69 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L69)
 
 query queries the database using a template string, replacing your placeholders in the template
 with parametrised values without risking SQL injections.
@@ -1045,9 +1086,10 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 ##### queryAll()
 
-`queryAll<T>(strings, ...params): Promise<T[]>;`
+`queryAll<T>(strings, ...params): Promise<T[]>`
 
-<!-- source: storage/sqldb/database.ts:129 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L129 -->
+<!-- source: storage/sqldb/database.ts:129 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L129)
 
 queryAll queries the database using a template string, replacing your placeholders in the template
 with parametrised values without risking SQL injections.
@@ -1089,9 +1131,10 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 ##### queryRow()
 
-`queryRow<T>(strings, ...params): Promise<T | null>;`
+`queryRow<T>(strings, ...params): Promise<T | null>`
 
-<!-- source: storage/sqldb/database.ts:184 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L184 -->
+<!-- source: storage/sqldb/database.ts:184 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L184)
 
 queryRow is like query but returns only a single row.
 If the query selects no rows it returns null.
@@ -1130,9 +1173,10 @@ const result = database.queryRow`SELECT id FROM users WHERE email=${email}`
 
 ##### rawExec()
 
-`rawExec(query, ...params): Promise<void>;`
+`rawExec(query, ...params): Promise<void>`
 
-<!-- source: storage/sqldb/database.ts:255 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L255 -->
+<!-- source: storage/sqldb/database.ts:255 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L255)
 
 rawExec executes a query without returning any rows.
 
@@ -1170,9 +1214,10 @@ await database.rawExec(query, email);
 
 ##### rawQuery()
 
-`rawQuery<T>(query, ...params): AsyncGenerator<T>;`
+`rawQuery<T>(query, ...params): AsyncGenerator<T>`
 
-<!-- source: storage/sqldb/database.ts:101 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L101 -->
+<!-- source: storage/sqldb/database.ts:101 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L101)
 
 rawQuery queries the database using a raw parametrised SQL query and parameters.
 
@@ -1221,9 +1266,10 @@ for await (const row of database.rawQuery(query, email)) {
 
 ##### rawQueryAll()
 
-`rawQueryAll<T>(query, ...params): Promise<T[]>;`
+`rawQueryAll<T>(query, ...params): Promise<T[]>`
 
-<!-- source: storage/sqldb/database.ts:158 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L158 -->
+<!-- source: storage/sqldb/database.ts:158 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L158)
 
 rawQueryAll queries the database using a raw parametrised SQL query and parameters.
 
@@ -1263,9 +1309,10 @@ const rows = await database.rawQueryAll(query, email);
 
 ##### rawQueryRow()
 
-`rawQueryRow<T>(query, ...params): Promise<T | null>;`
+`rawQueryRow<T>(query, ...params): Promise<T | null>`
 
-<!-- source: storage/sqldb/database.ts:211 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L211 -->
+<!-- source: storage/sqldb/database.ts:211 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L211)
 
 rawQueryRow is like rawQuery but returns only a single row.
 If the query selects no rows, it returns null.
@@ -1312,9 +1359,10 @@ console.log(result);
 
 ##### rollback()
 
-`rollback(): Promise<void>;`
+`rollback(): Promise<void>`
 
-<!-- source: storage/sqldb/database.ts:344 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L344 -->
+<!-- source: storage/sqldb/database.ts:344 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L344)
 
 Rollback the transaction.
 
@@ -1322,11 +1370,15 @@ Rollback the transaction.
 
 `Promise`\<`void`\>
 
+<!-- symbol-end -->
+
 ## Interfaces
 
+<!-- symbol-start: SQLDatabaseConfig -->
 ### SQLDatabaseConfig
 
-<!-- source: storage/sqldb/database.ts:15 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L15 -->
+<!-- source: storage/sqldb/database.ts:15 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L15)
 
 Configuration for a `SQLDatabase`.
 
@@ -1334,15 +1386,20 @@ Configuration for a `SQLDatabase`.
 
 ##### migrations?
 
-`optional migrations?: string | SQLMigrationsConfig;`
+`optional migrations?: string | SQLMigrationsConfig`
 
-<!-- source: storage/sqldb/database.ts:16 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L16 -->
+<!-- source: storage/sqldb/database.ts:16 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L16)
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: SQLMigrationsConfig -->
 ### SQLMigrationsConfig
 
-<!-- source: storage/sqldb/database.ts:8 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L8 -->
+<!-- source: storage/sqldb/database.ts:8 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L8)
 
 Configures how database migrations are managed for a `SQLDatabase`.
 
@@ -1350,18 +1407,23 @@ Configures how database migrations are managed for a `SQLDatabase`.
 
 ##### path
 
-`path: string;`
+`path: string`
 
-<!-- source: storage/sqldb/database.ts:9 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L9 -->
+<!-- source: storage/sqldb/database.ts:9 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L9)
 
 ##### source?
 
-`optional source?: "prisma" | "drizzle" | "drizzle/v1";`
+`optional source?: "prisma" | "drizzle" | "drizzle/v1"`
 
-<!-- source: storage/sqldb/database.ts:10 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L10 -->
+<!-- source: storage/sqldb/database.ts:10 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L10)
+
+<!-- symbol-end -->
 
 ## Type Aliases
 
+<!-- symbol-start: Primitive -->
 ### Primitive
 
 ```ts
@@ -1383,16 +1445,24 @@ type Primitive =
   | undefined;
 ```
 
-<!-- source: storage/sqldb/database.ts:28 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L28 -->
+<!-- source: storage/sqldb/database.ts:28 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L28)
 
 Represents a type that can be used in query template literals
 
 ***
 
+<!-- symbol-end -->
+
+<!-- symbol-start: ResultRow -->
 ### ResultRow
 
-`type ResultRow = Record<string, any>;`
+`type ResultRow = Record<string, any>`
 
-<!-- source: storage/sqldb/database.ts:25 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L25 -->
+<!-- source: storage/sqldb/database.ts:25 -->
+[source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L25)
 
 Represents a single row from a query result
+
+
+<!-- symbol-end -->
