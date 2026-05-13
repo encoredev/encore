@@ -24,6 +24,6 @@ func (t *Topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 	return "", ErrNoop
 }
 
-func (t *Topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, _ time.Duration, _ *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (t *Topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, pullConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	// no-op
 }
