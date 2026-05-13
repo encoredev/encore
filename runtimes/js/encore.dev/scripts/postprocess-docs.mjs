@@ -120,7 +120,6 @@ for (const file of finalFiles) {
     } else {
       content = `---\ntitle: ${title}\nlang: ts\ntoc: true\n---\n${content}`;
     }
-    content = content.replace(/^# [^\n]+\n/m, `# ${title}\n`);
   }
 
   if (file === "index.md") {

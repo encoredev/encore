@@ -4,8 +4,6 @@ lang: ts
 toc: true
 ---
 
-# encore.dev/auth
-
 ## Type Aliases
 
 <!-- symbol-start: AuthHandler -->

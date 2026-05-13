@@ -4,8 +4,6 @@ lang: ts
 toc: true
 ---
 
-# encore.dev/cron
-
 ## Classes
 
 <!-- symbol-start: CronJob -->

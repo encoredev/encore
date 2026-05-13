@@ -4,8 +4,6 @@ lang: ts
 toc: true
 ---
 
-# encore.dev/metrics
-
 ## Classes
 
 <!-- symbol-start: Counter -->

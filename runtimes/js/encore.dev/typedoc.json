@@ -48,6 +48,7 @@
   "entryFileName": "index",
   "hideBreadcrumbs": true,
   "hidePageHeader": true,
+  "hidePageTitle": true,
   "useCodeBlocks": true,
   "expandObjects": true,
   "frontmatterGlobals": {

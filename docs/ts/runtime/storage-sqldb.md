@@ -4,8 +4,6 @@ lang: ts
 toc: true
 ---
 
-# encore.dev/storage/sqldb
-
 ## Classes
 
 <!-- symbol-start: Connection -->

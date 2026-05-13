@@ -4,8 +4,6 @@ lang: ts
 toc: true
 ---
 
-# encore.dev/types
-
 ## Classes
 
 <!-- symbol-start: Decimal -->

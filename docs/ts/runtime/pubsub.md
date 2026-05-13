@@ -4,8 +4,6 @@ lang: ts
 toc: true
 ---
 
-# encore.dev/pubsub
-
 ## Classes
 
 <!-- symbol-start: Subscription -->

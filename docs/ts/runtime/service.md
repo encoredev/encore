@@ -4,8 +4,6 @@ lang: ts
 toc: true
 ---
 
-# encore.dev/service
-
 ## Classes
 
 <!-- symbol-start: Service -->

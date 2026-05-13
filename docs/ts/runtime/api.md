@@ -4,8 +4,6 @@ lang: ts
 toc: true
 ---
 
-# encore.dev/api
-
 ## Enumerations
 
 <!-- symbol-start: ErrCode -->

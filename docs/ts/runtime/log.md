@@ -4,8 +4,6 @@ lang: ts
 toc: true
 ---
 
-# encore.dev/log
-
 ## Enumerations
 
 <!-- symbol-start: LogLevel -->

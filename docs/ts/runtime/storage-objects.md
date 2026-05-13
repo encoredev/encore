@@ -4,8 +4,6 @@ lang: ts
 toc: true
 ---
 
-# encore.dev/storage/objects
-
 ## Classes
 
 <!-- symbol-start: Bucket -->
