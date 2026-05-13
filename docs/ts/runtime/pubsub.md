@@ -7,7 +7,7 @@ toc: true
 ## Classes
 
 <!-- symbol-start: Subscription -->
-### Subscription [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L6)
+### Subscription <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L6" target="_blank" rel="noopener">source</a>
 
 #### Type Parameters
 
@@ -17,7 +17,7 @@ toc: true
 
 #### Constructors
 
-##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L11)
+##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L11" target="_blank" rel="noopener">source</a>
 
 ```ts
 new Subscription<Msg>(
@@ -49,7 +49,7 @@ cfg): Subscription<Msg>;
 <!-- symbol-end -->
 
 <!-- symbol-start: Topic -->
-### Topic [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L10)
+### Topic <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L10" target="_blank" rel="noopener">source</a>
 
 A topic is a resource to which you can publish messages
 to be delivered to subscribers of that topic.
@@ -70,7 +70,7 @@ to be delivered to subscribers of that topic.
 
 #### Constructors
 
-##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L18)
+##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L18" target="_blank" rel="noopener">source</a>
 
 `new Topic<Msg>(name, cfg): Topic<Msg>`
 
@@ -104,7 +104,7 @@ to be delivered to subscribers of that topic.
 
 #### Methods
 
-##### publish() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L25)
+##### publish() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L25" target="_blank" rel="noopener">source</a>
 
 `publish(msg): Promise<string>`
 
@@ -122,7 +122,7 @@ to be delivered to subscribers of that topic.
 
 [`Publisher`](#publisher).[`publish`](#publish-1)
 
-##### ref() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L30)
+##### ref() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L30" target="_blank" rel="noopener">source</a>
 
 `ref<P>(): P`
 
@@ -141,7 +141,7 @@ to be delivered to subscribers of that topic.
 ## Interfaces
 
 <!-- symbol-start: Publisher -->
-### Publisher [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L5)
+### Publisher <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L5" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -155,7 +155,7 @@ to be delivered to subscribers of that topic.
 
 #### Methods
 
-##### publish() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L6)
+##### publish() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L6" target="_blank" rel="noopener">source</a>
 
 `abstract publish(msg): Promise<string>`
 
@@ -174,7 +174,7 @@ to be delivered to subscribers of that topic.
 <!-- symbol-end -->
 
 <!-- symbol-start: RetryPolicy -->
-### RetryPolicy [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L111)
+### RetryPolicy <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L111" target="_blank" rel="noopener">source</a>
 
 RetryPolicy defines how a subscription should handle retries
 after errors either delivering the message or processing the message.
@@ -214,7 +214,7 @@ The minimum time to wait between retries. Defaults to 10 seconds.
 <!-- symbol-end -->
 
 <!-- symbol-start: SubscriptionConfig -->
-### SubscriptionConfig [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L44)
+### SubscriptionConfig <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L44" target="_blank" rel="noopener">source</a>
 
 SubscriptionConfig is used when creating a subscription
 
@@ -304,7 +304,7 @@ the subscriber returns an error
 <!-- symbol-end -->
 
 <!-- symbol-start: TopicConfig -->
-### TopicConfig [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L80)
+### TopicConfig <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L80" target="_blank" rel="noopener">source</a>
 
 TopicConfig is used when creating a Topic
 
@@ -375,7 +375,7 @@ Note: OrderingAttribute currently has no effect during local development.
 <!-- symbol-end -->
 
 <!-- symbol-start: TopicPerms -->
-### TopicPerms [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L1)
+### TopicPerms <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L1" target="_blank" rel="noopener">source</a>
 
 #### Extended by
 
@@ -387,7 +387,7 @@ Note: OrderingAttribute currently has no effect during local development.
 ## Type Aliases
 
 <!-- symbol-start: Attribute -->
-### Attribute [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L34)
+### Attribute <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L34" target="_blank" rel="noopener">source</a>
 
 `type Attribute<T> = T | brandedAttribute<T>`
 
@@ -424,7 +424,7 @@ to extract the keys of said type.
 <!-- symbol-end -->
 
 <!-- symbol-start: AttributesOf -->
-### AttributesOf [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L51)
+### AttributesOf <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L51" target="_blank" rel="noopener">source</a>
 
 `type AttributesOf<T> = keyof { [Key in keyof T as Extract<T[Key], allBrandedTypes> extends never ? never : Key]: never }`
 
@@ -451,7 +451,7 @@ For example:
 <!-- symbol-end -->
 
 <!-- symbol-start: DeliveryGuarantee -->
-### DeliveryGuarantee [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L38)
+### DeliveryGuarantee <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L38" target="_blank" rel="noopener">source</a>
 
 `type DeliveryGuarantee = "at-least-once" | "exactly-once"`
 

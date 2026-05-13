@@ -7,7 +7,7 @@ toc: true
 ## Classes
 
 <!-- symbol-start: Bucket -->
-### Bucket [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L27)
+### Bucket <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L27" target="_blank" rel="noopener">source</a>
 
 Defines a new Object Storage bucket infrastructure resource.
 
@@ -28,7 +28,7 @@ Defines a new Object Storage bucket infrastructure resource.
 
 #### Constructors
 
-##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L34)
+##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L34" target="_blank" rel="noopener">source</a>
 
 `new Bucket(name, cfg?): Bucket`
 
@@ -60,7 +60,7 @@ Creates a new bucket with the given name and configuration
 
 #### Methods
 
-##### attrs() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L75)
+##### attrs() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L75" target="_blank" rel="noopener">source</a>
 
 `attrs(name, options?): Promise<ObjectAttrs>`
 
@@ -85,7 +85,7 @@ Throws an error if the object does not exist.
 
 [`Attrser`](#attrser).[`attrs`](#attrs-1)
 
-##### download() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L121)
+##### download() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L121" target="_blank" rel="noopener">source</a>
 
 `download(name, options?): Promise<Buffer>`
 
@@ -109,7 +109,7 @@ Downloads an object from the bucket and returns its contents.
 
 [`Downloader`](#downloader).[`download`](#download-1)
 
-##### exists() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L64)
+##### exists() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L64" target="_blank" rel="noopener">source</a>
 
 `exists(name, options?): Promise<boolean>`
 
@@ -134,7 +134,7 @@ Throws an error on network failure.
 
 [`Attrser`](#attrser).[`exists`](#exists-1)
 
-##### list() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L47)
+##### list() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L47" target="_blank" rel="noopener">source</a>
 
 `list(options): AsyncGenerator<ListEntry>`
 
@@ -152,7 +152,7 @@ Throws an error on network failure.
 
 [`Lister`](#lister).[`list`](#list-1)
 
-##### publicUrl() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L145)
+##### publicUrl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L145" target="_blank" rel="noopener">source</a>
 
 `publicUrl(name): string`
 
@@ -173,7 +173,7 @@ Throws an error if the bucket is not public.
 
 [`PublicUrler`](#publicurler).[`publicUrl`](#publicurl-1)
 
-##### ref() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L150)
+##### ref() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L150" target="_blank" rel="noopener">source</a>
 
 `ref<P>(): P`
 
@@ -187,7 +187,7 @@ Throws an error if the bucket is not public.
 
 `P`
 
-##### remove() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L132)
+##### remove() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L132" target="_blank" rel="noopener">source</a>
 
 `remove(name, options?): Promise<void>`
 
@@ -212,7 +212,7 @@ Throws an error on network failure.
 
 [`Remover`](#remover).[`remove`](#remove-1)
 
-##### signedDownloadUrl() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L111)
+##### signedDownloadUrl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L111" target="_blank" rel="noopener">source</a>
 
 `signedDownloadUrl(name, options?): Promise<SignedDownloadUrl>`
 
@@ -239,7 +239,7 @@ any additional auth.
 
 [`SignedDownloader`](#signeddownloader).[`signedDownloadUrl`](#signeddownloadurl-1)
 
-##### signedUploadUrl() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L98)
+##### signedUploadUrl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L98" target="_blank" rel="noopener">source</a>
 
 `signedUploadUrl(name, options?): Promise<SignedUploadUrl>`
 
@@ -266,7 +266,7 @@ without any additional auth.
 
 [`SignedUploader`](#signeduploader).[`signedUploadUrl`](#signeduploadurl-1)
 
-##### upload() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L85)
+##### upload() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L85" target="_blank" rel="noopener">source</a>
 
 ```ts
 upload(
@@ -299,7 +299,7 @@ Uploads an object to the bucket.
 
 [`Uploader`](#uploader).[`upload`](#upload-1)
 
-##### named() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L43)
+##### named() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L43" target="_blank" rel="noopener">source</a>
 
 `static named<name>(name): Bucket`
 
@@ -327,7 +327,7 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 <!-- symbol-end -->
 
 <!-- symbol-start: ObjectNotFound -->
-### ObjectNotFound [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L22)
+### ObjectNotFound <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L22" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -335,7 +335,7 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 #### Constructors
 
-##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L23)
+##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L23" target="_blank" rel="noopener">source</a>
 
 `new ObjectNotFound(msg): ObjectNotFound`
 
@@ -358,7 +358,7 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 <!-- symbol-end -->
 
 <!-- symbol-start: ObjectsError -->
-### ObjectsError [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L3)
+### ObjectsError <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L3" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -371,7 +371,7 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 #### Constructors
 
-##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L4)
+##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L4" target="_blank" rel="noopener">source</a>
 
 `new ObjectsError(msg): ObjectsError`
 
@@ -394,7 +394,7 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 <!-- symbol-end -->
 
 <!-- symbol-start: PreconditionFailed -->
-### PreconditionFailed [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L41)
+### PreconditionFailed <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L41" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -402,7 +402,7 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 #### Constructors
 
-##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L42)
+##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/error.ts#L42" target="_blank" rel="noopener">source</a>
 
 `new PreconditionFailed(msg): PreconditionFailed`
 
@@ -425,7 +425,7 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 ## Interfaces
 
 <!-- symbol-start: Attrser -->
-### Attrser [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L24)
+### Attrser <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L24" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -433,7 +433,7 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 #### Methods
 
-##### attrs() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L25)
+##### attrs() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L25" target="_blank" rel="noopener">source</a>
 
 `abstract attrs(name, options?): Promise<ObjectAttrs>`
 
@@ -451,7 +451,7 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 
 `Promise`\<[`ObjectAttrs`](#objectattrs)\>
 
-##### exists() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L26)
+##### exists() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L26" target="_blank" rel="noopener">source</a>
 
 `abstract exists(name, options?): Promise<boolean>`
 
@@ -474,7 +474,7 @@ To create a new storage bucket, use `new StorageBucket(...)` instead.
 <!-- symbol-end -->
 
 <!-- symbol-start: AttrsOptions -->
-### AttrsOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L172)
+### AttrsOptions <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L172" target="_blank" rel="noopener">source</a>
 
 Options for retrieving the attributes of an object.
 
@@ -494,7 +494,7 @@ If bucket versioning is not enabled, this option is ignored.
 <!-- symbol-end -->
 
 <!-- symbol-start: BucketConfig -->
-### BucketConfig [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L10)
+### BucketConfig <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L10" target="_blank" rel="noopener">source</a>
 
 Configuration options for declaring a Bucket.
 
@@ -519,7 +519,7 @@ Defaults to false if unset.
 <!-- symbol-end -->
 
 <!-- symbol-start: BucketPerms -->
-### BucketPerms [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L4)
+### BucketPerms <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L4" target="_blank" rel="noopener">source</a>
 
 #### Extended by
 
@@ -538,7 +538,7 @@ Defaults to false if unset.
 <!-- symbol-end -->
 
 <!-- symbol-start: DeleteOptions -->
-### DeleteOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L198)
+### DeleteOptions <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L198" target="_blank" rel="noopener">source</a>
 
 Options for deleting an object from a bucket.
 
@@ -558,7 +558,7 @@ If bucket versioning is not enabled, this option is ignored.
 <!-- symbol-end -->
 
 <!-- symbol-start: Downloader -->
-### Downloader [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L16)
+### Downloader <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L16" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -566,7 +566,7 @@ If bucket versioning is not enabled, this option is ignored.
 
 #### Methods
 
-##### download() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L17)
+##### download() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L17" target="_blank" rel="noopener">source</a>
 
 `abstract download(name, options?): Promise<Buffer>`
 
@@ -589,7 +589,7 @@ If bucket versioning is not enabled, this option is ignored.
 <!-- symbol-end -->
 
 <!-- symbol-start: DownloadOptions -->
-### DownloadOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L211)
+### DownloadOptions <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L211" target="_blank" rel="noopener">source</a>
 
 Options for downloading an object from a bucket.
 
@@ -609,7 +609,7 @@ If bucket versioning is not enabled, this option is ignored.
 <!-- symbol-end -->
 
 <!-- symbol-start: DownloadUrlOptions -->
-### DownloadUrlOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L272)
+### DownloadUrlOptions <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L272" target="_blank" rel="noopener">source</a>
 
 Options for generating a signed download URL.
 
@@ -628,7 +628,7 @@ used.
 <!-- symbol-end -->
 
 <!-- symbol-start: ExistsOptions -->
-### ExistsOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L185)
+### ExistsOptions <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L185" target="_blank" rel="noopener">source</a>
 
 Options for checking the existence of an object.
 
@@ -648,7 +648,7 @@ If bucket versioning is not enabled, this option is ignored.
 <!-- symbol-end -->
 
 <!-- symbol-start: ListEntry -->
-### ListEntry [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L236)
+### ListEntry <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L236" target="_blank" rel="noopener">source</a>
 
 A single entry returned when listing objects in a bucket.
 
@@ -671,7 +671,7 @@ A single entry returned when listing objects in a bucket.
 <!-- symbol-end -->
 
 <!-- symbol-start: Lister -->
-### Lister [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L29)
+### Lister <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L29" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -679,7 +679,7 @@ A single entry returned when listing objects in a bucket.
 
 #### Methods
 
-##### list() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L30)
+##### list() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L30" target="_blank" rel="noopener">source</a>
 
 `abstract list(options): AsyncGenerator<ListEntry>`
 
@@ -698,7 +698,7 @@ A single entry returned when listing objects in a bucket.
 <!-- symbol-end -->
 
 <!-- symbol-start: ListOptions -->
-### ListOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L158)
+### ListOptions <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L158" target="_blank" rel="noopener">source</a>
 
 Options for listing objects in a bucket.
 
@@ -722,7 +722,7 @@ If unset, all objects are included.
 <!-- symbol-end -->
 
 <!-- symbol-start: ObjectAttrs -->
-### ObjectAttrs [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L224)
+### ObjectAttrs <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L224" target="_blank" rel="noopener">source</a>
 
 Describes the attributes of an object stored in a bucket.
 
@@ -755,7 +755,7 @@ The version of the object, if bucket versioning is enabled.
 <!-- symbol-end -->
 
 <!-- symbol-start: PublicUrler -->
-### PublicUrler [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L37)
+### PublicUrler <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L37" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -763,7 +763,7 @@ The version of the object, if bucket versioning is enabled.
 
 #### Methods
 
-##### publicUrl() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L38)
+##### publicUrl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L38" target="_blank" rel="noopener">source</a>
 
 `abstract publicUrl(name): string`
 
@@ -782,7 +782,7 @@ The version of the object, if bucket versioning is enabled.
 <!-- symbol-end -->
 
 <!-- symbol-start: Remover -->
-### Remover [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L33)
+### Remover <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L33" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -790,7 +790,7 @@ The version of the object, if bucket versioning is enabled.
 
 #### Methods
 
-##### remove() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L34)
+##### remove() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L34" target="_blank" rel="noopener">source</a>
 
 `abstract remove(name, options?): Promise<void>`
 
@@ -813,7 +813,7 @@ The version of the object, if bucket versioning is enabled.
 <!-- symbol-end -->
 
 <!-- symbol-start: SignedDownloader -->
-### SignedDownloader [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L20)
+### SignedDownloader <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L20" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -821,7 +821,7 @@ The version of the object, if bucket versioning is enabled.
 
 #### Methods
 
-##### signedDownloadUrl() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L21)
+##### signedDownloadUrl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L21" target="_blank" rel="noopener">source</a>
 
 `abstract signedDownloadUrl(name, options?): Promise<SignedDownloadUrl>`
 
@@ -844,7 +844,7 @@ The version of the object, if bucket versioning is enabled.
 <!-- symbol-end -->
 
 <!-- symbol-start: SignedDownloadUrl -->
-### SignedDownloadUrl [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L282)
+### SignedDownloadUrl <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L282" target="_blank" rel="noopener">source</a>
 
 A signed URL that allows downloading an object without additional auth.
 
@@ -859,7 +859,7 @@ A signed URL that allows downloading an object without additional auth.
 <!-- symbol-end -->
 
 <!-- symbol-start: SignedUploader -->
-### SignedUploader [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L12)
+### SignedUploader <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L12" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -867,7 +867,7 @@ A signed URL that allows downloading an object without additional auth.
 
 #### Methods
 
-##### signedUploadUrl() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L13)
+##### signedUploadUrl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L13" target="_blank" rel="noopener">source</a>
 
 `abstract signedUploadUrl(name, options?): Promise<SignedUploadUrl>`
 
@@ -890,7 +890,7 @@ A signed URL that allows downloading an object without additional auth.
 <!-- symbol-end -->
 
 <!-- symbol-start: SignedUploadUrl -->
-### SignedUploadUrl [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L265)
+### SignedUploadUrl <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L265" target="_blank" rel="noopener">source</a>
 
 A signed URL that allows uploading an object without additional auth.
 
@@ -905,7 +905,7 @@ A signed URL that allows uploading an object without additional auth.
 <!-- symbol-end -->
 
 <!-- symbol-start: Uploader -->
-### Uploader [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L8)
+### Uploader <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L8" target="_blank" rel="noopener">source</a>
 
 #### Extends
 
@@ -913,7 +913,7 @@ A signed URL that allows uploading an object without additional auth.
 
 #### Methods
 
-##### upload() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L9)
+##### upload() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L9" target="_blank" rel="noopener">source</a>
 
 ```ts
 abstract upload(
@@ -945,7 +945,7 @@ options?): Promise<ObjectAttrs>;
 <!-- symbol-end -->
 
 <!-- symbol-start: UploadOptions -->
-### UploadOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L245)
+### UploadOptions <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L245" target="_blank" rel="noopener">source</a>
 
 Options for uploading an object to a bucket.
 
@@ -972,7 +972,7 @@ optional preconditions?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: UploadUrlOptions -->
-### UploadUrlOptions [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L255)
+### UploadUrlOptions <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/bucket.ts#L255" target="_blank" rel="noopener">source</a>
 
 Options for generating a signed upload URL.
 
@@ -991,7 +991,7 @@ used.
 ## Type Aliases
 
 <!-- symbol-start: ReadWriter -->
-### ReadWriter [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L41)
+### ReadWriter <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/objects/refs.ts#L41" target="_blank" rel="noopener">source</a>
 
 `type ReadWriter = Uploader & SignedUploader & Downloader & SignedDownloader & Attrser & Lister & Remover`
 

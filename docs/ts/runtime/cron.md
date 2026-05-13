@@ -7,11 +7,11 @@ toc: true
 ## Classes
 
 <!-- symbol-start: CronJob -->
-### CronJob [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L5)
+### CronJob <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L5" target="_blank" rel="noopener">source</a>
 
 #### Constructors
 
-##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L8)
+##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L8" target="_blank" rel="noopener">source</a>
 
 `new CronJob(name, cfg): CronJob`
 
@@ -44,7 +44,7 @@ toc: true
 ## Type Aliases
 
 <!-- symbol-start: CronJobConfig -->
-### CronJobConfig [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L14)
+### CronJobConfig <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L14" target="_blank" rel="noopener">source</a>
 
 ```ts
 type CronJobConfig = {

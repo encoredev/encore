@@ -7,7 +7,7 @@ toc: true
 ## Interfaces
 
 <!-- symbol-start: Secret() -->
-### Secret() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L18)
+### Secret() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L18" target="_blank" rel="noopener">source</a>
 
 Secret represents a single secret value that is loaded
 into the application. It is strongly typed for that secret,
@@ -56,7 +56,7 @@ The name of the secret.
 ## Type Aliases
 
 <!-- symbol-start: AnySecret -->
-### AnySecret [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L39)
+### AnySecret <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L39" target="_blank" rel="noopener">source</a>
 
 `type AnySecret = Secret<string>`
 
@@ -68,7 +68,7 @@ without knowing its name.
 ## Functions
 
 <!-- symbol-start: secret() -->
-### secret() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L50)
+### secret() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/config/secrets.ts#L50" target="_blank" rel="noopener">source</a>
 
 `function secret<Name>(name): Secret<Name>`
 

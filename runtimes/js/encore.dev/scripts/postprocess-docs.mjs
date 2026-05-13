@@ -134,7 +134,11 @@ for (const file of finalFiles) {
           /\(\)$/.test(headingText) ||
           headingText === "Constructor";
         if (keep && lastHeadingIndex >= 0) {
-          filtered[lastHeadingIndex] += " " + lines[i + 1];
+          const url = lines[i + 1].match(/\[source\]\(([^)]+)\)/)?.[1];
+          if (url) {
+            filtered[lastHeadingIndex] +=
+              ` <a class="symbol-source" href="${url}" target="_blank" rel="noopener">source</a>`;
+          }
         }
         i += 2;
         if (lines[i] === "") i++;

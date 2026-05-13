@@ -7,7 +7,7 @@ toc: true
 ## Classes
 
 <!-- symbol-start: Decimal -->
-### Decimal [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L23)
+### Decimal <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L23" target="_blank" rel="noopener">source</a>
 
 A decimal type that can hold values with arbitrary precision.
 Unlike JavaScript's native number type, this can accurately represent
@@ -15,7 +15,7 @@ decimal values without floating-point precision errors.
 
 #### Constructors
 
-##### Constructor [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L26)
+##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L26" target="_blank" rel="noopener">source</a>
 
 `new Decimal(value): Decimal`
 
@@ -43,7 +43,7 @@ decimal values without floating-point precision errors.
 
 #### Methods
 
-##### \[toPrimitive\]() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L81)
+##### \[toPrimitive\]() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L81" target="_blank" rel="noopener">source</a>
 
 `toPrimitive: string | number`
 
@@ -57,7 +57,7 @@ decimal values without floating-point precision errors.
 
 `string` \| `number`
 
-##### add() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L45)
+##### add() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L45" target="_blank" rel="noopener">source</a>
 
 `add(d): Decimal`
 
@@ -73,7 +73,7 @@ Adds this decimal to another decimal value.
 
 [`Decimal`](#decimal)
 
-##### div() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L66)
+##### div() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L66" target="_blank" rel="noopener">source</a>
 
 `div(d): Decimal`
 
@@ -89,7 +89,7 @@ Divides this decimal by another decimal value.
 
 [`Decimal`](#decimal)
 
-##### mul() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L59)
+##### mul() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L59" target="_blank" rel="noopener">source</a>
 
 `mul(d): Decimal`
 
@@ -105,7 +105,7 @@ Multiplies this decimal by another decimal value.
 
 [`Decimal`](#decimal)
 
-##### sub() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L52)
+##### sub() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L52" target="_blank" rel="noopener">source</a>
 
 `sub(d): Decimal`
 
@@ -121,7 +121,7 @@ Subtracts another decimal value from this decimal.
 
 [`Decimal`](#decimal)
 
-##### toJSON() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L74)
+##### toJSON() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L74" target="_blank" rel="noopener">source</a>
 
 `toJSON(): string`
 
@@ -129,7 +129,7 @@ Subtracts another decimal value from this decimal.
 
 `string`
 
-##### toString() [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L77)
+##### toString() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L77" target="_blank" rel="noopener">source</a>
 
 `toString(): string`
 
@@ -142,7 +142,7 @@ Subtracts another decimal value from this decimal.
 ## Type Aliases
 
 <!-- symbol-start: DurationString -->
-### DurationString [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L11)
+### DurationString <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L11" target="_blank" rel="noopener">source</a>
 
 ```ts
 type DurationString = 
@@ -160,7 +160,7 @@ Examples: `"10s"`, `"500ms"`, `"5m"`, `"1h30m"`, `"1h 30m"`.
 <!-- symbol-end -->
 
 <!-- symbol-start: ToDecimal -->
-### ToDecimal [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L16)
+### ToDecimal <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L16" target="_blank" rel="noopener">source</a>
 
 `type ToDecimal = string | number | bigint`
 

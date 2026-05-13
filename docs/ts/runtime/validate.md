@@ -7,7 +7,7 @@ toc: true
 ## Type Aliases
 
 <!-- symbol-start: EndsWith -->
-### EndsWith [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L39)
+### EndsWith <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L39" target="_blank" rel="noopener">source</a>
 
 ```ts
 type EndsWith<S> = {
@@ -42,7 +42,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: IsEmail -->
-### IsEmail [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L45)
+### IsEmail <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L45" target="_blank" rel="noopener">source</a>
 
 ```ts
 type IsEmail = {
@@ -71,7 +71,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: IsURL -->
-### IsURL [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L51)
+### IsURL <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L51" target="_blank" rel="noopener">source</a>
 
 ```ts
 type IsURL = {
@@ -100,7 +100,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: MatchesRegexp -->
-### MatchesRegexp [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L27)
+### MatchesRegexp <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L27" target="_blank" rel="noopener">source</a>
 
 ```ts
 type MatchesRegexp<S> = {
@@ -135,7 +135,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: Max -->
-### Max [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L9)
+### Max <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L9" target="_blank" rel="noopener">source</a>
 
 ```ts
 type Max<N> = {
@@ -170,7 +170,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: MaxLen -->
-### MaxLen [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L21)
+### MaxLen <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L21" target="_blank" rel="noopener">source</a>
 
 ```ts
 type MaxLen<N> = {
@@ -205,7 +205,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: Min -->
-### Min [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L3)
+### Min <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L3" target="_blank" rel="noopener">source</a>
 
 ```ts
 type Min<N> = {
@@ -240,7 +240,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: MinLen -->
-### MinLen [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L15)
+### MinLen <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L15" target="_blank" rel="noopener">source</a>
 
 ```ts
 type MinLen<N> = {
@@ -275,7 +275,7 @@ optional [___validate]?: {
 <!-- symbol-end -->
 
 <!-- symbol-start: StartsWith -->
-### StartsWith [source](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L33)
+### StartsWith <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L33" target="_blank" rel="noopener">source</a>
 
 ```ts
 type StartsWith<S> = {
