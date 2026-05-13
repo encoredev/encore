@@ -10,11 +10,9 @@ toc: true
 
 ### AuthHandler
 
-```ts
-type AuthHandler<Params, AuthData> = (params) => Promise<AuthData | null> & AuthHandlerBrand;
-```
+`type AuthHandler<Params, AuthData> = (params) => Promise<AuthData | null> & AuthHandlerBrand;`
 
-Defined in: [auth/mod.ts:1](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L1)
+<!-- source: auth/mod.ts:1 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L1 -->
 
 #### Type Parameters
 
@@ -38,27 +36,23 @@ type AuthHandlerBrand = {
 };
 ```
 
-Defined in: [auth/mod.ts:6](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L6)
+<!-- source: auth/mod.ts:6 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L6 -->
 
 #### Properties
 
 ##### \_\_authHandlerBrand
 
-```ts
-readonly __authHandlerBrand: unique symbol;
-```
+`readonly __authHandlerBrand: unique symbol;`
 
-Defined in: [auth/mod.ts:6](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L6)
+<!-- source: auth/mod.ts:6 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L6 -->
 
 ## Functions
 
 ### authHandler()
 
-```ts
-function authHandler<Params, AuthData>(fn): AuthHandler<Params, AuthData>;
-```
+`function authHandler<Params, AuthData>(fn): AuthHandler<Params, AuthData>;`
 
-Defined in: [auth/mod.ts:8](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L8)
+<!-- source: auth/mod.ts:8 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/auth/mod.ts#L8 -->
 
 #### Type Parameters
 

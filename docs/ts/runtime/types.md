@@ -10,7 +10,7 @@ toc: true
 
 ### Decimal
 
-Defined in: [types/mod.ts:10](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L10)
+<!-- source: types/mod.ts:10 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L10 -->
 
 A decimal type that can hold values with arbitrary precision.
 Unlike JavaScript's native number type, this can accurately represent
@@ -20,11 +20,9 @@ decimal values without floating-point precision errors.
 
 ##### Constructor
 
-```ts
-new Decimal(value): Decimal;
-```
+`new Decimal(value): Decimal;`
 
-Defined in: [types/mod.ts:13](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L13)
+<!-- source: types/mod.ts:13 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L13 -->
 
 ###### Parameters
 
@@ -42,11 +40,9 @@ Defined in: [types/mod.ts:13](https://github.com/encoredev/encore/blob/main/runt
 
 ###### Get Signature
 
-```ts
-get value(): string;
-```
+`get value(): string;`
 
-Defined in: [types/mod.ts:57](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L57)
+<!-- source: types/mod.ts:57 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L57 -->
 
 ###### Returns
 
@@ -56,11 +52,9 @@ Defined in: [types/mod.ts:57](https://github.com/encoredev/encore/blob/main/runt
 
 ##### \[toPrimitive\]()
 
-```ts
-toPrimitive: string | number;
-```
+`toPrimitive: string | number;`
 
-Defined in: [types/mod.ts:68](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L68)
+<!-- source: types/mod.ts:68 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L68 -->
 
 ###### Parameters
 
@@ -74,11 +68,9 @@ Defined in: [types/mod.ts:68](https://github.com/encoredev/encore/blob/main/runt
 
 ##### add()
 
-```ts
-add(d): Decimal;
-```
+`add(d): Decimal;`
 
-Defined in: [types/mod.ts:32](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L32)
+<!-- source: types/mod.ts:32 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L32 -->
 
 Adds this decimal to another decimal value.
 
@@ -94,11 +86,9 @@ Adds this decimal to another decimal value.
 
 ##### div()
 
-```ts
-div(d): Decimal;
-```
+`div(d): Decimal;`
 
-Defined in: [types/mod.ts:53](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L53)
+<!-- source: types/mod.ts:53 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L53 -->
 
 Divides this decimal by another decimal value.
 
@@ -114,11 +104,9 @@ Divides this decimal by another decimal value.
 
 ##### mul()
 
-```ts
-mul(d): Decimal;
-```
+`mul(d): Decimal;`
 
-Defined in: [types/mod.ts:46](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L46)
+<!-- source: types/mod.ts:46 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L46 -->
 
 Multiplies this decimal by another decimal value.
 
@@ -134,11 +122,9 @@ Multiplies this decimal by another decimal value.
 
 ##### sub()
 
-```ts
-sub(d): Decimal;
-```
+`sub(d): Decimal;`
 
-Defined in: [types/mod.ts:39](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L39)
+<!-- source: types/mod.ts:39 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L39 -->
 
 Subtracts another decimal value from this decimal.
 
@@ -154,11 +140,9 @@ Subtracts another decimal value from this decimal.
 
 ##### toJSON()
 
-```ts
-toJSON(): string;
-```
+`toJSON(): string;`
 
-Defined in: [types/mod.ts:61](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L61)
+<!-- source: types/mod.ts:61 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L61 -->
 
 ###### Returns
 
@@ -166,11 +150,9 @@ Defined in: [types/mod.ts:61](https://github.com/encoredev/encore/blob/main/runt
 
 ##### toString()
 
-```ts
-toString(): string;
-```
+`toString(): string;`
 
-Defined in: [types/mod.ts:64](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L64)
+<!-- source: types/mod.ts:64 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L64 -->
 
 ###### Returns
 
@@ -180,8 +162,6 @@ Defined in: [types/mod.ts:64](https://github.com/encoredev/encore/blob/main/runt
 
 ### ToDecimal
 
-```ts
-type ToDecimal = string | number | bigint;
-```
+`type ToDecimal = string | number | bigint;`
 
-Defined in: [types/mod.ts:3](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L3)
+<!-- source: types/mod.ts:3 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/types/mod.ts#L3 -->

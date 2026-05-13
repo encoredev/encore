@@ -71,6 +71,16 @@ for (const file of finalFiles) {
     return `(/ts/runtime/${p}${hash ?? ""})`;
   });
 
+  content = content.replace(
+    /^Defined in: \[([^\]]+)\]\(([^)]+)\)$/gm,
+    "<!-- source: $1 url=$2 -->"
+  );
+
+  content = content.replace(
+    /```(?:ts|typescript)\n([^\n]+)\n```/g,
+    (_, code) => `\`${code}\``
+  );
+
   const title = TITLES[file];
   if (title) {
     if (content.startsWith("---\n")) {

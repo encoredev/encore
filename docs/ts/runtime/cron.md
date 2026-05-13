@@ -10,17 +10,15 @@ toc: true
 
 ### CronJob
 
-Defined in: [cron/mod.ts:5](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L5)
+<!-- source: cron/mod.ts:5 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L5 -->
 
 #### Constructors
 
 ##### Constructor
 
-```ts
-new CronJob(name, cfg): CronJob;
-```
+`new CronJob(name, cfg): CronJob;`
 
-Defined in: [cron/mod.ts:8](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L8)
+<!-- source: cron/mod.ts:8 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L8 -->
 
 ###### Parameters
 
@@ -40,19 +38,15 @@ Defined in: [cron/mod.ts:8](https://github.com/encoredev/encore/blob/main/runtim
 
 ##### cfg
 
-```ts
-readonly cfg: CronJobConfig;
-```
+`readonly cfg: CronJobConfig;`
 
-Defined in: [cron/mod.ts:7](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L7)
+<!-- source: cron/mod.ts:7 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L7 -->
 
 ##### name
 
-```ts
-readonly name: string;
-```
+`readonly name: string;`
 
-Defined in: [cron/mod.ts:6](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L6)
+<!-- source: cron/mod.ts:6 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L6 -->
 
 ## Type Aliases
 
@@ -71,15 +65,13 @@ type CronJobConfig = {
 };
 ```
 
-Defined in: [cron/mod.ts:14](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L14)
+<!-- source: cron/mod.ts:14 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/cron/mod.ts#L14 -->
 
 #### Type Declaration
 
 ##### endpoint
 
-```ts
-endpoint: () => Promise<unknown>;
-```
+`endpoint: () => Promise<unknown>;`
 
 ###### Returns
 
@@ -87,6 +79,4 @@ endpoint: () => Promise<unknown>;
 
 ##### title?
 
-```ts
-optional title?: string;
-```
+`optional title?: string;`

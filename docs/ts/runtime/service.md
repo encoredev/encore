@@ -10,7 +10,7 @@ toc: true
 
 ### Service
 
-Defined in: [service/mod.ts:12](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L12)
+<!-- source: service/mod.ts:12 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L12 -->
 
 Defines an Encore backend service.
 
@@ -24,11 +24,9 @@ efficiently identify possible service definitions.
 
 ##### Constructor
 
-```ts
-new Service(name, cfg?): Service;
-```
+`new Service(name, cfg?): Service;`
 
-Defined in: [service/mod.ts:16](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L16)
+<!-- source: service/mod.ts:16 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L16 -->
 
 ###### Parameters
 
@@ -48,32 +46,26 @@ Defined in: [service/mod.ts:16](https://github.com/encoredev/encore/blob/main/ru
 
 ##### cfg
 
-```ts
-readonly cfg: ServiceConfig;
-```
+`readonly cfg: ServiceConfig;`
 
-Defined in: [service/mod.ts:14](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L14)
+<!-- source: service/mod.ts:14 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L14 -->
 
 ##### name
 
-```ts
-readonly name: string;
-```
+`readonly name: string;`
 
-Defined in: [service/mod.ts:13](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L13)
+<!-- source: service/mod.ts:13 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L13 -->
 
 ## Interfaces
 
 ### ServiceConfig
 
-Defined in: [service/mod.ts:22](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L22)
+<!-- source: service/mod.ts:22 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L22 -->
 
 #### Properties
 
 ##### middlewares?
 
-```ts
-optional middlewares?: Middleware[];
-```
+`optional middlewares?: Middleware[];`
 
-Defined in: [service/mod.ts:23](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L23)
+<!-- source: service/mod.ts:23 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/service/mod.ts#L23 -->

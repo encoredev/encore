@@ -18,7 +18,7 @@ type EndsWith<S> = {
 };
 ```
 
-Defined in: [validate/mod.ts:39](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L39)
+<!-- source: validate/mod.ts:39 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L39 -->
 
 #### Type Parameters
 
@@ -36,13 +36,11 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:40](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L40)
+<!-- source: validate/mod.ts:40 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L40 -->
 
 ###### endsWith
 
-```ts
-endsWith: S;
-```
+`endsWith: S;`
 
 ***
 
@@ -56,7 +54,7 @@ type IsEmail = {
 };
 ```
 
-Defined in: [validate/mod.ts:45](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L45)
+<!-- source: validate/mod.ts:45 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L45 -->
 
 #### Properties
 
@@ -68,13 +66,11 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:46](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L46)
+<!-- source: validate/mod.ts:46 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L46 -->
 
 ###### isEmail
 
-```ts
-isEmail: true;
-```
+`isEmail: true;`
 
 ***
 
@@ -88,7 +84,7 @@ type IsURL = {
 };
 ```
 
-Defined in: [validate/mod.ts:51](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L51)
+<!-- source: validate/mod.ts:51 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L51 -->
 
 #### Properties
 
@@ -100,13 +96,11 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:52](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L52)
+<!-- source: validate/mod.ts:52 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L52 -->
 
 ###### isURL
 
-```ts
-isURL: true;
-```
+`isURL: true;`
 
 ***
 
@@ -120,7 +114,7 @@ type MatchesRegexp<S> = {
 };
 ```
 
-Defined in: [validate/mod.ts:27](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L27)
+<!-- source: validate/mod.ts:27 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L27 -->
 
 #### Type Parameters
 
@@ -138,13 +132,11 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:28](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L28)
+<!-- source: validate/mod.ts:28 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L28 -->
 
 ###### matchesRegexp
 
-```ts
-matchesRegexp: S;
-```
+`matchesRegexp: S;`
 
 ***
 
@@ -158,7 +150,7 @@ type Max<N> = {
 };
 ```
 
-Defined in: [validate/mod.ts:9](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L9)
+<!-- source: validate/mod.ts:9 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L9 -->
 
 #### Type Parameters
 
@@ -176,13 +168,11 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:10](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L10)
+<!-- source: validate/mod.ts:10 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L10 -->
 
 ###### maxValue
 
-```ts
-maxValue: N;
-```
+`maxValue: N;`
 
 ***
 
@@ -196,7 +186,7 @@ type MaxLen<N> = {
 };
 ```
 
-Defined in: [validate/mod.ts:21](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L21)
+<!-- source: validate/mod.ts:21 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L21 -->
 
 #### Type Parameters
 
@@ -214,13 +204,11 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:22](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L22)
+<!-- source: validate/mod.ts:22 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L22 -->
 
 ###### maxLen
 
-```ts
-maxLen: N;
-```
+`maxLen: N;`
 
 ***
 
@@ -234,7 +222,7 @@ type Min<N> = {
 };
 ```
 
-Defined in: [validate/mod.ts:3](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L3)
+<!-- source: validate/mod.ts:3 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L3 -->
 
 #### Type Parameters
 
@@ -252,13 +240,11 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:4](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L4)
+<!-- source: validate/mod.ts:4 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L4 -->
 
 ###### minValue
 
-```ts
-minValue: N;
-```
+`minValue: N;`
 
 ***
 
@@ -272,7 +258,7 @@ type MinLen<N> = {
 };
 ```
 
-Defined in: [validate/mod.ts:15](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L15)
+<!-- source: validate/mod.ts:15 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L15 -->
 
 #### Type Parameters
 
@@ -290,13 +276,11 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:16](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L16)
+<!-- source: validate/mod.ts:16 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L16 -->
 
 ###### minLen
 
-```ts
-minLen: N;
-```
+`minLen: N;`
 
 ***
 
@@ -310,7 +294,7 @@ type StartsWith<S> = {
 };
 ```
 
-Defined in: [validate/mod.ts:33](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L33)
+<!-- source: validate/mod.ts:33 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L33 -->
 
 #### Type Parameters
 
@@ -328,10 +312,8 @@ optional [___validate]?: {
 };
 ```
 
-Defined in: [validate/mod.ts:34](https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L34)
+<!-- source: validate/mod.ts:34 url=https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/validate/mod.ts#L34 -->
 
 ###### startsWith
 
-```ts
-startsWith: S;
-```
+`startsWith: S;`
