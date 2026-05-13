@@ -29,6 +29,65 @@ Encore Cloud provides a GCP Service Account for each Encore Cloud application, l
 
 GCP's permissions system is well-suited for scoping down Encore Cloud's access. While the simplest setup grants access at the organization level, permissions can also be scoped down to a single GCP project. This is useful when you want to isolate Encore Cloud's access to a specific project within your organization, for example a sandboxed prototyping environment. [Contact us](https://encore.dev/book) to discuss the best setup for your needs.
 
+### Required permissions
+
+When connecting a specific GCP project (instead of granting access at the organization level), the simplest approach is to grant the Encore Cloud service account the `roles/owner` (Owner) role on the project. This gives Encore Cloud full access to provision and manage all the infrastructure it needs.
+
+If you'd prefer to grant more narrowly scoped permissions, only grant the roles for the features your application actually uses. The following project-level roles are grouped by the feature they enable:
+
+#### IAM (always required)
+
+- `roles/resourcemanager.projectIamAdmin` — read/set project IAM policy
+- `roles/iam.serviceAccountAdmin` — create/update/delete service accounts
+- `roles/iam.roleAdmin` — create/patch/undelete the `encore_bucket_*` custom roles
+- `roles/iam.serviceAccountTokenCreator` — needed for Pub/Sub push-OIDC + workload identity flows
+- `roles/iam.serviceAccountUser` — needed to deploy Cloud Run services with a custom service account
+
+#### Service usage (always required)
+
+- `roles/serviceusage.serviceUsageAdmin` — enables the required `.googleapis.com` APIs
+
+#### Cloud Run (required if deploying to Cloud Run)
+
+- `roles/run.admin` — create/replace/delete Cloud Run services and their IAM policy
+- `roles/vpcaccess.admin` — manage serverless VPC connectors
+
+#### GKE (required if deploying to GKE)
+
+- `roles/container.admin` — clusters, node pools, labels
+
+#### Networking (required for ingress, custom domains, and private connectivity)
+
+- `roles/compute.networkAdmin` — VPC, subnets, firewalls, peering, reserved IPs, PSC forwarding rules
+- `roles/compute.loadBalancerAdmin` (or the broader `roles/compute.admin`) — URL maps, target proxies, forwarding rules, backend buckets/services
+- `roles/servicenetworking.networksAdmin` — private services access for Cloud SQL / Redis
+- `roles/certificatemanager.editor` — certificates, cert maps and entries, DNS authorizations
+
+#### Databases (required if using SQL databases or caches)
+
+- `roles/cloudsql.admin` — instances, users, SSL certs 
+- `roles/redis.admin` — Memorystore instances 
+
+#### Storage (required if using Object Storage)
+
+- `roles/storage.admin` — buckets, CORS, lifecycle, IAM 
+
+#### Storage / Registry (always required)
+
+- `roles/artifactregistry.admin` — repositories for container images
+
+#### Messaging (required if using Pub/Sub topics)
+
+- `roles/pubsub.admin` — topics, subscriptions, and their IAM bindings
+
+#### Secrets (always required)
+
+- `roles/secretmanager.admin` — create/version/delete secrets and grant accessor
+
+#### Observability (always required)
+
+- `roles/monitoring.editor` — create/manage custom metric descriptors
+
 ### Setup
 
 To find your app's Service Account email and configure GCP deployments, head over to the Connect Cloud page by going to the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
