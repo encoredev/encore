@@ -827,7 +827,18 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                             .flat_map(|(topic_name, topic)| {
                                 topic.subscriptions.iter().map(|(sub_name, sub)| {
                                     PubSubSubscription {
-                                        rid: String::new(),
+                                        // The `rid` is used as the subscription_id key in the
+                                        // push registry HashMap (see gcp/push_sub.rs::Inner) and
+                                        // as the gateway's `/__encore/pubsub/push/:subscription_id`
+                                        // proxy lookup key (see lib.rs::proxied_push_subs).
+                                        // Without populating it from `push_config.id`, every
+                                        // push request returned 404 "no handler registered for
+                                        // push subscription".
+                                        rid: sub
+                                            .push_config
+                                            .as_ref()
+                                            .map(|pc| pc.id.clone())
+                                            .unwrap_or_default(),
                                         topic_encore_name: topic_name.clone(),
                                         subscription_encore_name: sub_name.clone(),
                                         topic_cloud_name: topic.name.clone(),
