@@ -1352,6 +1352,30 @@ pub fn intersect<'a: 'b, 'b>(
             expr: expr.clone(),
         })),
 
+        // Intersect two validated types: intersect inner types and combine validation exprs.
+        (Type::Validated(a), Type::Validated(b)) => {
+            let inner = intersect(ctx, Cow::Borrowed(&a.typ), Cow::Borrowed(&b.typ));
+            Cow::Owned(Type::Validated(Validated {
+                typ: Box::new(inner.into_owned()),
+                expr: a.expr.clone().and(b.expr.clone()),
+            }))
+        }
+        // Intersect a validated type with any other type: keep validation, intersect inner.
+        (Type::Validated(a), _) => {
+            let inner = intersect(ctx, Cow::Borrowed(&a.typ), b);
+            Cow::Owned(Type::Validated(Validated {
+                typ: Box::new(inner.into_owned()),
+                expr: a.expr.clone(),
+            }))
+        }
+        (_, Type::Validated(b)) => {
+            let inner = intersect(ctx, a, Cow::Borrowed(&b.typ));
+            Cow::Owned(Type::Validated(Validated {
+                typ: Box::new(inner.into_owned()),
+                expr: b.expr.clone(),
+            }))
+        }
+
         (Type::Generic(_), _) | (_, Type::Generic(_)) => {
             Cow::Owned(Type::Generic(Generic::Intersection(Intersection {
                 x: Box::new(a.into_owned()),
