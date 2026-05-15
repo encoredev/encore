@@ -4,15 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/algolia/algoliasearch-client-go/v3/algolia/opt"
 	"github.com/algolia/algoliasearch-client-go/v3/algolia/search"
 	"github.com/mark3labs/mcp-go/mcp"
-	"golang.org/x/net/html"
 )
 
 func (m *Manager) registerDocsTools() {
@@ -168,7 +167,7 @@ func (m *Manager) getDocs(ctx context.Context, request mcp.CallToolRequest) (*mc
 			path = "/" + path
 		}
 
-		url := "https://encore.dev" + path
+		url := "https://encore.dev" + strings.TrimSuffix(path, "/") + ".md"
 		content, err := fetchDocContent(ctx, url)
 		if err != nil {
 			docs[path] = map[string]interface{}{
@@ -200,16 +199,15 @@ func (m *Manager) getDocs(ctx context.Context, request mcp.CallToolRequest) (*mc
 	return mcp.NewToolResultText(string(jsonData)), nil
 }
 
-// fetchDocContent fetches content from a URL and returns only the text content from the <main> tag
+// fetchDocContent fetches the markdown content from a documentation URL.
 func fetchDocContent(ctx context.Context, url string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Add appropriate headers to mimic a browser request
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	req.Header.Set("User-Agent", "encore-mcp")
+	req.Header.Set("Accept", "text/markdown, text/plain;q=0.9, */*;q=0.5")
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -225,96 +223,10 @@ func fetchDocContent(ctx context.Context, url string) (string, error) {
 		return "", fmt.Errorf("received non-OK status code: %d", resp.StatusCode)
 	}
 
-	// Parse the HTML document
-	doc, err := html.Parse(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse HTML: %w", err)
+		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	// Find the main tag
-	mainNode := findMainElement(doc)
-	if mainNode == nil {
-		return "", fmt.Errorf("no <main> tag found in the document")
-	}
-
-	// Extract text content from the main tag
-	var textContent strings.Builder
-	extractText(mainNode, &textContent)
-
-	// Clean up the text content
-	cleanedText := cleanText(textContent.String())
-
-	return cleanedText, nil
-}
-
-// findMainElement finds the <main> element in the HTML document
-func findMainElement(n *html.Node) *html.Node {
-	if n.Type == html.ElementNode && strings.ToLower(n.Data) == "main" {
-		return n
-	}
-
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if result := findMainElement(c); result != nil {
-			return result
-		}
-	}
-
-	return nil
-}
-
-// extractText recursively extracts text nodes from an HTML node
-func extractText(n *html.Node, sb *strings.Builder) {
-	// Skip script, style, and non-visible elements
-	if n.Type == html.ElementNode {
-		nodeName := strings.ToLower(n.Data)
-		if nodeName == "script" || nodeName == "style" || nodeName == "noscript" ||
-			nodeName == "meta" || nodeName == "link" || nodeName == "iframe" {
-			return
-		}
-	}
-
-	// Process text nodes
-	if n.Type == html.TextNode {
-		text := strings.TrimSpace(n.Data)
-		if text != "" {
-			sb.WriteString(text)
-			sb.WriteString(" ")
-		}
-	}
-
-	// Recursively process all child nodes
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		extractText(c, sb)
-	}
-
-	// Add line breaks for certain block elements
-	if n.Type == html.ElementNode {
-		nodeName := strings.ToLower(n.Data)
-		if nodeName == "p" || nodeName == "div" || nodeName == "h1" ||
-			nodeName == "h2" || nodeName == "h3" || nodeName == "h4" ||
-			nodeName == "h5" || nodeName == "h6" || nodeName == "li" ||
-			nodeName == "br" || nodeName == "tr" {
-			sb.WriteString("\n")
-		}
-
-		// Add extra line break for more significant sections
-		if nodeName == "section" || nodeName == "article" ||
-			nodeName == "header" || nodeName == "footer" {
-			sb.WriteString("\n\n")
-		}
-	}
-}
-
-// cleanText removes excessive whitespace and normalizes line breaks
-func cleanText(text string) string {
-	// Replace multiple spaces with a single space
-	text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
-
-	// Replace multiple newlines with a maximum of two
-	text = regexp.MustCompile(`\n{3,}`).ReplaceAllString(text, "\n\n")
-
-	// Trim leading/trailing whitespace
-	text = strings.TrimSpace(text)
-
-	return text
+	return string(body), nil
 }
