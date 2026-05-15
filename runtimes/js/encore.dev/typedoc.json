@@ -44,7 +44,7 @@
   "gitRevision": "main",
   "outputFileStrategy": "modules",
   "flattenOutputFiles": true,
-  "fileExtension": ".md",
+  "fileExtension": ".mdx",
   "entryFileName": "index",
   "hideBreadcrumbs": true,
   "hidePageHeader": true,

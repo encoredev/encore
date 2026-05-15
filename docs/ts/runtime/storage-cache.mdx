@@ -7,7 +7,7 @@ toc: true
 ## Classes
 
 <!-- symbol-start: CacheCluster -->
-### CacheCluster <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L43" target="_blank" rel="noopener">source</a>
+### CacheCluster <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L43" />
 
 CacheCluster represents a Redis cache cluster.
 
@@ -26,7 +26,7 @@ const myCache = new CacheCluster("my-cache", {
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L55" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L55" />
 
 `new CacheCluster(name, cfg?): CacheCluster`
 
@@ -52,7 +52,7 @@ Optional configuration for the cluster
 
 #### Methods
 
-##### named() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L64" target="_blank" rel="noopener">source</a>
+##### named() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L64" />
 
 `static named<Name>(name): CacheCluster`
 
@@ -80,7 +80,7 @@ To create a new cache cluster, use `new CacheCluster(...)` instead.
 <!-- symbol-end -->
 
 <!-- symbol-start: CacheError -->
-### CacheError <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L4" target="_blank" rel="noopener">source</a>
+### CacheError <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L4" />
 
 CacheError is the base class for all cache-related errors.
 
@@ -95,7 +95,7 @@ CacheError is the base class for all cache-related errors.
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L5" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L5" />
 
 `new CacheError(msg): CacheError`
 
@@ -118,7 +118,7 @@ CacheError is the base class for all cache-related errors.
 <!-- symbol-end -->
 
 <!-- symbol-start: CacheKeyExists -->
-### CacheKeyExists <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L49" target="_blank" rel="noopener">source</a>
+### CacheKeyExists <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L49" />
 
 CacheKeyExists is thrown when attempting to set a key that already exists
 using setIfNotExists.
@@ -129,7 +129,7 @@ using setIfNotExists.
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L50" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L50" />
 
 `new CacheKeyExists(key): CacheKeyExists`
 
@@ -152,7 +152,7 @@ using setIfNotExists.
 <!-- symbol-end -->
 
 <!-- symbol-start: CacheMiss -->
-### CacheMiss <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L26" target="_blank" rel="noopener">source</a>
+### CacheMiss <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L26" />
 
 CacheMiss is thrown when a cache key is not found.
 
@@ -162,7 +162,7 @@ CacheMiss is thrown when a cache key is not found.
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L27" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/errors.ts#L27" />
 
 `new CacheMiss(key): CacheMiss`
 
@@ -185,7 +185,7 @@ CacheMiss is thrown when a cache key is not found.
 <!-- symbol-end -->
 
 <!-- symbol-start: FloatKeyspace -->
-### FloatKeyspace <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L410" target="_blank" rel="noopener">source</a>
+### FloatKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L410" />
 
 FloatKeyspace stores 64-bit floating point values.
 
@@ -212,7 +212,7 @@ const newScore = await scores.increment("player1", 10.25);
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L411" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L411" />
 
 `new FloatKeyspace<K>(cluster, config): FloatKeyspace<K>`
 
@@ -272,7 +272,7 @@ const newScore = await scores.increment("player1", 10.25);
 
 #### Methods
 
-##### decrement() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L462" target="_blank" rel="noopener">source</a>
+##### decrement() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L462" />
 
 ```ts
 decrement(
@@ -317,7 +317,7 @@ The new value after decrementing.
 
 https://redis.io/commands/incrbyfloat/
 
-##### delete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" target="_blank" rel="noopener">source</a>
+##### delete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" />
 
 `delete(...keys): Promise<number>`
 
@@ -344,7 +344,7 @@ https://redis.io/commands/del/
 
 `BasicKeyspace.delete`
 
-##### deserialize() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L419" target="_blank" rel="noopener">source</a>
+##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L419" />
 
 `protected deserialize(data): number`
 
@@ -364,7 +364,7 @@ Deserializes a Buffer from storage to a value.
 
 `BasicKeyspace.deserialize`
 
-##### get() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33" target="_blank" rel="noopener">source</a>
+##### get() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33" />
 
 `get(key): Promise<number | undefined>`
 
@@ -391,7 +391,7 @@ https://redis.io/commands/get/
 
 `BasicKeyspace.get`
 
-##### getAndDelete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" target="_blank" rel="noopener">source</a>
+##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" />
 
 `getAndDelete(key): Promise<number | undefined>`
 
@@ -418,7 +418,7 @@ https://redis.io/commands/getdel/
 
 `BasicKeyspace.getAndDelete`
 
-##### getAndSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" target="_blank" rel="noopener">source</a>
+##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" />
 
 ```ts
 getAndSet(
@@ -458,7 +458,7 @@ https://redis.io/commands/getset/
 
 `BasicKeyspace.getAndSet`
 
-##### increment() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L437" target="_blank" rel="noopener">source</a>
+##### increment() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L437" />
 
 ```ts
 increment(
@@ -503,7 +503,7 @@ The new value after incrementing.
 
 https://redis.io/commands/incrbyfloat/
 
-##### mapKey() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" target="_blank" rel="noopener">source</a>
+##### mapKey() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" />
 
 `protected mapKey(key): string`
 
@@ -523,7 +523,7 @@ Maps a key to its Redis key string.
 
 `BasicKeyspace.mapKey`
 
-##### multiGet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52" target="_blank" rel="noopener">source</a>
+##### multiGet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52" />
 
 `multiGet(...keys): Promise<(number | undefined)[]>`
 
@@ -550,7 +550,7 @@ https://redis.io/commands/mget/
 
 `BasicKeyspace.multiGet`
 
-##### replace() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" target="_blank" rel="noopener">source</a>
+##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" />
 
 ```ts
 replace(
@@ -591,7 +591,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.replace`
 
-##### resolveTtl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" target="_blank" rel="noopener">source</a>
+##### resolveTtl() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" />
 
 `protected resolveTtl(options?): number | undefined`
 
@@ -612,7 +612,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `BasicKeyspace.resolveTtl`
 
-##### serialize() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L415" target="_blank" rel="noopener">source</a>
+##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L415" />
 
 `protected serialize(value): Buffer`
 
@@ -632,7 +632,7 @@ Serializes a value to a Buffer for storage.
 
 `BasicKeyspace.serialize`
 
-##### set() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" target="_blank" rel="noopener">source</a>
+##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" />
 
 ```ts
 set(
@@ -669,7 +669,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.set`
 
-##### setIfNotExists() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" target="_blank" rel="noopener">source</a>
+##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" />
 
 ```ts
 setIfNotExists(
@@ -710,7 +710,7 @@ https://redis.io/commands/setnx/
 
 `BasicKeyspace.setIfNotExists`
 
-##### with() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" target="_blank" rel="noopener">source</a>
+##### with() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" />
 
 `with(options): this`
 
@@ -740,7 +740,7 @@ This allows setting expiry for a chain of operations.
 <!-- symbol-end -->
 
 <!-- symbol-start: IntKeyspace -->
-### IntKeyspace <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L323" target="_blank" rel="noopener">source</a>
+### IntKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L323" />
 
 IntKeyspace stores 64-bit integer values.
 Values are floored to integers using `Math.floor`.
@@ -769,7 +769,7 @@ const newCount = await counters.increment("page-views", 1);
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L324" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L324" />
 
 `new IntKeyspace<K>(cluster, config): IntKeyspace<K>`
 
@@ -829,7 +829,7 @@ const newCount = await counters.increment("page-views", 1);
 
 #### Methods
 
-##### decrement() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L380" target="_blank" rel="noopener">source</a>
+##### decrement() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L380" />
 
 ```ts
 decrement(
@@ -874,7 +874,7 @@ The new value after decrementing.
 
 https://redis.io/commands/decrby/
 
-##### delete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" target="_blank" rel="noopener">source</a>
+##### delete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" />
 
 `delete(...keys): Promise<number>`
 
@@ -901,7 +901,7 @@ https://redis.io/commands/del/
 
 `BasicKeyspace.delete`
 
-##### deserialize() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L332" target="_blank" rel="noopener">source</a>
+##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L332" />
 
 `protected deserialize(data): number`
 
@@ -921,7 +921,7 @@ Deserializes a Buffer from storage to a value.
 
 `BasicKeyspace.deserialize`
 
-##### get() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33" target="_blank" rel="noopener">source</a>
+##### get() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33" />
 
 `get(key): Promise<number | undefined>`
 
@@ -948,7 +948,7 @@ https://redis.io/commands/get/
 
 `BasicKeyspace.get`
 
-##### getAndDelete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" target="_blank" rel="noopener">source</a>
+##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" />
 
 `getAndDelete(key): Promise<number | undefined>`
 
@@ -975,7 +975,7 @@ https://redis.io/commands/getdel/
 
 `BasicKeyspace.getAndDelete`
 
-##### getAndSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" target="_blank" rel="noopener">source</a>
+##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" />
 
 ```ts
 getAndSet(
@@ -1015,7 +1015,7 @@ https://redis.io/commands/getset/
 
 `BasicKeyspace.getAndSet`
 
-##### increment() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L350" target="_blank" rel="noopener">source</a>
+##### increment() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L350" />
 
 ```ts
 increment(
@@ -1060,7 +1060,7 @@ The new value after incrementing.
 
 https://redis.io/commands/incrby/
 
-##### mapKey() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" target="_blank" rel="noopener">source</a>
+##### mapKey() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" />
 
 `protected mapKey(key): string`
 
@@ -1080,7 +1080,7 @@ Maps a key to its Redis key string.
 
 `BasicKeyspace.mapKey`
 
-##### multiGet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52" target="_blank" rel="noopener">source</a>
+##### multiGet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52" />
 
 `multiGet(...keys): Promise<(number | undefined)[]>`
 
@@ -1107,7 +1107,7 @@ https://redis.io/commands/mget/
 
 `BasicKeyspace.multiGet`
 
-##### replace() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" target="_blank" rel="noopener">source</a>
+##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" />
 
 ```ts
 replace(
@@ -1148,7 +1148,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.replace`
 
-##### resolveTtl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" target="_blank" rel="noopener">source</a>
+##### resolveTtl() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" />
 
 `protected resolveTtl(options?): number | undefined`
 
@@ -1169,7 +1169,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `BasicKeyspace.resolveTtl`
 
-##### serialize() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L328" target="_blank" rel="noopener">source</a>
+##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L328" />
 
 `protected serialize(value): Buffer`
 
@@ -1189,7 +1189,7 @@ Serializes a value to a Buffer for storage.
 
 `BasicKeyspace.serialize`
 
-##### set() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" target="_blank" rel="noopener">source</a>
+##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" />
 
 ```ts
 set(
@@ -1226,7 +1226,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.set`
 
-##### setIfNotExists() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" target="_blank" rel="noopener">source</a>
+##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" />
 
 ```ts
 setIfNotExists(
@@ -1267,7 +1267,7 @@ https://redis.io/commands/setnx/
 
 `BasicKeyspace.setIfNotExists`
 
-##### with() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" target="_blank" rel="noopener">source</a>
+##### with() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" />
 
 `with(options): this`
 
@@ -1297,7 +1297,7 @@ This allows setting expiry for a chain of operations.
 <!-- symbol-end -->
 
 <!-- symbol-start: NumberListKeyspace -->
-### NumberListKeyspace <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L484" target="_blank" rel="noopener">source</a>
+### NumberListKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L484" />
 
 NumberListKeyspace stores lists of numeric values.
 
@@ -1324,7 +1324,7 @@ const allScores = await scores.items("game1");
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L485" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L485" />
 
 `new NumberListKeyspace<K>(cluster, config): NumberListKeyspace<K>`
 
@@ -1384,7 +1384,7 @@ const allScores = await scores.items("game1");
 
 #### Methods
 
-##### delete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" target="_blank" rel="noopener">source</a>
+##### delete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" />
 
 `delete(...keys): Promise<number>`
 
@@ -1411,7 +1411,7 @@ https://redis.io/commands/del/
 
 `ListKeyspace.delete`
 
-##### deserializeItem() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L493" target="_blank" rel="noopener">source</a>
+##### deserializeItem() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L493" />
 
 `protected deserializeItem(data): number`
 
@@ -1429,7 +1429,7 @@ https://redis.io/commands/del/
 
 `ListKeyspace.deserializeItem`
 
-##### get() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L187" target="_blank" rel="noopener">source</a>
+##### get() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L187" />
 
 `get(key, index): Promise<number | undefined>`
 
@@ -1466,7 +1466,7 @@ https://redis.io/commands/lindex/
 
 `ListKeyspace.get`
 
-##### getRange() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L229" target="_blank" rel="noopener">source</a>
+##### getRange() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L229" />
 
 ```ts
 getRange(
@@ -1517,7 +1517,7 @@ https://redis.io/commands/lrange/
 
 `ListKeyspace.getRange`
 
-##### insertAfter() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L284" target="_blank" rel="noopener">source</a>
+##### insertAfter() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L284" />
 
 ```ts
 insertAfter(
@@ -1569,7 +1569,7 @@ https://redis.io/commands/linsert/
 
 `ListKeyspace.insertAfter`
 
-##### insertBefore() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L252" target="_blank" rel="noopener">source</a>
+##### insertBefore() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L252" />
 
 ```ts
 insertBefore(
@@ -1621,7 +1621,7 @@ https://redis.io/commands/linsert/
 
 `ListKeyspace.insertBefore`
 
-##### items() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L207" target="_blank" rel="noopener">source</a>
+##### items() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L207" />
 
 `items(key): Promise<number[]>`
 
@@ -1649,7 +1649,7 @@ https://redis.io/commands/lrange/
 
 `ListKeyspace.items`
 
-##### len() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L117" target="_blank" rel="noopener">source</a>
+##### len() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L117" />
 
 `len(key): Promise<number>`
 
@@ -1677,7 +1677,7 @@ https://redis.io/commands/llen/
 
 `ListKeyspace.len`
 
-##### mapKey() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" target="_blank" rel="noopener">source</a>
+##### mapKey() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" />
 
 `protected mapKey(key): string`
 
@@ -1697,7 +1697,7 @@ Maps a key to its Redis key string.
 
 `ListKeyspace.mapKey`
 
-##### move() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L417" target="_blank" rel="noopener">source</a>
+##### move() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L417" />
 
 ```ts
 move(
@@ -1761,7 +1761,7 @@ https://redis.io/commands/lmove/
 
 `ListKeyspace.move`
 
-##### popLeft() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L81" target="_blank" rel="noopener">source</a>
+##### popLeft() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L81" />
 
 `popLeft(key, options?): Promise<number | undefined>`
 
@@ -1791,7 +1791,7 @@ https://redis.io/commands/lpop/
 
 `ListKeyspace.popLeft`
 
-##### popRight() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L98" target="_blank" rel="noopener">source</a>
+##### popRight() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L98" />
 
 `popRight(key, options?): Promise<number | undefined>`
 
@@ -1821,7 +1821,7 @@ https://redis.io/commands/rpop/
 
 `ListKeyspace.popRight`
 
-##### pushLeft() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L35" target="_blank" rel="noopener">source</a>
+##### pushLeft() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L35" />
 
 `pushLeft(key, ...values): Promise<number>`
 
@@ -1857,7 +1857,7 @@ https://redis.io/commands/lpush/
 
 `ListKeyspace.pushLeft`
 
-##### pushRight() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L61" target="_blank" rel="noopener">source</a>
+##### pushRight() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L61" />
 
 `pushRight(key, ...values): Promise<number>`
 
@@ -1893,7 +1893,7 @@ https://redis.io/commands/rpush/
 
 `ListKeyspace.pushRight`
 
-##### removeAll() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L315" target="_blank" rel="noopener">source</a>
+##### removeAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L315" />
 
 ```ts
 removeAll(
@@ -1938,7 +1938,7 @@ https://redis.io/commands/lrem/
 
 `ListKeyspace.removeAll`
 
-##### removeFirst() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L341" target="_blank" rel="noopener">source</a>
+##### removeFirst() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L341" />
 
 ```ts
 removeFirst(
@@ -1991,7 +1991,7 @@ https://redis.io/commands/lrem/
 
 `ListKeyspace.removeFirst`
 
-##### removeLast() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L376" target="_blank" rel="noopener">source</a>
+##### removeLast() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L376" />
 
 ```ts
 removeLast(
@@ -2044,7 +2044,7 @@ https://redis.io/commands/lrem/
 
 `ListKeyspace.removeLast`
 
-##### resolveTtl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" target="_blank" rel="noopener">source</a>
+##### resolveTtl() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" />
 
 `protected resolveTtl(options?): number | undefined`
 
@@ -2065,7 +2065,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `ListKeyspace.resolveTtl`
 
-##### serializeItem() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L489" target="_blank" rel="noopener">source</a>
+##### serializeItem() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L489" />
 
 `protected serializeItem(value): Buffer`
 
@@ -2083,7 +2083,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `ListKeyspace.serializeItem`
 
-##### set() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L163" target="_blank" rel="noopener">source</a>
+##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L163" />
 
 ```ts
 set(
@@ -2138,7 +2138,7 @@ https://redis.io/commands/lset/
 
 `ListKeyspace.set`
 
-##### trim() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L139" target="_blank" rel="noopener">source</a>
+##### trim() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L139" />
 
 ```ts
 trim(
@@ -2193,7 +2193,7 @@ https://redis.io/commands/ltrim/
 
 `ListKeyspace.trim`
 
-##### with() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" target="_blank" rel="noopener">source</a>
+##### with() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" />
 
 `with(options): this`
 
@@ -2223,7 +2223,7 @@ This allows setting expiry for a chain of operations.
 <!-- symbol-end -->
 
 <!-- symbol-start: NumberSetKeyspace -->
-### NumberSetKeyspace <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L479" target="_blank" rel="noopener">source</a>
+### NumberSetKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L479" />
 
 NumberSetKeyspace stores sets of unique numeric values.
 
@@ -2250,7 +2250,7 @@ const hasScore = await scores.contains("game1", 100);
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L480" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L480" />
 
 `new NumberSetKeyspace<K>(cluster, config): NumberSetKeyspace<K>`
 
@@ -2310,7 +2310,7 @@ const hasScore = await scores.contains("game1", 100);
 
 #### Methods
 
-##### add() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L26" target="_blank" rel="noopener">source</a>
+##### add() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L26" />
 
 `add(key, ...members): Promise<number>`
 
@@ -2342,7 +2342,7 @@ https://redis.io/commands/sadd/
 
 `SetKeyspace.add`
 
-##### contains() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L111" target="_blank" rel="noopener">source</a>
+##### contains() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L111" />
 
 `contains(key, member): Promise<boolean>`
 
@@ -2374,7 +2374,7 @@ https://redis.io/commands/sismember/
 
 `SetKeyspace.contains`
 
-##### delete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" target="_blank" rel="noopener">source</a>
+##### delete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" />
 
 `delete(...keys): Promise<number>`
 
@@ -2401,7 +2401,7 @@ https://redis.io/commands/del/
 
 `SetKeyspace.delete`
 
-##### deserializeItem() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L488" target="_blank" rel="noopener">source</a>
+##### deserializeItem() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L488" />
 
 `protected deserializeItem(data): number`
 
@@ -2419,7 +2419,7 @@ https://redis.io/commands/del/
 
 `SetKeyspace.deserializeItem`
 
-##### diff() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L174" target="_blank" rel="noopener">source</a>
+##### diff() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L174" />
 
 `diff(...keys): Promise<number[]>`
 
@@ -2456,7 +2456,7 @@ https://redis.io/commands/sdiff/
 
 `SetKeyspace.diff`
 
-##### diffSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L189" target="_blank" rel="noopener">source</a>
+##### diffSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L189" />
 
 `diffSet(...keys): Promise<Set<number>>`
 
@@ -2480,7 +2480,7 @@ https://redis.io/commands/sdiff/
 
 `SetKeyspace.diffSet`
 
-##### diffStore() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L203" target="_blank" rel="noopener">source</a>
+##### diffStore() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L203" />
 
 `diffStore(destination, ...keys): Promise<number>`
 
@@ -2515,7 +2515,7 @@ https://redis.io/commands/sdiffstore/
 
 `SetKeyspace.diffStore`
 
-##### intersect() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L233" target="_blank" rel="noopener">source</a>
+##### intersect() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L233" />
 
 `intersect(...keys): Promise<number[]>`
 
@@ -2552,7 +2552,7 @@ https://redis.io/commands/sinter/
 
 `SetKeyspace.intersect`
 
-##### intersectSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L248" target="_blank" rel="noopener">source</a>
+##### intersectSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L248" />
 
 `intersectSet(...keys): Promise<Set<number>>`
 
@@ -2576,7 +2576,7 @@ https://redis.io/commands/sinter/
 
 `SetKeyspace.intersectSet`
 
-##### intersectStore() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L262" target="_blank" rel="noopener">source</a>
+##### intersectStore() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L262" />
 
 `intersectStore(destination, ...keys): Promise<number>`
 
@@ -2611,7 +2611,7 @@ https://redis.io/commands/sinterstore/
 
 `SetKeyspace.intersectStore`
 
-##### items() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L141" target="_blank" rel="noopener">source</a>
+##### items() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L141" />
 
 `items(key): Promise<number[]>`
 
@@ -2639,7 +2639,7 @@ https://redis.io/commands/smembers/
 
 `SetKeyspace.items`
 
-##### itemsSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L156" target="_blank" rel="noopener">source</a>
+##### itemsSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L156" />
 
 `itemsSet(key): Promise<Set<number>>`
 
@@ -2667,7 +2667,7 @@ https://redis.io/commands/smembers/
 
 `SetKeyspace.itemsSet`
 
-##### len() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L126" target="_blank" rel="noopener">source</a>
+##### len() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L126" />
 
 `len(key): Promise<number>`
 
@@ -2695,7 +2695,7 @@ https://redis.io/commands/scard/
 
 `SetKeyspace.len`
 
-##### mapKey() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" target="_blank" rel="noopener">source</a>
+##### mapKey() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" />
 
 `protected mapKey(key): string`
 
@@ -2715,7 +2715,7 @@ Maps a key to its Redis key string.
 
 `SetKeyspace.mapKey`
 
-##### move() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L416" target="_blank" rel="noopener">source</a>
+##### move() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L416" />
 
 ```ts
 move(
@@ -2768,7 +2768,7 @@ https://redis.io/commands/smove/
 
 `SetKeyspace.move`
 
-##### pop() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L90" target="_blank" rel="noopener">source</a>
+##### pop() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L90" />
 
 ```ts
 pop(
@@ -2814,7 +2814,7 @@ https://redis.io/commands/spop/
 
 `SetKeyspace.pop`
 
-##### popOne() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L68" target="_blank" rel="noopener">source</a>
+##### popOne() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L68" />
 
 `popOne(key, options?): Promise<number | undefined>`
 
@@ -2844,7 +2844,7 @@ https://redis.io/commands/spop/
 
 `SetKeyspace.popOne`
 
-##### remove() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L48" target="_blank" rel="noopener">source</a>
+##### remove() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L48" />
 
 `remove(key, ...members): Promise<number>`
 
@@ -2876,7 +2876,7 @@ https://redis.io/commands/srem/
 
 `SetKeyspace.remove`
 
-##### resolveTtl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" target="_blank" rel="noopener">source</a>
+##### resolveTtl() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" />
 
 `protected resolveTtl(options?): number | undefined`
 
@@ -2897,7 +2897,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `SetKeyspace.resolveTtl`
 
-##### sample() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L364" target="_blank" rel="noopener">source</a>
+##### sample() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L364" />
 
 `sample(key, count): Promise<number[]>`
 
@@ -2934,7 +2934,7 @@ https://redis.io/commands/srandmember/
 
 `SetKeyspace.sample`
 
-##### sampleOne() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L343" target="_blank" rel="noopener">source</a>
+##### sampleOne() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L343" />
 
 `sampleOne(key): Promise<number | undefined>`
 
@@ -2960,7 +2960,7 @@ https://redis.io/commands/srandmember/
 
 `SetKeyspace.sampleOne`
 
-##### sampleWithReplacement() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L389" target="_blank" rel="noopener">source</a>
+##### sampleWithReplacement() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L389" />
 
 `sampleWithReplacement(key, count): Promise<number[]>`
 
@@ -2997,7 +2997,7 @@ https://redis.io/commands/srandmember/
 
 `SetKeyspace.sampleWithReplacement`
 
-##### serializeItem() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L484" target="_blank" rel="noopener">source</a>
+##### serializeItem() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L484" />
 
 `protected serializeItem(value): Buffer`
 
@@ -3015,7 +3015,7 @@ https://redis.io/commands/srandmember/
 
 `SetKeyspace.serializeItem`
 
-##### union() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L291" target="_blank" rel="noopener">source</a>
+##### union() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L291" />
 
 `union(...keys): Promise<number[]>`
 
@@ -3051,7 +3051,7 @@ https://redis.io/commands/sunion/
 
 `SetKeyspace.union`
 
-##### unionSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L306" target="_blank" rel="noopener">source</a>
+##### unionSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L306" />
 
 `unionSet(...keys): Promise<Set<number>>`
 
@@ -3075,7 +3075,7 @@ https://redis.io/commands/sunion/
 
 `SetKeyspace.unionSet`
 
-##### unionStore() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L320" target="_blank" rel="noopener">source</a>
+##### unionStore() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L320" />
 
 `unionStore(destination, ...keys): Promise<number>`
 
@@ -3110,7 +3110,7 @@ https://redis.io/commands/sunionstore/
 
 `SetKeyspace.unionStore`
 
-##### with() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" target="_blank" rel="noopener">source</a>
+##### with() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" />
 
 `with(options): this`
 
@@ -3140,7 +3140,7 @@ This allows setting expiry for a chain of operations.
 <!-- symbol-end -->
 
 <!-- symbol-start: StringKeyspace -->
-### StringKeyspace <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L193" target="_blank" rel="noopener">source</a>
+### StringKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L193" />
 
 StringKeyspace stores string values.
 
@@ -3168,7 +3168,7 @@ const token = await tokens.get("abc123");
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L194" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L194" />
 
 `new StringKeyspace<K>(cluster, config): StringKeyspace<K>`
 
@@ -3228,7 +3228,7 @@ const token = await tokens.get("abc123");
 
 #### Methods
 
-##### append() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L215" target="_blank" rel="noopener">source</a>
+##### append() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L215" />
 
 ```ts
 append(
@@ -3266,7 +3266,7 @@ The new string length.
 
 https://redis.io/commands/append/
 
-##### delete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" target="_blank" rel="noopener">source</a>
+##### delete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" />
 
 `delete(...keys): Promise<number>`
 
@@ -3293,7 +3293,7 @@ https://redis.io/commands/del/
 
 `BasicKeyspace.delete`
 
-##### deserialize() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L202" target="_blank" rel="noopener">source</a>
+##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L202" />
 
 `protected deserialize(data): string`
 
@@ -3313,7 +3313,7 @@ Deserializes a Buffer from storage to a value.
 
 `BasicKeyspace.deserialize`
 
-##### get() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33" target="_blank" rel="noopener">source</a>
+##### get() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33" />
 
 `get(key): Promise<string | undefined>`
 
@@ -3340,7 +3340,7 @@ https://redis.io/commands/get/
 
 `BasicKeyspace.get`
 
-##### getAndDelete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" target="_blank" rel="noopener">source</a>
+##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" />
 
 `getAndDelete(key): Promise<string | undefined>`
 
@@ -3367,7 +3367,7 @@ https://redis.io/commands/getdel/
 
 `BasicKeyspace.getAndDelete`
 
-##### getAndSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" target="_blank" rel="noopener">source</a>
+##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" />
 
 ```ts
 getAndSet(
@@ -3407,7 +3407,7 @@ https://redis.io/commands/getset/
 
 `BasicKeyspace.getAndSet`
 
-##### getRange() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L245" target="_blank" rel="noopener">source</a>
+##### getRange() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L245" />
 
 ```ts
 getRange(
@@ -3456,7 +3456,7 @@ The substring.
 
 https://redis.io/commands/getrange/
 
-##### len() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L300" target="_blank" rel="noopener">source</a>
+##### len() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L300" />
 
 `len(key): Promise<number>`
 
@@ -3480,7 +3480,7 @@ The string length.
 
 https://redis.io/commands/strlen/
 
-##### mapKey() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" target="_blank" rel="noopener">source</a>
+##### mapKey() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" />
 
 `protected mapKey(key): string`
 
@@ -3500,7 +3500,7 @@ Maps a key to its Redis key string.
 
 `BasicKeyspace.mapKey`
 
-##### multiGet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52" target="_blank" rel="noopener">source</a>
+##### multiGet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52" />
 
 `multiGet(...keys): Promise<(string | undefined)[]>`
 
@@ -3527,7 +3527,7 @@ https://redis.io/commands/mget/
 
 `BasicKeyspace.multiGet`
 
-##### replace() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" target="_blank" rel="noopener">source</a>
+##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" />
 
 ```ts
 replace(
@@ -3568,7 +3568,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.replace`
 
-##### resolveTtl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" target="_blank" rel="noopener">source</a>
+##### resolveTtl() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" />
 
 `protected resolveTtl(options?): number | undefined`
 
@@ -3589,7 +3589,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `BasicKeyspace.resolveTtl`
 
-##### serialize() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L198" target="_blank" rel="noopener">source</a>
+##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L198" />
 
 `protected serialize(value): Buffer`
 
@@ -3609,7 +3609,7 @@ Serializes a value to a Buffer for storage.
 
 `BasicKeyspace.serialize`
 
-##### set() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" target="_blank" rel="noopener">source</a>
+##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" />
 
 ```ts
 set(
@@ -3646,7 +3646,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.set`
 
-##### setIfNotExists() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" target="_blank" rel="noopener">source</a>
+##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" />
 
 ```ts
 setIfNotExists(
@@ -3687,7 +3687,7 @@ https://redis.io/commands/setnx/
 
 `BasicKeyspace.setIfNotExists`
 
-##### setRange() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L273" target="_blank" rel="noopener">source</a>
+##### setRange() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L273" />
 
 ```ts
 setRange(
@@ -3740,7 +3740,7 @@ The length of the string after the operation.
 
 https://redis.io/commands/setrange/
 
-##### with() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" target="_blank" rel="noopener">source</a>
+##### with() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" />
 
 `with(options): this`
 
@@ -3770,7 +3770,7 @@ This allows setting expiry for a chain of operations.
 <!-- symbol-end -->
 
 <!-- symbol-start: StringListKeyspace -->
-### StringListKeyspace <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L457" target="_blank" rel="noopener">source</a>
+### StringListKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L457" />
 
 StringListKeyspace stores lists of string values.
 
@@ -3798,7 +3798,7 @@ const views = await recentViews.items("user1");
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L458" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L458" />
 
 `new StringListKeyspace<K>(cluster, config): StringListKeyspace<K>`
 
@@ -3858,7 +3858,7 @@ const views = await recentViews.items("user1");
 
 #### Methods
 
-##### delete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" target="_blank" rel="noopener">source</a>
+##### delete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" />
 
 `delete(...keys): Promise<number>`
 
@@ -3885,7 +3885,7 @@ https://redis.io/commands/del/
 
 `ListKeyspace.delete`
 
-##### deserializeItem() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L466" target="_blank" rel="noopener">source</a>
+##### deserializeItem() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L466" />
 
 `protected deserializeItem(data): string`
 
@@ -3903,7 +3903,7 @@ https://redis.io/commands/del/
 
 `ListKeyspace.deserializeItem`
 
-##### get() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L187" target="_blank" rel="noopener">source</a>
+##### get() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L187" />
 
 `get(key, index): Promise<string | undefined>`
 
@@ -3940,7 +3940,7 @@ https://redis.io/commands/lindex/
 
 `ListKeyspace.get`
 
-##### getRange() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L229" target="_blank" rel="noopener">source</a>
+##### getRange() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L229" />
 
 ```ts
 getRange(
@@ -3991,7 +3991,7 @@ https://redis.io/commands/lrange/
 
 `ListKeyspace.getRange`
 
-##### insertAfter() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L284" target="_blank" rel="noopener">source</a>
+##### insertAfter() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L284" />
 
 ```ts
 insertAfter(
@@ -4043,7 +4043,7 @@ https://redis.io/commands/linsert/
 
 `ListKeyspace.insertAfter`
 
-##### insertBefore() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L252" target="_blank" rel="noopener">source</a>
+##### insertBefore() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L252" />
 
 ```ts
 insertBefore(
@@ -4095,7 +4095,7 @@ https://redis.io/commands/linsert/
 
 `ListKeyspace.insertBefore`
 
-##### items() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L207" target="_blank" rel="noopener">source</a>
+##### items() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L207" />
 
 `items(key): Promise<string[]>`
 
@@ -4123,7 +4123,7 @@ https://redis.io/commands/lrange/
 
 `ListKeyspace.items`
 
-##### len() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L117" target="_blank" rel="noopener">source</a>
+##### len() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L117" />
 
 `len(key): Promise<number>`
 
@@ -4151,7 +4151,7 @@ https://redis.io/commands/llen/
 
 `ListKeyspace.len`
 
-##### mapKey() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" target="_blank" rel="noopener">source</a>
+##### mapKey() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" />
 
 `protected mapKey(key): string`
 
@@ -4171,7 +4171,7 @@ Maps a key to its Redis key string.
 
 `ListKeyspace.mapKey`
 
-##### move() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L417" target="_blank" rel="noopener">source</a>
+##### move() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L417" />
 
 ```ts
 move(
@@ -4235,7 +4235,7 @@ https://redis.io/commands/lmove/
 
 `ListKeyspace.move`
 
-##### popLeft() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L81" target="_blank" rel="noopener">source</a>
+##### popLeft() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L81" />
 
 `popLeft(key, options?): Promise<string | undefined>`
 
@@ -4265,7 +4265,7 @@ https://redis.io/commands/lpop/
 
 `ListKeyspace.popLeft`
 
-##### popRight() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L98" target="_blank" rel="noopener">source</a>
+##### popRight() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L98" />
 
 `popRight(key, options?): Promise<string | undefined>`
 
@@ -4295,7 +4295,7 @@ https://redis.io/commands/rpop/
 
 `ListKeyspace.popRight`
 
-##### pushLeft() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L35" target="_blank" rel="noopener">source</a>
+##### pushLeft() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L35" />
 
 `pushLeft(key, ...values): Promise<number>`
 
@@ -4331,7 +4331,7 @@ https://redis.io/commands/lpush/
 
 `ListKeyspace.pushLeft`
 
-##### pushRight() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L61" target="_blank" rel="noopener">source</a>
+##### pushRight() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L61" />
 
 `pushRight(key, ...values): Promise<number>`
 
@@ -4367,7 +4367,7 @@ https://redis.io/commands/rpush/
 
 `ListKeyspace.pushRight`
 
-##### removeAll() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L315" target="_blank" rel="noopener">source</a>
+##### removeAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L315" />
 
 ```ts
 removeAll(
@@ -4412,7 +4412,7 @@ https://redis.io/commands/lrem/
 
 `ListKeyspace.removeAll`
 
-##### removeFirst() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L341" target="_blank" rel="noopener">source</a>
+##### removeFirst() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L341" />
 
 ```ts
 removeFirst(
@@ -4465,7 +4465,7 @@ https://redis.io/commands/lrem/
 
 `ListKeyspace.removeFirst`
 
-##### removeLast() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L376" target="_blank" rel="noopener">source</a>
+##### removeLast() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L376" />
 
 ```ts
 removeLast(
@@ -4518,7 +4518,7 @@ https://redis.io/commands/lrem/
 
 `ListKeyspace.removeLast`
 
-##### resolveTtl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" target="_blank" rel="noopener">source</a>
+##### resolveTtl() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" />
 
 `protected resolveTtl(options?): number | undefined`
 
@@ -4539,7 +4539,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `ListKeyspace.resolveTtl`
 
-##### serializeItem() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L462" target="_blank" rel="noopener">source</a>
+##### serializeItem() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L462" />
 
 `protected serializeItem(value): Buffer`
 
@@ -4557,7 +4557,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `ListKeyspace.serializeItem`
 
-##### set() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L163" target="_blank" rel="noopener">source</a>
+##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L163" />
 
 ```ts
 set(
@@ -4612,7 +4612,7 @@ https://redis.io/commands/lset/
 
 `ListKeyspace.set`
 
-##### trim() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L139" target="_blank" rel="noopener">source</a>
+##### trim() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L139" />
 
 ```ts
 trim(
@@ -4667,7 +4667,7 @@ https://redis.io/commands/ltrim/
 
 `ListKeyspace.trim`
 
-##### with() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" target="_blank" rel="noopener">source</a>
+##### with() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" />
 
 `with(options): this`
 
@@ -4697,7 +4697,7 @@ This allows setting expiry for a chain of operations.
 <!-- symbol-end -->
 
 <!-- symbol-start: StringSetKeyspace -->
-### StringSetKeyspace <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L452" target="_blank" rel="noopener">source</a>
+### StringSetKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L452" />
 
 StringSetKeyspace stores sets of unique string values.
 
@@ -4726,7 +4726,7 @@ const tagSet = await tags.itemsSet("article1");
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L453" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L453" />
 
 `new StringSetKeyspace<K>(cluster, config): StringSetKeyspace<K>`
 
@@ -4786,7 +4786,7 @@ const tagSet = await tags.itemsSet("article1");
 
 #### Methods
 
-##### add() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L26" target="_blank" rel="noopener">source</a>
+##### add() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L26" />
 
 `add(key, ...members): Promise<number>`
 
@@ -4818,7 +4818,7 @@ https://redis.io/commands/sadd/
 
 `SetKeyspace.add`
 
-##### contains() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L111" target="_blank" rel="noopener">source</a>
+##### contains() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L111" />
 
 `contains(key, member): Promise<boolean>`
 
@@ -4850,7 +4850,7 @@ https://redis.io/commands/sismember/
 
 `SetKeyspace.contains`
 
-##### delete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" target="_blank" rel="noopener">source</a>
+##### delete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" />
 
 `delete(...keys): Promise<number>`
 
@@ -4877,7 +4877,7 @@ https://redis.io/commands/del/
 
 `SetKeyspace.delete`
 
-##### deserializeItem() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L461" target="_blank" rel="noopener">source</a>
+##### deserializeItem() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L461" />
 
 `protected deserializeItem(data): string`
 
@@ -4895,7 +4895,7 @@ https://redis.io/commands/del/
 
 `SetKeyspace.deserializeItem`
 
-##### diff() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L174" target="_blank" rel="noopener">source</a>
+##### diff() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L174" />
 
 `diff(...keys): Promise<string[]>`
 
@@ -4932,7 +4932,7 @@ https://redis.io/commands/sdiff/
 
 `SetKeyspace.diff`
 
-##### diffSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L189" target="_blank" rel="noopener">source</a>
+##### diffSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L189" />
 
 `diffSet(...keys): Promise<Set<string>>`
 
@@ -4956,7 +4956,7 @@ https://redis.io/commands/sdiff/
 
 `SetKeyspace.diffSet`
 
-##### diffStore() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L203" target="_blank" rel="noopener">source</a>
+##### diffStore() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L203" />
 
 `diffStore(destination, ...keys): Promise<number>`
 
@@ -4991,7 +4991,7 @@ https://redis.io/commands/sdiffstore/
 
 `SetKeyspace.diffStore`
 
-##### intersect() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L233" target="_blank" rel="noopener">source</a>
+##### intersect() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L233" />
 
 `intersect(...keys): Promise<string[]>`
 
@@ -5028,7 +5028,7 @@ https://redis.io/commands/sinter/
 
 `SetKeyspace.intersect`
 
-##### intersectSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L248" target="_blank" rel="noopener">source</a>
+##### intersectSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L248" />
 
 `intersectSet(...keys): Promise<Set<string>>`
 
@@ -5052,7 +5052,7 @@ https://redis.io/commands/sinter/
 
 `SetKeyspace.intersectSet`
 
-##### intersectStore() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L262" target="_blank" rel="noopener">source</a>
+##### intersectStore() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L262" />
 
 `intersectStore(destination, ...keys): Promise<number>`
 
@@ -5087,7 +5087,7 @@ https://redis.io/commands/sinterstore/
 
 `SetKeyspace.intersectStore`
 
-##### items() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L141" target="_blank" rel="noopener">source</a>
+##### items() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L141" />
 
 `items(key): Promise<string[]>`
 
@@ -5115,7 +5115,7 @@ https://redis.io/commands/smembers/
 
 `SetKeyspace.items`
 
-##### itemsSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L156" target="_blank" rel="noopener">source</a>
+##### itemsSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L156" />
 
 `itemsSet(key): Promise<Set<string>>`
 
@@ -5143,7 +5143,7 @@ https://redis.io/commands/smembers/
 
 `SetKeyspace.itemsSet`
 
-##### len() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L126" target="_blank" rel="noopener">source</a>
+##### len() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L126" />
 
 `len(key): Promise<number>`
 
@@ -5171,7 +5171,7 @@ https://redis.io/commands/scard/
 
 `SetKeyspace.len`
 
-##### mapKey() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" target="_blank" rel="noopener">source</a>
+##### mapKey() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" />
 
 `protected mapKey(key): string`
 
@@ -5191,7 +5191,7 @@ Maps a key to its Redis key string.
 
 `SetKeyspace.mapKey`
 
-##### move() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L416" target="_blank" rel="noopener">source</a>
+##### move() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L416" />
 
 ```ts
 move(
@@ -5244,7 +5244,7 @@ https://redis.io/commands/smove/
 
 `SetKeyspace.move`
 
-##### pop() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L90" target="_blank" rel="noopener">source</a>
+##### pop() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L90" />
 
 ```ts
 pop(
@@ -5290,7 +5290,7 @@ https://redis.io/commands/spop/
 
 `SetKeyspace.pop`
 
-##### popOne() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L68" target="_blank" rel="noopener">source</a>
+##### popOne() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L68" />
 
 `popOne(key, options?): Promise<string | undefined>`
 
@@ -5320,7 +5320,7 @@ https://redis.io/commands/spop/
 
 `SetKeyspace.popOne`
 
-##### remove() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L48" target="_blank" rel="noopener">source</a>
+##### remove() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L48" />
 
 `remove(key, ...members): Promise<number>`
 
@@ -5352,7 +5352,7 @@ https://redis.io/commands/srem/
 
 `SetKeyspace.remove`
 
-##### resolveTtl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" target="_blank" rel="noopener">source</a>
+##### resolveTtl() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" />
 
 `protected resolveTtl(options?): number | undefined`
 
@@ -5373,7 +5373,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `SetKeyspace.resolveTtl`
 
-##### sample() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L364" target="_blank" rel="noopener">source</a>
+##### sample() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L364" />
 
 `sample(key, count): Promise<string[]>`
 
@@ -5410,7 +5410,7 @@ https://redis.io/commands/srandmember/
 
 `SetKeyspace.sample`
 
-##### sampleOne() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L343" target="_blank" rel="noopener">source</a>
+##### sampleOne() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L343" />
 
 `sampleOne(key): Promise<string | undefined>`
 
@@ -5436,7 +5436,7 @@ https://redis.io/commands/srandmember/
 
 `SetKeyspace.sampleOne`
 
-##### sampleWithReplacement() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L389" target="_blank" rel="noopener">source</a>
+##### sampleWithReplacement() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L389" />
 
 `sampleWithReplacement(key, count): Promise<string[]>`
 
@@ -5473,7 +5473,7 @@ https://redis.io/commands/srandmember/
 
 `SetKeyspace.sampleWithReplacement`
 
-##### serializeItem() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L457" target="_blank" rel="noopener">source</a>
+##### serializeItem() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L457" />
 
 `protected serializeItem(value): Buffer`
 
@@ -5491,7 +5491,7 @@ https://redis.io/commands/srandmember/
 
 `SetKeyspace.serializeItem`
 
-##### union() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L291" target="_blank" rel="noopener">source</a>
+##### union() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L291" />
 
 `union(...keys): Promise<string[]>`
 
@@ -5527,7 +5527,7 @@ https://redis.io/commands/sunion/
 
 `SetKeyspace.union`
 
-##### unionSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L306" target="_blank" rel="noopener">source</a>
+##### unionSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L306" />
 
 `unionSet(...keys): Promise<Set<string>>`
 
@@ -5551,7 +5551,7 @@ https://redis.io/commands/sunion/
 
 `SetKeyspace.unionSet`
 
-##### unionStore() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L320" target="_blank" rel="noopener">source</a>
+##### unionStore() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/set.ts#L320" />
 
 `unionStore(destination, ...keys): Promise<number>`
 
@@ -5586,7 +5586,7 @@ https://redis.io/commands/sunionstore/
 
 `SetKeyspace.unionStore`
 
-##### with() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" target="_blank" rel="noopener">source</a>
+##### with() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" />
 
 `with(options): this`
 
@@ -5616,7 +5616,7 @@ This allows setting expiry for a chain of operations.
 <!-- symbol-end -->
 
 <!-- symbol-start: StructKeyspace -->
-### StructKeyspace <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L499" target="_blank" rel="noopener">source</a>
+### StructKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L499" />
 
 StructKeyspace stores arbitrary objects serialized as JSON.
 
@@ -5654,7 +5654,7 @@ const user = await users.get("user1");
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L500" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L500" />
 
 `new StructKeyspace<K, V>(cluster, config): StructKeyspace<K, V>`
 
@@ -5714,7 +5714,7 @@ const user = await users.get("user1");
 
 #### Methods
 
-##### delete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" target="_blank" rel="noopener">source</a>
+##### delete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L137" />
 
 `delete(...keys): Promise<number>`
 
@@ -5741,7 +5741,7 @@ https://redis.io/commands/del/
 
 `BasicKeyspace.delete`
 
-##### deserialize() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L508" target="_blank" rel="noopener">source</a>
+##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L508" />
 
 `protected deserialize(data): V`
 
@@ -5761,7 +5761,7 @@ Deserializes a Buffer from storage to a value.
 
 `BasicKeyspace.deserialize`
 
-##### get() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33" target="_blank" rel="noopener">source</a>
+##### get() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L33" />
 
 `get(key): Promise<V | undefined>`
 
@@ -5788,7 +5788,7 @@ https://redis.io/commands/get/
 
 `BasicKeyspace.get`
 
-##### getAndDelete() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" target="_blank" rel="noopener">source</a>
+##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" />
 
 `getAndDelete(key): Promise<V | undefined>`
 
@@ -5815,7 +5815,7 @@ https://redis.io/commands/getdel/
 
 `BasicKeyspace.getAndDelete`
 
-##### getAndSet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" target="_blank" rel="noopener">source</a>
+##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" />
 
 ```ts
 getAndSet(
@@ -5855,7 +5855,7 @@ https://redis.io/commands/getset/
 
 `BasicKeyspace.getAndSet`
 
-##### mapKey() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" target="_blank" rel="noopener">source</a>
+##### mapKey() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L91" />
 
 `protected mapKey(key): string`
 
@@ -5875,7 +5875,7 @@ Maps a key to its Redis key string.
 
 `BasicKeyspace.mapKey`
 
-##### multiGet() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52" target="_blank" rel="noopener">source</a>
+##### multiGet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L52" />
 
 `multiGet(...keys): Promise<(V | undefined)[]>`
 
@@ -5902,7 +5902,7 @@ https://redis.io/commands/mget/
 
 `BasicKeyspace.multiGet`
 
-##### replace() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" target="_blank" rel="noopener">source</a>
+##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" />
 
 ```ts
 replace(
@@ -5943,7 +5943,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.replace`
 
-##### resolveTtl() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" target="_blank" rel="noopener">source</a>
+##### resolveTtl() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L103" />
 
 `protected resolveTtl(options?): number | undefined`
 
@@ -5964,7 +5964,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `BasicKeyspace.resolveTtl`
 
-##### serialize() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L504" target="_blank" rel="noopener">source</a>
+##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L504" />
 
 `protected serialize(value): Buffer`
 
@@ -5984,7 +5984,7 @@ Serializes a value to a Buffer for storage.
 
 `BasicKeyspace.serialize`
 
-##### set() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" target="_blank" rel="noopener">source</a>
+##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" />
 
 ```ts
 set(
@@ -6021,7 +6021,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.set`
 
-##### setIfNotExists() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" target="_blank" rel="noopener">source</a>
+##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" />
 
 ```ts
 setIfNotExists(
@@ -6062,7 +6062,7 @@ https://redis.io/commands/setnx/
 
 `BasicKeyspace.setIfNotExists`
 
-##### with() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" target="_blank" rel="noopener">source</a>
+##### with() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L123" />
 
 `with(options): this`
 
@@ -6092,7 +6092,7 @@ This allows setting expiry for a chain of operations.
 ## Interfaces
 
 <!-- symbol-start: CacheClusterConfig -->
-### CacheClusterConfig <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L20" target="_blank" rel="noopener">source</a>
+### CacheClusterConfig <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L20" />
 
 Configuration options for a cache cluster.
 
@@ -6110,7 +6110,7 @@ Defaults to "allkeys-lru".
 <!-- symbol-end -->
 
 <!-- symbol-start: KeyspaceConfig -->
-### KeyspaceConfig <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L8" target="_blank" rel="noopener">source</a>
+### KeyspaceConfig <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L8" />
 
 Configuration for a cache keyspace.
 
@@ -6151,7 +6151,7 @@ keyPattern: "user/:userId/region/:region"
 <!-- symbol-end -->
 
 <!-- symbol-start: WriteOptions -->
-### WriteOptions <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L32" target="_blank" rel="noopener">source</a>
+### WriteOptions <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/keyspace.ts#L32" />
 
 Options for write operations.
 
@@ -6169,7 +6169,7 @@ Overrides the keyspace's defaultExpiry.
 ## Type Aliases
 
 <!-- symbol-start: EvictionPolicy -->
-### EvictionPolicy <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L7" target="_blank" rel="noopener">source</a>
+### EvictionPolicy <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/cluster.ts#L7" />
 
 ```ts
 type EvictionPolicy = 
@@ -6190,7 +6190,7 @@ Redis eviction policy that determines how keys are evicted when memory is full.
 <!-- symbol-end -->
 
 <!-- symbol-start: Expiry -->
-### Expiry <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L5" target="_blank" rel="noopener">source</a>
+### Expiry <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L5" />
 
 ```ts
 type Expiry = 
@@ -6216,7 +6216,7 @@ Use the helper functions to create expiry configurations.
 <!-- symbol-end -->
 
 <!-- symbol-start: ListPosition -->
-### ListPosition <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L8" target="_blank" rel="noopener">source</a>
+### ListPosition <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/list.ts#L8" />
 
 `type ListPosition = "left" | "right"`
 
@@ -6227,7 +6227,7 @@ Position in a list (left/head or right/tail).
 ## Variables
 
 <!-- symbol-start: keepTTL -->
-### keepTTL <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L67" target="_blank" rel="noopener">source</a>
+### keepTTL <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L67" />
 
 `const keepTTL: Expiry = "keep-ttl"`
 
@@ -6239,7 +6239,7 @@ If the key doesn't exist, no TTL is set.
 <!-- symbol-end -->
 
 <!-- symbol-start: neverExpire -->
-### neverExpire <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L61" target="_blank" rel="noopener">source</a>
+### neverExpire <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L61" />
 
 `const neverExpire: Expiry = "never"`
 
@@ -6251,7 +6251,7 @@ Note: Redis may still evict the key based on the eviction policy.
 ## Functions
 
 <!-- symbol-start: expireDailyAt() -->
-### expireDailyAt() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L49" target="_blank" rel="noopener">source</a>
+### expireDailyAt() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L49" />
 
 ```ts
 function expireDailyAt(
@@ -6291,7 +6291,7 @@ Seconds (0-59)
 <!-- symbol-end -->
 
 <!-- symbol-start: expireIn() -->
-### expireIn() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L15" target="_blank" rel="noopener">source</a>
+### expireIn() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L15" />
 
 `function expireIn(ms): Expiry`
 
@@ -6314,7 +6314,7 @@ Duration in milliseconds
 <!-- symbol-end -->
 
 <!-- symbol-start: expireInHours() -->
-### expireInHours() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L39" target="_blank" rel="noopener">source</a>
+### expireInHours() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L39" />
 
 `function expireInHours(hours): Expiry`
 
@@ -6337,7 +6337,7 @@ Duration in hours
 <!-- symbol-end -->
 
 <!-- symbol-start: expireInMinutes() -->
-### expireInMinutes() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L31" target="_blank" rel="noopener">source</a>
+### expireInMinutes() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L31" />
 
 `function expireInMinutes(minutes): Expiry`
 
@@ -6360,7 +6360,7 @@ Duration in minutes
 <!-- symbol-end -->
 
 <!-- symbol-start: expireInSeconds() -->
-### expireInSeconds() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L23" target="_blank" rel="noopener">source</a>
+### expireInSeconds() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/expiry.ts#L23" />
 
 `function expireInSeconds(seconds): Expiry`
 

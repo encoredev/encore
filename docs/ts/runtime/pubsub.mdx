@@ -7,7 +7,7 @@ toc: true
 ## Classes
 
 <!-- symbol-start: Subscription -->
-### Subscription <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L6" target="_blank" rel="noopener">source</a>
+### Subscription <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L6" />
 
 #### Type Parameters
 
@@ -17,7 +17,7 @@ toc: true
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L11" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L11" />
 
 ```ts
 new Subscription<Msg>(
@@ -49,7 +49,7 @@ cfg): Subscription<Msg>;
 <!-- symbol-end -->
 
 <!-- symbol-start: Topic -->
-### Topic <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L10" target="_blank" rel="noopener">source</a>
+### Topic <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L10" />
 
 A topic is a resource to which you can publish messages
 to be delivered to subscribers of that topic.
@@ -70,7 +70,7 @@ to be delivered to subscribers of that topic.
 
 #### Constructors
 
-##### Constructor <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L18" target="_blank" rel="noopener">source</a>
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L18" />
 
 `new Topic<Msg>(name, cfg): Topic<Msg>`
 
@@ -104,7 +104,7 @@ to be delivered to subscribers of that topic.
 
 #### Methods
 
-##### publish() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L25" target="_blank" rel="noopener">source</a>
+##### publish() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L25" />
 
 `publish(msg): Promise<string>`
 
@@ -122,7 +122,7 @@ to be delivered to subscribers of that topic.
 
 [`Publisher`](#publisher).[`publish`](#publish-1)
 
-##### ref() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L30" target="_blank" rel="noopener">source</a>
+##### ref() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L30" />
 
 `ref<P>(): P`
 
@@ -141,7 +141,7 @@ to be delivered to subscribers of that topic.
 ## Interfaces
 
 <!-- symbol-start: Publisher -->
-### Publisher <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L5" target="_blank" rel="noopener">source</a>
+### Publisher <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L5" />
 
 #### Extends
 
@@ -155,7 +155,7 @@ to be delivered to subscribers of that topic.
 
 #### Methods
 
-##### publish() <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L6" target="_blank" rel="noopener">source</a>
+##### publish() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L6" />
 
 `abstract publish(msg): Promise<string>`
 
@@ -174,7 +174,7 @@ to be delivered to subscribers of that topic.
 <!-- symbol-end -->
 
 <!-- symbol-start: RetryPolicy -->
-### RetryPolicy <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L111" target="_blank" rel="noopener">source</a>
+### RetryPolicy <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L111" />
 
 RetryPolicy defines how a subscription should handle retries
 after errors either delivering the message or processing the message.
@@ -214,7 +214,7 @@ The minimum time to wait between retries. Defaults to 10 seconds.
 <!-- symbol-end -->
 
 <!-- symbol-start: SubscriptionConfig -->
-### SubscriptionConfig <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L44" target="_blank" rel="noopener">source</a>
+### SubscriptionConfig <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/subscription.ts#L44" />
 
 SubscriptionConfig is used when creating a subscription
 
@@ -304,7 +304,7 @@ the subscriber returns an error
 <!-- symbol-end -->
 
 <!-- symbol-start: TopicConfig -->
-### TopicConfig <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L80" target="_blank" rel="noopener">source</a>
+### TopicConfig <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L80" />
 
 TopicConfig is used when creating a Topic
 
@@ -375,7 +375,7 @@ Note: OrderingAttribute currently has no effect during local development.
 <!-- symbol-end -->
 
 <!-- symbol-start: TopicPerms -->
-### TopicPerms <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L1" target="_blank" rel="noopener">source</a>
+### TopicPerms <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/refs.ts#L1" />
 
 #### Extended by
 
@@ -387,7 +387,7 @@ Note: OrderingAttribute currently has no effect during local development.
 ## Type Aliases
 
 <!-- symbol-start: Attribute -->
-### Attribute <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L34" target="_blank" rel="noopener">source</a>
+### Attribute <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L34" />
 
 `type Attribute<T> = T | brandedAttribute<T>`
 
@@ -424,7 +424,7 @@ to extract the keys of said type.
 <!-- symbol-end -->
 
 <!-- symbol-start: AttributesOf -->
-### AttributesOf <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L51" target="_blank" rel="noopener">source</a>
+### AttributesOf <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/mod.ts#L51" />
 
 `type AttributesOf<T> = keyof { [Key in keyof T as Extract<T[Key], allBrandedTypes> extends never ? never : Key]: never }`
 
@@ -451,7 +451,7 @@ For example:
 <!-- symbol-end -->
 
 <!-- symbol-start: DeliveryGuarantee -->
-### DeliveryGuarantee <a class="symbol-source" href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L38" target="_blank" rel="noopener">source</a>
+### DeliveryGuarantee <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/pubsub/topic.ts#L38" />
 
 `type DeliveryGuarantee = "at-least-once" | "exactly-once"`
 
