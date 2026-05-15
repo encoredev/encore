@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/xid"
 
 	"encore.dev/appruntime/exported/config"
@@ -16,6 +17,11 @@ import (
 // those statements run with sufficient privileges; application queries
 // continue to go through the regular service-user pool.
 const migratorUser = "encore-migrator"
+
+// superuserUser is the username the local dbproxy maps to the superuser
+// role. Used for statements that require privileges beyond the migrator
+// role (e.g. CREATE EXTENSION).
+const superuserUser = "encore-superuser"
 
 //publicapigen:drop
 func (mgr *Manager) NewTestDatabase(ctx context.Context, name string) (*Database, error) {
@@ -94,4 +100,65 @@ func (mgr *Manager) execAsMigrator(ctx context.Context, dbEncoreName, stmt strin
 		return err
 	}
 	return nil
+}
+
+// WithSuperuser returns a copy of db whose connections to the local
+// dbproxy authenticate as the superuser. The returned database shares
+// the same hooks as the original and is automatically shut down at the
+// end of the test.
+//
+// Use this for operations that require superuser privileges (e.g.
+// CREATE EXTENSION) during test setup.
+//
+//publicapigen:drop
+func (mgr *Manager) WithSuperuser(db *Database) *Database {
+	if db.noopDB {
+		return db
+	}
+
+	var dbCfg *config.SQLDatabase
+	for _, d := range mgr.runtime.SQLDatabases {
+		if d.EncoreName == db.origName {
+			dbCfg = d
+			break
+		}
+	}
+	if dbCfg == nil {
+		panic(fmt.Sprintf("sqldb: unknown database %q", db.origName))
+	}
+	srv := mgr.runtime.SQLServers[dbCfg.ServerID]
+
+	// For a cloned test database db.name is the actual Postgres name;
+	// for a regular database it equals the encore name and we let
+	// dbConf fall back to dbCfg.DatabaseName.
+	dbNameOverride := ""
+	if db.name != db.origName {
+		dbNameOverride = db.name
+	}
+
+	cfg, err := dbConf(srv, dbCfg, dbNameOverride)
+	if err != nil {
+		panic("sqldb: " + err.Error())
+	}
+	cfg.ConnConfig.User = superuserUser
+	cfg.ConnConfig.Tracer = &pgxTracer{mgr: mgr}
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		return db.hooks.runAfterConnectHooks(ctx, conn)
+	}
+	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
+	if err != nil {
+		panic("sqldb: setup superuser db: " + err.Error())
+	}
+
+	clone := &Database{
+		name:     db.name,
+		origName: db.origName,
+		mgr:      mgr,
+		hooks:    db.hooks,
+		pool:     pool,
+	}
+	mgr.ts.AddEndCallback(func(t *testing.T) {
+		clone.shutdown()
+	})
+	return clone
 }
