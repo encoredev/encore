@@ -18,6 +18,29 @@ const driverName = "node-pg";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Row = Record<string, any>;
 
+/**
+ * Metadata about a column in a query result
+ */
+export interface ColumnInfo {
+  /** The name of the column */
+  name: string;
+  /** The PostgreSQL type OID */
+  typeOid: number;
+  /** The PostgreSQL type name (e.g., "int4", "text", "jsonb") */
+  typeName: string;
+  /** 
+   * The OID of the table the column belongs to, if any.
+   * Useful for disambiguating columns with the same name from different tables in JOIN results.
+   */
+  tableOid: number | null;
+}
+
+/**
+ * Result of a query that returns all rows as an array,
+ * with an additional `columns` property containing column metadata.
+ */
+export type QueryResult<T> = T[] & { columns: ColumnInfo[] };
+
 /** Represents a type that can be used in query template literals */
 export type Primitive =
   | string
@@ -123,18 +146,24 @@ class BaseQueryExecutor {
   async queryAll<T extends Row = Record<string, any>>(
     strings: TemplateStringsArray,
     ...params: Primitive[]
-  ): Promise<T[]> {
+  ): Promise<QueryResult<T>> {
     const query = buildQuery(strings, params);
     const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const cursor = await this.impl.query(query, args, source);
     const result: T[] = [];
+    let columns: ColumnInfo[] = [];
     while (true) {
       const row = await cursor.next();
       if (row === null) break;
+      if (result.length === 0) {
+        // Get columns from first row
+        columns = row.columns() as ColumnInfo[];
+      }
       result.push(row.values() as T);
     }
-    return result;
+    (result as QueryResult<T>).columns = columns;
+    return result as QueryResult<T>;
   }
 
   /**
@@ -152,17 +181,23 @@ class BaseQueryExecutor {
   async rawQueryAll<T extends Row = Record<string, any>>(
     query: string,
     ...params: Primitive[]
-  ): Promise<T[]> {
+  ): Promise<QueryResult<T>> {
     const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const cursor = await this.impl.query(query, args, source);
     const result: T[] = [];
+    let columns: ColumnInfo[] = [];
     while (true) {
       const row = await cursor.next();
       if (row === null) break;
+      if (result.length === 0) {
+        // Get columns from first row
+        columns = row.columns() as ColumnInfo[];
+      }
       result.push(row.values() as T);
     }
-    return result;
+    (result as QueryResult<T>).columns = columns;
+    return result as QueryResult<T>;
   }
 
   /**
