@@ -91,13 +91,13 @@ export namespace svc {
             this.dummy = this.dummy.bind(this)
         }
 
-        public async dummy(params: Request): Promise<void> {
+        public async dummy(params: Request, options?: CallParameters): Promise<void> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 listOfUnion: params.listOfUnion.map((v) => String(v)),
             })
 
-            await this.baseClient.callTypedAPI("GET", `/dummy`, undefined, {query})
+            await this.baseClient.callTypedAPI("GET", `/dummy`, undefined, {...options, query})
         }
     }
 }
