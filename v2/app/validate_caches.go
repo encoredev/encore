@@ -1,9 +1,6 @@
 package app
 
 import (
-	"fmt"
-
-	"encr.dev/pkg/errors"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/resourcepaths"
@@ -47,7 +44,9 @@ func (d *Desc) validateCaches(pc *parsectx.Context, results *parser.Result) {
 		}
 	}
 
-	// Then verify all keyspaces
+	// Then verify all keyspaces. Keyspaces may live in non-service packages
+	// and be used from multiple services — both are allowed; we just need to
+	// validate cluster references and key-pattern uniqueness.
 	for _, ks := range keyspaces {
 		clusterName := byBinding[ks.Cluster]
 		cluster, ok := found[clusterName]
@@ -57,26 +56,5 @@ func (d *Desc) validateCaches(pc *parsectx.Context, results *parser.Result) {
 		}
 
 		cluster.paths.Add(pc.Errs, "*", ks.Path)
-
-		svc, ok := d.ServiceForPath(ks.File.FSPath)
-		if !ok {
-			pc.Errs.Add(caches.ErrKeyspaceNotInService.AtGoNode(ks.AST.Fun))
-			continue
-		}
-
-		for _, use := range results.Usages(ks) {
-			errTxt := "used here"
-			useSvc, ok := d.ServiceForPath(use.DeclaredIn().FSPath)
-			if ok {
-				errTxt = fmt.Sprintf("used in %q", useSvc.Name)
-			}
-
-			if useSvc != svc {
-				pc.Errs.Add(caches.ErrKeyspaceUsedInOtherService.
-					AtGoNode(use, errors.AsError(errTxt)).
-					AtGoNode(ks, errors.AsHelp(fmt.Sprintf("declared in %q", svc.Name))),
-				)
-			}
-		}
 	}
 }
