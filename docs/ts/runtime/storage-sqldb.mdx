@@ -7,7 +7,7 @@ toc: true
 ## Classes
 
 <!-- symbol-start: Connection -->
-### Connection <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L360" />
+### Connection <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L384" />
 
 Represents a dedicated connection to a database.
 
@@ -17,7 +17,7 @@ Represents a dedicated connection to a database.
 
 #### Constructors
 
-##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L363" />
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L387" />
 
 `new Connection(impl): Connection`
 
@@ -47,7 +47,7 @@ Represents a dedicated connection to a database.
 
 #### Methods
 
-##### close() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L370" />
+##### close() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L394" />
 
 `close(): Promise<void>`
 
@@ -467,19 +467,30 @@ When the connection is closed or is garbage-collected, it is returned to the poo
 
 a new connection to the database
 
-##### begin() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L312" />
+##### begin() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L324" />
 
 `begin(): Promise<Transaction>`
 
 Begins a database transaction.
 
-Make sure to always call `rollback` or `commit` to prevent hanging transactions.
+Prefer the `await using` pattern, which automatically rolls back
+the transaction if neither `commit` nor `rollback` is called before
+the variable goes out of scope:
+
+```ts
+await using tx = await db.begin();
+await tx.exec`INSERT INTO ...`;
+await tx.commit();
+```
+
+If you can't use `await using`, make sure to always call `commit`
+or `rollback` yourself to prevent hanging transactions.
 
 ###### Returns
 
 `Promise`\<[`Transaction`](#transaction)\>
 
-a transaction object that implements AsycDisposable
+a transaction object that implements `AsyncDisposable`
 
 ##### exec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L229" />
 
@@ -838,11 +849,23 @@ exist yet, use `new Database(name)` instead.
 <!-- symbol-end -->
 
 <!-- symbol-start: Transaction -->
-### Transaction <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L324" />
+### Transaction <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L348" />
 
 Represents a database transaction.
 
-Make sure to always call `rollback` or `commit` to prevent hanging transactions.
+`Transaction` implements `AsyncDisposable`, so the recommended usage is
+the `await using` pattern — it automatically rolls back the transaction
+if neither `commit` nor `rollback` is called before the variable goes
+out of scope:
+
+```ts
+await using tx = await db.begin();
+await tx.exec`INSERT INTO ...`;
+await tx.commit();
+```
+
+If you can't use `await using`, make sure to always call `commit` or
+`rollback` yourself to prevent hanging transactions.
 
 #### Extends
 
@@ -854,7 +877,7 @@ Make sure to always call `rollback` or `commit` to prevent hanging transactions.
 
 #### Constructors
 
-##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L328" />
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L352" />
 
 `new Transaction(impl): Transaction`
 
@@ -884,7 +907,7 @@ Make sure to always call `rollback` or `commit` to prevent hanging transactions.
 
 #### Methods
 
-##### \[asyncDispose\]() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L350" />
+##### \[asyncDispose\]() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L374" />
 
 `asyncDispose: Promise<void>`
 
@@ -896,7 +919,7 @@ Make sure to always call `rollback` or `commit` to prevent hanging transactions.
 
 `AsyncDisposable.[asyncDispose]`
 
-##### commit() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L335" />
+##### commit() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L359" />
 
 `commit(): Promise<void>`
 
@@ -1235,7 +1258,7 @@ console.log(result);
 
 `BaseQueryExecutor.rawQueryRow`
 
-##### rollback() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L344" />
+##### rollback() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L368" />
 
 `rollback(): Promise<void>`
 
