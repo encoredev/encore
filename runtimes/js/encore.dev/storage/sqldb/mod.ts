@@ -1,2 +1,7 @@
-export { SQLDatabase } from "./database";
-export type { SQLDatabaseConfig, Row as ResultRow } from "./database";
+export { SQLDatabase, Transaction, Connection } from "./database";
+export type {
+  SQLDatabaseConfig,
+  SQLMigrationsConfig,
+  Primitive,
+  Row as ResultRow,
+} from "./database";

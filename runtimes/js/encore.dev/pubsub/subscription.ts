@@ -1,5 +1,5 @@
 import { setCurrentRequest } from "../internal/reqtrack/mod";
-import { DurationString } from "../internal/types/mod";
+import { DurationString } from "../types/mod";
 import { Topic } from "./topic";
 import * as runtime from "../internal/runtime/mod";
 

@@ -2,10 +2,16 @@ import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
 
+/**
+ * Configures how database migrations are managed for a `SQLDatabase`.
+ */
 export interface SQLMigrationsConfig {
   path: string;
   source?: "prisma" | "drizzle" | "drizzle/v1";
 }
+/**
+ * Configuration for a `SQLDatabase`.
+ */
 export interface SQLDatabaseConfig {
   migrations?: string | SQLMigrationsConfig;
 }
@@ -300,8 +306,20 @@ export class SQLDatabase extends BaseQueryExecutor {
   /**
    * Begins a database transaction.
    *
-   * Make sure to always call `rollback` or `commit` to prevent hanging transactions.
-   * @returns a transaction object that implements AsycDisposable
+   * Prefer the `await using` pattern, which automatically rolls back
+   * the transaction if neither `commit` nor `rollback` is called before
+   * the variable goes out of scope:
+   *
+   * ```ts
+   * await using tx = await db.begin();
+   * await tx.exec`INSERT INTO ...`;
+   * await tx.commit();
+   * ```
+   *
+   * If you can't use `await using`, make sure to always call `commit`
+   * or `rollback` yourself to prevent hanging transactions.
+   *
+   * @returns a transaction object that implements `AsyncDisposable`
    */
   async begin(): Promise<Transaction> {
     const source = getCurrentRequest();
@@ -310,6 +328,23 @@ export class SQLDatabase extends BaseQueryExecutor {
   }
 }
 
+/**
+ * Represents a database transaction.
+ *
+ * `Transaction` implements `AsyncDisposable`, so the recommended usage is
+ * the `await using` pattern — it automatically rolls back the transaction
+ * if neither `commit` nor `rollback` is called before the variable goes
+ * out of scope:
+ *
+ * ```ts
+ * await using tx = await db.begin();
+ * await tx.exec`INSERT INTO ...`;
+ * await tx.commit();
+ * ```
+ *
+ * If you can't use `await using`, make sure to always call `commit` or
+ * `rollback` yourself to prevent hanging transactions.
+ */
 export class Transaction extends BaseQueryExecutor implements AsyncDisposable {
   declare protected readonly impl: runtime.Transaction;
   private done: boolean = false;

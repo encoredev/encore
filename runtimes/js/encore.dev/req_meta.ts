@@ -141,7 +141,8 @@ export interface TraceData {
   extCorrelationId?: string;
 }
 
-interface BaseRequestMeta {
+/** Common fields shared by all request meta types. */
+export interface BaseRequestMeta {
   /** Information about the trace, if the request is being traced */
   trace?: TraceData;
 }

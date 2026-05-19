@@ -85,7 +85,7 @@ The additional arguments are passed directly to the built binary.
 | --- | --- |
 | `-n, --namespace` | Namespace to use (defaults to active namespace) |
 
-##### Example
+**Example**
 
 Run a database seed script
 

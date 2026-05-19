@@ -5,7 +5,7 @@ import type {
 } from "node:http";
 import type { AddressInfo, Socket, SocketReadyState } from "node:net";
 import * as stream from "node:stream";
-import * as runtime from "../runtime/mod";
+import * as runtime from "../internal/runtime/mod";
 
 export class RawRequest extends stream.Readable {
   complete: boolean;

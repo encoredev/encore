@@ -22,7 +22,7 @@ export interface Secret<Name extends string> {
    * Encore will periodically refresh the value of the secret, so this
    * value may change over time and could be stale for upto a couple of
    * minutes. If you need to ensure you have the latest value, use
-   * {@link latest}.
+   * `latest`.
    */
   (): string;
 
@@ -41,7 +41,7 @@ export type AnySecret = Secret<string>;
 /**
  * secret is used to load a single {@link Secret} into the application.
  *
- * If you wish to load multiple secrets at once, see {@link secrets}.
+ * If you wish to load multiple secrets at once, see `secrets`.
  *
  * @example loading a single secret
  *  import {secret} from "encore.dev/config/secrets";

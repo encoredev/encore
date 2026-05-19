@@ -1,6 +1,6 @@
 /* eslint-disable */
 
-import { DurationString } from "../internal/types/mod";
+import { DurationString } from "../types/mod";
 
 export class CronJob {
   public readonly name: string;

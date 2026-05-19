@@ -897,6 +897,80 @@
 				text: "API Documentation"
 				path: "/ts/develop/api-docs"
 				file: "ts/develop/api-docs"
+			}, {
+				kind: "accordion"
+				text: "Encore API Reference"
+				accordion: [{
+					kind: "basic"
+					text: "encore.dev"
+					path: "/ts/runtime/encore-dev"
+					file: "ts/runtime/encore-dev"
+				}, {
+					kind: "basic"
+					text: "encore.dev/api"
+					path: "/ts/runtime/api"
+					file: "ts/runtime/api"
+				}, {
+					kind: "basic"
+					text: "encore.dev/auth"
+					path: "/ts/runtime/auth"
+					file: "ts/runtime/auth"
+				}, {
+					kind: "basic"
+					text: "encore.dev/config"
+					path: "/ts/runtime/config"
+					file: "ts/runtime/config"
+				}, {
+					kind: "basic"
+					text: "encore.dev/cron"
+					path: "/ts/runtime/cron"
+					file: "ts/runtime/cron"
+				}, {
+					kind: "basic"
+					text: "encore.dev/log"
+					path: "/ts/runtime/log"
+					file: "ts/runtime/log"
+				}, {
+					kind: "basic"
+					text: "encore.dev/metrics"
+					path: "/ts/runtime/metrics"
+					file: "ts/runtime/metrics"
+				}, {
+					kind: "basic"
+					text: "encore.dev/pubsub"
+					path: "/ts/runtime/pubsub"
+					file: "ts/runtime/pubsub"
+				}, {
+					kind: "basic"
+					text: "encore.dev/service"
+					path: "/ts/runtime/service"
+					file: "ts/runtime/service"
+				}, {
+					kind: "basic"
+					text: "encore.dev/storage/cache"
+					path: "/ts/runtime/storage-cache"
+					file: "ts/runtime/storage-cache"
+				}, {
+					kind: "basic"
+					text: "encore.dev/storage/objects"
+					path: "/ts/runtime/storage-objects"
+					file: "ts/runtime/storage-objects"
+				}, {
+					kind: "basic"
+					text: "encore.dev/storage/sqldb"
+					path: "/ts/runtime/storage-sqldb"
+					file: "ts/runtime/storage-sqldb"
+				}, {
+					kind: "basic"
+					text: "encore.dev/types"
+					path: "/ts/runtime/types"
+					file: "ts/runtime/types"
+				}, {
+					kind: "basic"
+					text: "encore.dev/validate"
+					path: "/ts/runtime/validate"
+					file: "ts/runtime/validate"
+				}]
 			}]
 		},
 		{

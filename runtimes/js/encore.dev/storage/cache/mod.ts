@@ -1,11 +1,11 @@
-// Cache cluster
+/** Cache cluster */
 export { CacheCluster } from "./cluster";
 export type { CacheClusterConfig, EvictionPolicy } from "./cluster";
 
-// Keyspace configuration
+/** Keyspace configuration */
 export type { KeyspaceConfig, WriteOptions } from "./keyspace";
 
-// Basic keyspaces
+/** Basic keyspaces */
 export {
   StringKeyspace,
   IntKeyspace,
@@ -13,14 +13,14 @@ export {
   StructKeyspace
 } from "./basic";
 
-// List keyspaces
+/** List keyspaces */
 export { StringListKeyspace, NumberListKeyspace } from "./list";
 export type { ListPosition } from "./list";
 
-// Set keyspaces
+/** Set keyspaces */
 export { StringSetKeyspace, NumberSetKeyspace } from "./set";
 
-// Expiry utilities
+/** Expiry utilities */
 export {
   expireIn,
   expireInSeconds,
@@ -32,5 +32,5 @@ export {
 } from "./expiry";
 export type { Expiry } from "./expiry";
 
-// Error types
+/** Error types */
 export { CacheError, CacheMiss, CacheKeyExists } from "./errors";

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "plugin": ["typedoc-plugin-markdown", "typedoc-plugin-frontmatter"],
+  "entryPoints": [
+    "./mod.ts",
+    "./api/mod.ts",
+    "./auth/mod.ts",
+    "./config/mod.ts",
+    "./cron/mod.ts",
+    "./log/mod.ts",
+    "./metrics/mod.ts",
+    "./pubsub/mod.ts",
+    "./service/mod.ts",
+    "./storage/cache/mod.ts",
+    "./storage/objects/mod.ts",
+    "./storage/sqldb/mod.ts",
+    "./types/mod.ts",
+    "./validate/mod.ts"
+  ],
+  "entryPointStrategy": "resolve",
+  "tsconfig": "./tsconfig.json",
+  "out": "../../../docs/ts/runtime",
+  "name": "encore.dev",
+  "readme": "none",
+  "includeVersion": false,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "exclude": ["**/internal/**", "**/*.test.ts", "**/dist/**"],
+  "intentionallyNotExported": [
+    "brandedAttribute",
+    "allBrandedTypes",
+    "durationComponent",
+    "HandlerFn",
+    "StringLiteral"
+  ],
+  "externalSymbolLinkMappings": {
+    "@types/node": {
+      "internal.pipe": "https://nodejs.org/api/stream.html#readablepipedestination-options"
+    }
+  },
+  "skipErrorChecking": true,
+  "treatWarningsAsErrors": true,
+  "gitRevision": "main",
+  "outputFileStrategy": "modules",
+  "flattenOutputFiles": true,
+  "fileExtension": ".mdx",
+  "entryFileName": "index",
+  "hideBreadcrumbs": true,
+  "hidePageHeader": true,
+  "hidePageTitle": true,
+  "useCodeBlocks": true,
+  "expandObjects": true,
+  "frontmatterGlobals": {
+    "lang": "ts",
+    "toc": true
+  }
+}

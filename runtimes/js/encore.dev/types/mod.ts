@@ -1,5 +1,18 @@
 import * as runtime from "../internal/runtime/mod";
 
+type durationUnit = "ns" | "µs" | "ms" | "s" | "m" | "h";
+type durationComponent = `${number}${durationUnit}`;
+
+/**
+ * A duration is a string representing a length of time.
+ *
+ * Examples: `"10s"`, `"500ms"`, `"5m"`, `"1h30m"`, `"1h 30m"`.
+ */
+export type DurationString =
+  | durationComponent
+  | `${durationComponent}${durationComponent}`
+  | `${durationComponent} ${durationComponent}`;
+
 export type ToDecimal = string | number | bigint;
 
 /**

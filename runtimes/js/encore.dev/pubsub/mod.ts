@@ -2,9 +2,11 @@ export { Topic } from "./topic";
 export type { TopicConfig, DeliveryGuarantee } from "./topic";
 
 export { Subscription } from "./subscription";
-export type { SubscriptionConfig } from "./subscription";
+export type { SubscriptionConfig, RetryPolicy } from "./subscription";
 
 export type { TopicPerms, Publisher } from "./refs";
+
+export type { DurationString } from "../types/mod";
 
 /**
  * Attribute represents a field on a message that should be sent
@@ -62,6 +64,8 @@ type supportedAttributeTypes = string | number | boolean;
  * brandedAttribute is a helper type to brand a type as an attribute
  * which is distinct from the base type. It is a compile time only
  * type and has no runtime representation.
+ *
+ * @internal
  */
 type brandedAttribute<T> = T & { readonly __attributeBrand: unique symbol };
 
@@ -69,6 +73,8 @@ type brandedAttribute<T> = T & { readonly __attributeBrand: unique symbol };
  * allBrandedTypes is a helper type to create a union of all branded supported attribute types
  *
  * The result of this is: brandedAttribute<string> | brandedAttribute<number> | brandedAttribute<boolean>
+ *
+ * @internal
  */
 type allBrandedTypes<Union = supportedAttributeTypes> =
   Union extends supportedAttributeTypes ? brandedAttribute<Union> : never;
