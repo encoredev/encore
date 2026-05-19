@@ -37,7 +37,51 @@ func (m *Manager) registerAPITools() {
 		mcp.WithString("auth_token", mcp.Description("Optional authentication token to include in the request. This is used for endpoints that require authentication.")),
 		mcp.WithString("auth_payload", mcp.Description("Optional authentication payload in JSON format. This is used for custom authentication schemes.")),
 		mcp.WithString("correlation_id", mcp.Description("Optional correlation ID to track the request through the system. Useful for debugging and tracing.")),
-		mcp.WithObject("retry_until", mcp.Description("Optional. If set, the MCP server repeatedly calls the endpoint until the predicate matches OR the timeout elapses, then returns the final response. Predicate forms: status (int), body_path ({path, equals}), body_jq (subset: '<path>' or '<path> | length <op> N'). Other fields: timeout_ms (int, default 10000), interval_ms (int, default 250), fail_on_timeout (bool, default false). Accepts a JSON object or a JSON-encoded string.")),
+		mcp.WithObject("retry_until",
+			mcp.Description("Optional. If set, the MCP server repeatedly calls the endpoint until the predicate matches OR the timeout elapses, then returns the final response. Accepts a JSON object or a JSON-encoded string."),
+			mcp.Properties(map[string]any{
+				"predicate": map[string]any{
+					"type":        "object",
+					"description": "Predicate the response must satisfy to stop retrying. Exactly one of status, body_path, or body_jq should be set; precedence is body_jq > body_path > status.",
+					"properties": map[string]any{
+						"status": map[string]any{
+							"type":        "integer",
+							"description": "Stop when the HTTP response status equals this code (e.g. 200).",
+						},
+						"body_path": map[string]any{
+							"type":        "object",
+							"description": "Stop when the value at the given dot-path equals the expected JSON value.",
+							"properties": map[string]any{
+								"path": map[string]any{
+									"type":        "string",
+									"description": "Dot-path into the JSON response body (e.g. '.events.0.orderID').",
+								},
+								"equals": map[string]any{
+									"description": "Expected value at the path (any JSON value).",
+								},
+							},
+							"required": []string{"path", "equals"},
+						},
+						"body_jq": map[string]any{
+							"type":        "string",
+							"description": "Minimal jq subset: '<path> | length <op> N' where op is one of > >= == != < <=, or '<path>' for a truthy check.",
+						},
+					},
+				},
+				"timeout_ms": map[string]any{
+					"type":        "integer",
+					"description": "Max total wait in milliseconds. Default 10000.",
+				},
+				"interval_ms": map[string]any{
+					"type":        "integer",
+					"description": "Delay between retries in milliseconds. Default 250.",
+				},
+				"fail_on_timeout": map[string]any{
+					"type":        "boolean",
+					"description": "If true, return an MCP error on timeout instead of the last response. Default false.",
+				},
+			}),
+		),
 	), m.callEndpoint)
 
 	// Add tool for getting all services and endpoints
