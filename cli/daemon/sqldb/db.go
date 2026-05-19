@@ -95,7 +95,7 @@ func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabas
 
 	if recreate {
 		if err := db.drop(ctx); err != nil {
-			return err
+			return fmt.Errorf("drop database: %v", err)
 		}
 	}
 
@@ -212,7 +212,7 @@ func (db *DB) renameDB(ctx context.Context, from, to string) error {
 func (db *DB) ensureRoles(ctx context.Context, cloudName string, roles ...Role) error {
 	adm, err := db.connectToDB(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("connect to db: %v", err)
 	}
 	defer func() { _ = adm.Close() }()
 
@@ -437,7 +437,7 @@ func (db *DB) terminateConnectionsToDB(ctx context.Context, cloudName string) er
 func (db *DB) doDrop(ctx context.Context, cloudName string) error {
 	adm, err := db.connectSuperuser(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("connect as superuser: %v", err)
 	}
 	defer func() { _ = adm.Close(context.Background()) }()
 
@@ -487,7 +487,7 @@ func (db *DB) connectSuperuser(ctx context.Context) (*pgx.Conn, error) {
 
 	// Wait for the connection to be established; this might take a little bit
 	// when we're racing with spinning up a Docker container.
-	for i := 0; i < 40; i++ {
+	for range 40 {
 		var conn *pgx.Conn
 		conn, err = pgx.Connect(ctx, uri)
 		if err == nil {
@@ -512,7 +512,7 @@ func (db *DB) connectToDB(ctx context.Context) (*sql.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	uri := info.ConnURI(db.EncoreName, info.Config.Superuser)
+	uri := info.ConnURI(db.ApplicationCloudName(), info.Config.Superuser)
 	pool, err := sql.Open("pgx", uri)
 	if err != nil {
 		return nil, err
