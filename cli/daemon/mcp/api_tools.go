@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,6 +15,8 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/schemautil"
@@ -34,6 +37,51 @@ func (m *Manager) registerAPITools() {
 		mcp.WithString("auth_token", mcp.Description("Optional authentication token to include in the request. This is used for endpoints that require authentication.")),
 		mcp.WithString("auth_payload", mcp.Description("Optional authentication payload in JSON format. This is used for custom authentication schemes.")),
 		mcp.WithString("correlation_id", mcp.Description("Optional correlation ID to track the request through the system. Useful for debugging and tracing.")),
+		mcp.WithObject("retry_until",
+			mcp.Description("Optional. If set, the MCP server repeatedly calls the endpoint until the predicate matches OR the timeout elapses, then returns the final response. Accepts a JSON object or a JSON-encoded string."),
+			mcp.Properties(map[string]any{
+				"predicate": map[string]any{
+					"type":        "object",
+					"description": "Predicate the response must satisfy to stop retrying. Exactly one of status, body_path, or body_jq should be set; precedence is body_jq > body_path > status.",
+					"properties": map[string]any{
+						"status": map[string]any{
+							"type":        "integer",
+							"description": "Stop when the HTTP response status equals this code (e.g. 200).",
+						},
+						"body_path": map[string]any{
+							"type":        "object",
+							"description": "Stop when the value at the given dot-path equals the expected JSON value.",
+							"properties": map[string]any{
+								"path": map[string]any{
+									"type":        "string",
+									"description": "Dot-path into the JSON response body (e.g. '.events.0.orderID').",
+								},
+								"equals": map[string]any{
+									"description": "Expected value at the path (any JSON value).",
+								},
+							},
+							"required": []string{"path", "equals"},
+						},
+						"body_jq": map[string]any{
+							"type":        "string",
+							"description": "Minimal jq subset: '<path> | length <op> N' where op is one of > >= == != < <=, or '<path>' for a truthy check.",
+						},
+					},
+				},
+				"timeout_ms": map[string]any{
+					"type":        "integer",
+					"description": "Max total wait in milliseconds. Default 10000.",
+				},
+				"interval_ms": map[string]any{
+					"type":        "integer",
+					"description": "Delay between retries in milliseconds. Default 250.",
+				},
+				"fail_on_timeout": map[string]any{
+					"type":        "boolean",
+					"description": "If true, return an MCP error on timeout instead of the last response. Default false.",
+				},
+			}),
+		),
 	), m.callEndpoint)
 
 	// Add tool for getting all services and endpoints
@@ -124,12 +172,88 @@ func (m *Manager) callEndpoint(ctx context.Context, request mcp.CallToolRequest)
 		return nil, fmt.Errorf("failed to get active namespace: %w", err)
 	}
 
-	// Get the app's run instance
+	if err := m.ensureAppRunning(ctx, inst, ns); err != nil {
+		return nil, err
+	}
+
+	doCall := func(ctx context.Context) (map[string]any, error) {
+		return singleShotCall(ctx, m.run, inst, params)
+	}
+
+	cfg, hasRetry, err := parseRetryUntil(request.Params.Arguments["retry_until"])
+	if err != nil {
+		return nil, err
+	}
+
+	if !hasRetry {
+		result, err := doCall(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("API call failed: %w", err)
+		}
+		jsonData, err := json.Marshal(result)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal response: %w", err)
+		}
+		return mcp.NewToolResultText(string(jsonData)), nil
+	}
+
+	startedAt := time.Now()
+	result, info, err := runRetryLoop(ctx, cfg, doCall)
+	info.TotalWaitMS = int64(time.Since(startedAt) / time.Millisecond)
+	info.Predicate = predicateAsMap(cfg.Predicate)
+
+	if err != nil {
+		var rte *retryTimeoutError
+		if errors.As(err, &rte) {
+			body, _ := json.Marshal(map[string]any{
+				"error":         rte.Message,
+				"last_response": rte.LastResponse,
+				"retry": map[string]any{
+					"matched":       false,
+					"attempts":      rte.Attempts,
+					"total_wait_ms": info.TotalWaitMS,
+					"predicate":     info.Predicate,
+				},
+			})
+			return mcp.NewToolResultText(string(body)), nil
+		}
+		return nil, fmt.Errorf("API call failed: %w", err)
+	}
+
+	result["retry"] = map[string]any{
+		"matched":       info.Matched,
+		"attempts":      info.Attempts,
+		"total_wait_ms": info.TotalWaitMS,
+		"predicate":     info.Predicate,
+	}
+	jsonData, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal response: %w", err)
+	}
+	return mcp.NewToolResultText(string(jsonData)), nil
+}
+
+func predicateAsMap(p predicate) map[string]any {
+	if p.Jq != "" {
+		return map[string]any{"body_jq": p.Jq}
+	}
+	if p.Path != nil {
+		return map[string]any{"body_path": map[string]any{"path": p.Path.Path, "equals": p.Path.Equals}}
+	}
+	if p.Status != 0 {
+		return map[string]any{"status": p.Status}
+	}
+	return map[string]any{}
+}
+
+// ensureAppRunning starts the app if it isn't already, and waits for the
+// health endpoint to return 200 before returning.
+func (m *Manager) ensureAppRunning(ctx context.Context, inst *apps.Instance, ns *namespace.Namespace) error {
 	appRun := m.run.FindRunByAppID(inst.PlatformOrLocalID())
 	if appRun == nil {
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
-			return nil, fmt.Errorf("failed to create listener: %w", err)
+			return fmt.Errorf("failed to create listener: %w", err)
 		}
 		port := ln.Addr().(*net.TCPAddr).Port
 		appRun, err = m.run.Start(ctx, run.StartParams{
@@ -145,48 +269,49 @@ func (m *Manager) callEndpoint(ctx context.Context, request mcp.CallToolRequest)
 			Debug:      builder.DebugModeDisabled,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to start app run: %w", err)
+			return fmt.Errorf("failed to start app run: %w", err)
 		}
 	}
-
-	started := false
-	for !started {
+	for {
 		select {
 		case <-appRun.Done():
-			return nil, fmt.Errorf("app run failed to start")
+			return fmt.Errorf("app run failed to start")
 		case <-time.After(100 * time.Millisecond):
-			// Check if the app is ready by polling the health endpoint
 			resp, err := http.Get("http://" + appRun.ListenAddr + "/__encore/healthz")
 			if err != nil {
 				continue
 			}
 			resp.Body.Close()
-			started = resp.StatusCode == 200
+			if resp.StatusCode == 200 {
+				return nil
+			}
 		}
 	}
+}
 
-	// Call the API
-	result, err := run.CallAPI(ctx, appRun, params)
-
-	if err != nil {
-		return nil, fmt.Errorf("API call failed: %w", err)
+// singleShotCall performs one HTTP call against the running app and returns
+// the result map with byte-body converted to string.
+func singleShotCall(ctx context.Context, runMgr *run.Manager, inst *apps.Instance, params *run.ApiCallParams) (map[string]any, error) {
+	appRun := runMgr.FindRunByAppID(inst.PlatformOrLocalID())
+	if appRun == nil {
+		return nil, fmt.Errorf("app is not running")
 	}
+	result, err := run.CallAPI(ctx, appRun, params)
+	if err != nil {
+		return nil, err
+	}
+	return stringifyBody(result), nil
+}
 
-	// Convert body to string
+// stringifyBody mutates result in place to convert a []byte body to string.
+// The map is returned for chaining.
+func stringifyBody(result map[string]any) map[string]any {
 	if body, ok := result["body"]; ok {
-		switch v := body.(type) {
-		case []byte:
+		if v, ok := body.([]byte); ok {
 			result["body"] = string(v)
 		}
 	}
-
-	// Serialize the response
-	jsonData, err := json.Marshal(result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal response: %w", err)
-	}
-
-	return mcp.NewToolResultText(string(jsonData)), nil
+	return result
 }
 
 func (m *Manager) getEndpoints(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -550,6 +675,158 @@ func (m *Manager) getMiddleware(ctx context.Context, request mcp.CallToolRequest
 	}
 
 	return mcp.NewToolResultText(string(jsonData)), nil
+}
+
+type retryConfig struct {
+	Predicate     predicate
+	Timeout       time.Duration
+	Interval      time.Duration
+	FailOnTimeout bool
+}
+
+type retryInfo struct {
+	Matched     bool
+	Attempts    int
+	TotalWaitMS int64
+	Predicate   map[string]any // for echoing back to the agent
+}
+
+type retryTimeoutError struct {
+	Message      string
+	LastResponse map[string]any
+	Attempts     int
+}
+
+func (e *retryTimeoutError) Error() string { return e.Message }
+
+const (
+	defaultRetryTimeoutMS  = 10000
+	defaultRetryIntervalMS = 250
+)
+
+// parseRetryUntil decodes the retry_until input. Returns ok=false when retry_until is absent.
+func parseRetryUntil(raw any) (retryConfig, bool, error) {
+	if raw == nil {
+		return retryConfig{}, false, nil
+	}
+	var m map[string]any
+	switch v := raw.(type) {
+	case map[string]any:
+		m = v
+	case string:
+		if v == "" {
+			return retryConfig{}, false, nil
+		}
+		if err := json.Unmarshal([]byte(v), &m); err != nil {
+			return retryConfig{}, false, fmt.Errorf("invalid retry_until: %w", err)
+		}
+	default:
+		return retryConfig{}, false, fmt.Errorf("retry_until must be an object")
+	}
+	if len(m) == 0 {
+		// Empty object → no retry, matching the omitted-field behavior.
+		return retryConfig{}, false, nil
+	}
+
+	cfg := retryConfig{
+		Timeout:  defaultRetryTimeoutMS * time.Millisecond,
+		Interval: defaultRetryIntervalMS * time.Millisecond,
+	}
+
+	if v, ok := m["timeout_ms"].(float64); ok {
+		cfg.Timeout = time.Duration(v) * time.Millisecond
+	}
+	if v, ok := m["interval_ms"].(float64); ok {
+		cfg.Interval = time.Duration(v) * time.Millisecond
+	}
+	if v, ok := m["fail_on_timeout"].(bool); ok {
+		cfg.FailOnTimeout = v
+	}
+
+	pm, ok := m["predicate"].(map[string]any)
+	if !ok {
+		return retryConfig{}, false, fmt.Errorf("retry_until.predicate is required")
+	}
+	// Order of preference: jq > body_path > status (per spec).
+	if jq, ok := pm["body_jq"].(string); ok && jq != "" {
+		cfg.Predicate = predicate{Jq: jq}
+	} else if pp, ok := pm["body_path"].(map[string]any); ok {
+		path, _ := pp["path"].(string)
+		cfg.Predicate = predicate{Path: &pathPredicate{Path: path, Equals: pp["equals"]}}
+	} else if status, ok := pm["status"].(float64); ok {
+		cfg.Predicate = predicate{Status: int(status)}
+	} else {
+		return retryConfig{}, false, fmt.Errorf("retry_until.predicate must specify status, body_path, or body_jq")
+	}
+	return cfg, true, nil
+}
+
+// runRetryLoop calls doCall repeatedly until the predicate matches, the timeout
+// elapses, or ctx is canceled.
+func runRetryLoop(ctx context.Context, cfg retryConfig, doCall func(ctx context.Context) (map[string]any, error)) (map[string]any, retryInfo, error) {
+	deadline := time.Now().Add(cfg.Timeout)
+	var (
+		lastResp map[string]any
+		attempts int
+	)
+	info := retryInfo{}
+
+	for {
+		attempts++
+		resp, err := doCall(ctx)
+		if err != nil {
+			return nil, info, err
+		}
+		lastResp = resp
+
+		status := extractStatusCode(resp)
+		body, _ := resp["body"].(string)
+
+		matched, evalErr := cfg.Predicate.evaluate(status, []byte(body))
+		if evalErr != nil {
+			return nil, info, fmt.Errorf("predicate evaluation failed: %w", evalErr)
+		}
+		if matched {
+			info.Matched = true
+			info.Attempts = attempts
+			info.TotalWaitMS = int64(time.Since(deadline.Add(-cfg.Timeout)) / time.Millisecond)
+			return resp, info, nil
+		}
+
+		if time.Now().After(deadline) {
+			info.Matched = false
+			info.Attempts = attempts
+			info.TotalWaitMS = cfg.Timeout.Milliseconds()
+			if cfg.FailOnTimeout {
+				return nil, info, &retryTimeoutError{
+					Message:      fmt.Sprintf("retry_until predicate never matched within %dms", cfg.Timeout.Milliseconds()),
+					LastResponse: lastResp,
+					Attempts:     attempts,
+				}
+			}
+			return lastResp, info, nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, info, ctx.Err()
+		case <-time.After(cfg.Interval):
+		}
+	}
+}
+
+// extractStatusCode reads the numeric HTTP status from a run.CallAPI result,
+// which stores it under "status_code" (the "status" field holds the string
+// like "200 OK"). Handles int (direct from CallAPI) and float64 (in case the
+// caller round-trips through JSON).
+func extractStatusCode(resp map[string]any) int {
+	switch v := resp["status_code"].(type) {
+	case int:
+		return v
+	case float64:
+		return int(v)
+	}
+	return 0
 }
 
 func (m *Manager) getAuthHandlers(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
