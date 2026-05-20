@@ -1,3 +1,3 @@
-# Security Repot
+# Security Report
 
 # Proof Of Concept
