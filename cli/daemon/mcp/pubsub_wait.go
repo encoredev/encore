@@ -43,6 +43,13 @@ type eventGetter interface {
 	GetEvents(ctx context.Context, appID, traceID, spanID string) ([]*tracepb2.TraceEvent, error)
 }
 
+// spanLister abstracts trace2.Store.List for tests. Used to scan completed
+// PubSub message spans during the lookback window before opening the forward
+// wait window. trace2.Store.List matches this signature exactly.
+type spanLister interface {
+	List(ctx context.Context, q *trace2.Query, iter trace2.ListEntryIterator) error
+}
+
 type spanDetails struct {
 	MessageID    string
 	Attempt      uint32
@@ -95,6 +102,68 @@ type waitParams struct {
 	Timeout time.Duration
 }
 
+// findRecentMatch scans the trace store for completed PubSub message spans on
+// the given topic/subscription whose payload satisfies match. It only
+// considers spans started no earlier than the larger of (now-lookback, since).
+//
+// Returns a matched waitResult when found, or (nil, nil) on no match. Errors
+// from the store are surfaced; payload decode failures are treated as misses
+// so the forward window can still pick the message up if it arrives again.
+func findRecentMatch(ctx context.Context, lister spanLister, getter eventGetter, appID, topic, sub string, since time.Time, lookback time.Duration, match map[string]any) (*waitResult, error) {
+	if lookback <= 0 {
+		return nil, nil
+	}
+	cutoff := time.Now().Add(-lookback)
+	if !since.IsZero() && since.After(cutoff) {
+		cutoff = since
+	}
+
+	// trace2.Store.List ignores Topic/Subscription/StartTime filters today and
+	// returns most-recent-first. Filter client-side; the default Limit=100 is
+	// enough headroom for any plausible lookback window.
+	var candidates []*tracepb2.SpanSummary
+	err := lister.List(ctx, &trace2.Query{
+		AppID:        appID,
+		Topic:        topic,
+		Subscription: sub,
+		StartTime:    cutoff,
+	}, func(span *tracepb2.SpanSummary) bool {
+		if span == nil || span.Type != tracepb2.SpanSummary_PUBSUB_MESSAGE {
+			return true
+		}
+		if span.GetTopicName() != topic {
+			return true
+		}
+		if sub != "" && span.GetSubscriptionName() != sub {
+			return true
+		}
+		if started := span.GetStartedAt(); started != nil && started.AsTime().Before(cutoff) {
+			return true
+		}
+		candidates = append(candidates, span)
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, span := range candidates {
+		details, err := loadSpanDetails(ctx, getter, appID, span.TraceId, span.SpanId)
+		if err != nil {
+			return nil, err
+		}
+		if !matchPayload(details.Payload, match) {
+			continue
+		}
+		return &waitResult{
+			Matched: true,
+			Span:    span,
+			Details: details,
+		}, nil
+	}
+	return nil, nil
+}
+
 type waitResult struct {
 	Matched      bool
 	Timeout      bool
@@ -143,6 +212,22 @@ func waitForMatch(ctx context.Context, p waitParams) (*waitResult, error) {
 	}
 }
 
+// subscriptionsOnTopic returns the names of subscriptions registered against
+// the given topic, in declaration order, or nil if the topic isn't found.
+func subscriptionsOnTopic(topics []*metav1.PubSubTopic, topic string) []string {
+	for _, t := range topics {
+		if t.Name != topic {
+			continue
+		}
+		out := make([]string, 0, len(t.Subscriptions))
+		for _, s := range t.Subscriptions {
+			out = append(out, s.Name)
+		}
+		return out
+	}
+	return nil
+}
+
 func validateTopicSub(topics []*metav1.PubSubTopic, topic, sub string) error {
 	for _, t := range topics {
 		if t.Name != topic {
@@ -182,7 +267,11 @@ func spanMatches(ev trace2.NewSpanEvent, p waitParams) bool {
 	return true
 }
 
-const defaultWaitTimeoutMS = 10000
+const (
+	defaultWaitTimeoutMS  = 10000
+	defaultWaitLookbackMS = 5000
+	maxWaitLookbackMS     = 60000
+)
 
 // waitForSubscriptionMessage is the MCP tool handler.
 func (m *Manager) waitForSubscriptionMessage(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -206,6 +295,22 @@ func (m *Manager) waitForSubscriptionMessage(ctx context.Context, request mcp.Ca
 	}
 	if timeoutMS <= 0 {
 		return nil, fmt.Errorf("timeout_ms must be a positive integer, got %d", timeoutMS)
+	}
+
+	lookbackMS := defaultWaitLookbackMS
+	if _, set := request.Params.Arguments["lookback_ms"]; set {
+		switch v := request.Params.Arguments["lookback_ms"].(type) {
+		case float64:
+			lookbackMS = int(v)
+		case int:
+			lookbackMS = v
+		}
+	}
+	if lookbackMS < 0 {
+		return nil, fmt.Errorf("lookback_ms must be a non-negative integer, got %d", lookbackMS)
+	}
+	if lookbackMS > maxWaitLookbackMS {
+		lookbackMS = maxWaitLookbackMS
 	}
 
 	since := time.Now()
@@ -245,11 +350,24 @@ func (m *Manager) waitForSubscriptionMessage(ctx context.Context, request mcp.Ca
 		return nil, err
 	}
 
+	// Subscribe to the forward window BEFORE the lookback scan so a message
+	// completing mid-scan doesn't fall in the gap between the two.
 	subCh, cancel := m.broker.subscribe()
 	defer cancel()
 
+	appID := inst.PlatformOrLocalID()
+	if lookbackMS > 0 {
+		hit, err := findRecentMatch(ctx, m.traces, m.traces, appID, topic, sub, since, time.Duration(lookbackMS)*time.Millisecond, match)
+		if err != nil {
+			return nil, fmt.Errorf("lookback scan failed: %w", err)
+		}
+		if hit != nil {
+			return mcp.NewToolResultText(toJSON(formatWaitResult(topic, sub, timeoutMS, hit, md.PubsubTopics))), nil
+		}
+	}
+
 	res, err := waitForMatch(ctx, waitParams{
-		AppID:   inst.PlatformOrLocalID(),
+		AppID:   appID,
 		Topic:   topic,
 		Sub:     sub,
 		Since:   since,
@@ -262,18 +380,22 @@ func (m *Manager) waitForSubscriptionMessage(ctx context.Context, request mcp.Ca
 		return nil, err
 	}
 
-	return mcp.NewToolResultText(toJSON(formatWaitResult(topic, sub, timeoutMS, res))), nil
+	return mcp.NewToolResultText(toJSON(formatWaitResult(topic, sub, timeoutMS, res, md.PubsubTopics))), nil
 }
 
-func formatWaitResult(topic, sub string, timeoutMS int, res *waitResult) map[string]any {
+func formatWaitResult(topic, sub string, timeoutMS int, res *waitResult, topics []*metav1.PubSubTopic) map[string]any {
 	if res.Timeout {
-		return map[string]any{
+		out := map[string]any{
 			"matched":                   false,
 			"timeout":                   true,
 			"topic":                     topic,
 			"waited_ms":                 timeoutMS,
 			"messages_seen_during_wait": res.MessagesSeen,
 		}
+		if subs := subscriptionsOnTopic(topics, topic); subs != nil {
+			out["subscriptions_on_topic"] = subs
+		}
+		return out
 	}
 
 	outcome := "success"

@@ -8,8 +8,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"encr.dev/cli/daemon/engine/trace2"
-	metav1 "encr.dev/proto/encore/parser/meta/v1"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
+	metav1 "encr.dev/proto/encore/parser/meta/v1"
 )
 
 func TestMatchPayload_TopLevelEquality(t *testing.T) {
@@ -87,10 +87,26 @@ func TestMatchPayload_TopLevelEquality(t *testing.T) {
 
 type fakeTraceStore struct {
 	events []*tracepb2.TraceEvent
+	// eventsBySpan, if non-nil, overrides events with a per-span lookup.
+	eventsBySpan map[string][]*tracepb2.TraceEvent
+	// spans is the list returned by List, in store order (newest first).
+	spans []*tracepb2.SpanSummary
 }
 
 func (f *fakeTraceStore) GetEvents(ctx context.Context, appID, traceID, spanID string) ([]*tracepb2.TraceEvent, error) {
+	if f.eventsBySpan != nil {
+		return f.eventsBySpan[spanID], nil
+	}
 	return f.events, nil
+}
+
+func (f *fakeTraceStore) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntryIterator) error {
+	for _, s := range f.spans {
+		if !iter(s) {
+			return nil
+		}
+	}
+	return nil
 }
 
 func TestLoadSpanDetails_SuccessOutcome(t *testing.T) {
@@ -318,6 +334,238 @@ func TestWaitForMatch_Timeout(t *testing.T) {
 	}
 	if res.Matched {
 		t.Fatal("matched should be false")
+	}
+}
+
+func TestFindRecentMatch_HitFromLookback(t *testing.T) {
+	store := &fakeTraceStore{
+		spans: []*tracepb2.SpanSummary{
+			{
+				Type:             tracepb2.SpanSummary_PUBSUB_MESSAGE,
+				TraceId:          "trace-recent",
+				SpanId:           "span-recent",
+				TopicName:        ptr("site.added"),
+				SubscriptionName: ptr("audit-site-added"),
+				StartedAt:        timestamppb.New(time.Now().Add(-1 * time.Second)),
+			},
+		},
+		eventsBySpan: map[string][]*tracepb2.TraceEvent{
+			"span-recent": {
+				{
+					Event: &tracepb2.TraceEvent_SpanStart{
+						SpanStart: &tracepb2.SpanStart{
+							Data: &tracepb2.SpanStart_PubsubMessage{
+								PubsubMessage: &tracepb2.PubsubMessageSpanStart{
+									MessageId:      "msg-7",
+									MessagePayload: []byte(`{"siteID":"s1"}`),
+								},
+							},
+						},
+					},
+				},
+				{
+					Event: &tracepb2.TraceEvent_SpanEnd{
+						SpanEnd: &tracepb2.SpanEnd{DurationNanos: 3_000_000},
+					},
+				},
+			},
+		},
+	}
+
+	hit, err := findRecentMatch(context.Background(), store, store, "app-1", "site.added", "audit-site-added", time.Time{}, 5*time.Second, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if hit == nil {
+		t.Fatal("expected lookback hit")
+	}
+	if !hit.Matched {
+		t.Fatal("expected Matched=true")
+	}
+	if hit.Details.MessageID != "msg-7" {
+		t.Errorf("MessageID = %q", hit.Details.MessageID)
+	}
+}
+
+func TestFindRecentMatch_LookbackZeroDisables(t *testing.T) {
+	store := &fakeTraceStore{
+		spans: []*tracepb2.SpanSummary{
+			{
+				Type:      tracepb2.SpanSummary_PUBSUB_MESSAGE,
+				TopicName: ptr("site.added"),
+				StartedAt: timestamppb.New(time.Now()),
+			},
+		},
+	}
+	hit, err := findRecentMatch(context.Background(), store, store, "app-1", "site.added", "", time.Time{}, 0, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if hit != nil {
+		t.Fatal("expected no hit when lookback is zero")
+	}
+}
+
+func TestFindRecentMatch_OldSpansOutsideWindowIgnored(t *testing.T) {
+	store := &fakeTraceStore{
+		spans: []*tracepb2.SpanSummary{
+			{
+				Type:      tracepb2.SpanSummary_PUBSUB_MESSAGE,
+				TraceId:   "trace-old",
+				SpanId:    "span-old",
+				TopicName: ptr("site.added"),
+				StartedAt: timestamppb.New(time.Now().Add(-30 * time.Second)),
+			},
+		},
+		eventsBySpan: map[string][]*tracepb2.TraceEvent{
+			"span-old": {
+				{Event: &tracepb2.TraceEvent_SpanStart{SpanStart: &tracepb2.SpanStart{
+					Data: &tracepb2.SpanStart_PubsubMessage{PubsubMessage: &tracepb2.PubsubMessageSpanStart{}},
+				}}},
+				{Event: &tracepb2.TraceEvent_SpanEnd{SpanEnd: &tracepb2.SpanEnd{}}},
+			},
+		},
+	}
+
+	hit, err := findRecentMatch(context.Background(), store, store, "app-1", "site.added", "", time.Time{}, 5*time.Second, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if hit != nil {
+		t.Fatal("expected no hit when span is outside the lookback window")
+	}
+}
+
+func TestFindRecentMatch_TopicMismatchIgnored(t *testing.T) {
+	store := &fakeTraceStore{
+		spans: []*tracepb2.SpanSummary{
+			{
+				Type:      tracepb2.SpanSummary_PUBSUB_MESSAGE,
+				TopicName: ptr("other.topic"),
+				StartedAt: timestamppb.New(time.Now()),
+			},
+		},
+	}
+	hit, err := findRecentMatch(context.Background(), store, store, "app-1", "site.added", "", time.Time{}, 5*time.Second, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if hit != nil {
+		t.Fatal("expected no hit on topic mismatch")
+	}
+}
+
+func TestFindRecentMatch_MatchFilterAppliesToPayload(t *testing.T) {
+	store := &fakeTraceStore{
+		spans: []*tracepb2.SpanSummary{
+			{
+				Type:      tracepb2.SpanSummary_PUBSUB_MESSAGE,
+				TraceId:   "t1",
+				SpanId:    "s1",
+				TopicName: ptr("site.added"),
+				StartedAt: timestamppb.New(time.Now()),
+			},
+			{
+				Type:      tracepb2.SpanSummary_PUBSUB_MESSAGE,
+				TraceId:   "t2",
+				SpanId:    "s2",
+				TopicName: ptr("site.added"),
+				StartedAt: timestamppb.New(time.Now()),
+			},
+		},
+		eventsBySpan: map[string][]*tracepb2.TraceEvent{
+			"s1": {
+				{Event: &tracepb2.TraceEvent_SpanStart{SpanStart: &tracepb2.SpanStart{
+					Data: &tracepb2.SpanStart_PubsubMessage{PubsubMessage: &tracepb2.PubsubMessageSpanStart{
+						MessagePayload: []byte(`{"siteID":"other"}`),
+					}},
+				}}},
+				{Event: &tracepb2.TraceEvent_SpanEnd{SpanEnd: &tracepb2.SpanEnd{}}},
+			},
+			"s2": {
+				{Event: &tracepb2.TraceEvent_SpanStart{SpanStart: &tracepb2.SpanStart{
+					Data: &tracepb2.SpanStart_PubsubMessage{PubsubMessage: &tracepb2.PubsubMessageSpanStart{
+						MessageId:      "msg-2",
+						MessagePayload: []byte(`{"siteID":"wanted"}`),
+					}},
+				}}},
+				{Event: &tracepb2.TraceEvent_SpanEnd{SpanEnd: &tracepb2.SpanEnd{}}},
+			},
+		},
+	}
+
+	hit, err := findRecentMatch(context.Background(), store, store, "app-1", "site.added", "", time.Time{}, 5*time.Second, map[string]any{"siteID": "wanted"})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if hit == nil {
+		t.Fatal("expected hit on the matching payload")
+	}
+	if hit.Details.MessageID != "msg-2" {
+		t.Errorf("MessageID = %q, want msg-2", hit.Details.MessageID)
+	}
+}
+
+func TestSubscriptionsOnTopic(t *testing.T) {
+	topics := []*metav1.PubSubTopic{
+		{Name: "site.added", Subscriptions: []*metav1.PubSubTopic_Subscription{
+			{Name: "audit-site-added"},
+			{Name: "check-site"},
+		}},
+		{Name: "other"},
+	}
+	got := subscriptionsOnTopic(topics, "site.added")
+	want := []string{"audit-site-added", "check-site"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if got := subscriptionsOnTopic(topics, "nope"); got != nil {
+		t.Errorf("expected nil for unknown topic, got %v", got)
+	}
+}
+
+func TestFormatWaitResult_TimeoutIncludesSubscriptionsRegistry(t *testing.T) {
+	topics := []*metav1.PubSubTopic{
+		{Name: "site.added", Subscriptions: []*metav1.PubSubTopic_Subscription{
+			{Name: "audit-site-added"},
+			{Name: "check-site"},
+		}},
+	}
+	res := &waitResult{Timeout: true, MessagesSeen: 0}
+	out := formatWaitResult("site.added", "audit", 10000, res, topics)
+	subs, ok := out["subscriptions_on_topic"].([]string)
+	if !ok {
+		t.Fatalf("expected subscriptions_on_topic []string, got %T (%v)", out["subscriptions_on_topic"], out)
+	}
+	if len(subs) != 2 || subs[0] != "audit-site-added" || subs[1] != "check-site" {
+		t.Errorf("got %v", subs)
+	}
+}
+
+func TestFormatWaitResult_TimeoutOmitsRegistryWhenTopicUnknown(t *testing.T) {
+	res := &waitResult{Timeout: true}
+	out := formatWaitResult("site.added", "", 10000, res, nil)
+	if _, present := out["subscriptions_on_topic"]; present {
+		t.Errorf("subscriptions_on_topic should be absent when topic isn't registered, got %v", out)
+	}
+}
+
+func TestFormatWaitResult_MatchedDoesNotIncludeRegistry(t *testing.T) {
+	topics := []*metav1.PubSubTopic{
+		{Name: "site.added", Subscriptions: []*metav1.PubSubTopic_Subscription{{Name: "audit-site-added"}}},
+	}
+	res := &waitResult{
+		Matched: true,
+		Span: &tracepb2.SpanSummary{
+			TraceId:          "trace-1",
+			TopicName:        ptr("site.added"),
+			SubscriptionName: ptr("audit-site-added"),
+		},
+		Details: &spanDetails{MessageID: "m1", PublishedAt: time.Unix(0, 0)},
+	}
+	out := formatWaitResult("site.added", "audit-site-added", 10000, res, topics)
+	if _, present := out["subscriptions_on_topic"]; present {
+		t.Errorf("subscriptions_on_topic should not be in the matched-success envelope, got %v", out)
 	}
 }
 

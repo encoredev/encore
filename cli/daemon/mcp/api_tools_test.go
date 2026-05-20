@@ -248,6 +248,108 @@ func TestParseRetryUntil_RejectsMissingPredicate(t *testing.T) {
 	}
 }
 
+func TestRunRetryLoop_BodyUnchangedTrueWhenAllResponsesIdentical(t *testing.T) {
+	doCall := func(ctx context.Context) (map[string]any, error) {
+		return map[string]any{"status": "200 OK", "status_code": 200, "body": `{"events":[]}`}, nil
+	}
+	cfg := retryConfig{
+		Predicate: predicate{Jq: ".events | length > 0"},
+		Timeout:   80 * time.Millisecond,
+		Interval:  20 * time.Millisecond,
+	}
+	_, info, err := runRetryLoop(context.Background(), cfg, doCall)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if info.Matched {
+		t.Fatal("expected not matched")
+	}
+	if !info.BodyUnchanged {
+		t.Errorf("expected BodyUnchanged=true when all bodies are identical")
+	}
+	if info.Attempts < 2 {
+		t.Errorf("expected multiple attempts, got %d", info.Attempts)
+	}
+}
+
+func TestRunRetryLoop_BodyUnchangedFalseWhenBodiesDiffer(t *testing.T) {
+	calls := 0
+	doCall := func(ctx context.Context) (map[string]any, error) {
+		calls++
+		// First attempt: empty. Subsequent: a different body (still doesn't satisfy
+		// the predicate, so we still time out — but body_unchanged should be false).
+		if calls == 1 {
+			return map[string]any{"status": "200 OK", "status_code": 200, "body": `{"events":[]}`}, nil
+		}
+		return map[string]any{"status": "200 OK", "status_code": 200, "body": `{"events":null}`}, nil
+	}
+	cfg := retryConfig{
+		Predicate: predicate{Jq: ".events | length > 0"},
+		Timeout:   80 * time.Millisecond,
+		Interval:  20 * time.Millisecond,
+	}
+	_, info, err := runRetryLoop(context.Background(), cfg, doCall)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if info.Matched {
+		t.Fatal("expected not matched")
+	}
+	if info.BodyUnchanged {
+		t.Errorf("expected BodyUnchanged=false when bodies differed across attempts")
+	}
+}
+
+func TestRunRetryLoop_FailOnTimeout_PropagatesBodyUnchanged(t *testing.T) {
+	doCall := func(ctx context.Context) (map[string]any, error) {
+		return map[string]any{"status": "200 OK", "status_code": 200, "body": `{"events":[]}`}, nil
+	}
+	cfg := retryConfig{
+		Predicate:     predicate{Jq: ".events | length > 0"},
+		Timeout:       50 * time.Millisecond,
+		Interval:      20 * time.Millisecond,
+		FailOnTimeout: true,
+	}
+	_, _, err := runRetryLoop(context.Background(), cfg, doCall)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var rte *retryTimeoutError
+	if !errors.As(err, &rte) {
+		t.Fatalf("expected retryTimeoutError, got %T", err)
+	}
+	if !rte.BodyUnchanged {
+		t.Errorf("expected rte.BodyUnchanged=true when all bodies were identical")
+	}
+}
+
+func TestLastResponseSummary(t *testing.T) {
+	in := map[string]any{
+		"status":      "200 OK",
+		"status_code": 200,
+		"body":        `{"events":[]}`,
+		"headers":     map[string]any{"x": "y"},
+	}
+	got := lastResponseSummary(in)
+	if got["status_code"] != 200 {
+		t.Errorf("status_code: %v", got["status_code"])
+	}
+	if got["body"] != `{"events":[]}` {
+		t.Errorf("body: %v", got["body"])
+	}
+	// headers should not be in the summary
+	if _, present := got["headers"]; present {
+		t.Errorf("headers should not be in the summary, got %v", got)
+	}
+}
+
+func TestLastResponseSummary_EmptyWhenFieldsMissing(t *testing.T) {
+	got := lastResponseSummary(map[string]any{})
+	if len(got) != 0 {
+		t.Errorf("expected empty summary, got %v", got)
+	}
+}
+
 func TestRunRetryLoop_BackwardsCompatNotInvokedWhenAbsent(t *testing.T) {
 	// This test pins the parseRetryUntil contract: nil input means "no retry".
 	// Without this guarantee, the call_endpoint backwards-compat path would

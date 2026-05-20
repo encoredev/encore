@@ -78,7 +78,7 @@ Encore's MCP server exposes the following tools that provide AI models with deta
 
 #### API Tools
 
-- **call_endpoint**: Make HTTP requests to any API endpoint in the application.
+- **call_endpoint**: Make HTTP requests to any API endpoint in the application. Supports an optional `retry_until` parameter that polls the endpoint until a predicate matches (`status`, `body_path`, or `body_jq`) or the timeout elapses. On `matched: false`, the envelope includes `retry.last_response` and `retry.body_unchanged` so you can tell "predicate is racing with a slow update" apart from "upstream isn't moving" (typically: missing Pub/Sub subscription, wrong endpoint, or wrong predicate path).
 - **get_services**: Retrieve comprehensive information about all services and their endpoints in the application.
 - **get_middleware**: Retrieve detailed information about all middleware components in the application.
 - **get_auth_handlers**: Retrieve information about all authentication handlers in the application.
@@ -96,6 +96,27 @@ Encore's MCP server exposes the following tools that provide AI models with deta
 #### PubSub Tools
 
 - **get_pubsub**: Retrieve detailed information about all PubSub topics and their subscriptions in the application.
+- **wait_for_subscription_message**: Block until a matching message has been processed by a subscription, then return the outcome (message ID, payload, delivery attempt, handler duration, handler error). Scans recent history (`lookback_ms`, default 5s, capped at 60s) before opening a forward wait window (`timeout_ms`, default 10s). On timeout, the response includes `subscriptions_on_topic` so a typo'd subscription name is self-diagnosable in a single turn.
+
+##### Canonical Pub/Sub verify recipe
+
+When verifying a Pub/Sub flow end-to-end, compose the two synchronous tools — `wait_for_subscription_message` first to confirm the handler ran, then `call_endpoint` with `retry_until` to confirm the read endpoint surfaces the result:
+
+```jsonc
+// 1. Trigger the publish.
+call_endpoint { "service": "site", "endpoint": "add", "method": "POST", "path": "/site", "payload": "{\"url\":\"https://example.com\"}" }
+
+// 2. Confirm the subscription handler ran (lookback catches it even after the publish).
+wait_for_subscription_message { "topic": "site.added", "subscription": "audit-site-added", "lookback_ms": 5000, "timeout_ms": 10000 }
+
+// 3. Confirm the read endpoint surfaces the new state.
+call_endpoint {
+  "service": "audit", "endpoint": "listEvents", "method": "GET", "path": "/events",
+  "retry_until": { "predicate": { "body_jq": ".events | length >= 1" }, "timeout_ms": 5000, "interval_ms": 250 }
+}
+```
+
+If step 2 times out with `subscriptions_on_topic` listing a name you didn't expect, the subscription argument is wrong. If step 3 returns `retry.matched: false` with `retry.body_unchanged: true`, the upstream isn't producing data — investigate the subscription or the read endpoint rather than retrying with a larger timeout.
 
 #### Storage Tools
 

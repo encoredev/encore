@@ -38,7 +38,7 @@ func (m *Manager) registerAPITools() {
 		mcp.WithString("auth_payload", mcp.Description("Optional authentication payload in JSON format. This is used for custom authentication schemes.")),
 		mcp.WithString("correlation_id", mcp.Description("Optional correlation ID to track the request through the system. Useful for debugging and tracing.")),
 		mcp.WithObject("retry_until",
-			mcp.Description("Optional. If set, the MCP server repeatedly calls the endpoint until the predicate matches OR the timeout elapses, then returns the final response. Accepts a JSON object or a JSON-encoded string."),
+			mcp.Description("Optional. If set, the MCP server repeatedly calls the endpoint until the predicate matches OR the timeout elapses, then returns the final response. On `matched: false`, the response includes `retry.last_response` (the final body and status code) and `retry.body_unchanged` (true when every attempt returned a byte-identical body — a signal the upstream isn't producing new data, e.g. a missing Pub/Sub subscription or wrong predicate path, vs. the predicate just racing a slow update). Accepts a JSON object or a JSON-encoded string. Canonical Pub/Sub verify recipe: call `wait_for_subscription_message` first to confirm the handler ran, then `call_endpoint` with `retry_until` to confirm the read endpoint surfaces the result."),
 			mcp.Properties(map[string]any{
 				"predicate": map[string]any{
 					"type":        "object",
@@ -209,10 +209,12 @@ func (m *Manager) callEndpoint(ctx context.Context, request mcp.CallToolRequest)
 				"error":         rte.Message,
 				"last_response": rte.LastResponse,
 				"retry": map[string]any{
-					"matched":       false,
-					"attempts":      rte.Attempts,
-					"total_wait_ms": info.TotalWaitMS,
-					"predicate":     info.Predicate,
+					"matched":        false,
+					"attempts":       rte.Attempts,
+					"total_wait_ms":  info.TotalWaitMS,
+					"predicate":      info.Predicate,
+					"last_response":  rte.LastResponse,
+					"body_unchanged": rte.BodyUnchanged,
 				},
 			})
 			return mcp.NewToolResultText(string(body)), nil
@@ -220,17 +222,40 @@ func (m *Manager) callEndpoint(ctx context.Context, request mcp.CallToolRequest)
 		return nil, fmt.Errorf("API call failed: %w", err)
 	}
 
-	result["retry"] = map[string]any{
+	retryEnvelope := map[string]any{
 		"matched":       info.Matched,
 		"attempts":      info.Attempts,
 		"total_wait_ms": info.TotalWaitMS,
 		"predicate":     info.Predicate,
 	}
+	if !info.Matched {
+		// Surface the last response and a no-progress hint so the agent can
+		// distinguish "predicate is racing with a slow update" from "upstream
+		// isn't moving" (typically: missing subscription, wrong endpoint, or
+		// wrong predicate path).
+		retryEnvelope["last_response"] = lastResponseSummary(result)
+		retryEnvelope["body_unchanged"] = info.BodyUnchanged
+	}
+	result["retry"] = retryEnvelope
 	jsonData, err := json.Marshal(result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal response: %w", err)
 	}
 	return mcp.NewToolResultText(string(jsonData)), nil
+}
+
+// lastResponseSummary extracts the status_code and body fields from a CallAPI
+// result map for inclusion in the retry envelope. Returns an empty map if the
+// fields are absent, never nil.
+func lastResponseSummary(resp map[string]any) map[string]any {
+	out := map[string]any{}
+	if code := extractStatusCode(resp); code != 0 {
+		out["status_code"] = code
+	}
+	if body, ok := resp["body"]; ok {
+		out["body"] = body
+	}
+	return out
 }
 
 func predicateAsMap(p predicate) map[string]any {
@@ -685,16 +710,18 @@ type retryConfig struct {
 }
 
 type retryInfo struct {
-	Matched     bool
-	Attempts    int
-	TotalWaitMS int64
-	Predicate   map[string]any // for echoing back to the agent
+	Matched       bool
+	Attempts      int
+	TotalWaitMS   int64
+	Predicate     map[string]any // for echoing back to the agent
+	BodyUnchanged bool           // true if every attempt returned a byte-identical body string
 }
 
 type retryTimeoutError struct {
-	Message      string
-	LastResponse map[string]any
-	Attempts     int
+	Message       string
+	LastResponse  map[string]any
+	Attempts      int
+	BodyUnchanged bool
 }
 
 func (e *retryTimeoutError) Error() string { return e.Message }
@@ -766,8 +793,11 @@ func parseRetryUntil(raw any) (retryConfig, bool, error) {
 func runRetryLoop(ctx context.Context, cfg retryConfig, doCall func(ctx context.Context) (map[string]any, error)) (map[string]any, retryInfo, error) {
 	deadline := time.Now().Add(cfg.Timeout)
 	var (
-		lastResp map[string]any
-		attempts int
+		lastResp      map[string]any
+		attempts      int
+		firstBody     string
+		seenFirstBody bool
+		bodyUnchanged = true
 	)
 	info := retryInfo{}
 
@@ -782,6 +812,13 @@ func runRetryLoop(ctx context.Context, cfg retryConfig, doCall func(ctx context.
 		status := extractStatusCode(resp)
 		body, _ := resp["body"].(string)
 
+		if !seenFirstBody {
+			firstBody = body
+			seenFirstBody = true
+		} else if body != firstBody {
+			bodyUnchanged = false
+		}
+
 		matched, evalErr := cfg.Predicate.evaluate(status, []byte(body))
 		if evalErr != nil {
 			return nil, info, fmt.Errorf("predicate evaluation failed: %w", evalErr)
@@ -790,6 +827,7 @@ func runRetryLoop(ctx context.Context, cfg retryConfig, doCall func(ctx context.
 			info.Matched = true
 			info.Attempts = attempts
 			info.TotalWaitMS = int64(time.Since(deadline.Add(-cfg.Timeout)) / time.Millisecond)
+			info.BodyUnchanged = bodyUnchanged
 			return resp, info, nil
 		}
 
@@ -797,11 +835,13 @@ func runRetryLoop(ctx context.Context, cfg retryConfig, doCall func(ctx context.
 			info.Matched = false
 			info.Attempts = attempts
 			info.TotalWaitMS = cfg.Timeout.Milliseconds()
+			info.BodyUnchanged = bodyUnchanged
 			if cfg.FailOnTimeout {
 				return nil, info, &retryTimeoutError{
-					Message:      fmt.Sprintf("retry_until predicate never matched within %dms", cfg.Timeout.Milliseconds()),
-					LastResponse: lastResp,
-					Attempts:     attempts,
+					Message:       fmt.Sprintf("retry_until predicate never matched within %dms", cfg.Timeout.Milliseconds()),
+					LastResponse:  lastResp,
+					Attempts:      attempts,
+					BodyUnchanged: bodyUnchanged,
 				}
 			}
 			return lastResp, info, nil

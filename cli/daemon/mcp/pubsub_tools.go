@@ -15,10 +15,11 @@ func (m *Manager) registerPubSubTools() {
 	), m.getPubSub)
 
 	m.server.AddTool(mcp.NewTool("wait_for_subscription_message",
-		mcp.WithDescription("Block until the next message on a topic is fully processed by a subscription (handler returns or errors), then return the outcome. Use this to bridge async Pub/Sub work into a synchronous verification step instead of polling read-side endpoints in a loop."),
+		mcp.WithDescription("Block until a matching message has been processed by a subscription (handler returns or errors), then return the outcome. Scans recent history (`lookback_ms`) BEFORE opening a forward wait window (`timeout_ms`), so the typical agent flow is: publish first, then wait. Set `lookback_ms` larger than the expected handler latency. Returns `subscriptions_on_topic` on timeout so a typo'd subscription name is self-diagnosable. Canonical verify recipe: call this tool to confirm the handler ran, then call `call_endpoint` with `retry_until` to confirm the read endpoint surfaces the result."),
 		mcp.WithString("topic", mcp.Description("Topic name as declared in pubsub.NewTopic. Must match the live app.")),
 		mcp.WithString("subscription", mcp.Description("Subscription name to wait on. Optional — if omitted, waits for ANY subscription on the topic to process its next message.")),
-		mcp.WithNumber("timeout_ms", mcp.Description("Max wait in milliseconds. Default 10000.")),
+		mcp.WithNumber("timeout_ms", mcp.Description("Max forward-wait in milliseconds (applied after the lookback scan finds no match). Default 10000.")),
+		mcp.WithNumber("lookback_ms", mcp.Description("Look back this many milliseconds for a matching message that has already been processed before opening the forward wait window. Default 5000, capped at 60000. Set to 0 to disable and only watch for future messages.")),
 		mcp.WithString("since", mcp.Description("Optional ISO/RFC3339 timestamp. If set, return the next message processed after this time. If omitted, waits for the next message after this MCP call begins.")),
 		mcp.WithObject("match", mcp.Description("Optional filter. If set, only return when a message whose JSON payload contains the given top-level key/value pairs is processed. Accepts a JSON object or a JSON-encoded string.")),
 	), m.waitForSubscriptionMessage)
