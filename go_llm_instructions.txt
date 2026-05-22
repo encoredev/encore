@@ -1,11 +1,80 @@
-<go_style_guide>
-You MUST write valid Go code using state-of-the-art Go v1.22+ features and best practices.
-</go_style_guide>
+## Go style guide
 
-<encore_go_domain_knowledge>
+MUST write valid Go v1.22+ code, best practices.
 
-<app_structure>
-Encore uses a monorepo design where one app contains the entire backend. Enables distributed tracing and Encore Flow through unified application model. Supports both monolith and microservices architectures with monolith-style developer experience.
+## Generated folders — do not edit
+
+`encore.gen/` + `.encore/` CLI-regenerated; never edit.
+
+`encore.app` at repo root = app manifest — CUE-formatted **text** file, not binary, despite `.app` extension. Read like any source file.
+
+## Encore local MCP server
+
+Local Encore MCP wired via `.mcp.json` (registered **`encore-local`**, tool prefix `mcp__encore-local__`). Prefer for live app introspection over `Read`/grep; use docs tools when unsure of Encore API surface.
+
+### Tools
+
+20 tools, all prefixed `mcp__encore-local__`. MCP client gets full catalog (names, descriptions, input schemas) via `tools/list` on session init — no need enumerate here.
+
+### Important tools (runtime-only — no filesystem equivalent)
+
+Do what `Glob`/`Grep`/`Read` can't. For static config (services, endpoints, topics, schemas), see "When NOT to use it" below.
+
+- **`call_endpoint`** — args: `service`, `endpoint`, `method`, `path`, `payload` (JSON string with body/query/headers/path-params), optional `auth_token` / `auth_payload` / `correlation_id`. Optional `retry_until: { predicate, timeout_ms?, interval_ms?, fail_on_timeout? }` polls **server-side** until predicate matches — predicate = `status: 200` OR `body_path: { path: ".events.0.orderID", equals: 7 }` OR `body_jq: ".events | length > 0"` (minimal subset: `<path> | length <op> N` or `<path>` truthy). Use instead of agent-side polling loops for eventually-consistent reads. **auto-starts app** if not running. Use instead of `curl` to test endpoints.
+- **`wait_for_subscription_message`** — args: `topic`, optional `subscription`, `timeout_ms` (default 10000), `since` (ISO/RFC3339), `match` (top-level key/value JSON filter, e.g. `{"CustomerID":"cust_42"}`). Blocks until the next message on the topic is fully processed by a subscription handler (returns or errors), then returns `{outcome, payload, duration_ms, handler_error, trace_id}`. Use to bridge async Pub/Sub work into a synchronous verify step — beats polling read-side endpoints + introspecting via `get_pubsub`/`get_traces`.
+- **`query_database`** — args: `queries` (array of `{database, query}`). Runs SQL against named DBs, multiple queries one call. Beats `encore db conn-uri` + `psql` round-trips.
+- **`get_traces`** — args: optional `service`, `endpoint`, `error` (`"true"`/`"false"`), `start_time` / `end_time` (ISO), `limit`. Returns recent request traces (timing, status, ids).
+- **`get_trace_spans`** — args: `trace_ids` (array IDs from `get_traces`). Returns full per-span details for deep debugging.
+- **`get_objects`** — args: `buckets` (array of bucket names). Lists objects + metadata in storage buckets.
+- **`search_docs`** — args: `query`, optional `hits_per_page`, `page`, `facet_filters`. Algolia-backed Encore docs search.
+- **`get_docs`** — args: `paths` (array of doc paths, e.g. `/docs/go/primitives/databases`). Fetches full doc pages found via `search_docs`.
+
+### When to reach for it
+
+| Situation | Tool |
+|---|---|
+| "What services / endpoints / databases exist?" | `get_metadata` once |
+| "Test my new POST /orders endpoint" | `call_endpoint` (auto-starts app) |
+| "Did the Pub/Sub handler run after I published?" | `wait_for_subscription_message` |
+| "Endpoint output is eventually consistent (e.g. read-after-publish)" | `call_endpoint` with `retry_until` |
+| "Why did last request fail?" | `get_traces` then `get_trace_spans` |
+| "How does Encore API surface work?" | `search_docs` then `get_docs` |
+
+- **MCP only for runtime data** (`call_endpoint`, `query_database`, `get_traces`, `get_objects`, `search_docs`/`get_docs`). For **static structure** declared in source (services, endpoints, topics, subscriptions, schemas, secrets, middleware, cron jobs), `Glob`+`Grep`+`Read` faster + more reliable than `get_*` tool.
+
+### Cloud MCP (deployed environments)
+
+If deployed Encore Cloud, also register `encore-cloud` via `claude mcp add --transport http encore-cloud https://api.encore.cloud/mcp` for prod traces / deploy state — `encore-local` only sees local app.
+
+## Encore check (verify app builds + endpoints work)
+
+`encore check` compiles, boots, health-checks app, optionally runs `curl` once healthy. Use instead of manual `encore run + healthz poll + curl`.
+
+```bash
+encore check                                          # compile + boot only
+encore check 'curl /ping'                             # GET a relative path
+encore check 'curl /orders -X POST -d "{\"customer_id\":\"c1\",\"amount_cents\":1999}"'   # POST with JSON body (flags after path)
+encore check 'curl /a; curl /b'                       # chain in one quoted string
+encore check 'curl /a' 'curl /b'                      # or as separate quoted args
+encore check < commands.txt                           # one curl per line, piped from file
+```
+
+Rules embedded curl DSL:
+- **Paths relative** (start with `/`). Use `curl /orders/1`, **not** `curl http://localhost:4000/orders/1` — host/port supplied by `encore check`. Absolute URL fails with `curl path "http..." must be relative`.
+- **Path first, flags after.** `curl /orders -X POST -d '...'` works; `curl -X POST /orders ...` fails — parser reads first token after `curl` as path, rejects flags there (`curl path "-X" must be relative`).
+- One curl per quoted command. Chain `;` inside one quoted string, pass multiple quoted args, or pipe file one curl per line.
+
+## Pub/sub verification
+
+- Delivery async + at-least-once + not order-preserving.
+- For "most-recent first" by publish order, DO NOT sort by `created_at = NOW()` or subscription-side row id — both subscription-insert order, at-least-once can flip. Sort by column monotonic with publish (entity id from event payload, or publish-time sequence in event).
+- Handler-only checks, skip infra: `et.Topic(T).PublishedMessages()`.
+
+## Encore Go domain knowledge
+
+### Application structure
+
+Encore uses monorepo design — one app = entire backend. Enables distributed tracing + Encore Flow via unified application model. Supports monolith + microservices with monolith-style DX.
 
 Directory structure:
 /app-name
@@ -18,9 +87,9 @@ Directory structure:
   service2/
     service2.go
 
-Sub-packages are internal to services, cannot define APIs, used for helpers and code organization.
+Sub-packages internal to services, cannot define APIs, used for helpers + code organization.
 
-For large apps, group related services into system directories (logical groupings with no special runtime behavior):
+Large apps — group related services into system directories (logical groupings, no special runtime behavior):
 /app-name
   encore.app
   system1/
@@ -28,15 +97,15 @@ For large apps, group related services into system directories (logical grouping
     service2/
   system2/
     service3/
-</app_structure>
 
-<api_definition>
-Create type-safe APIs from regular Go functions using //encore:api annotation.
+### API definition
+
+Create type-safe APIs from regular Go functions via //encore:api annotation.
 
 Access controls:
-- public: Accessible to anyone on the internet
-- private: Only accessible within app and via cron jobs
-- auth: Public but requires valid authentication
+- public: Accessible to anyone on internet
+- private: Only accessible within app + via cron jobs
+- auth: Public but requires valid auth
 
 Function signatures:
 func Foo(ctx context.Context, p *Params) (*Response, error)  // full
@@ -46,8 +115,8 @@ func Foo(ctx context.Context) error                          // minimal
 
 Request/response data locations:
 - header: Use `header` tag for HTTP headers
-- query: Default for GET/HEAD/DELETE, uses snake_case, supports basic types/slices
-- body: Default for other methods, uses `json` tag, supports complex types
+- query: Default GET/HEAD/DELETE, uses snake_case, supports basic types/slices
+- body: Default other methods, uses `json` tag, supports complex types
 
 Path parameters: Use :name for variables, *name for wildcards. Place at end of path.
 
@@ -59,12 +128,12 @@ Type support by location:
 - headers/path: bool, numeric, string, time.Time, UUID, json.RawMessage
 - query: All above plus lists
 - body: All types including structs, maps, pointers
-</api_definition>
 
-<services>
-A service is defined by creating at least one API within a Go package. Package name becomes service name.
+### Services
 
-//encore:service annotation enables custom initialization and graceful shutdown:
+Service defined by creating at least one API within Go package. Package name = service name.
+
+//encore:service annotation enables custom init + graceful shutdown:
 
 type Service struct {
     // Dependencies here
@@ -83,10 +152,10 @@ Graceful shutdown via Shutdown method:
 func (s *Service) Shutdown(force context.Context)
 - Graceful phase: Several seconds for completion
 - Forced phase: When force context canceled, terminate immediately
-</services>
 
-<raw_endpoints>
-For lower-level HTTP access (webhooks, WebSockets):
+### Raw endpoints
+
+Lower-level HTTP access (webhooks, WebSockets):
 
 //encore:api public raw
 func Webhook(w http.ResponseWriter, req *http.Request) {
@@ -97,9 +166,9 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
 func Webhook(w http.ResponseWriter, req *http.Request) {
     id := encore.CurrentRequest().PathParams.Get("id")
 }
-</raw_endpoints>
 
-<sql_databases>
+### SQL databases
+
 Encore treats SQL databases as logical resources with native PostgreSQL support.
 
 Create database:
@@ -128,14 +197,16 @@ err := tododb.QueryRow(ctx, `
 `).Scan(&item.ID, &item.Title, &item.Done)
 // Use errors.Is(err, sqldb.ErrNoRows) for no results
 
-CLI commands:
-- encore db shell database-name [--env=name] - Opens psql shell
-- encore db conn-uri database-name [--env=name] - Outputs connection string
-- encore db proxy [--env=name] - Sets up local connection proxy
-</sql_databases>
+Always Scan into typed struct fields, never `interface{}` slots — compiler enforces column-to-field shape + catches drift between SELECT list + destination struct.
 
-<external_databases>
-For existing databases, create dedicated package with lazy connection pool:
+CLI commands:
+- encore db shell database-name [--env=name] - Open psql shell
+- encore db conn-uri database-name [--env=name] - Output connection string
+- encore db proxy [--env=name] - Setup local connection proxy
+
+### External databases
+
+Existing databases — create dedicated package with lazy connection pool:
 
 package externaldb
 
@@ -170,11 +241,11 @@ func setup(ctx context.Context) (*pgxpool.Pool, error) {
     return pgxpool.Connect(ctx, connString)
 }
 
-Works with Cassandra, DynamoDB, BigTable, MongoDB, Neo4j, and other services.
-</external_databases>
+Works with Cassandra, DynamoDB, BigTable, MongoDB, Neo4j, other services.
 
-<shared_databases>
-Default: per-service databases for isolation. To share, reference using sqldb.Named:
+### Shared databases
+
+Default: per-service databases for isolation. Share via sqldb.Named:
 
 // In report service, access todo service's database:
 var todoDB = sqldb.Named("todo")
@@ -187,9 +258,9 @@ func CountCompletedTodos(ctx context.Context) (*ReportResponse, error) {
     `).Scan(&report.Total)
     return &report, err
 }
-</shared_databases>
 
-<cron_jobs>
+### Cron jobs
+
 Declarative periodic tasks. Does not run locally or in Preview Environments.
 
 import "encore.dev/cron"
@@ -210,10 +281,10 @@ Scheduling options:
 - Schedule: Cron expressions (e.g., "0 4 15 * *" for 4am UTC on 15th)
 
 Requirements: Endpoints must be idempotent, no request parameters, signature func(context.Context) error or func(context.Context) (*T, error)
-</cron_jobs>
 
-<caching>
-Redis-based distributed caching system.
+### Caching
+
+Redis-based distributed caching.
 
 import "encore.dev/storage/cache"
 
@@ -237,11 +308,11 @@ var ResourceRequestsPerUser = cache.NewIntKeyspace[MyKey](cluster, cache.Keyspac
     DefaultExpiry: cache.ExpireIn(10 * time.Second),
 })
 
-Supports strings, integers, floats, structs, sets, and ordered lists.
-</caching>
+Supports strings, integers, floats, structs, sets, ordered lists.
 
-<object_storage>
-Cloud-agnostic API compatible with S3, GCS, and S3-compatible services.
+### Object storage
+
+Cloud-agnostic API compatible with S3, GCS, S3-compatible services.
 
 var ProfilePictures = objects.NewBucket("profile-pictures", objects.BucketConfig{
     Versioned: false,
@@ -260,10 +331,10 @@ type myPerms interface {
     objects.Uploader
 }
 ref := objects.BucketRef[myPerms](bucket)
-</object_storage>
 
-<pubsub>
-Asynchronous event broadcasting with automatic infrastructure provisioning.
+### Pub/Sub
+
+Async event broadcasting with automatic infra provisioning.
 
 type SignupEvent struct{ UserID int }
 
@@ -302,9 +373,9 @@ Ordering: Use OrderingAttribute matching pubsub-attr tag
 Testing:
 msgs := et.Topic(Signups).PublishedMessages()
 assert.Len(t, msgs, 1)
-</pubsub>
 
-<secrets>
+### Secrets
+
 Built-in secrets manager for API keys, passwords, private keys.
 
 var secrets struct {
@@ -319,15 +390,15 @@ func callGitHub(ctx context.Context) {
 CLI management:
 - encore secret set --type production secret-name
 - encore secret set --type development secret-name
-- encore secret set --env env-name secret-name (environment-specific override)
+- encore secret set --env env-name secret-name (env-specific override)
 
 Types: production (prod), development (dev), preview (pr), local
 
 Local override via .secrets.local.cue:
 GitHubAPIToken: "my-local-override-token"
-</secrets>
 
-<api_calls>
+### API calls
+
 Call APIs like regular functions with automatic type checking:
 
 import "encore.app/hello"
@@ -340,9 +411,9 @@ func MyOtherAPI(ctx context.Context) error {
     }
     return err
 }
-</api_calls>
 
-<errors>
+### Errors
+
 Structured errors via encore.dev/beta/errs package.
 
 return &errs.Error{
@@ -362,9 +433,9 @@ return eb.Code(errs.NotFound).Msg("board not found").Err()
 Error codes: OK(200), Canceled(499), Unknown(500), InvalidArgument(400), DeadlineExceeded(504), NotFound(404), AlreadyExists(409), PermissionDenied(403), ResourceExhausted(429), FailedPrecondition(400), Aborted(409), OutOfRange(400), Unimplemented(501), Internal(500), Unavailable(503), DataLoss(500), Unauthenticated(401)
 
 Inspection: errs.Code(err), errs.Meta(err), errs.Details(err)
-</errors>
 
-<authentication>
+### Authentication
+
 Flexible auth with different access levels.
 
 import "encore.dev/beta/auth"
@@ -405,10 +476,10 @@ return "", &errs.Error{
     Code: errs.Unauthenticated,
     Message: "invalid token",
 }
-</authentication>
 
-<configuration>
-Environment-specific config using CUE files.
+### Configuration
+
+Env-specific config via CUE files.
 
 package mysvc
 
@@ -438,19 +509,19 @@ Testing: et.SetCfg(cfg.SendEmails, true)
 CUE patterns:
 - Defaults: value: type | *default_value
 - Switch: array with conditionals, take [0]
-</configuration>
 
-<cors>
+### CORS
+
 Configure in encore.app file:
 - debug: Enable CORS debug logging
 - allow_headers: Additional accepted headers ("*" allows all)
 - expose_headers: Additional exposed headers
 - allow_origins_without_credentials: Defaults to ["*"]
 - allow_origins_with_credentials: For authenticated requests, supports wildcards like "https://*.example.com"
-</cors>
 
-<metadata>
-Access app and request info via encore.dev package.
+### Metadata
+
+Access app + request info via encore.dev package.
 
 // Application metadata
 meta := encore.Meta()
@@ -467,9 +538,9 @@ case encore.CloudAWS:
 case encore.CloudGCP:
     return writeIntoBigQuery(ctx, action, user)
 }
-</metadata>
 
-<middleware>
+### Middleware
+
 Reusable code running before/after API requests.
 
 //encore:middleware global target=all
@@ -502,9 +573,9 @@ func GetUser(ctx context.Context, id string) (*User, error) {
 }
 
 Ordering: Global before service-specific, lexicographic by filename.
-</middleware>
 
-<mocking>
+### Mocking
+
 Built-in mocking for isolated testing.
 
 // Mock endpoint for single test
@@ -530,21 +601,21 @@ et.MockService("products", &products.Service{
 
 // Type-safe service mocking
 et.MockService[products.Interface]("products", &myMockObject{})
-</mocking>
 
-<testing>
-Run tests with: encore test ./...
+### Testing
+
+Run tests: encore test ./...
 Supports all standard go test flags. Built-in tracing at localhost:9400.
 
 Database testing:
 - Automatic setup in separate cluster, optimized for speed
 - Temporary databases: et.NewTestDatabase() creates isolated, fully migrated DB
 
-Service structs: Lazy initialization, instance sharing between tests
-- Isolate with: et.EnableServiceInstanceIsolation()
-</testing>
+Service structs: Lazy init, instance sharing between tests
+- Isolate: et.EnableServiceInstanceIsolation()
 
-<validation>
+### Validation
+
 Automatic request validation via Validate() method.
 
 type MyRequest struct {
@@ -559,9 +630,9 @@ func (r *MyRequest) Validate() error {
 }
 
 Validation runs after deserialization, before handler. Non-errs.Error errors become InvalidArgument (HTTP 400).
-</validation>
 
-<cgo>
+### CGO
+
 Enable in encore.app:
 {
   "id": "my-app-id",
@@ -570,10 +641,10 @@ Enable in encore.app:
   }
 }
 Uses Ubuntu builder with gcc. Libraries must support static linking.
-</cgo>
 
-<clerk_auth>
-Implement Clerk authentication:
+### Clerk auth
+
+Implement Clerk auth:
 
 package auth
 
@@ -609,9 +680,9 @@ func (s *Service) AuthHandler(ctx context.Context, token string) (auth.UID, *Use
 Set secrets:
 - encore secret set --prod ClientSecretKey
 - encore secret set --dev ClientSecretKey
-</clerk_auth>
 
-<dependency_injection>
+### Dependency injection
+
 Add dependencies as struct fields for easy testing:
 
 package email
@@ -643,9 +714,9 @@ func TestFoo(t *testing.T) {
     svc := &Service{sendgridClient: &myMockClient{}}
     // Test
 }
-</dependency_injection>
 
-<pubsub_outbox>
+### Pub/Sub outbox
+
 Transactional outbox pattern for database + Pub/Sub consistency.
 
 var SignupsTopic = pubsub.NewTopic[*SignupEvent](/* ... */)
@@ -675,27 +746,31 @@ func initService() (*Service, error) {
 }
 
 Supports: encore.dev/storage/sqldb, database/sql, github.com/jackc/pgx/v5
-</pubsub_outbox>
 
-<example_apps>
+### Encore Toolbar (frontend dev panel)
+
+Dev-only browser panel: intercepts frontend HTTP calls, captures Encore trace IDs, jumps to traces in the dashboard. Install: add `<script src="https://encore.dev/encore-toolbar.js"></script>` early in `<head>` (no `async`/`defer`). Reach for it when a frontend talks to an Encore Go backend.
+
+### Example apps
+
 - Hello World: https://github.com/encoredev/examples/tree/main/hello-world
 - URL Shortener: https://github.com/encoredev/examples/tree/main/url-shortener
 - Uptime Monitor: https://github.com/encoredev/examples/tree/main/uptime
-</example_apps>
 
-</encore_go_domain_knowledge>
+## Encore CLI reference
 
-<encore_cli_reference>
 Execution:
-- encore run [--debug] [--watch=true] - Run application
-- encore test ./... [go test flags] - Test application
-- encore check - Check for compile-time errors
+- encore help [command] - Lists available commands (or shows usage for specific command). Reach for it when unsure which subcommand or flag to use.
+- encore run [--debug] [--watch=true] [-p port] [flags] - Runs app. Before starting yourself, check if already running by polling `http://localhost:<port>/__encore/healthz` (default port `4000`) — `200` = healthy, hit endpoints directly without re-running.
+- encore check ['curl ...'; 'curl ...'] | encore check < commands.txt - Compile + boot app, verify every service healthy, optionally run curl commands. See dedicated section above.
+- encore test ./... [go test flags] - Wraps `go test ./...` with Encore's infra provisioning — boots isolated test databases, Pub/Sub, etc. before handing off to `go test`. Accepts all `go test` flags, plus `--prepare`, `--codegen-debug`, `--trace`.
+- encore exec path/to/script [args...] - Run an executable script against the local Encore app
 
 App management:
 - encore app clone [app-id] [directory] - Clone app
-- encore app create [name] - Create new app
+- encore app create [name] [--example=name] [-l go] - Create new app
 - encore app init [name] - Create from existing repo
-- encore app link [app-id] - Link app with server
+- encore app link [app-id] [-f] - Link app with server
 
 Authentication:
 - encore auth login/logout/signup/whoami
@@ -708,31 +783,55 @@ Database:
 - encore db shell database-name [--env=name] - psql shell (--write, --admin, --superuser)
 - encore db conn-uri database-name [--env=name] - Connection string
 - encore db proxy [--env=name] - Local proxy
-- encore db reset [service-names...] - Reset databases
+- encore db reset <db-names...|--all> - Reset databases
 
 Code generation:
 - encore gen client [app-id] [--env=name] [--lang=lang] - Generate API client
   Languages: go, typescript, javascript, openapi
 
 Logging:
-- encore logs [--env=prod] [--json] - Stream logs
+- encore logs [--env=prod] [--json] [-q] - Stream logs
 
 Kubernetes:
 - encore k8s configure --env=ENV_NAME - Update kubectl config
 
 Secrets:
-- encore secret set --type TYPE secret-name (types: production, development, preview, local)
-- encore secret set --env env-name secret-name
+- encore secret set --type TYPE <secret-name> (types: production, development, preview, local)
+- encore secret set --env env-name <secret-name>
 - encore secret list [keys...]
-- encore secret archive/unarchive id
+- encore secret delete <id>
+
+Namespaces (infrastructure environments, alias `encore ns`):
+- encore namespace list [--output=columns|json] - List infra namespaces
+- encore namespace create NAME - Create a namespace
+- encore namespace switch [--create] NAME - Switch active namespace
+- encore namespace delete NAME - Delete a namespace
+
+MCP (programmatic access to the local app — same surface as `.mcp.json`):
+- encore mcp run - stdio-based MCP session
+- encore mcp start - SSE-based MCP session; prints the SSE URL
+
+Config:
+- encore config <key> [<value>] [--app|--global|--all] - Get/set CLI configuration
+
+Telemetry:
+- encore telemetry - Status
+- encore telemetry enable / disable - Toggle telemetry reporting
+
+LLM rules:
+- encore llm-rules init - Generate LLM rule files for this project
+
+Random data (utility):
+- encore rand uuid [-1|-4|-6|-7] - Generate UUID (default v4)
+- encore rand bytes N [-f format] - Generate N random bytes
+- encore rand words [--sep=SEP] NUM - Generate memorable passphrase
+
+Deploy (alpha):
+- encore alpha deploy --env=<name> (--commit=<sha> | --branch=<name>) - Deploy app to a cloud env
 
 Version:
 - encore version - Report version
 - encore version update - Check and apply updates
 
-VPN:
-- encore vpn start/status/stop
-
 Build:
-- encore build docker [--base string] [--push] - Build Docker image
-</encore_cli_reference>
+- encore build docker IMAGE_TAG [--base string] [--push] [--cgo] [--os] [--arch] - Build Docker image
