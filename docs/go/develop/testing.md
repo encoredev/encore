@@ -68,6 +68,26 @@ against that database. When you later call `et.NewTestDatabase`, Encore creates 
 
 </Callout>
 
+### Superuser database access
+
+Some test setup operations (such as `TRUNCATE TABLE` or other privileged DDL) require database
+superuser privileges that the application's regular database role doesn't have.
+
+To run such operations, use [`et.SQLDBWithSuperuser`](https://pkg.go.dev/encore.dev/et#SQLDBWithSuperuser)
+to obtain a copy of a database whose connections authenticate as the superuser role:
+
+```go
+import "encore.dev/et"
+
+func TestSomething(t *testing.T) {
+    superDB := et.SQLDBWithSuperuser(mydb)
+    if _, err := superDB.Exec(ctx, "TRUNCATE TABLE users"); err != nil {
+        t.Fatal(err)
+    }
+    // ... rest of the test
+}
+```
+
 ### Service Structs
 
 In tests, [service structs](/docs/go/primitives/service-structs) are initialized on demand when the first

@@ -73,9 +73,7 @@ func NewTestDatabase(ctx context.Context, name stringLiteral) (*sqldb.Database, 
 }
 
 // SQLDBWithSuperuser returns a copy of the given database whose connections
-// authenticate as the superuser role. All other behavior (hooks, name,
-// etc.) is preserved, and the returned database is automatically shut
-// down at the end of the test.
+// authenticate as the superuser role.
 //
 // Use this for operations that require superuser privileges (e.g.
 // TRUNCATE TABLE) during test setup.
