@@ -1,7 +1,7 @@
 <p align="center" dir="auto">
 <a href="https://encore.dev"><img src="https://user-images.githubusercontent.com/78424526/214602214-52e0483a-b5fc-4d4c-b03e-0b7b23e012df.svg" width="160px" alt="encore icon"></img></a>
 <br/><br/>
-<b>Infrastructure orchestration from local to your cloud</b><br/><br/>
+<b>Encore: Infrastructure orchestration from local to your cloud</b><br/><br/>
 
 [![License](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](LICENSE)
 [![Discord](https://img.shields.io/discord/814482502336905216?label=discord)](https://encore.dev/discord)
