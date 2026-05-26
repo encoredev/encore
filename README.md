@@ -102,7 +102,7 @@ Encore integrates at the application layer, which means a few constraints to be 
 ```bash
 encore app create     # scaffold a project
 cd myapp
-encore run                  # run locally with provisioned infra + dev dashboard
+encore run            # run locally with provisioned infra + dev dashboard
 ```
 
 Install Encore:
