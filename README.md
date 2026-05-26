@@ -8,6 +8,7 @@
 [![Discord](https://img.shields.io/discord/814482502336905216?label=discord)](https://encore.dev/discord)
 [![Go SDK](https://img.shields.io/badge/go-encore.dev-00ADD8)](https://pkg.go.dev/encore.dev)
 [![TS SDK](https://img.shields.io/npm/v/encore.dev?label=npm)](https://www.npmjs.com/package/encore.dev)
+⭐ Star the repo to help spread the word and stay up to date
 
 ## What is Encore?
 
