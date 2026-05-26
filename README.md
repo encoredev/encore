@@ -1,4 +1,4 @@
-<div align="center" dir="auto">
+<p align="center" dir="auto">
 <a href="https://encore.dev"><img src="https://user-images.githubusercontent.com/78424526/214602214-52e0483a-b5fc-4d4c-b03e-0b7b23e012df.svg" width="160px" alt="encore icon"></img></a>
 <br/><br/>
 <b>Infrastructure orchestration from local to your cloud</b><br/><br/>
@@ -6,9 +6,8 @@
 [![License](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](LICENSE)
 [![Discord](https://img.shields.io/discord/814482502336905216?label=discord)](https://encore.dev/discord)
 [![Go SDK](https://img.shields.io/badge/go-encore.dev-00ADD8)](https://pkg.go.dev/encore.dev)
-[![TS SDK](https://img.shields.io/npm/v/encore.dev?label=npm)](https://www.npmjs.com/package/encore.dev)<br/><br/>
-<span>⭐ Star the repo to help spread the word and stay up to date</span>
-</div>
+[![TS SDK](https://img.shields.io/npm/v/encore.dev?label=npm)](https://www.npmjs.com/package/encore.dev)
+</p>
 
 ## What is Encore?
 
