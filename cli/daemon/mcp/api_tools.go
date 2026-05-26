@@ -25,7 +25,7 @@ func (m *Manager) registerAPITools() {
 
 	// Add tool for calling an API endpoint
 	m.server.AddTool(mcp.NewTool("call_endpoint",
-		mcp.WithDescription("Make HTTP requests to any API endpoint in the currently open Encore. Always use this tool to make API calls and do not use curl. This tool will automatically start the application if it's not already running. This tool allows testing and interacting with the application's API endpoints, including authentication and custom payloads."),
+		mcp.WithDescription("Make HTTP requests to any API endpoint in the currently open Encore. Always use this tool to make API calls and do not use curl. This tool will automatically start the application if it's not already running. This tool allows testing and interacting with the application's API endpoints, including authentication and custom payloads. The response includes a `trace_id` field that can be passed to `get_trace_spans` to inspect the full trace for the request."),
 		mcp.WithString("service", mcp.Description("The name of the service containing the endpoint to call. This must match a service defined in the currently open Encore.")),
 		mcp.WithString("endpoint", mcp.Description("The name of the endpoint to call within the specified service. This must match an endpoint defined in the service.")),
 		mcp.WithString("method", mcp.Description("The HTTP method to use for the request (GET, POST, PUT, DELETE, etc.). Must be a valid HTTP method.")),
