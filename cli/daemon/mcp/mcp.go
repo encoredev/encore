@@ -25,7 +25,6 @@ type Manager struct {
 	run     *run.Manager
 	objects *objects.ClusterManager
 	apps    *apps.Manager
-	broker  *traceBroker
 
 	BaseURL string
 }
@@ -59,9 +58,6 @@ func NewManager(apps *apps.Manager, cluster *sqldb.ClusterManager, ns *namespace
 		server.WithHooks(hooks),
 	)
 
-	traceCh := make(chan trace2.NewSpanEvent, 64)
-	traces.Listen(traceCh)
-
 	m := &Manager{
 		server: s,
 		sse: server.NewSSEServer(s,
@@ -73,7 +69,6 @@ func NewManager(apps *apps.Manager, cluster *sqldb.ClusterManager, ns *namespace
 		cluster: cluster,
 		traces:  traces,
 		run:     runMgr,
-		broker:  newTraceBroker(traceCh),
 		BaseURL: baseURL,
 	}
 
