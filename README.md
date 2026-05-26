@@ -98,11 +98,11 @@ Encore integrates at the application layer, which means a few constraints to be 
 
 ## How Encore Compares
 
-| Tool                              | What it does                                                  | How Encore differs                                                                                                                                                  |
-| --------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Pulumi / CDK / Terraform / SST** | Infrastructure-as-Code for provisioning cloud resources       | Encore declares infrastructure semantically (services, databases, Pub/Sub) instead of as vendor configuration, so the same code runs locally and on AWS or GCP.     |
-| **Convex / Supabase / Firebase**   | Managed backend-as-a-service platforms                        | Encore deploys to your own AWS or GCP account with no vendor lock-in, and supports microservices and event-driven architectures.                                    |
-| **Render / Fly.io / Railway / Vercel** | PaaS-style deployment platforms                            | Encore deploys into your own AWS or GCP account instead of a managed runtime, with deeper backend primitives (Pub/Sub, cron, caching) generated from your code.    |
+| Tool                                   | What it does                                            | How Encore differs                                                                |
+| -------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| **Pulumi / CDK / Terraform / SST**     | Infrastructure-as-Code for provisioning cloud resources | No separate IaC to write. Infrastructure is generated from your application code, so the same code runs locally and deploys to AWS or GCP. |
+| **Convex / Supabase / Firebase**       | Managed backend-as-a-service platforms                  | Runs in your own AWS or GCP account. No vendor lock-in.                           |
+| **Render / Fly.io / Railway / Vercel** | PaaS-style deployment platforms                         | Deploys to your own cloud account, not a managed runtime.                         |
 
 ## Quick Start
 
