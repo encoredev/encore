@@ -96,6 +96,14 @@ Encore integrates at the application layer, which means a few constraints to be 
 - **Infrastructure scope:** Encore is design to solve for the 99% use case, making it easier to work with resources you use over and over again; services, databases, Pub/Sub, object storage, caches, cron jobs, and secrets. For the remaining 1% that is specific to your domain, you can still integrate any other service as you normally would. Encore doesn't prevent it or make it harder.
 - **Cloud providers:** Encore Cloud's fully-automated provisioning currently supports AWS and GCP. Azure is on the roadmap. Self-hosting via `encore build docker` works on any provider.
 
+## How Encore Compares
+
+| Tool                              | What it does                                                  | How Encore differs                                                                                                                                                  |
+| --------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pulumi / CDK / Terraform / SST** | Infrastructure-as-Code for provisioning cloud resources       | Encore declares infrastructure semantically (services, databases, Pub/Sub) instead of as vendor configuration, so the same code runs locally and on AWS or GCP.     |
+| **Convex / Supabase / Firebase**   | Managed backend-as-a-service platforms                        | Encore deploys to your own AWS or GCP account with no vendor lock-in, and supports microservices and event-driven architectures.                                    |
+| **Render / Fly.io / Railway / Vercel** | PaaS-style deployment platforms                            | Encore deploys into your own AWS or GCP account instead of a managed runtime, with deeper backend primitives (Pub/Sub, cron, caching) generated from your code.    |
+
 ## Quick Start
 
 ```bash
