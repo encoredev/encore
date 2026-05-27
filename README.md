@@ -7,6 +7,7 @@
 [![Discord](https://img.shields.io/discord/814482502336905216?label=discord)](https://encore.dev/discord)
 [![Go SDK](https://img.shields.io/badge/go-encore.dev-00ADD8)](https://pkg.go.dev/encore.dev)
 [![TS SDK](https://img.shields.io/npm/v/encore.dev?label=npm)](https://www.npmjs.com/package/encore.dev)
+
 </p>
 
 ## What is Encore?
@@ -15,7 +16,7 @@ Encore derives infrastructure from your application code and manages it across l
 
 Build a backend that runs the same way on your laptop and in production: type-safe, traceable, and deployable to your own AWS or GCP account without Terraform or YAML.
 
-You declare resources semantically in code ("I need a Postgres database") and Encore parses them into an application graph it can compile for each environment: local sandbox, managed cloud on AWS/GCP, or self-hosted Docker.
+You declare resources semantically in code, like “I need a Postgres database.” Encore turns your code into an application graph, then provisions the right infrastructure for each environment: local sandbox, managed cloud on AWS/GCP, or self-hosted Docker.
 
 Because infrastructure is derived from the code that uses it, it stays in sync as your application evolves.
 
@@ -72,7 +73,7 @@ After Encore:
 
 - Declare the resource in code. Run locally with `encore run`.
 - Open a PR and get a cloud preview environment for end-to-end testing.
-- `git push` to deploy. Infrastructure is compiled from the application code, validated at build time.
+- `git push` to deploy. Infrastructure is derived from the application code, validated at build time.
 - IAM is configured from real code paths. No missing permissions. No unnecessary access.
 
 The fail-loop moves from "push, wait, fix" to "run locally, see it work, push."
@@ -98,11 +99,11 @@ Encore integrates at the application layer, which means a few constraints to be 
 
 ## How Encore Compares
 
-| Tool                                   | What it does                                            | How Encore differs                                                                |
-| -------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Tool                                   | What it does                                            | How Encore differs                                                                                                                         |
+| -------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Pulumi / CDK / Terraform / SST**     | Infrastructure-as-Code for provisioning cloud resources | No separate IaC to write. Infrastructure is generated from your application code, so the same code runs locally and deploys to AWS or GCP. |
-| **Convex / Supabase / Firebase**       | Managed backend-as-a-service platforms                  | Runs in your own AWS or GCP account. No vendor lock-in.                           |
-| **Render / Fly.io / Railway / Vercel** | PaaS-style deployment platforms                         | Deploys to your own cloud account, not a managed runtime.                         |
+| **Convex / Supabase / Firebase**       | Managed backend-as-a-service platforms                  | Runs in your own AWS or GCP account. No vendor lock-in.                                                                                    |
+| **Render / Fly.io / Railway / Vercel** | PaaS-style deployment platforms                         | Deploys to your own cloud account, not a managed runtime.                                                                                  |
 
 ## Quick Start
 
