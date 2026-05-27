@@ -8,14 +8,14 @@ lang: go
 
 Encore is built for AI-assisted development. Encore-specific rules and [MCP](/docs/go/ai-integration#mcp-server) integration let AI understand your architecture and generate type-safe code that follows your patterns. Run `encore run` to start your app; Encore provisions local infrastructure automatically.
 
-For production, [self-host](/docs/go/self-host/build) or use [Encore Cloud](https://encore.cloud) to provision infrastructure in your own AWS or GCP account.
+For production, [self-host](/docs/go/self-host/build) or use [Encore Cloud](/docs/platform) to provision infrastructure in your own AWS or GCP account.
 
 ## What AI Enables
 
 Encore's declarative APIs and infrastructure primitives give AI a clear model to work with. AI can add databases, pub/sub topics, and other resources with built-in guardrails, and use MCP to introspect your app—services, APIs, databases, and traces—so it can suggest accurate, pattern-consistent code.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="https://encore.cloud/assets/docs/claude-skills.mp4" type="video/mp4" />
+  <source src="https://encore.dev/assets/docs/claude-skills.mp4" type="video/mp4" />
 </video>
 
 ## Enabling AI for Your Project

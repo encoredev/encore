@@ -75,17 +75,21 @@ The production environment is separated from testing environments, using separat
 
 ### Organizational security
 
-An organization is only as strong as its people. All employees undergo a rigorous selection process, and many of Encore's team members bring extensive experience from regulated environments such as online banking and large-scale payment systems.
+Since an organization is only as good as its people, Encore takes great care when selecting and training its staff. All employees undergo a thorough selection process that has been designed to identify the best talent in the world for the job. Many of Encore's employees have extensive experience working in regulated environments such as Online Banking and large-scale Online Payments.
 
-Employees are required to complete annual security awareness training covering physical security, digital hygiene (strong passwords, two-factor authentication), social engineering ("phishing"), and related topics. Individual performance is reviewed on a bi-weekly cadence, and organizational performance is tracked via KPIs reviewed monthly by management.
+Individual performance monitoring is carried out by managers on a bi-weekly cadence. Overall organizational performance is tracked continuously and reviewed by management on a monthly cadence using Key Performance Indicators determined by management.
+
+Employees are required to complete yearly security awareness training. The training is designed to increase sensitivity to physical security (hardware and media handling, office access control, etc.), digital security (e.g. secure passwords, two-factor authentication), social engineering attacks ("phishing"), and other security-related topics.
 
 Encore employment policy mandates full-disk encryption on all employee devices.
 
 ### Product security
 
-Multiple layers of protection ensure that customer data is not accessible to unauthorized persons.
+Encore is aware of how important it is for its customers that all data is handled securely. Therefore, several layers of protection ensure that the data is not accessible to unauthorized persons.
 
-Encore's service-based architecture provides natural isolation between components, and we have adopted a zero-trust security model with Tailscale. All server-to-server communication is authenticated and end-to-end encrypted with WireGuard. GCP's VPC (Virtual Private Cloud) provides another layer of isolation from the internet on the network level. None of Encore's servers are publicly accessible on the internet.
+An essential part of software security is "defense in depth" which means that there are multiple layers of protection. In case one layer is breached, the next layer helps to contain the breach and mitigate its consequences. This can be achieved by isolating software components from each other, such that the breach of one component does not affect adjacent software.
+
+Encore's service-based architecture provides natural isolation between components, and we have adopted a zero-trust security model with the use of Tailscale. All server-to-server communication is authenticated and end-to-end encrypted with WireGuard. GCP's VPC (Virtual Private Cloud) provides another layer of isolation from the internet on the network level. None of Encore's servers are publicly accessible on the internet.
 
 As a general principle, all of Encore's data is encrypted while being transported across networks and when stored ("in transit and at rest"). In case of unauthorized access to the data, an attacker would only see undecipherable garbage which cannot be decrypted without the corresponding keys. The encryption methods employed by Encore are industry standard and deemed unbreakable by contemporary standards. Data at rest (virtual filesystems, relational databases, and object storage) is encrypted using GCP's industry-standard AES-256, while data in transit is encrypted with TLS ≥ 1.2 (for Encore's REST API) or WireGuard (for internal communication).
 
@@ -97,13 +101,11 @@ There are two ways for a user to log in to Encore: Single sign-on (SSO) and user
 
 If no SSO is used, the default login method is passwordless login using email and "magic link", also handled by _Clerk_. Encore does not store or in any way handle passwords, neither in plaintext nor cryptographic hash form. This means that Encore does not know the passwords of any users, and no passwords can be reconstructed from our databases.
 
-Encore uses automated vulnerability scanning across its codebase and dependencies. All teams continuously monitor their services for vulnerabilities and proactively remediate them, supervised by the Security Officer.
+Encore offers bug bounty incentives to individuals who discover any security discrepancies. The objective of offering bug bounty incentives is to receive security-related bug reports from trusted "white hat hackers" before the vulnerability is actively exploited in a malicious way. This contributes to maintaining Encore's product security.
 
-All security issues undergo a triaging process by the Security Officer and are escalated based on criticality.
+All security issues undergo a triaging process by Encore's designated Security Officer and are escalated based on their criticality.
 
-### Responsible disclosure
-
-We maintain an active bug bounty program to encourage security researchers to report vulnerabilities before they can be exploited. If you discover a security issue, please report it to [security@encore.dev](mailto:security@encore.dev). We are committed to investigating all reports promptly and working with researchers to resolve issues responsibly.
+Encore uses automated scans to detect software vulnerabilities. All teams are continuously monitoring their services for vulnerabilities and are committed to pro-actively reducing them. The progress is supervised by the Security Officer.
 
 ### Access control
 
@@ -159,7 +161,7 @@ All systems access is subject to the "principle of least privilege", meaning tha
 
 ### Deletion
 
-User data will be stored by Encore after the termination of a subscription term, according to [Encore's Terms of Service](https://encore.cloud/legal/terms). When a user requests the deletion of data, the data is made inaccessible or physically deleted, depending on the data type and storage location.  For technical reasons, data may remain in backups after this point.
+User data will be stored by Encore after the termination of a subscription term, according to [Encore's Terms of Service](/legal/terms). When a user requests the deletion of data, the data is made inaccessible or physically deleted, depending on the data type and storage location.  For technical reasons, data may remain in backups after this point.
 
 ## Processing integrity
 
@@ -203,7 +205,7 @@ One fundamental rule of the GDPR is the principle of "data minimization", which 
 
 ### Privacy policy
 
-We are aware that confidential handling of your data is essential to establishing trust. Therefore, [Encore's Privacy Policy](https://encore.cloud/legal/privacy) ensures that the data of our users is protected according to the high standards of GDPR.
+We are aware that confidential handling of your data is essential to establishing trust. Therefore, [Encore's Privacy Policy](/legal/privacy) ensures that the data of our users is protected according to the high standards of GDPR.
 
 ## Questions and further information
 

@@ -7,11 +7,11 @@ toc: false
 lang: platform
 ---
 
-[Encore Cloud](https://encore.cloud) is a development platform for running production applications in your own AWS or GCP environment.
+[Encore Cloud](/docs/platform) is a development platform for running production applications in your own AWS or GCP environment.
 
 It automates infrastructure provisioning, deployments, and operations, while providing built-in observability including distributed tracing, metrics, and logs.
 
-Teams using Encore Cloud report **2-3x** faster development speed and **93%** less time spent on DevOps. See more details in [customer stories](https://encore.cloud/customers).
+Teams using Encore Cloud report **2-3x** faster development speed and **93%** less time spent on DevOps. See more details in [customer stories](/customers).
 
 Learn more about how it works in the [introduction](/docs/platform/introduction).
 

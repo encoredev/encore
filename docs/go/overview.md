@@ -28,7 +28,7 @@ The framework comes with a lot of built-in tooling for a productive end-to-end d
 - **Enhanced Observability**: Encore comes with tools like a [Local Development Dashboard](/docs/go/observability/dev-dash), [tracing](/docs/go/observability/tracing), and a database explorer for monitoring application behavior.
 - **Automatic Documentation**: Generates and maintains [up-to-date documentation](/docs/go/observability/service-catalog) for APIs and services, and created [architecture diagrams](/docs/go/observability/encore-flow) for your system.
 - **AI Integration:** Encore comes with built-in tools for effective AI assisted development, like [AI instructions](/docs/go/ai-integration) and an [MCP server](/docs/go/cli/mcp).
-- **DevOps Automation Platform (Optional)**: [Encore Cloud](https://encore.cloud) is an optional platform for automating infrastructure provisioning and DevOps processes in your cloud on AWS and GCP.
+- **DevOps Automation Platform (Optional)**: [Encore Cloud](/docs/platform) is an optional platform for automating infrastructure provisioning and DevOps processes in your cloud on AWS and GCP.
 
 <div className="mt-6 grid grid-cols-2 gap-6 mobile:grid-cols-1 not-prose">
     <a className="block group relative no-brandient" target="_blank" href="https://www.youtube.com/watch?v=ipj1HdG4dWA">

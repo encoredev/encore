@@ -6,7 +6,7 @@ subtitle: Inspect API requests and traces from your frontend
 lang: ts
 ---
 
-The Encore Toolbar is a lightweight, drop-in script that adds a floating developer panel to your frontend application. It automatically intercepts all `fetch()` and `XMLHttpRequest` calls, captures trace IDs from Encore's response headers, and lets you jump directly to the corresponding trace in the [Development Dashboard](/docs/ts/observability/dev-dash) or [Encore Cloud](https://app.encore.cloud).
+The Encore Toolbar is a lightweight, drop-in script that adds a floating developer panel to your frontend application. It automatically intercepts all `fetch()` and `XMLHttpRequest` calls, captures trace IDs from Encore's response headers, and lets you jump directly to the corresponding trace in the [Development Dashboard](/docs/ts/observability/dev-dash) or [Encore Cloud](/docs/platform).
 
 This is useful when you're building a frontend that talks to an Encore backend and want visibility into what's happening on the backend without switching to a separate tool.
 

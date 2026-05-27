@@ -149,7 +149,7 @@ You can also skip the platform entirely. Run `encore build docker` to produce a 
 ## Who's Using Encore
 
 150+ Teams are already shipping production apps with Encore, including: Groupon, Echo.xyz (a Coinbase company), Bookshop.org, Gradient Labs, Ashby, Later.com, Pallet, Pave Bank, and Playwire.
-Use cases span AI, fintech, logistics, commerce, web3, and more. See [case studies](https://encore.cloud/customers) to learn more.
+Use cases span AI, fintech, logistics, commerce, web3, and more. See [case studies](https://encore.dev/customers) to learn more.
 
 ## Resources
 
