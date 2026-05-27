@@ -89,6 +89,11 @@ You don't need a rewrite, and you don't need to use Encore for every resource in
 
 Start with a low-risk, frequently-changed service. See the [migration guide](https://encore.dev/docs/platform/migration/migrate-to-encore) for the full playbook.
 
+### Migrating Away
+
+Encore is designed to make leaving easy. 99% of your code is regular Go or TypeScript, so there's not much to rewrite.
+See the [migrate-away guide](https://encore.dev/docs/ts/migration/migrate-away) for more.
+
 ## Limitations
 
 Encore integrates at the application layer, which means a few constraints to be clear about up front:
