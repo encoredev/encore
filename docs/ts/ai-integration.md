@@ -15,7 +15,7 @@ For production, [self-host](/docs/ts/self-host/build) or use [Encore Cloud](http
 Encore's declarative APIs and infrastructure primitives give AI a clear model to work with. AI can add databases, pub/sub topics, and other resources with built-in guardrails, and use MCP to introspect your app—services, APIs, databases, and traces—so it can suggest accurate, pattern-consistent code.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="https://encore.cloud/assets/docs/claude-skills.mp4" type="video/mp4" />
+  <source src="https://encore.dev/assets/docs/claude-skills.mp4" type="video/mp4" />
 </video>
 
 ## Enabling AI for Your Project

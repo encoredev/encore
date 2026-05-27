@@ -6,7 +6,7 @@ subtitle: Accelerate development with isolated test environments for each Pull R
 lang: platform
 ---
 
-When using [Encore Cloud Pro](https://encore.cloud/pricing), you automatically get ephemeral Preview Environments for each Pull Request.
+When using [Encore Cloud Pro](/pricing), you automatically get ephemeral Preview Environments for each Pull Request.
 
 Preview Environments are free, fully-managed development environments that run on Encore Cloud. They let you test changes without managing infrastructure or incurring cost.
 

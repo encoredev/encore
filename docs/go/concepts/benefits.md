@@ -27,4 +27,4 @@ This approach dramatically reduces the level of DevOps expertise required to use
 
 ## Simplicity without giving up flexibility
 
-Encore.go provides integrations for common infrastructure primitives, but also allows for flexibility. You can always use any cloud infrastructure, even if it's not built into Encore.go. If you use Encore's [Cloud Platform](https://encore.dev/use-cases/devops-automation), it [automates infrastructure](/docs/platform/infrastructure/infra) using your own cloud account, so you always have full access to your services from the cloud provider's console.
+Encore.go provides integrations for common infrastructure primitives, but also allows for flexibility. You can always use any cloud infrastructure, even if it's not built into Encore.go. If you use Encore's [Cloud Platform](/docs/platform), it [automates infrastructure](/docs/platform/infrastructure/infra) using your own cloud account, so you always have full access to your services from the cloud provider's console.
