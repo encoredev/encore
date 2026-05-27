@@ -49,7 +49,18 @@ Each declaration becomes a node in the application graph. Encore runs the migrat
 | Secrets        | Encore vault       | Secrets Manager | Secret Manager  |
 | Compute        | Local              | Fargate / EKS   | Cloud Run / GKE |
 
-When you push a change that adds or modifies a resource, Encore diffs the application graph against the environment, provisions whatever is missing in your AWS or GCP account, and rolls out the new code against it. No Terraform module, no console wizard, no YAML.
+When you push a change that adds or modifies a resource, Encore diffs the application graph against the environment, provisions whatever is missing in your AWS or GCP account, and rolls out the new code against it.
+
+### Configuration
+
+Encore separates application semantics from environment-specific configuration. In code, you define what resources your app needs, not how each environment should configure them.
+That keeps services portable across clouds, regions, accounts, scale profiles, and local development
+
+Encore provisions every resource with sane production defaults, then helps you manage configuration separately from your application code:
+
+- **Encore Cloud dashboard:** easy to use knobs for all common settings like process allocation, instance sizes, replicas, etc. [See more in docs](https://encore.dev/docs/platform/infrastructure/configuration).
+- **Your AWS or GCP console:** tweak anything directly in your cloud provider console. Encore picks up the changes on the next deploy.
+- **IaC:** manage config for Encore-provisioned resources alongside the rest of your infrastructure via the [Terraform provider](https://encore.dev/docs/platform/integrations/terraform).
 
 ### Language SDKs
 
@@ -128,7 +139,7 @@ Full walkthrough in the [Quickstart guide](https://encore.dev/docs/ts/quick-star
 
 ## AI Integration
 
-Encore is built for AI-assisted development. Every Encore app comes with built-in CLAUDE.md and MCP server that lets agents introspect your app and generate type-safe code that follows your patterns.
+Encore is built for AI-assisted development. Every Encore app comes with built-in CLAUDE.md and an MCP server that lets agents introspect your app and generate type-safe code that follows your patterns.
 See the [AI integration docs](https://encore.dev/docs/ts/ai-integration) for more details.
 
 ## Local Dev Dashboard
