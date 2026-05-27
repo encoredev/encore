@@ -11,7 +11,7 @@
 
 ## What is Encore?
 
-Encore compiles infrastructure from your application code and manages it across local and cloud environments.
+Encore derives infrastructure from your application code and manages it across local and cloud environments.
 
 Build a backend that runs the same way on your laptop and in production: type-safe, traceable, and deployable to your own AWS or GCP account without Terraform or YAML.
 
@@ -93,7 +93,7 @@ Start with a low-risk, frequently-changed service. See the [migration guide](htt
 Encore integrates at the application layer, which means a few constraints to be clear about up front:
 
 - **Language:** Your services need to be written in a supported language: TypeScript (Node.js) or Go. Python is coming soon.
-- **Infrastructure scope:** Encore is design to solve for the 99% use case, making it easier to work with resources you use over and over again; services, databases, Pub/Sub, object storage, caches, cron jobs, and secrets. For the remaining 1% that is specific to your domain, you can still integrate any other service as you normally would. Encore doesn't prevent it or make it harder.
+- **Infrastructure scope:** Encore is designed to solve the 99% use case, making it easier to work with the resources you use over and over again; services, databases, Pub/Sub, object storage, caches, cron jobs, and secrets. For the remaining 1% that is specific to your domain, you can still integrate any other service as you normally would. Encore doesn't prevent it or make it harder.
 - **Cloud providers:** Encore Cloud's fully-automated provisioning currently supports AWS and GCP. Azure is on the roadmap. Self-hosting via `encore build docker` works on any provider.
 
 ## How Encore Compares
