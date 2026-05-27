@@ -54,7 +54,7 @@ When you push a change that adds or modifies a resource, Encore diffs the applic
 ### Configuration
 
 Encore separates application semantics from environment-specific configuration. In code, you define what resources your app needs, not how each environment should configure them.
-That keeps services portable across clouds, regions, accounts, scale profiles, and local development
+That keeps services portable across clouds, regions, accounts, scale profiles, and local development.
 
 Encore provisions every resource with sane production defaults, then helps you manage configuration separately from your application code:
 
