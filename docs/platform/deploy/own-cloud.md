@@ -94,6 +94,30 @@ To find your app's Service Account email and configure GCP deployments, head ove
 
 ![Connect GCP account](/assets/docs/connectgcp.png "Connect GCP account")
 
+#### Encore Service Account vs Service Account JSON Key
+
+When connecting your GCP account, you can choose between two authentication methods. Both grant Encore Cloud the same level of access — the difference is in how that trust is established.
+
+**Encore Service Account (recommended)**
+
+Encore Cloud uses its own Google-managed service account, which you grant access to your GCP Organization. No credentials are ever shared with Encore Cloud, and access can be revoked at any time by removing the IAM binding.
+
+This requires that the Encore Cloud service account is allowed by your Organization's `Domain restricted sharing` policy. If your organization enforces this policy, you'll need to edit it to allowlist the Encore Cloud service account (see the Troubleshooting section below).
+
+Choose this option if:
+- You can modify the `Domain restricted sharing` policy in your GCP Organization, or it isn't enforced.
+- You prefer not to manage long-lived credentials.
+
+**Service Account JSON Key**
+
+You create a service account in your own GCP project, grant it the required roles, and upload its JSON key to Encore Cloud. Encore Cloud then authenticates as that service account when managing your infrastructure.
+
+This avoids any changes to your `Domain restricted sharing` policy, but means a long-lived credential is stored by Encore Cloud. The key should be rotated periodically, and revoking access requires deleting the key in GCP.
+
+Choose this option if:
+- You're unable to modify the `Domain restricted sharing` policy.
+- You prefer to keep the service account fully within your own GCP Organization.
+
 ### Troubleshooting
 
 **I can't access/edit the `Policy for Domain restricted sharing` page**
