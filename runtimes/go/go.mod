@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.9.0
 	cloud.google.com/go/monitoring v1.24.3
 	cloud.google.com/go/pubsub/v2 v2.6.0
+	cloud.google.com/go/secretmanager v1.16.0
 	cloud.google.com/go/storage v1.56.0
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.1.3
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.1.0

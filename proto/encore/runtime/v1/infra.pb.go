@@ -122,7 +122,7 @@ func (x PubSubTopic_DeliveryGuarantee) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PubSubTopic_DeliveryGuarantee.Descriptor instead.
 func (PubSubTopic_DeliveryGuarantee) EnumDescriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{15, 0}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{16, 0}
 }
 
 type Infrastructure struct {
@@ -177,6 +177,95 @@ func (x *Infrastructure) GetCredentials() *Infrastructure_Credentials {
 	return nil
 }
 
+// SecretProvider declares an external secret-management backend that
+// AppSecrets can be fetched from via SecretData.ProviderRef.
+//
+// Authentication uses the backend's default credential chain (e.g. ADC for
+// GCP). Explicit credentials may be added later via additional fields here.
+type SecretProvider struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The unique resource id for this provider.
+	Rid string `protobuf:"bytes,1,opt,name=rid,proto3" json:"rid,omitempty"`
+	// Human-readable identifier, used in logs.
+	EncoreName string `protobuf:"bytes,2,opt,name=encore_name,json=encoreName,proto3" json:"encore_name,omitempty"`
+	// Types that are valid to be assigned to Provider:
+	//
+	//	*SecretProvider_GcpSm
+	Provider      isSecretProvider_Provider `protobuf_oneof:"provider"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretProvider) Reset() {
+	*x = SecretProvider{}
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretProvider) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretProvider) ProtoMessage() {}
+
+func (x *SecretProvider) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretProvider.ProtoReflect.Descriptor instead.
+func (*SecretProvider) Descriptor() ([]byte, []int) {
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SecretProvider) GetRid() string {
+	if x != nil {
+		return x.Rid
+	}
+	return ""
+}
+
+func (x *SecretProvider) GetEncoreName() string {
+	if x != nil {
+		return x.EncoreName
+	}
+	return ""
+}
+
+func (x *SecretProvider) GetProvider() isSecretProvider_Provider {
+	if x != nil {
+		return x.Provider
+	}
+	return nil
+}
+
+func (x *SecretProvider) GetGcpSm() *SecretProvider_GCPSecretManager {
+	if x != nil {
+		if x, ok := x.Provider.(*SecretProvider_GcpSm); ok {
+			return x.GcpSm
+		}
+	}
+	return nil
+}
+
+type isSecretProvider_Provider interface {
+	isSecretProvider_Provider()
+}
+
+type SecretProvider_GcpSm struct {
+	GcpSm *SecretProvider_GCPSecretManager `protobuf:"bytes,10,opt,name=gcp_sm,json=gcpSm,proto3,oneof"`
+}
+
+func (*SecretProvider_GcpSm) isSecretProvider_Provider() {}
+
 type SQLCluster struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The unique resource id for this cluster.
@@ -189,7 +278,7 @@ type SQLCluster struct {
 
 func (x *SQLCluster) Reset() {
 	*x = SQLCluster{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[1]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -201,7 +290,7 @@ func (x *SQLCluster) String() string {
 func (*SQLCluster) ProtoMessage() {}
 
 func (x *SQLCluster) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[1]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -214,7 +303,7 @@ func (x *SQLCluster) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SQLCluster.ProtoReflect.Descriptor instead.
 func (*SQLCluster) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{1}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SQLCluster) GetRid() string {
@@ -255,7 +344,7 @@ type TLSConfig struct {
 
 func (x *TLSConfig) Reset() {
 	*x = TLSConfig{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[2]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -267,7 +356,7 @@ func (x *TLSConfig) String() string {
 func (*TLSConfig) ProtoMessage() {}
 
 func (x *TLSConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[2]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -280,7 +369,7 @@ func (x *TLSConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLSConfig.ProtoReflect.Descriptor instead.
 func (*TLSConfig) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{2}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *TLSConfig) GetServerCaCert() string {
@@ -320,7 +409,7 @@ type SQLServer struct {
 
 func (x *SQLServer) Reset() {
 	*x = SQLServer{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[3]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -332,7 +421,7 @@ func (x *SQLServer) String() string {
 func (*SQLServer) ProtoMessage() {}
 
 func (x *SQLServer) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[3]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -345,7 +434,7 @@ func (x *SQLServer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SQLServer.ProtoReflect.Descriptor instead.
 func (*SQLServer) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{3}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SQLServer) GetRid() string {
@@ -388,7 +477,7 @@ type ClientCert struct {
 
 func (x *ClientCert) Reset() {
 	*x = ClientCert{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[4]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -400,7 +489,7 @@ func (x *ClientCert) String() string {
 func (*ClientCert) ProtoMessage() {}
 
 func (x *ClientCert) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[4]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -413,7 +502,7 @@ func (x *ClientCert) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClientCert.ProtoReflect.Descriptor instead.
 func (*ClientCert) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{4}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ClientCert) GetRid() string {
@@ -451,7 +540,7 @@ type SQLRole struct {
 
 func (x *SQLRole) Reset() {
 	*x = SQLRole{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[5]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -463,7 +552,7 @@ func (x *SQLRole) String() string {
 func (*SQLRole) ProtoMessage() {}
 
 func (x *SQLRole) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[5]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -476,7 +565,7 @@ func (x *SQLRole) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SQLRole.ProtoReflect.Descriptor instead.
 func (*SQLRole) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{5}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SQLRole) GetRid() string {
@@ -522,7 +611,7 @@ type SQLDatabase struct {
 
 func (x *SQLDatabase) Reset() {
 	*x = SQLDatabase{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[6]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +623,7 @@ func (x *SQLDatabase) String() string {
 func (*SQLDatabase) ProtoMessage() {}
 
 func (x *SQLDatabase) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[6]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +636,7 @@ func (x *SQLDatabase) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SQLDatabase.ProtoReflect.Descriptor instead.
 func (*SQLDatabase) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{6}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SQLDatabase) GetRid() string {
@@ -593,7 +682,7 @@ type SQLConnectionPool struct {
 
 func (x *SQLConnectionPool) Reset() {
 	*x = SQLConnectionPool{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[7]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -605,7 +694,7 @@ func (x *SQLConnectionPool) String() string {
 func (*SQLConnectionPool) ProtoMessage() {}
 
 func (x *SQLConnectionPool) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[7]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -618,7 +707,7 @@ func (x *SQLConnectionPool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SQLConnectionPool.ProtoReflect.Descriptor instead.
 func (*SQLConnectionPool) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{7}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SQLConnectionPool) GetIsReadonly() bool {
@@ -664,7 +753,7 @@ type RedisCluster struct {
 
 func (x *RedisCluster) Reset() {
 	*x = RedisCluster{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[8]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -676,7 +765,7 @@ func (x *RedisCluster) String() string {
 func (*RedisCluster) ProtoMessage() {}
 
 func (x *RedisCluster) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[8]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -689,7 +778,7 @@ func (x *RedisCluster) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RedisCluster.ProtoReflect.Descriptor instead.
 func (*RedisCluster) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{8}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RedisCluster) GetRid() string {
@@ -737,7 +826,7 @@ type RedisServer struct {
 
 func (x *RedisServer) Reset() {
 	*x = RedisServer{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[9]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -749,7 +838,7 @@ func (x *RedisServer) String() string {
 func (*RedisServer) ProtoMessage() {}
 
 func (x *RedisServer) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[9]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -762,7 +851,7 @@ func (x *RedisServer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RedisServer.ProtoReflect.Descriptor instead.
 func (*RedisServer) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{9}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RedisServer) GetRid() string {
@@ -808,7 +897,7 @@ type RedisConnectionPool struct {
 
 func (x *RedisConnectionPool) Reset() {
 	*x = RedisConnectionPool{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[10]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -820,7 +909,7 @@ func (x *RedisConnectionPool) String() string {
 func (*RedisConnectionPool) ProtoMessage() {}
 
 func (x *RedisConnectionPool) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[10]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -833,7 +922,7 @@ func (x *RedisConnectionPool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RedisConnectionPool.ProtoReflect.Descriptor instead.
 func (*RedisConnectionPool) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{10}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RedisConnectionPool) GetIsReadonly() bool {
@@ -884,7 +973,7 @@ type RedisRole struct {
 
 func (x *RedisRole) Reset() {
 	*x = RedisRole{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[11]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -896,7 +985,7 @@ func (x *RedisRole) String() string {
 func (*RedisRole) ProtoMessage() {}
 
 func (x *RedisRole) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[11]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -909,7 +998,7 @@ func (x *RedisRole) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RedisRole.ProtoReflect.Descriptor instead.
 func (*RedisRole) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{11}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RedisRole) GetRid() string {
@@ -988,7 +1077,7 @@ type RedisDatabase struct {
 
 func (x *RedisDatabase) Reset() {
 	*x = RedisDatabase{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[12]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1000,7 +1089,7 @@ func (x *RedisDatabase) String() string {
 func (*RedisDatabase) ProtoMessage() {}
 
 func (x *RedisDatabase) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[12]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1013,7 +1102,7 @@ func (x *RedisDatabase) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RedisDatabase.ProtoReflect.Descriptor instead.
 func (*RedisDatabase) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{12}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RedisDatabase) GetRid() string {
@@ -1065,7 +1154,7 @@ type AppSecret struct {
 
 func (x *AppSecret) Reset() {
 	*x = AppSecret{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[13]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1077,7 +1166,7 @@ func (x *AppSecret) String() string {
 func (*AppSecret) ProtoMessage() {}
 
 func (x *AppSecret) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[13]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1090,7 +1179,7 @@ func (x *AppSecret) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AppSecret.ProtoReflect.Descriptor instead.
 func (*AppSecret) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{13}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *AppSecret) GetRid() string {
@@ -1134,7 +1223,7 @@ type PubSubCluster struct {
 
 func (x *PubSubCluster) Reset() {
 	*x = PubSubCluster{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[14]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1146,7 +1235,7 @@ func (x *PubSubCluster) String() string {
 func (*PubSubCluster) ProtoMessage() {}
 
 func (x *PubSubCluster) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[14]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1159,7 +1248,7 @@ func (x *PubSubCluster) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubCluster.ProtoReflect.Descriptor instead.
 func (*PubSubCluster) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{14}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PubSubCluster) GetRid() string {
@@ -1296,7 +1385,7 @@ type PubSubTopic struct {
 
 func (x *PubSubTopic) Reset() {
 	*x = PubSubTopic{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[15]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1308,7 +1397,7 @@ func (x *PubSubTopic) String() string {
 func (*PubSubTopic) ProtoMessage() {}
 
 func (x *PubSubTopic) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[15]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1321,7 +1410,7 @@ func (x *PubSubTopic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubTopic.ProtoReflect.Descriptor instead.
 func (*PubSubTopic) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{15}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *PubSubTopic) GetRid() string {
@@ -1414,7 +1503,7 @@ type PubSubSubscription struct {
 
 func (x *PubSubSubscription) Reset() {
 	*x = PubSubSubscription{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[16]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1426,7 +1515,7 @@ func (x *PubSubSubscription) String() string {
 func (*PubSubSubscription) ProtoMessage() {}
 
 func (x *PubSubSubscription) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[16]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1439,7 +1528,7 @@ func (x *PubSubSubscription) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubSubscription.ProtoReflect.Descriptor instead.
 func (*PubSubSubscription) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{16}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PubSubSubscription) GetRid() string {
@@ -1526,7 +1615,7 @@ type BucketCluster struct {
 
 func (x *BucketCluster) Reset() {
 	*x = BucketCluster{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[17]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1538,7 +1627,7 @@ func (x *BucketCluster) String() string {
 func (*BucketCluster) ProtoMessage() {}
 
 func (x *BucketCluster) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[17]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1551,7 +1640,7 @@ func (x *BucketCluster) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BucketCluster.ProtoReflect.Descriptor instead.
 func (*BucketCluster) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{17}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *BucketCluster) GetRid() string {
@@ -1631,7 +1720,7 @@ type Bucket struct {
 
 func (x *Bucket) Reset() {
 	*x = Bucket{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[18]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1643,7 +1732,7 @@ func (x *Bucket) String() string {
 func (*Bucket) ProtoMessage() {}
 
 func (x *Bucket) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[18]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1656,7 +1745,7 @@ func (x *Bucket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bucket.ProtoReflect.Descriptor instead.
 func (*Bucket) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{18}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Bucket) GetRid() string {
@@ -1713,7 +1802,7 @@ type Gateway struct {
 
 func (x *Gateway) Reset() {
 	*x = Gateway{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[19]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1725,7 +1814,7 @@ func (x *Gateway) String() string {
 func (*Gateway) ProtoMessage() {}
 
 func (x *Gateway) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[19]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1738,7 +1827,7 @@ func (x *Gateway) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gateway.ProtoReflect.Descriptor instead.
 func (*Gateway) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{19}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Gateway) GetRid() string {
@@ -1787,7 +1876,7 @@ type Infrastructure_Credentials struct {
 
 func (x *Infrastructure_Credentials) Reset() {
 	*x = Infrastructure_Credentials{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[20]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1799,7 +1888,7 @@ func (x *Infrastructure_Credentials) String() string {
 func (*Infrastructure_Credentials) ProtoMessage() {}
 
 func (x *Infrastructure_Credentials) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[20]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1837,20 +1926,21 @@ func (x *Infrastructure_Credentials) GetRedisRoles() []*RedisRole {
 }
 
 type Infrastructure_Resources struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Gateways       []*Gateway             `protobuf:"bytes,1,rep,name=gateways,proto3" json:"gateways,omitempty"`
-	SqlClusters    []*SQLCluster          `protobuf:"bytes,2,rep,name=sql_clusters,json=sqlClusters,proto3" json:"sql_clusters,omitempty"`
-	PubsubClusters []*PubSubCluster       `protobuf:"bytes,3,rep,name=pubsub_clusters,json=pubsubClusters,proto3" json:"pubsub_clusters,omitempty"`
-	RedisClusters  []*RedisCluster        `protobuf:"bytes,4,rep,name=redis_clusters,json=redisClusters,proto3" json:"redis_clusters,omitempty"`
-	AppSecrets     []*AppSecret           `protobuf:"bytes,5,rep,name=app_secrets,json=appSecrets,proto3" json:"app_secrets,omitempty"`
-	BucketClusters []*BucketCluster       `protobuf:"bytes,6,rep,name=bucket_clusters,json=bucketClusters,proto3" json:"bucket_clusters,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Gateways        []*Gateway             `protobuf:"bytes,1,rep,name=gateways,proto3" json:"gateways,omitempty"`
+	SqlClusters     []*SQLCluster          `protobuf:"bytes,2,rep,name=sql_clusters,json=sqlClusters,proto3" json:"sql_clusters,omitempty"`
+	PubsubClusters  []*PubSubCluster       `protobuf:"bytes,3,rep,name=pubsub_clusters,json=pubsubClusters,proto3" json:"pubsub_clusters,omitempty"`
+	RedisClusters   []*RedisCluster        `protobuf:"bytes,4,rep,name=redis_clusters,json=redisClusters,proto3" json:"redis_clusters,omitempty"`
+	AppSecrets      []*AppSecret           `protobuf:"bytes,5,rep,name=app_secrets,json=appSecrets,proto3" json:"app_secrets,omitempty"`
+	BucketClusters  []*BucketCluster       `protobuf:"bytes,6,rep,name=bucket_clusters,json=bucketClusters,proto3" json:"bucket_clusters,omitempty"`
+	SecretProviders []*SecretProvider      `protobuf:"bytes,7,rep,name=secret_providers,json=secretProviders,proto3" json:"secret_providers,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Infrastructure_Resources) Reset() {
 	*x = Infrastructure_Resources{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[21]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1862,7 +1952,7 @@ func (x *Infrastructure_Resources) String() string {
 func (*Infrastructure_Resources) ProtoMessage() {}
 
 func (x *Infrastructure_Resources) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[21]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1920,6 +2010,58 @@ func (x *Infrastructure_Resources) GetBucketClusters() []*BucketCluster {
 	return nil
 }
 
+func (x *Infrastructure_Resources) GetSecretProviders() []*SecretProvider {
+	if x != nil {
+		return x.SecretProviders
+	}
+	return nil
+}
+
+type SecretProvider_GCPSecretManager struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The GCP project that owns the secrets.
+	ProjectId     string `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretProvider_GCPSecretManager) Reset() {
+	*x = SecretProvider_GCPSecretManager{}
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretProvider_GCPSecretManager) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretProvider_GCPSecretManager) ProtoMessage() {}
+
+func (x *SecretProvider_GCPSecretManager) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretProvider_GCPSecretManager.ProtoReflect.Descriptor instead.
+func (*SecretProvider_GCPSecretManager) Descriptor() ([]byte, []int) {
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{1, 0}
+}
+
+func (x *SecretProvider_GCPSecretManager) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
 type RedisRole_AuthACL struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
@@ -1930,7 +2072,7 @@ type RedisRole_AuthACL struct {
 
 func (x *RedisRole_AuthACL) Reset() {
 	*x = RedisRole_AuthACL{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[22]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1942,7 +2084,7 @@ func (x *RedisRole_AuthACL) String() string {
 func (*RedisRole_AuthACL) ProtoMessage() {}
 
 func (x *RedisRole_AuthACL) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[22]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1955,7 +2097,7 @@ func (x *RedisRole_AuthACL) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RedisRole_AuthACL.ProtoReflect.Descriptor instead.
 func (*RedisRole_AuthACL) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{11, 0}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{12, 0}
 }
 
 func (x *RedisRole_AuthACL) GetUsername() string {
@@ -1980,7 +2122,7 @@ type PubSubCluster_EncoreCloud struct {
 
 func (x *PubSubCluster_EncoreCloud) Reset() {
 	*x = PubSubCluster_EncoreCloud{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[23]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1992,7 +2134,7 @@ func (x *PubSubCluster_EncoreCloud) String() string {
 func (*PubSubCluster_EncoreCloud) ProtoMessage() {}
 
 func (x *PubSubCluster_EncoreCloud) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[23]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2005,7 +2147,7 @@ func (x *PubSubCluster_EncoreCloud) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubCluster_EncoreCloud.ProtoReflect.Descriptor instead.
 func (*PubSubCluster_EncoreCloud) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{14, 0}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{15, 0}
 }
 
 type PubSubCluster_AWSSqsSns struct {
@@ -2016,7 +2158,7 @@ type PubSubCluster_AWSSqsSns struct {
 
 func (x *PubSubCluster_AWSSqsSns) Reset() {
 	*x = PubSubCluster_AWSSqsSns{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[24]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2028,7 +2170,7 @@ func (x *PubSubCluster_AWSSqsSns) String() string {
 func (*PubSubCluster_AWSSqsSns) ProtoMessage() {}
 
 func (x *PubSubCluster_AWSSqsSns) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[24]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2041,7 +2183,7 @@ func (x *PubSubCluster_AWSSqsSns) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubCluster_AWSSqsSns.ProtoReflect.Descriptor instead.
 func (*PubSubCluster_AWSSqsSns) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{14, 1}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{15, 1}
 }
 
 type PubSubCluster_GCPPubSub struct {
@@ -2052,7 +2194,7 @@ type PubSubCluster_GCPPubSub struct {
 
 func (x *PubSubCluster_GCPPubSub) Reset() {
 	*x = PubSubCluster_GCPPubSub{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[25]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2064,7 +2206,7 @@ func (x *PubSubCluster_GCPPubSub) String() string {
 func (*PubSubCluster_GCPPubSub) ProtoMessage() {}
 
 func (x *PubSubCluster_GCPPubSub) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[25]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2077,7 +2219,7 @@ func (x *PubSubCluster_GCPPubSub) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubCluster_GCPPubSub.ProtoReflect.Descriptor instead.
 func (*PubSubCluster_GCPPubSub) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{14, 2}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{15, 2}
 }
 
 type PubSubCluster_NSQ struct {
@@ -2090,7 +2232,7 @@ type PubSubCluster_NSQ struct {
 
 func (x *PubSubCluster_NSQ) Reset() {
 	*x = PubSubCluster_NSQ{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[26]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2102,7 +2244,7 @@ func (x *PubSubCluster_NSQ) String() string {
 func (*PubSubCluster_NSQ) ProtoMessage() {}
 
 func (x *PubSubCluster_NSQ) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[26]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2115,7 +2257,7 @@ func (x *PubSubCluster_NSQ) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubCluster_NSQ.ProtoReflect.Descriptor instead.
 func (*PubSubCluster_NSQ) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{14, 3}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{15, 3}
 }
 
 func (x *PubSubCluster_NSQ) GetHosts() []string {
@@ -2134,7 +2276,7 @@ type PubSubCluster_AzureServiceBus struct {
 
 func (x *PubSubCluster_AzureServiceBus) Reset() {
 	*x = PubSubCluster_AzureServiceBus{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[27]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2146,7 +2288,7 @@ func (x *PubSubCluster_AzureServiceBus) String() string {
 func (*PubSubCluster_AzureServiceBus) ProtoMessage() {}
 
 func (x *PubSubCluster_AzureServiceBus) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[27]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2159,7 +2301,7 @@ func (x *PubSubCluster_AzureServiceBus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubCluster_AzureServiceBus.ProtoReflect.Descriptor instead.
 func (*PubSubCluster_AzureServiceBus) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{14, 4}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{15, 4}
 }
 
 func (x *PubSubCluster_AzureServiceBus) GetNamespace() string {
@@ -2179,7 +2321,7 @@ type PubSubTopic_GCPConfig struct {
 
 func (x *PubSubTopic_GCPConfig) Reset() {
 	*x = PubSubTopic_GCPConfig{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[28]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2191,7 +2333,7 @@ func (x *PubSubTopic_GCPConfig) String() string {
 func (*PubSubTopic_GCPConfig) ProtoMessage() {}
 
 func (x *PubSubTopic_GCPConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[28]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2204,7 +2346,7 @@ func (x *PubSubTopic_GCPConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubTopic_GCPConfig.ProtoReflect.Descriptor instead.
 func (*PubSubTopic_GCPConfig) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{15, 0}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{16, 0}
 }
 
 func (x *PubSubTopic_GCPConfig) GetProjectId() string {
@@ -2230,7 +2372,7 @@ type PubSubSubscription_GCPConfig struct {
 
 func (x *PubSubSubscription_GCPConfig) Reset() {
 	*x = PubSubSubscription_GCPConfig{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[29]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2242,7 +2384,7 @@ func (x *PubSubSubscription_GCPConfig) String() string {
 func (*PubSubSubscription_GCPConfig) ProtoMessage() {}
 
 func (x *PubSubSubscription_GCPConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[29]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2255,7 +2397,7 @@ func (x *PubSubSubscription_GCPConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSubSubscription_GCPConfig.ProtoReflect.Descriptor instead.
 func (*PubSubSubscription_GCPConfig) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{16, 0}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{17, 0}
 }
 
 func (x *PubSubSubscription_GCPConfig) GetProjectId() string {
@@ -2295,7 +2437,7 @@ type BucketCluster_S3 struct {
 
 func (x *BucketCluster_S3) Reset() {
 	*x = BucketCluster_S3{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[30]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2307,7 +2449,7 @@ func (x *BucketCluster_S3) String() string {
 func (*BucketCluster_S3) ProtoMessage() {}
 
 func (x *BucketCluster_S3) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[30]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2320,7 +2462,7 @@ func (x *BucketCluster_S3) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BucketCluster_S3.ProtoReflect.Descriptor instead.
 func (*BucketCluster_S3) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{17, 0}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{18, 0}
 }
 
 func (x *BucketCluster_S3) GetRegion() string {
@@ -2366,7 +2508,7 @@ type BucketCluster_GCS struct {
 
 func (x *BucketCluster_GCS) Reset() {
 	*x = BucketCluster_GCS{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[31]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2378,7 +2520,7 @@ func (x *BucketCluster_GCS) String() string {
 func (*BucketCluster_GCS) ProtoMessage() {}
 
 func (x *BucketCluster_GCS) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[31]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2391,7 +2533,7 @@ func (x *BucketCluster_GCS) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BucketCluster_GCS.ProtoReflect.Descriptor instead.
 func (*BucketCluster_GCS) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{17, 1}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{18, 1}
 }
 
 func (x *BucketCluster_GCS) GetEndpoint() string {
@@ -2429,7 +2571,7 @@ type BucketCluster_GCS_LocalSignOptions struct {
 
 func (x *BucketCluster_GCS_LocalSignOptions) Reset() {
 	*x = BucketCluster_GCS_LocalSignOptions{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[32]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2441,7 +2583,7 @@ func (x *BucketCluster_GCS_LocalSignOptions) String() string {
 func (*BucketCluster_GCS_LocalSignOptions) ProtoMessage() {}
 
 func (x *BucketCluster_GCS_LocalSignOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[32]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2454,7 +2596,7 @@ func (x *BucketCluster_GCS_LocalSignOptions) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use BucketCluster_GCS_LocalSignOptions.ProtoReflect.Descriptor instead.
 func (*BucketCluster_GCS_LocalSignOptions) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{17, 1, 0}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{18, 1, 0}
 }
 
 func (x *BucketCluster_GCS_LocalSignOptions) GetBaseUrl() string {
@@ -2520,7 +2662,7 @@ type Gateway_CORS struct {
 
 func (x *Gateway_CORS) Reset() {
 	*x = Gateway_CORS{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[33]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2532,7 +2674,7 @@ func (x *Gateway_CORS) String() string {
 func (*Gateway_CORS) ProtoMessage() {}
 
 func (x *Gateway_CORS) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[33]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2545,7 +2687,7 @@ func (x *Gateway_CORS) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gateway_CORS.ProtoReflect.Descriptor instead.
 func (*Gateway_CORS) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{19, 0}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{20, 0}
 }
 
 func (x *Gateway_CORS) GetDebug() bool {
@@ -2647,7 +2789,7 @@ type Gateway_CORSAllowedOrigins struct {
 
 func (x *Gateway_CORSAllowedOrigins) Reset() {
 	*x = Gateway_CORSAllowedOrigins{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[34]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2659,7 +2801,7 @@ func (x *Gateway_CORSAllowedOrigins) String() string {
 func (*Gateway_CORSAllowedOrigins) ProtoMessage() {}
 
 func (x *Gateway_CORSAllowedOrigins) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[34]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2672,7 +2814,7 @@ func (x *Gateway_CORSAllowedOrigins) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gateway_CORSAllowedOrigins.ProtoReflect.Descriptor instead.
 func (*Gateway_CORSAllowedOrigins) Descriptor() ([]byte, []int) {
-	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{19, 1}
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{20, 1}
 }
 
 func (x *Gateway_CORSAllowedOrigins) GetAllowedOrigins() []string {
@@ -2686,7 +2828,7 @@ var File_encore_runtime_v1_infra_proto protoreflect.FileDescriptor
 
 const file_encore_runtime_v1_infra_proto_rawDesc = "" +
 	"\n" +
-	"\x1dencore/runtime/v1/infra.proto\x12\x11encore.runtime.v1\x1a\"encore/runtime/v1/secretdata.proto\"\x9b\x06\n" +
+	"\x1dencore/runtime/v1/infra.proto\x12\x11encore.runtime.v1\x1a\"encore/runtime/v1/secretdata.proto\"\xe9\x06\n" +
 	"\x0eInfrastructure\x12I\n" +
 	"\tresources\x18\x01 \x01(\v2+.encore.runtime.v1.Infrastructure.ResourcesR\tresources\x12O\n" +
 	"\vcredentials\x18\x02 \x01(\v2-.encore.runtime.v1.Infrastructure.CredentialsR\vcredentials\x1a\xc7\x01\n" +
@@ -2694,7 +2836,7 @@ const file_encore_runtime_v1_infra_proto_rawDesc = "" +
 	"\fclient_certs\x18\x01 \x03(\v2\x1d.encore.runtime.v1.ClientCertR\vclientCerts\x127\n" +
 	"\tsql_roles\x18\x02 \x03(\v2\x1a.encore.runtime.v1.SQLRoleR\bsqlRoles\x12=\n" +
 	"\vredis_roles\x18\x03 \x03(\v2\x1c.encore.runtime.v1.RedisRoleR\n" +
-	"redisRoles\x1a\xa2\x03\n" +
+	"redisRoles\x1a\xf0\x03\n" +
 	"\tResources\x126\n" +
 	"\bgateways\x18\x01 \x03(\v2\x1a.encore.runtime.v1.GatewayR\bgateways\x12@\n" +
 	"\fsql_clusters\x18\x02 \x03(\v2\x1d.encore.runtime.v1.SQLClusterR\vsqlClusters\x12I\n" +
@@ -2702,7 +2844,19 @@ const file_encore_runtime_v1_infra_proto_rawDesc = "" +
 	"\x0eredis_clusters\x18\x04 \x03(\v2\x1f.encore.runtime.v1.RedisClusterR\rredisClusters\x12=\n" +
 	"\vapp_secrets\x18\x05 \x03(\v2\x1c.encore.runtime.v1.AppSecretR\n" +
 	"appSecrets\x12I\n" +
-	"\x0fbucket_clusters\x18\x06 \x03(\v2 .encore.runtime.v1.BucketClusterR\x0ebucketClusters\"\x94\x01\n" +
+	"\x0fbucket_clusters\x18\x06 \x03(\v2 .encore.runtime.v1.BucketClusterR\x0ebucketClusters\x12L\n" +
+	"\x10secret_providers\x18\a \x03(\v2!.encore.runtime.v1.SecretProviderR\x0fsecretProviders\"\xcf\x01\n" +
+	"\x0eSecretProvider\x12\x10\n" +
+	"\x03rid\x18\x01 \x01(\tR\x03rid\x12\x1f\n" +
+	"\vencore_name\x18\x02 \x01(\tR\n" +
+	"encoreName\x12K\n" +
+	"\x06gcp_sm\x18\n" +
+	" \x01(\v22.encore.runtime.v1.SecretProvider.GCPSecretManagerH\x00R\x05gcpSm\x1a1\n" +
+	"\x10GCPSecretManager\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectIdB\n" +
+	"\n" +
+	"\bprovider\"\x94\x01\n" +
 	"\n" +
 	"SQLCluster\x12\x10\n" +
 	"\x03rid\x18\x01 \x01(\tR\x03rid\x126\n" +
@@ -2924,98 +3078,102 @@ func file_encore_runtime_v1_infra_proto_rawDescGZIP() []byte {
 }
 
 var file_encore_runtime_v1_infra_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_encore_runtime_v1_infra_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_encore_runtime_v1_infra_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_encore_runtime_v1_infra_proto_goTypes = []any{
 	(ServerKind)(0),                            // 0: encore.runtime.v1.ServerKind
 	(PubSubTopic_DeliveryGuarantee)(0),         // 1: encore.runtime.v1.PubSubTopic.DeliveryGuarantee
 	(*Infrastructure)(nil),                     // 2: encore.runtime.v1.Infrastructure
-	(*SQLCluster)(nil),                         // 3: encore.runtime.v1.SQLCluster
-	(*TLSConfig)(nil),                          // 4: encore.runtime.v1.TLSConfig
-	(*SQLServer)(nil),                          // 5: encore.runtime.v1.SQLServer
-	(*ClientCert)(nil),                         // 6: encore.runtime.v1.ClientCert
-	(*SQLRole)(nil),                            // 7: encore.runtime.v1.SQLRole
-	(*SQLDatabase)(nil),                        // 8: encore.runtime.v1.SQLDatabase
-	(*SQLConnectionPool)(nil),                  // 9: encore.runtime.v1.SQLConnectionPool
-	(*RedisCluster)(nil),                       // 10: encore.runtime.v1.RedisCluster
-	(*RedisServer)(nil),                        // 11: encore.runtime.v1.RedisServer
-	(*RedisConnectionPool)(nil),                // 12: encore.runtime.v1.RedisConnectionPool
-	(*RedisRole)(nil),                          // 13: encore.runtime.v1.RedisRole
-	(*RedisDatabase)(nil),                      // 14: encore.runtime.v1.RedisDatabase
-	(*AppSecret)(nil),                          // 15: encore.runtime.v1.AppSecret
-	(*PubSubCluster)(nil),                      // 16: encore.runtime.v1.PubSubCluster
-	(*PubSubTopic)(nil),                        // 17: encore.runtime.v1.PubSubTopic
-	(*PubSubSubscription)(nil),                 // 18: encore.runtime.v1.PubSubSubscription
-	(*BucketCluster)(nil),                      // 19: encore.runtime.v1.BucketCluster
-	(*Bucket)(nil),                             // 20: encore.runtime.v1.Bucket
-	(*Gateway)(nil),                            // 21: encore.runtime.v1.Gateway
-	(*Infrastructure_Credentials)(nil),         // 22: encore.runtime.v1.Infrastructure.Credentials
-	(*Infrastructure_Resources)(nil),           // 23: encore.runtime.v1.Infrastructure.Resources
-	(*RedisRole_AuthACL)(nil),                  // 24: encore.runtime.v1.RedisRole.AuthACL
-	(*PubSubCluster_EncoreCloud)(nil),          // 25: encore.runtime.v1.PubSubCluster.EncoreCloud
-	(*PubSubCluster_AWSSqsSns)(nil),            // 26: encore.runtime.v1.PubSubCluster.AWSSqsSns
-	(*PubSubCluster_GCPPubSub)(nil),            // 27: encore.runtime.v1.PubSubCluster.GCPPubSub
-	(*PubSubCluster_NSQ)(nil),                  // 28: encore.runtime.v1.PubSubCluster.NSQ
-	(*PubSubCluster_AzureServiceBus)(nil),      // 29: encore.runtime.v1.PubSubCluster.AzureServiceBus
-	(*PubSubTopic_GCPConfig)(nil),              // 30: encore.runtime.v1.PubSubTopic.GCPConfig
-	(*PubSubSubscription_GCPConfig)(nil),       // 31: encore.runtime.v1.PubSubSubscription.GCPConfig
-	(*BucketCluster_S3)(nil),                   // 32: encore.runtime.v1.BucketCluster.S3
-	(*BucketCluster_GCS)(nil),                  // 33: encore.runtime.v1.BucketCluster.GCS
-	(*BucketCluster_GCS_LocalSignOptions)(nil), // 34: encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
-	(*Gateway_CORS)(nil),                       // 35: encore.runtime.v1.Gateway.CORS
-	(*Gateway_CORSAllowedOrigins)(nil),         // 36: encore.runtime.v1.Gateway.CORSAllowedOrigins
-	(*SecretData)(nil),                         // 37: encore.runtime.v1.SecretData
+	(*SecretProvider)(nil),                     // 3: encore.runtime.v1.SecretProvider
+	(*SQLCluster)(nil),                         // 4: encore.runtime.v1.SQLCluster
+	(*TLSConfig)(nil),                          // 5: encore.runtime.v1.TLSConfig
+	(*SQLServer)(nil),                          // 6: encore.runtime.v1.SQLServer
+	(*ClientCert)(nil),                         // 7: encore.runtime.v1.ClientCert
+	(*SQLRole)(nil),                            // 8: encore.runtime.v1.SQLRole
+	(*SQLDatabase)(nil),                        // 9: encore.runtime.v1.SQLDatabase
+	(*SQLConnectionPool)(nil),                  // 10: encore.runtime.v1.SQLConnectionPool
+	(*RedisCluster)(nil),                       // 11: encore.runtime.v1.RedisCluster
+	(*RedisServer)(nil),                        // 12: encore.runtime.v1.RedisServer
+	(*RedisConnectionPool)(nil),                // 13: encore.runtime.v1.RedisConnectionPool
+	(*RedisRole)(nil),                          // 14: encore.runtime.v1.RedisRole
+	(*RedisDatabase)(nil),                      // 15: encore.runtime.v1.RedisDatabase
+	(*AppSecret)(nil),                          // 16: encore.runtime.v1.AppSecret
+	(*PubSubCluster)(nil),                      // 17: encore.runtime.v1.PubSubCluster
+	(*PubSubTopic)(nil),                        // 18: encore.runtime.v1.PubSubTopic
+	(*PubSubSubscription)(nil),                 // 19: encore.runtime.v1.PubSubSubscription
+	(*BucketCluster)(nil),                      // 20: encore.runtime.v1.BucketCluster
+	(*Bucket)(nil),                             // 21: encore.runtime.v1.Bucket
+	(*Gateway)(nil),                            // 22: encore.runtime.v1.Gateway
+	(*Infrastructure_Credentials)(nil),         // 23: encore.runtime.v1.Infrastructure.Credentials
+	(*Infrastructure_Resources)(nil),           // 24: encore.runtime.v1.Infrastructure.Resources
+	(*SecretProvider_GCPSecretManager)(nil),    // 25: encore.runtime.v1.SecretProvider.GCPSecretManager
+	(*RedisRole_AuthACL)(nil),                  // 26: encore.runtime.v1.RedisRole.AuthACL
+	(*PubSubCluster_EncoreCloud)(nil),          // 27: encore.runtime.v1.PubSubCluster.EncoreCloud
+	(*PubSubCluster_AWSSqsSns)(nil),            // 28: encore.runtime.v1.PubSubCluster.AWSSqsSns
+	(*PubSubCluster_GCPPubSub)(nil),            // 29: encore.runtime.v1.PubSubCluster.GCPPubSub
+	(*PubSubCluster_NSQ)(nil),                  // 30: encore.runtime.v1.PubSubCluster.NSQ
+	(*PubSubCluster_AzureServiceBus)(nil),      // 31: encore.runtime.v1.PubSubCluster.AzureServiceBus
+	(*PubSubTopic_GCPConfig)(nil),              // 32: encore.runtime.v1.PubSubTopic.GCPConfig
+	(*PubSubSubscription_GCPConfig)(nil),       // 33: encore.runtime.v1.PubSubSubscription.GCPConfig
+	(*BucketCluster_S3)(nil),                   // 34: encore.runtime.v1.BucketCluster.S3
+	(*BucketCluster_GCS)(nil),                  // 35: encore.runtime.v1.BucketCluster.GCS
+	(*BucketCluster_GCS_LocalSignOptions)(nil), // 36: encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
+	(*Gateway_CORS)(nil),                       // 37: encore.runtime.v1.Gateway.CORS
+	(*Gateway_CORSAllowedOrigins)(nil),         // 38: encore.runtime.v1.Gateway.CORSAllowedOrigins
+	(*SecretData)(nil),                         // 39: encore.runtime.v1.SecretData
 }
 var file_encore_runtime_v1_infra_proto_depIdxs = []int32{
-	23, // 0: encore.runtime.v1.Infrastructure.resources:type_name -> encore.runtime.v1.Infrastructure.Resources
-	22, // 1: encore.runtime.v1.Infrastructure.credentials:type_name -> encore.runtime.v1.Infrastructure.Credentials
-	5,  // 2: encore.runtime.v1.SQLCluster.servers:type_name -> encore.runtime.v1.SQLServer
-	8,  // 3: encore.runtime.v1.SQLCluster.databases:type_name -> encore.runtime.v1.SQLDatabase
-	0,  // 4: encore.runtime.v1.SQLServer.kind:type_name -> encore.runtime.v1.ServerKind
-	4,  // 5: encore.runtime.v1.SQLServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
-	37, // 6: encore.runtime.v1.ClientCert.key:type_name -> encore.runtime.v1.SecretData
-	37, // 7: encore.runtime.v1.SQLRole.password:type_name -> encore.runtime.v1.SecretData
-	9,  // 8: encore.runtime.v1.SQLDatabase.conn_pools:type_name -> encore.runtime.v1.SQLConnectionPool
-	11, // 9: encore.runtime.v1.RedisCluster.servers:type_name -> encore.runtime.v1.RedisServer
-	14, // 10: encore.runtime.v1.RedisCluster.databases:type_name -> encore.runtime.v1.RedisDatabase
-	0,  // 11: encore.runtime.v1.RedisServer.kind:type_name -> encore.runtime.v1.ServerKind
-	4,  // 12: encore.runtime.v1.RedisServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
-	24, // 13: encore.runtime.v1.RedisRole.acl:type_name -> encore.runtime.v1.RedisRole.AuthACL
-	37, // 14: encore.runtime.v1.RedisRole.auth_string:type_name -> encore.runtime.v1.SecretData
-	12, // 15: encore.runtime.v1.RedisDatabase.conn_pools:type_name -> encore.runtime.v1.RedisConnectionPool
-	37, // 16: encore.runtime.v1.AppSecret.data:type_name -> encore.runtime.v1.SecretData
-	17, // 17: encore.runtime.v1.PubSubCluster.topics:type_name -> encore.runtime.v1.PubSubTopic
-	18, // 18: encore.runtime.v1.PubSubCluster.subscriptions:type_name -> encore.runtime.v1.PubSubSubscription
-	25, // 19: encore.runtime.v1.PubSubCluster.encore:type_name -> encore.runtime.v1.PubSubCluster.EncoreCloud
-	26, // 20: encore.runtime.v1.PubSubCluster.aws:type_name -> encore.runtime.v1.PubSubCluster.AWSSqsSns
-	27, // 21: encore.runtime.v1.PubSubCluster.gcp:type_name -> encore.runtime.v1.PubSubCluster.GCPPubSub
-	29, // 22: encore.runtime.v1.PubSubCluster.azure:type_name -> encore.runtime.v1.PubSubCluster.AzureServiceBus
-	28, // 23: encore.runtime.v1.PubSubCluster.nsq:type_name -> encore.runtime.v1.PubSubCluster.NSQ
-	1,  // 24: encore.runtime.v1.PubSubTopic.delivery_guarantee:type_name -> encore.runtime.v1.PubSubTopic.DeliveryGuarantee
-	30, // 25: encore.runtime.v1.PubSubTopic.gcp_config:type_name -> encore.runtime.v1.PubSubTopic.GCPConfig
-	31, // 26: encore.runtime.v1.PubSubSubscription.gcp_config:type_name -> encore.runtime.v1.PubSubSubscription.GCPConfig
-	20, // 27: encore.runtime.v1.BucketCluster.buckets:type_name -> encore.runtime.v1.Bucket
-	32, // 28: encore.runtime.v1.BucketCluster.s3:type_name -> encore.runtime.v1.BucketCluster.S3
-	33, // 29: encore.runtime.v1.BucketCluster.gcs:type_name -> encore.runtime.v1.BucketCluster.GCS
-	35, // 30: encore.runtime.v1.Gateway.cors:type_name -> encore.runtime.v1.Gateway.CORS
-	6,  // 31: encore.runtime.v1.Infrastructure.Credentials.client_certs:type_name -> encore.runtime.v1.ClientCert
-	7,  // 32: encore.runtime.v1.Infrastructure.Credentials.sql_roles:type_name -> encore.runtime.v1.SQLRole
-	13, // 33: encore.runtime.v1.Infrastructure.Credentials.redis_roles:type_name -> encore.runtime.v1.RedisRole
-	21, // 34: encore.runtime.v1.Infrastructure.Resources.gateways:type_name -> encore.runtime.v1.Gateway
-	3,  // 35: encore.runtime.v1.Infrastructure.Resources.sql_clusters:type_name -> encore.runtime.v1.SQLCluster
-	16, // 36: encore.runtime.v1.Infrastructure.Resources.pubsub_clusters:type_name -> encore.runtime.v1.PubSubCluster
-	10, // 37: encore.runtime.v1.Infrastructure.Resources.redis_clusters:type_name -> encore.runtime.v1.RedisCluster
-	15, // 38: encore.runtime.v1.Infrastructure.Resources.app_secrets:type_name -> encore.runtime.v1.AppSecret
-	19, // 39: encore.runtime.v1.Infrastructure.Resources.bucket_clusters:type_name -> encore.runtime.v1.BucketCluster
-	37, // 40: encore.runtime.v1.RedisRole.AuthACL.password:type_name -> encore.runtime.v1.SecretData
-	37, // 41: encore.runtime.v1.BucketCluster.S3.secret_access_key:type_name -> encore.runtime.v1.SecretData
-	34, // 42: encore.runtime.v1.BucketCluster.GCS.local_sign:type_name -> encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
-	36, // 43: encore.runtime.v1.Gateway.CORS.allowed_origins:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
-	36, // 44: encore.runtime.v1.Gateway.CORS.allowed_origins_without_credentials:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
-	45, // [45:45] is the sub-list for method output_type
-	45, // [45:45] is the sub-list for method input_type
-	45, // [45:45] is the sub-list for extension type_name
-	45, // [45:45] is the sub-list for extension extendee
-	0,  // [0:45] is the sub-list for field type_name
+	24, // 0: encore.runtime.v1.Infrastructure.resources:type_name -> encore.runtime.v1.Infrastructure.Resources
+	23, // 1: encore.runtime.v1.Infrastructure.credentials:type_name -> encore.runtime.v1.Infrastructure.Credentials
+	25, // 2: encore.runtime.v1.SecretProvider.gcp_sm:type_name -> encore.runtime.v1.SecretProvider.GCPSecretManager
+	6,  // 3: encore.runtime.v1.SQLCluster.servers:type_name -> encore.runtime.v1.SQLServer
+	9,  // 4: encore.runtime.v1.SQLCluster.databases:type_name -> encore.runtime.v1.SQLDatabase
+	0,  // 5: encore.runtime.v1.SQLServer.kind:type_name -> encore.runtime.v1.ServerKind
+	5,  // 6: encore.runtime.v1.SQLServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
+	39, // 7: encore.runtime.v1.ClientCert.key:type_name -> encore.runtime.v1.SecretData
+	39, // 8: encore.runtime.v1.SQLRole.password:type_name -> encore.runtime.v1.SecretData
+	10, // 9: encore.runtime.v1.SQLDatabase.conn_pools:type_name -> encore.runtime.v1.SQLConnectionPool
+	12, // 10: encore.runtime.v1.RedisCluster.servers:type_name -> encore.runtime.v1.RedisServer
+	15, // 11: encore.runtime.v1.RedisCluster.databases:type_name -> encore.runtime.v1.RedisDatabase
+	0,  // 12: encore.runtime.v1.RedisServer.kind:type_name -> encore.runtime.v1.ServerKind
+	5,  // 13: encore.runtime.v1.RedisServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
+	26, // 14: encore.runtime.v1.RedisRole.acl:type_name -> encore.runtime.v1.RedisRole.AuthACL
+	39, // 15: encore.runtime.v1.RedisRole.auth_string:type_name -> encore.runtime.v1.SecretData
+	13, // 16: encore.runtime.v1.RedisDatabase.conn_pools:type_name -> encore.runtime.v1.RedisConnectionPool
+	39, // 17: encore.runtime.v1.AppSecret.data:type_name -> encore.runtime.v1.SecretData
+	18, // 18: encore.runtime.v1.PubSubCluster.topics:type_name -> encore.runtime.v1.PubSubTopic
+	19, // 19: encore.runtime.v1.PubSubCluster.subscriptions:type_name -> encore.runtime.v1.PubSubSubscription
+	27, // 20: encore.runtime.v1.PubSubCluster.encore:type_name -> encore.runtime.v1.PubSubCluster.EncoreCloud
+	28, // 21: encore.runtime.v1.PubSubCluster.aws:type_name -> encore.runtime.v1.PubSubCluster.AWSSqsSns
+	29, // 22: encore.runtime.v1.PubSubCluster.gcp:type_name -> encore.runtime.v1.PubSubCluster.GCPPubSub
+	31, // 23: encore.runtime.v1.PubSubCluster.azure:type_name -> encore.runtime.v1.PubSubCluster.AzureServiceBus
+	30, // 24: encore.runtime.v1.PubSubCluster.nsq:type_name -> encore.runtime.v1.PubSubCluster.NSQ
+	1,  // 25: encore.runtime.v1.PubSubTopic.delivery_guarantee:type_name -> encore.runtime.v1.PubSubTopic.DeliveryGuarantee
+	32, // 26: encore.runtime.v1.PubSubTopic.gcp_config:type_name -> encore.runtime.v1.PubSubTopic.GCPConfig
+	33, // 27: encore.runtime.v1.PubSubSubscription.gcp_config:type_name -> encore.runtime.v1.PubSubSubscription.GCPConfig
+	21, // 28: encore.runtime.v1.BucketCluster.buckets:type_name -> encore.runtime.v1.Bucket
+	34, // 29: encore.runtime.v1.BucketCluster.s3:type_name -> encore.runtime.v1.BucketCluster.S3
+	35, // 30: encore.runtime.v1.BucketCluster.gcs:type_name -> encore.runtime.v1.BucketCluster.GCS
+	37, // 31: encore.runtime.v1.Gateway.cors:type_name -> encore.runtime.v1.Gateway.CORS
+	7,  // 32: encore.runtime.v1.Infrastructure.Credentials.client_certs:type_name -> encore.runtime.v1.ClientCert
+	8,  // 33: encore.runtime.v1.Infrastructure.Credentials.sql_roles:type_name -> encore.runtime.v1.SQLRole
+	14, // 34: encore.runtime.v1.Infrastructure.Credentials.redis_roles:type_name -> encore.runtime.v1.RedisRole
+	22, // 35: encore.runtime.v1.Infrastructure.Resources.gateways:type_name -> encore.runtime.v1.Gateway
+	4,  // 36: encore.runtime.v1.Infrastructure.Resources.sql_clusters:type_name -> encore.runtime.v1.SQLCluster
+	17, // 37: encore.runtime.v1.Infrastructure.Resources.pubsub_clusters:type_name -> encore.runtime.v1.PubSubCluster
+	11, // 38: encore.runtime.v1.Infrastructure.Resources.redis_clusters:type_name -> encore.runtime.v1.RedisCluster
+	16, // 39: encore.runtime.v1.Infrastructure.Resources.app_secrets:type_name -> encore.runtime.v1.AppSecret
+	20, // 40: encore.runtime.v1.Infrastructure.Resources.bucket_clusters:type_name -> encore.runtime.v1.BucketCluster
+	3,  // 41: encore.runtime.v1.Infrastructure.Resources.secret_providers:type_name -> encore.runtime.v1.SecretProvider
+	39, // 42: encore.runtime.v1.RedisRole.AuthACL.password:type_name -> encore.runtime.v1.SecretData
+	39, // 43: encore.runtime.v1.BucketCluster.S3.secret_access_key:type_name -> encore.runtime.v1.SecretData
+	36, // 44: encore.runtime.v1.BucketCluster.GCS.local_sign:type_name -> encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
+	38, // 45: encore.runtime.v1.Gateway.CORS.allowed_origins:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
+	38, // 46: encore.runtime.v1.Gateway.CORS.allowed_origins_without_credentials:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
+	47, // [47:47] is the sub-list for method output_type
+	47, // [47:47] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_encore_runtime_v1_infra_proto_init() }
@@ -3024,37 +3182,40 @@ func file_encore_runtime_v1_infra_proto_init() {
 		return
 	}
 	file_encore_runtime_v1_secretdata_proto_init()
-	file_encore_runtime_v1_infra_proto_msgTypes[2].OneofWrappers = []any{}
+	file_encore_runtime_v1_infra_proto_msgTypes[1].OneofWrappers = []any{
+		(*SecretProvider_GcpSm)(nil),
+	}
 	file_encore_runtime_v1_infra_proto_msgTypes[3].OneofWrappers = []any{}
-	file_encore_runtime_v1_infra_proto_msgTypes[5].OneofWrappers = []any{}
-	file_encore_runtime_v1_infra_proto_msgTypes[9].OneofWrappers = []any{}
-	file_encore_runtime_v1_infra_proto_msgTypes[11].OneofWrappers = []any{
+	file_encore_runtime_v1_infra_proto_msgTypes[4].OneofWrappers = []any{}
+	file_encore_runtime_v1_infra_proto_msgTypes[6].OneofWrappers = []any{}
+	file_encore_runtime_v1_infra_proto_msgTypes[10].OneofWrappers = []any{}
+	file_encore_runtime_v1_infra_proto_msgTypes[12].OneofWrappers = []any{
 		(*RedisRole_Acl)(nil),
 		(*RedisRole_AuthString)(nil),
 	}
-	file_encore_runtime_v1_infra_proto_msgTypes[12].OneofWrappers = []any{}
-	file_encore_runtime_v1_infra_proto_msgTypes[14].OneofWrappers = []any{
+	file_encore_runtime_v1_infra_proto_msgTypes[13].OneofWrappers = []any{}
+	file_encore_runtime_v1_infra_proto_msgTypes[15].OneofWrappers = []any{
 		(*PubSubCluster_Encore)(nil),
 		(*PubSubCluster_Aws)(nil),
 		(*PubSubCluster_Gcp)(nil),
 		(*PubSubCluster_Azure)(nil),
 		(*PubSubCluster_Nsq)(nil),
 	}
-	file_encore_runtime_v1_infra_proto_msgTypes[15].OneofWrappers = []any{
+	file_encore_runtime_v1_infra_proto_msgTypes[16].OneofWrappers = []any{
 		(*PubSubTopic_GcpConfig)(nil),
 	}
-	file_encore_runtime_v1_infra_proto_msgTypes[16].OneofWrappers = []any{
+	file_encore_runtime_v1_infra_proto_msgTypes[17].OneofWrappers = []any{
 		(*PubSubSubscription_GcpConfig)(nil),
 	}
-	file_encore_runtime_v1_infra_proto_msgTypes[17].OneofWrappers = []any{
+	file_encore_runtime_v1_infra_proto_msgTypes[18].OneofWrappers = []any{
 		(*BucketCluster_S3_)(nil),
 		(*BucketCluster_Gcs)(nil),
 	}
-	file_encore_runtime_v1_infra_proto_msgTypes[18].OneofWrappers = []any{}
-	file_encore_runtime_v1_infra_proto_msgTypes[29].OneofWrappers = []any{}
-	file_encore_runtime_v1_infra_proto_msgTypes[30].OneofWrappers = []any{}
+	file_encore_runtime_v1_infra_proto_msgTypes[19].OneofWrappers = []any{}
 	file_encore_runtime_v1_infra_proto_msgTypes[31].OneofWrappers = []any{}
-	file_encore_runtime_v1_infra_proto_msgTypes[33].OneofWrappers = []any{
+	file_encore_runtime_v1_infra_proto_msgTypes[32].OneofWrappers = []any{}
+	file_encore_runtime_v1_infra_proto_msgTypes[33].OneofWrappers = []any{}
+	file_encore_runtime_v1_infra_proto_msgTypes[35].OneofWrappers = []any{
 		(*Gateway_CORS_AllowedOrigins)(nil),
 		(*Gateway_CORS_UnsafeAllowAllOriginsWithCredentials)(nil),
 	}
@@ -3064,7 +3225,7 @@ func file_encore_runtime_v1_infra_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_encore_runtime_v1_infra_proto_rawDesc), len(file_encore_runtime_v1_infra_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   35,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

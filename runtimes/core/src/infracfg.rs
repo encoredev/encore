@@ -1003,6 +1003,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         redis_clusters: redis_clusters.unwrap_or_default(),
         app_secrets,
         bucket_clusters: buckets.unwrap_or_default(),
+        secret_providers: Vec::new(),
     });
 
     let infra_struct = Some(Infrastructure {

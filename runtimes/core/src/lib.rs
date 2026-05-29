@@ -259,7 +259,12 @@ impl Runtime {
             .build()
             .context("failed to build http client")?;
 
-        let secrets = secrets::Manager::new(resources.app_secrets);
+        let secrets = tokio_rt
+            .block_on(secrets::Manager::new(
+                resources.app_secrets,
+                resources.secret_providers,
+            ))
+            .context("failed to initialize secrets manager")?;
         let platform_validator = platform::RequestValidator::new(
             &secrets,
             encore_platform.platform_signing_keys.clone(),

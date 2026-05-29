@@ -83,6 +83,7 @@ type SecretData struct {
 	//
 	//	*SecretData_Embedded
 	//	*SecretData_Env
+	//	*SecretData_Provider
 	Source isSecretData_Source `protobuf_oneof:"source"`
 	// How the value is encoded.
 	Encoding SecretData_Encoding `protobuf:"varint,20,opt,name=encoding,proto3,enum=encore.runtime.v1.SecretData_Encoding" json:"encoding,omitempty"`
@@ -151,6 +152,15 @@ func (x *SecretData) GetEnv() string {
 	return ""
 }
 
+func (x *SecretData) GetProvider() *SecretData_ProviderRef {
+	if x != nil {
+		if x, ok := x.Source.(*SecretData_Provider); ok {
+			return x.Provider
+		}
+	}
+	return nil
+}
+
 func (x *SecretData) GetEncoding() SecretData_Encoding {
 	if x != nil {
 		return x.Encoding
@@ -191,9 +201,17 @@ type SecretData_Env struct {
 	Env string `protobuf:"bytes,2,opt,name=env,proto3,oneof"`
 }
 
+type SecretData_Provider struct {
+	// Fetch the secret data from an external secret-management provider
+	// declared in Infrastructure.Resources.secret_providers.
+	Provider *SecretData_ProviderRef `protobuf:"bytes,3,opt,name=provider,proto3,oneof"`
+}
+
 func (*SecretData_Embedded) isSecretData_Source() {}
 
 func (*SecretData_Env) isSecretData_Source() {}
+
+func (*SecretData_Provider) isSecretData_Source() {}
 
 type isSecretData_SubPath interface {
 	isSecretData_SubPath()
@@ -214,25 +232,97 @@ type SecretData_JsonKey struct {
 
 func (*SecretData_JsonKey) isSecretData_SubPath() {}
 
+// ProviderRef identifies a secret stored in an external provider.
+type SecretData_ProviderRef struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The rid of a SecretProvider declared in Infrastructure.Resources.
+	ProviderRid string `protobuf:"bytes,1,opt,name=provider_rid,json=providerRid,proto3" json:"provider_rid,omitempty"`
+	// The secret identifier within the provider. The format is
+	// provider-specific (e.g. a short name like "db-password" or a
+	// fully-qualified path like "projects/x/secrets/y").
+	Id string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	// Optional version. If empty, the provider's default (typically "latest")
+	// is used.
+	Version       string `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretData_ProviderRef) Reset() {
+	*x = SecretData_ProviderRef{}
+	mi := &file_encore_runtime_v1_secretdata_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretData_ProviderRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretData_ProviderRef) ProtoMessage() {}
+
+func (x *SecretData_ProviderRef) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_runtime_v1_secretdata_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretData_ProviderRef.ProtoReflect.Descriptor instead.
+func (*SecretData_ProviderRef) Descriptor() ([]byte, []int) {
+	return file_encore_runtime_v1_secretdata_proto_rawDescGZIP(), []int{0, 0}
+}
+
+func (x *SecretData_ProviderRef) GetProviderRid() string {
+	if x != nil {
+		return x.ProviderRid
+	}
+	return ""
+}
+
+func (x *SecretData_ProviderRef) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SecretData_ProviderRef) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
 var File_encore_runtime_v1_secretdata_proto protoreflect.FileDescriptor
 
 const file_encore_runtime_v1_secretdata_proto_rawDesc = "" +
 	"\n" +
-	"\"encore/runtime/v1/secretdata.proto\x12\x11encore.runtime.v1\"\x88\x02\n" +
+	"\"encore/runtime/v1/secretdata.proto\x12\x11encore.runtime.v1\"\xad\x03\n" +
 	"\n" +
 	"SecretData\x12\x1c\n" +
 	"\bembedded\x18\x01 \x01(\fH\x00R\bembedded\x12\x12\n" +
-	"\x03env\x18\x02 \x01(\tH\x00R\x03env\x12B\n" +
+	"\x03env\x18\x02 \x01(\tH\x00R\x03env\x12G\n" +
+	"\bprovider\x18\x03 \x01(\v2).encore.runtime.v1.SecretData.ProviderRefH\x00R\bprovider\x12B\n" +
 	"\bencoding\x18\x14 \x01(\x0e2&.encore.runtime.v1.SecretData.EncodingR\bencoding\x12\x1b\n" +
 	"\bjson_key\x18\n" +
-	" \x01(\tH\x01R\ajsonKey\"E\n" +
+	" \x01(\tH\x01R\ajsonKey\x1aZ\n" +
+	"\vProviderRef\x12!\n" +
+	"\fprovider_rid\x18\x01 \x01(\tR\vproviderRid\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\"E\n" +
 	"\bEncoding\x12\x11\n" +
 	"\rENCODING_NONE\x10\x00\x12\x13\n" +
 	"\x0fENCODING_BASE64\x10\x01\x12\x11\n" +
 	"\rENCODING_GZIP\x10\x02B\b\n" +
 	"\x06sourceB\n" +
 	"\n" +
-	"\bsub_pathJ\x04\b\x03\x10\n" +
+	"\bsub_pathJ\x04\b\x04\x10\n" +
 	"J\x04\b\f\x10\x14B,Z*encr.dev/proto/encore/runtime/v1;runtimev1b\x06proto3"
 
 var (
@@ -248,18 +338,20 @@ func file_encore_runtime_v1_secretdata_proto_rawDescGZIP() []byte {
 }
 
 var file_encore_runtime_v1_secretdata_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_encore_runtime_v1_secretdata_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_encore_runtime_v1_secretdata_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_encore_runtime_v1_secretdata_proto_goTypes = []any{
-	(SecretData_Encoding)(0), // 0: encore.runtime.v1.SecretData.Encoding
-	(*SecretData)(nil),       // 1: encore.runtime.v1.SecretData
+	(SecretData_Encoding)(0),       // 0: encore.runtime.v1.SecretData.Encoding
+	(*SecretData)(nil),             // 1: encore.runtime.v1.SecretData
+	(*SecretData_ProviderRef)(nil), // 2: encore.runtime.v1.SecretData.ProviderRef
 }
 var file_encore_runtime_v1_secretdata_proto_depIdxs = []int32{
-	0, // 0: encore.runtime.v1.SecretData.encoding:type_name -> encore.runtime.v1.SecretData.Encoding
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: encore.runtime.v1.SecretData.provider:type_name -> encore.runtime.v1.SecretData.ProviderRef
+	0, // 1: encore.runtime.v1.SecretData.encoding:type_name -> encore.runtime.v1.SecretData.Encoding
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_encore_runtime_v1_secretdata_proto_init() }
@@ -270,6 +362,7 @@ func file_encore_runtime_v1_secretdata_proto_init() {
 	file_encore_runtime_v1_secretdata_proto_msgTypes[0].OneofWrappers = []any{
 		(*SecretData_Embedded)(nil),
 		(*SecretData_Env)(nil),
+		(*SecretData_Provider)(nil),
 		(*SecretData_JsonKey)(nil),
 	}
 	type x struct{}
@@ -278,7 +371,7 @@ func file_encore_runtime_v1_secretdata_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_encore_runtime_v1_secretdata_proto_rawDesc), len(file_encore_runtime_v1_secretdata_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
