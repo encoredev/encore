@@ -20,6 +20,12 @@ type Query struct {
 	Subscription string
 	TraceID      string
 	MessageID    string
+
+	// ParentTraceID filters for traces whose root span was started by a span
+	// in the given trace (the parent trace id recorded on the span start).
+	// This field is not indexed; it is resolved by scanning the span's start
+	// event JSON, so it is more expensive than the other filters.
+	ParentTraceID string
 	TestFilter   *bool // nil means both test and non-test traces are returned
 	Tags         []Tag
 

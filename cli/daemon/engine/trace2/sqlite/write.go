@@ -390,6 +390,21 @@ func encodeTraceID(id *tracepbcli.TraceID) string {
 	return base32hex.EncodeToString(b[:])
 }
 
+// decodeTraceID decodes a human-readable trace id produced by encodeTraceID
+// back into its low and high halves.
+func decodeTraceID(s string) (low, high uint64, err error) {
+	b, err := base32hex.DecodeString(s)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "decode trace id")
+	}
+	if len(b) != 16 {
+		return 0, 0, errors.Newf("invalid trace id length %d", len(b))
+	}
+	low = binLE.Uint64(b[0:8])
+	high = binLE.Uint64(b[8:16])
+	return low, high, nil
+}
+
 // encodeSpanID encodes the span id as a human-readable string.
 func encodeSpanID(id uint64) string {
 	var b [8]byte
