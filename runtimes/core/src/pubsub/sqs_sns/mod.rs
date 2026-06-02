@@ -10,6 +10,15 @@ mod fetcher;
 mod sub;
 mod topic;
 
+/// Long-poll wait for each SQS ReceiveMessage call. 20s is the AWS SQS maximum.
+const LONG_POLL_WAIT_SECS: u64 = 20;
+
+/// Per-attempt timeout for SQS/SNS API calls. Must exceed [`LONG_POLL_WAIT_SECS`] so
+/// empty long polls don't time out; bounds stalled requests so they fail (and the SDK
+/// retries on a fresh connection) instead of hanging on a silently-dropped connection.
+const OPERATION_ATTEMPT_TIMEOUT: std::time::Duration =
+    std::time::Duration::from_secs(LONG_POLL_WAIT_SECS + 10);
+
 #[derive(Debug)]
 pub struct Cluster {
     /// publisher_id is a unique ID for this Encore app instance, used as the Message Group ID
@@ -67,8 +76,15 @@ impl LazyClient {
 
     async fn config(&self) -> aws_config::SdkConfig {
         let provider = aws_config::meta::region::RegionProviderChain::default_provider();
+
+        // See https://github.com/awslabs/aws-sdk-rust/issues/1094#issuecomment-1984587869
+        let timeout_config = aws_smithy_types::timeout::TimeoutConfig::builder()
+            .operation_attempt_timeout(OPERATION_ATTEMPT_TIMEOUT)
+            .build();
+
         aws_config::defaults(aws_config::BehaviorVersion::latest())
             .region(provider)
+            .timeout_config(timeout_config)
             .load()
             .await
     }

@@ -128,7 +128,7 @@ impl fetcher::Fetcher for Arc<SqsFetcher> {
                 .queue_url(queue_url)
                 .message_system_attribute_names(MessageSystemAttributeName::ApproximateReceiveCount)
                 .visibility_timeout(ack_deadline.as_secs() as i32)
-                .wait_time_seconds(20) // maximum allowed time
+                .wait_time_seconds(super::LONG_POLL_WAIT_SECS as i32)
                 .max_number_of_messages(max_items as i32)
                 .send()
                 .await;
