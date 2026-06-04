@@ -78,26 +78,9 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 		extraWhereClause += " AND duration_nanos <= $" + strconv.Itoa(len(args))
 	}
 
-	// parent_trace_id isn't part of the index, so resolve it by scanning the
-	// span's start event JSON. protojson encodes uint64 fields as strings, so
-	// the trace id is decoded into its high/low halves and compared as text.
 	if q.ParentTraceID != "" {
-		low, high, err := decodeTraceID(q.ParentTraceID)
-		if err != nil {
-			return errors.Wrap(err, "invalid parent_trace_id")
-		}
-		args = append(args, strconv.FormatUint(high, 10))
-		highArg := strconv.Itoa(len(args))
-		args = append(args, strconv.FormatUint(low, 10))
-		lowArg := strconv.Itoa(len(args))
-		extraWhereClause += ` AND EXISTS (
-			SELECT 1 FROM trace_event te
-			WHERE te.app_id = trace_span_index.app_id
-			  AND te.trace_id = trace_span_index.trace_id
-			  AND te.span_id = trace_span_index.span_id
-			  AND json_extract(te.event_data, '$.spanStart.parentTraceId.high') = $` + highArg + `
-			  AND json_extract(te.event_data, '$.spanStart.parentTraceId.low') = $` + lowArg + `
-		)`
+		args = append(args, q.ParentTraceID)
+		extraWhereClause += " AND parent_trace_id = $" + strconv.Itoa(len(args))
 	}
 
 	// If we're filter for tests / not tests, add the extra where clause

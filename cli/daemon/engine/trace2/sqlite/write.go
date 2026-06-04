@@ -175,6 +175,15 @@ func (s *Store) insertEvent(ctx context.Context, meta *trace2.Meta, ev *tracepbc
 
 func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev *tracepbcli.TraceEvent, start *tracepbcli.SpanStart) error {
 	isRoot := start.ParentSpanId == nil
+
+	// parentTraceID is the trace that started this span, if any. It's recorded
+	// regardless of span type, so compute it once for all the branches below.
+	var parentTraceID *string
+	if pt := start.GetParentTraceId(); pt != nil {
+		encoded := encodeTraceID(pt)
+		parentTraceID = &encoded
+	}
+
 	if req := start.GetRequest(); req != nil {
 		extRequestID := req.RequestHeaders[http.CanonicalHeaderKey("X-Request-ID")]
 		var parentSpanID *string
@@ -184,19 +193,20 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 		}
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, external_request_id, parent_span_id, caller_event_id,
+				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, external_request_id, parent_span_id, parent_trace_id, caller_event_id,
 				has_response, test_skipped
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, false)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, false)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				is_root = excluded.is_root,
 				service_name = excluded.service_name,
 				endpoint_name = excluded.endpoint_name,
 				external_request_id = excluded.external_request_id,
 				parent_span_id = excluded.parent_span_id,
+				parent_trace_id = excluded.parent_trace_id,
 				caller_event_id = excluded.caller_event_id
 		`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId),
 			tracepbcli.SpanSummary_REQUEST, ev.EventTime.AsTime().UnixNano(),
-			isRoot, req.ServiceName, req.EndpointName, extRequestID, parentSpanID, start.CallerEventId)
+			isRoot, req.ServiceName, req.EndpointName, extRequestID, parentSpanID, parentTraceID, start.CallerEventId)
 		if err != nil {
 			return errors.Wrap(err, "insert trace span event")
 		}
@@ -211,18 +221,19 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 		}
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, parent_span_id, caller_event_id,
+				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, parent_span_id, parent_trace_id, caller_event_id,
 				has_response, test_skipped
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, false)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, false)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				is_root = excluded.is_root,
 				service_name = excluded.service_name,
 				endpoint_name = excluded.endpoint_name,
 				parent_span_id = excluded.parent_span_id,
+				parent_trace_id = excluded.parent_trace_id,
 				caller_event_id = excluded.caller_event_id
 		`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId),
 			tracepbcli.SpanSummary_AUTH, ev.EventTime.AsTime().UnixNano(),
-			isRoot, auth.ServiceName, auth.EndpointName, parentSpanID, start.CallerEventId)
+			isRoot, auth.ServiceName, auth.EndpointName, parentSpanID, parentTraceID, start.CallerEventId)
 		if err != nil {
 			return errors.Wrap(err, "insert trace span event")
 		}
@@ -238,9 +249,9 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
 				app_id, trace_id, span_id, span_type, started_at, is_root, service_name,
-				topic_name, subscription_name, message_id, parent_span_id, caller_event_id,
+				topic_name, subscription_name, message_id, parent_span_id, parent_trace_id, caller_event_id,
 				has_response, test_skipped
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, false)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, false)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				is_root = excluded.is_root,
 				service_name = excluded.service_name,
@@ -248,10 +259,11 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 				subscription_name = excluded.subscription_name,
 				message_id = excluded.message_id,
 				parent_span_id = excluded.parent_span_id,
+				parent_trace_id = excluded.parent_trace_id,
 				caller_event_id = excluded.caller_event_id
 		`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId),
 			tracepbcli.SpanSummary_PUBSUB_MESSAGE, ev.EventTime.AsTime().UnixNano(),
-			isRoot, msg.ServiceName, msg.TopicName, msg.SubscriptionName, msg.MessageId, parentSpanID, start.CallerEventId)
+			isRoot, msg.ServiceName, msg.TopicName, msg.SubscriptionName, msg.MessageId, parentSpanID, parentTraceID, start.CallerEventId)
 		if err != nil {
 			return errors.Wrap(err, "insert trace span event")
 		}
@@ -266,18 +278,19 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 		}
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, user_id, src_file, src_line, parent_span_id, caller_event_id,
+				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, user_id, src_file, src_line, parent_span_id, parent_trace_id, caller_event_id,
 				has_response, test_skipped
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, false)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, false)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				is_root = excluded.is_root,
 				service_name = excluded.service_name,
 				endpoint_name = excluded.endpoint_name,
 				parent_span_id = excluded.parent_span_id,
+				parent_trace_id = excluded.parent_trace_id,
 				caller_event_id = excluded.caller_event_id
 		`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId),
 			tracepbcli.SpanSummary_TEST, ev.EventTime.AsTime().UnixNano(),
-			isRoot, msg.ServiceName, msg.TestName, msg.Uid, msg.TestFile, msg.TestLine, parentSpanID, start.CallerEventId)
+			isRoot, msg.ServiceName, msg.TestName, msg.Uid, msg.TestFile, msg.TestLine, parentSpanID, parentTraceID, start.CallerEventId)
 		if err != nil {
 			return errors.Wrap(err, "insert trace span event")
 		}
@@ -388,21 +401,6 @@ func encodeTraceID(id *tracepbcli.TraceID) string {
 	binLE.PutUint64(b[0:8], id.Low)
 	binLE.PutUint64(b[8:16], id.High)
 	return base32hex.EncodeToString(b[:])
-}
-
-// decodeTraceID decodes a human-readable trace id produced by encodeTraceID
-// back into its low and high halves.
-func decodeTraceID(s string) (low, high uint64, err error) {
-	b, err := base32hex.DecodeString(s)
-	if err != nil {
-		return 0, 0, errors.Wrap(err, "decode trace id")
-	}
-	if len(b) != 16 {
-		return 0, 0, errors.Newf("invalid trace id length %d", len(b))
-	}
-	low = binLE.Uint64(b[0:8])
-	high = binLE.Uint64(b[8:16])
-	return low, high, nil
 }
 
 // encodeSpanID encodes the span id as a human-readable string.

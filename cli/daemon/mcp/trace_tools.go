@@ -39,7 +39,7 @@ func (m *Manager) registerTraceTools() {
 		mcp.WithString("end_time", mcp.Description("ISO format timestamp (RFC3339) to filter traces started before this time. Useful for focusing on a specific time period.")),
 		mcp.WithString("min_duration_ms", mcp.Description("Optional minimum trace duration in milliseconds. Only returns traces that took at least this long. Useful for finding slow requests.")),
 		mcp.WithString("max_duration_ms", mcp.Description("Optional maximum trace duration in milliseconds. Only returns traces that completed within this duration.")),
-		mcp.WithString("parent_trace_id", mcp.Description("Optional trace ID to filter by. Only returns traces whose root span was started by a span in the given (parent) trace, e.g. a Pub/Sub message published from that trace. Note: this filter scans event data and is more expensive than the others.")),
+		mcp.WithString("parent_trace_id", mcp.Description("Optional trace ID to filter by. Only returns traces whose root span was started by a span in the given (parent) trace, e.g. a Pub/Sub message published from that trace.")),
 	), m.listTraces)
 
 	// Add tool for getting a single trace with all spans

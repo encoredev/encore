@@ -43,6 +43,7 @@ CREATE TABLE trace_span_index (
 	src_file TEXT NULL,
 	src_line INTEGER NULL,
 	parent_span_id TEXT NULL,
+	parent_trace_id TEXT NULL,
 	caller_event_id INTEGER NULL,
 	PRIMARY KEY (trace_id, span_id)
 );
