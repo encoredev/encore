@@ -16,6 +16,26 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 )
 
+// serverInstructions is returned to MCP clients in the `initialize` response.
+// It tells the model when to reach for these tools. Some clients (e.g. Claude
+// Code with tool search) truncate this at 2KB, so keep it concise and put the
+// most important guidance first.
+const serverInstructions = `Tools for the local Encore app the user is working on (the app served by ` + "`encore run`" + `). Reach for them when working in an Encore codebase: to exercise the live app, inspect its runtime state, or look up Encore's API surface.
+
+RUNTIME — use these instead of shell equivalents; they see live data that files can't:
+- call_endpoint: call any API endpoint (auto-starts the app if not running). Use instead of curl. Args: service, endpoint, method, path, payload (JSON string with body/query/headers/path params), optional auth_token/auth_payload/correlation_id. The response includes a trace_id.
+- query_database: run SQL against the app's databases. Beats psql round-trips.
+- get_traces / get_trace_spans: search recent root traces — filter by service, endpoint, Pub/Sub topic/subscription, error, time range, duration, or parent_trace_id — then fetch full spans by trace_id for deep debugging (e.g. why a request failed).
+- get_objects: list objects + metadata in storage buckets.
+
+STATIC STRUCTURE — these read the app model, but for source-defined structure (services, endpoints, schemas, topics, subscriptions, secrets, cron jobs, middleware) reading the source files directly is usually faster and more reliable: get_metadata, get_services, get_databases, get_pubsub, get_storage_buckets, get_cache_keyspaces, get_cronjobs, get_secrets, get_metrics, get_middleware, get_auth_handlers, get_src_files.
+
+DOCS — when unsure how an Encore feature or API works: search_docs (Algolia-backed), then get_docs to fetch full pages by path.
+
+Pub/Sub verification: a subscription handler runs in a SEPARATE trace from the publishing endpoint — it is NOT a child span of the publish. After call_endpoint, keep its trace_id (T1), then call get_traces with parent_trace_id=T1 (optionally narrowed by topic/subscription) to find the handler's trace directly, and get_trace_spans for full detail. The handler may not have started yet, so poll a few times (~250-500ms apart, cap ~10s).
+
+This server only sees the local app. For deployed/production environments, use the Encore Cloud MCP server instead.`
+
 type Manager struct {
 	server  *server.MCPServer
 	sse     *server.SSEServer
@@ -56,6 +76,7 @@ func NewManager(apps *apps.Manager, cluster *sqldb.ClusterManager, ns *namespace
 		"1.0.0",
 		server.WithToolCapabilities(false),
 		server.WithHooks(hooks),
+		server.WithInstructions(serverInstructions),
 	)
 
 	m := &Manager{
