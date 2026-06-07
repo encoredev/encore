@@ -300,8 +300,8 @@ There must be exactly one database configuration for each declared database. You
 }
 ```
 
-- `my-database`: This is the name of the database as it is declared in your Encore app.
-- `name`: The name of the database on the database server. Defaults to the declared Encore name.
+- `my-database`: The name of the database on the database server.
+- `name`: The name of the database as declared in your Encore app. Defaults to the map key name.
 - `host`: SQL server host, optionally including the port.
 - `tls_config`: TLS configuration for secure connections. If the server uses TLS with a non-system CA root, or requires a client certificate, specify the appropriate fields as PEM-encoded strings. Otherwise, they can be left empty.
 - `databases`: List of databases, each with connection settings.
