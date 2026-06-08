@@ -33,6 +33,56 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 		extraWhereClause += " AND message_id = $" + strconv.Itoa(len(args))
 	}
 
+	if q.Service != "" {
+		args = append(args, q.Service)
+		extraWhereClause += " AND service_name = $" + strconv.Itoa(len(args))
+	}
+
+	if q.Endpoint != "" {
+		args = append(args, q.Endpoint)
+		extraWhereClause += " AND endpoint_name = $" + strconv.Itoa(len(args))
+	}
+
+	if q.Topic != "" {
+		args = append(args, q.Topic)
+		extraWhereClause += " AND topic_name = $" + strconv.Itoa(len(args))
+	}
+
+	if q.Subscription != "" {
+		args = append(args, q.Subscription)
+		extraWhereClause += " AND subscription_name = $" + strconv.Itoa(len(args))
+	}
+
+	if q.IsError != nil {
+		args = append(args, *q.IsError)
+		extraWhereClause += " AND is_error = $" + strconv.Itoa(len(args))
+	}
+
+	if !q.StartTime.IsZero() {
+		args = append(args, q.StartTime.UnixNano())
+		extraWhereClause += " AND started_at >= $" + strconv.Itoa(len(args))
+	}
+
+	if !q.EndTime.IsZero() {
+		args = append(args, q.EndTime.UnixNano())
+		extraWhereClause += " AND started_at <= $" + strconv.Itoa(len(args))
+	}
+
+	if q.MinDurNanos > 0 {
+		args = append(args, q.MinDurNanos)
+		extraWhereClause += " AND duration_nanos >= $" + strconv.Itoa(len(args))
+	}
+
+	if q.MaxDurNanos > 0 {
+		args = append(args, q.MaxDurNanos)
+		extraWhereClause += " AND duration_nanos <= $" + strconv.Itoa(len(args))
+	}
+
+	if q.ParentTraceID != "" {
+		args = append(args, q.ParentTraceID)
+		extraWhereClause += " AND parent_trace_id = $" + strconv.Itoa(len(args))
+	}
+
 	// If we're filter for tests / not tests, add the extra where clause
 	if q.TestFilter != nil {
 		args = append(args, tracepb2.SpanSummary_TEST)

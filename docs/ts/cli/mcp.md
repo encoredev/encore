@@ -85,7 +85,7 @@ Encore's MCP server exposes the following tools that provide AI models with deta
 
 #### Trace Tools
 
-- **get_traces**: Retrieve a list of request traces from the application, including their timing, status, and associated metadata.
+- **get_traces**: Search and retrieve a list of root request traces from the application, with filtering by service, endpoint, Pub/Sub topic/subscription, error status, time range, duration, and parent trace.
 - **get_trace_spans**: Retrieve detailed information about one or more traces, including all spans, timing information, and associated metadata.
 
 #### Source Code Tools

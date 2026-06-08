@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,13 +28,18 @@ func (m *Manager) registerTraceResources() {
 func (m *Manager) registerTraceTools() {
 	// Add tool for listing traces
 	m.server.AddTool(mcp.NewTool("get_traces",
-		mcp.WithDescription("Retrieve a list of request traces from the application, including their timing, status, and associated metadata. This tool helps understand the flow of requests through the system and diagnose issues."),
+		mcp.WithDescription("Search and retrieve a list of root request traces (HTTP/API requests, Pub/Sub message handlers, and tests) from the application, including their timing, status, and associated metadata. Supports filtering by service, endpoint, Pub/Sub topic/subscription, error status, time range, duration, and parent trace. This tool helps understand the flow of requests through the system and diagnose issues."),
 		mcp.WithString("service", mcp.Description("Optional service name to filter traces by. Only returns traces that involve the specified service.")),
 		mcp.WithString("endpoint", mcp.Description("Optional endpoint name to filter traces by. Only returns traces that involve the specified endpoint.")),
+		mcp.WithString("topic", mcp.Description("Optional Pub/Sub topic name to filter traces by. Only returns Pub/Sub message traces for the specified topic.")),
+		mcp.WithString("subscription", mcp.Description("Optional Pub/Sub subscription name to filter traces by. Only returns Pub/Sub message traces for the specified subscription.")),
 		mcp.WithString("error", mcp.Description("Optional filter for traces with errors. Set to 'true' to see only failed traces, 'false' for successful traces, or omit to see all traces.")),
 		mcp.WithString("limit", mcp.Description("Maximum number of traces to return. Helps manage response size when dealing with many traces.")),
-		mcp.WithString("start_time", mcp.Description("ISO format timestamp to filter traces created after this time. Useful for focusing on recent activity.")),
-		mcp.WithString("end_time", mcp.Description("ISO format timestamp to filter traces created before this time. Useful for focusing on a specific time period.")),
+		mcp.WithString("start_time", mcp.Description("ISO format timestamp (RFC3339) to filter traces started after this time. Useful for focusing on recent activity.")),
+		mcp.WithString("end_time", mcp.Description("ISO format timestamp (RFC3339) to filter traces started before this time. Useful for focusing on a specific time period.")),
+		mcp.WithString("min_duration_ms", mcp.Description("Optional minimum trace duration in milliseconds. Only returns traces that took at least this long. Useful for finding slow requests.")),
+		mcp.WithString("max_duration_ms", mcp.Description("Optional maximum trace duration in milliseconds. Only returns traces that completed within this duration.")),
+		mcp.WithString("parent_trace_id", mcp.Description("Optional trace ID to filter by. Only returns traces whose root span was started by a span in the given (parent) trace, e.g. a Pub/Sub message published from that trace.")),
 	), m.listTraces)
 
 	// Add tool for getting a single trace with all spans
@@ -64,6 +70,25 @@ func (m *Manager) listTraces(ctx context.Context, request mcp.CallToolRequest) (
 	}
 	if endpoint, ok := request.Params.Arguments["endpoint"].(string); ok && endpoint != "" {
 		query.Endpoint = endpoint
+	}
+	if topic, ok := request.Params.Arguments["topic"].(string); ok && topic != "" {
+		query.Topic = topic
+	}
+	if subscription, ok := request.Params.Arguments["subscription"].(string); ok && subscription != "" {
+		query.Subscription = subscription
+	}
+	if parentTraceID, ok := request.Params.Arguments["parent_trace_id"].(string); ok && parentTraceID != "" {
+		query.ParentTraceID = parentTraceID
+	}
+	if minDurStr, ok := request.Params.Arguments["min_duration_ms"].(string); ok && minDurStr != "" {
+		if ms, err := strconv.ParseFloat(minDurStr, 64); err == nil && ms >= 0 {
+			query.MinDurNanos = uint64(ms * float64(time.Millisecond))
+		}
+	}
+	if maxDurStr, ok := request.Params.Arguments["max_duration_ms"].(string); ok && maxDurStr != "" {
+		if ms, err := strconv.ParseFloat(maxDurStr, 64); err == nil && ms >= 0 {
+			query.MaxDurNanos = uint64(ms * float64(time.Millisecond))
+		}
 	}
 	if errorStr, ok := request.Params.Arguments["error"].(string); ok && errorStr != "" {
 		if errorStr == "true" {
