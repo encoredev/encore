@@ -34,6 +34,18 @@ impl StaticAssetsHandler {
             .map(|p| ServeFile::new(PathBuf::from(p)));
         let not_found_handler = not_found.is_some();
         let service: Arc<dyn FileServer> = match not_found {
+            // When the not-found status is 200 OK, the fallback page is served as a
+            // genuine, cacheable response (e.g. SPA routing), so conditional requests
+            // should be honored. Use `fallback`, which preserves the inner status —
+            // including a `304 Not Modified` produced by the fallback `ServeFile` when
+            // `If-Modified-Since` evaluates to false. `not_found_service` would instead
+            // wrap the fallback in `SetStatus(404)`, unconditionally clobbering that 304
+            // into a 404, which downstream gets rewritten to the configured 200 with an
+            // empty body. A 304 only ever substitutes for a 200, so this is sound only
+            // when the configured status is 200.
+            Some(not_found) if not_found_status == StatusCode::OK => {
+                Arc::new(service.fallback(not_found))
+            }
             Some(not_found) => Arc::new(service.not_found_service(not_found)),
             None => Arc::new(service),
         };
