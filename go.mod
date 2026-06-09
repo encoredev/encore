@@ -18,7 +18,7 @@ require (
 	github.com/charmbracelet/lipgloss v0.7.1
 	github.com/cockroachdb/errors v1.11.1
 	github.com/dave/jennifer v1.7.0
-	github.com/evanw/esbuild v0.19.8
+	github.com/evanw/esbuild v0.28.0
 	github.com/fatih/color v1.15.0
 	github.com/fatih/structtag v1.2.0
 	github.com/frankban/quicktest v1.14.6
