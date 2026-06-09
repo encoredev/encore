@@ -227,5 +227,5 @@ Incremental migration lets you adopt Encore without the risk of a complete rewri
 We've helped 100+ teams adopt Encore and we're happy to answer your questions and provide advice to help you with your migration.
 
 - [Book a call](/book) to get 1:1 assistance
-- [Email us](mail:hello@encore.dev) to ask questions
+- [Email us](mailto:hello@encore.dev) to ask questions
 - [Join Discord](https://encore.dev/discord) to discuss with other developers using Encore
