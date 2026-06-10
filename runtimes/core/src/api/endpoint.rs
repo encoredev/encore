@@ -19,7 +19,7 @@ use crate::api::schema::encoding::{
     ReqSchemaUnderConstruction, SchemaUnderConstruction,
 };
 use crate::api::schema::{JSONPayload, Method};
-use crate::api::{jsonschema, schema, ErrCode, Error};
+use crate::api::{httputil, jsonschema, schema, ErrCode, Error};
 use crate::encore::parser::meta::v1::rpc;
 use crate::encore::parser::meta::v1::{self as meta, selector};
 use crate::log::LogFromRust;
@@ -271,7 +271,7 @@ impl Drop for CancellationGuard<'_> {
                         )
                     }
                     ResponseData::Raw(ref r) => {
-                        let code = ErrCode::from(r.status()).to_string();
+                        let code = httputil::code_for_http_status(r.status());
                         (r.status().as_u16(), None, None, code)
                     }
                 };
@@ -815,7 +815,7 @@ impl EndpointHandler {
             let code = match &resp {
                 ResponseData::Typed(Ok(_)) => "ok".to_string(),
                 ResponseData::Typed(Err(err)) => err.code.to_string(),
-                ResponseData::Raw(resp) => ErrCode::from(resp.status()).to_string(),
+                ResponseData::Raw(resp) => httputil::code_for_http_status(resp.status()),
             };
 
             logger.info(Some(&request), "request completed", {
