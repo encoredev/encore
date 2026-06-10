@@ -2,6 +2,24 @@ use std::borrow::Cow;
 
 use anyhow::Context;
 
+use crate::api::ErrCode;
+
+/// Computes the human-readable `code` label used in metrics and logs for a raw
+/// endpoint that responded with the given HTTP status.
+///
+/// 200 status maps to "ok", statuses that correspond to a known error code map
+/// to that code's name (e.g. 404 -> "not_found"), and any other status falls
+/// back to "http_<status>".
+pub fn code_for_http_status(status: axum::http::StatusCode) -> String {
+    if status.as_u16() == 200 {
+        return "ok".to_string();
+    }
+    match ErrCode::from(status) {
+        ErrCode::Unknown => format!("http_{}", status.as_u16()),
+        code => code.to_string(),
+    }
+}
+
 pub fn convert_headers(headers: &axum::http::HeaderMap) -> reqwest::header::HeaderMap {
     let mut out = reqwest::header::HeaderMap::with_capacity(headers.len());
     for (k, v) in headers {
@@ -68,4 +86,36 @@ pub fn join_url_path<'b>(target: &str, inbound: &'b str) -> Option<Cow<'b, str>>
             Cow::Owned(s)
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::StatusCode;
+
+    #[test]
+    fn test_code_for_http_status() {
+        // 200 maps to "ok" rather than "unknown".
+        assert_eq!(code_for_http_status(StatusCode::OK), "ok");
+
+        // Known error statuses map to their canonical code name.
+        assert_eq!(code_for_http_status(StatusCode::NOT_FOUND), "not_found");
+        assert_eq!(
+            code_for_http_status(StatusCode::INTERNAL_SERVER_ERROR),
+            "internal"
+        );
+        assert_eq!(
+            code_for_http_status(StatusCode::TOO_MANY_REQUESTS),
+            "resource_exhausted"
+        );
+
+        // Other statuses fall back to "http_<status>" instead of "unknown".
+        assert_eq!(code_for_http_status(StatusCode::CREATED), "http_201");
+        assert_eq!(code_for_http_status(StatusCode::NO_CONTENT), "http_204");
+        assert_eq!(
+            code_for_http_status(StatusCode::MOVED_PERMANENTLY),
+            "http_301"
+        );
+        assert_eq!(code_for_http_status(StatusCode::IM_A_TEAPOT), "http_418");
+    }
 }
