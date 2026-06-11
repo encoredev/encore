@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::{cell::Cell, str::FromStr, sync::Arc};
 
 use crate::cookies::{cookie_to_napi_value, JsCookie};
 use crate::runtime::Runtime;
@@ -101,6 +101,59 @@ pub struct PVal(pub PValue);
 #[derive(Clone, Debug)]
 pub struct PVals(pub PValues);
 
+// Matches serde_json's default recursion limit, which already bounds how
+// deeply nested any payload that round-trips through the platform can be.
+const MAX_PARSE_DEPTH: usize = 128;
+
+thread_local! {
+    // Depth of the PVal::from_napi_value recursion on this thread.
+    //
+    // Per-thread counting is correct because a conversion is a synchronous
+    // call tree that cannot migrate threads mid-recursion: napi value handles
+    // are env-bound raw pointers (!Send), so they cannot leave the JS thread
+    // that produced them. Each Node worker thread converts independently and
+    // gets its own counter. If a property getter re-enters the runtime during
+    // traversal (e.g. publishes from a getter), the conversions nest LIFO and
+    // share this counter, which is what we want: it is the thread's native
+    // stack they jointly consume.
+    static PARSE_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+// Bounds the recursion when converting JS values. Without it, a circular
+// object overflows the native stack and crashes the process: the recursion
+// never enters JS, so V8's stack-limit check can't turn it into a RangeError
+// the way it does for JSON.stringify.
+//
+// The marker makes the guard !Send: it must drop on the thread whose counter
+// it incremented.
+struct DepthGuard(std::marker::PhantomData<*const ()>);
+
+impl DepthGuard {
+    fn enter() -> Result<Self> {
+        let depth = PARSE_DEPTH.with(|d| {
+            let depth = d.get() + 1;
+            d.set(depth);
+            depth
+        });
+        // The guard must exist before the depth check so the increment is
+        // undone when we return the error.
+        let guard = DepthGuard(std::marker::PhantomData);
+        if depth > MAX_PARSE_DEPTH {
+            return Err(Error::new(
+                Status::InvalidArg,
+                format!("value exceeds the maximum nesting depth of {MAX_PARSE_DEPTH}; does it contain a circular reference?"),
+            ));
+        }
+        Ok(guard)
+    }
+}
+
+impl Drop for DepthGuard {
+    fn drop(&mut self) {
+        PARSE_DEPTH.with(|d| d.set(d.get() - 1));
+    }
+}
+
 impl ToNapiValue for PVal {
     unsafe fn to_napi_value(env: sys::napi_env, val: Self) -> Result<sys::napi_value> {
         match val.0 {
@@ -177,6 +230,9 @@ impl ToNapiValue for &PVal {
 
 impl FromNapiValue for PVal {
     unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> Result<Self> {
+        // All recursion (arrays via Vec<PVal>, objects via PVals/obj_get_pval)
+        // passes through here, so this single guard bounds the whole traversal.
+        let _guard = DepthGuard::enter()?;
         let ty = type_of!(env, napi_val)?;
         let val = PVal(match ty {
             ValueType::Boolean => PValue::Bool(unsafe { bool::from_napi_value(env, napi_val)? }),
