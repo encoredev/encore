@@ -112,6 +112,6 @@ func TestParseProviders_RegistersTypes(t *testing.T) {
 		}
 	}`
 	refs := parseProviders(cfg)
-	c.Assert(refs["KEY"].ID, qt.Equals, "abc")
+	c.Assert(refs["KEY"].ID.MustGet(), qt.Equals, "abc")
 	c.Assert(refs["KEY"].provider, qt.Equals, provider.Provider(fp))
 }

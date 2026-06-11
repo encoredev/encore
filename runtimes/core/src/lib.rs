@@ -236,6 +236,12 @@ impl Runtime {
             openssl_probe::init_openssl_env_vars();
         }
 
+        // Install the `ring` crypto provider as the process-wide rustls default.
+        // Some dependencies (e.g. the google-cloud SDK) build rustls clients with
+        // no compiled-in provider to avoid pulling `aws-lc-rs`, and rely on a
+        // process default being installed. Ignore the error if one is already set.
+        let _ = rustls::crypto::ring::default_provider().install_default();
+
         let tokio_rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()

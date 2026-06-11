@@ -23,7 +23,11 @@ impl GcpProvider {
     /// either a short secret name or an already-qualified resource path; in the
     /// latter case the version is appended only if not already present.
     fn resource_name(&self, id: &str, version: &str) -> String {
-        let version = if version.is_empty() { "latest" } else { version };
+        let version = if version.is_empty() {
+            "latest"
+        } else {
+            version
+        };
         if id.starts_with("projects/") {
             if id.contains("/versions/") {
                 id.to_string()

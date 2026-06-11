@@ -132,10 +132,15 @@ malachite = "0.6.1"
 byteorder = "1.5.0"
 metrics = "0.24.2"
 dashmap = "6.1.0"
-google-cloud-monitoring-v3 = "1.0.0"
+# default-features disabled to avoid pulling in the `aws-lc-rs` crypto backend
+# (via the `default-rustls-provider` feature), which has cross-compilation
+# issues (e.g. to Apple targets). We install the `ring` provider as the
+# process-wide rustls default in `Runtime::new` instead.
+google-cloud-monitoring-v3 = { version = "1.10.0", default-features = false }
 google-cloud-api = "1.0.0"
 google-cloud-wkt = "1.0.0"
-google-cloud-secretmanager-v1 = "1.10.0"
+google-cloud-secretmanager-v1 = { version = "1.10.0", default-features = false }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 sysinfo = "0.37.2"
 aws-sdk-cloudwatch = { version = "1.94.0", default-features = false, features = [
     "behavior-version-latest",
