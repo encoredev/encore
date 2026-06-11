@@ -75,6 +75,47 @@ fn parse_k8s_grace_period(total: Duration) -> Duration {
     k8s_grace.saturating_sub(total)
 }
 
+/// Terminates the process immediately without running C `atexit` handlers or
+/// C++ static destructors.
+///
+/// We must NOT use `std::process::exit` (which calls libc `exit`) here. The
+/// runtime is embedded in Node via a NAPI addon, and the exit is driven from a
+/// background thread while Node's event loop, V8, libuv, and worker threads are
+/// all still live. libc `exit` runs the global teardown chain on the calling
+/// thread — Node/V8 platform teardown and OpenSSL's `OPENSSL_cleanup` (Node
+/// registers it via `atexit`; it frees process-global crypto state) — while
+/// those other threads keep using that very state. That data race crashes the
+/// majority of shutdowns under load (SIGSEGV/SIGABRT).
+///
+/// `_exit` terminates the process immediately (`exit_group(2)` on Linux) with
+/// no handlers and no destructors — exactly what we want when force-terminating
+/// with live threads. All observability data is already flushed by this point
+/// (see `run_blocking`). Known tradeoff: log lines emitted immediately before
+/// this call go through the async log writer thread (`log::writers`) and may
+/// not reach stderr before termination; the process exit code remains the
+/// authoritative shutdown signal.
+#[cfg(unix)]
+pub(crate) fn force_exit(code: i32) -> ! {
+    use std::io::Write;
+
+    // Best-effort flush of Rust's stdio buffers (stderr is unbuffered; the
+    // runtime doesn't write Rust stdout, so this is insurance for stray
+    // debug output).
+    let _ = std::io::stdout().flush();
+    let _ = std::io::stderr().flush();
+    // SAFETY: `_exit` has no preconditions and is safe to call from any
+    // thread; it never returns.
+    unsafe { libc::_exit(code) }
+}
+
+/// On non-unix platforms we keep the standard exit. The crash this guards
+/// against is specific to the Linux/glibc + Node + OpenSSL teardown chain that
+/// production deployments run on, and `_exit` semantics differ on Windows.
+#[cfg(not(unix))]
+pub(crate) fn force_exit(code: i32) -> ! {
+    std::process::exit(code)
+}
+
 /// Handle used by components to observe when shutdown has been initiated.
 ///
 /// When a SIGINT/SIGTERM signal is received, the handle fires, signaling
@@ -160,7 +201,7 @@ pub async fn run(config: ShutdownConfig) -> ShutdownHandle {
         ::log::warn!("graceful shutdown deadline reached, forcing exit");
         tokio::time::sleep(FORCE_EXIT_GRACE).await;
         ::log::error!("force shutdown grace period exceeded, exiting");
-        std::process::exit(1);
+        force_exit(1);
     });
 
     handle

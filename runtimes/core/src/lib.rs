@@ -568,14 +568,19 @@ impl Runtime {
             // Exit. We can't just return here because the tokio runtime
             // (and the orchestrator's force-exit task) is kept alive by Arc<Runtime>
             // in the JS layer's static OnceLock.
+            //
+            // Use force_exit (libc `_exit`), not `std::process::exit`: running
+            // libc exit's atexit/teardown chain from this background thread
+            // races the still-live Node/V8/worker threads and segfaults. See
+            // shutdown::force_exit for the full story.
             match serve_result {
                 Ok(()) => {
                     ::log::info!("shutdown complete");
-                    std::process::exit(0);
+                    shutdown::force_exit(0);
                 }
                 Err(err) => {
                     ::log::error!("server failed: {:?}", err);
-                    std::process::exit(1);
+                    shutdown::force_exit(1);
                 }
             }
         });

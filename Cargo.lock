@@ -2044,6 +2044,7 @@ dependencies = [
  "indexmap 2.7.0",
  "insta",
  "jsonwebtoken",
+ "libc",
  "log",
  "malachite",
  "matchit",
