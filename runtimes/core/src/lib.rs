@@ -236,6 +236,12 @@ impl Runtime {
             openssl_probe::init_openssl_env_vars();
         }
 
+        // Install the `ring` crypto provider as the process-wide rustls default.
+        // Some dependencies (e.g. the google-cloud SDK) build rustls clients with
+        // no compiled-in provider to avoid pulling `aws-lc-rs`, and rely on a
+        // process default being installed. Ignore the error if one is already set.
+        let _ = rustls::crypto::ring::default_provider().install_default();
+
         let tokio_rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -259,7 +265,12 @@ impl Runtime {
             .build()
             .context("failed to build http client")?;
 
-        let secrets = secrets::Manager::new(resources.app_secrets);
+        let secrets = tokio_rt
+            .block_on(secrets::Manager::new(
+                resources.app_secrets,
+                resources.secret_providers,
+            ))
+            .context("failed to initialize secrets manager")?;
         let platform_validator = platform::RequestValidator::new(
             &secrets,
             encore_platform.platform_signing_keys.clone(),

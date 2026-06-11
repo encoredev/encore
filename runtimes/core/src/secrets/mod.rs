@@ -4,6 +4,7 @@ use std::sync::{Arc, OnceLock};
 
 use std::io::Read as _;
 
+use anyhow::Context;
 use base64::{engine::general_purpose, Engine as _};
 use flate2::read::GzDecoder;
 
@@ -15,20 +16,58 @@ use crate::encore;
 use crate::encore::runtime::v1::secret_data::Encoding;
 use crate::names::EncoreName;
 
+mod gcpsm;
+mod provider;
+
+pub use provider::{Provider, ProviderError};
+
 pub struct Manager {
     app_secrets: HashMap<EncoreName, Arc<Secret>>,
 }
 
 impl Manager {
-    pub fn new(app_secrets: Vec<pb::AppSecret>) -> Self {
-        let app_secrets = app_secrets
-            .into_iter()
-            .filter_map(|s| match s.data {
-                Some(data) => Some((s.encore_name.into(), Arc::new(Secret::new(data)))),
-                None => None,
-            })
-            .collect();
-        Self { app_secrets }
+    /// Build the secrets Manager.
+    ///
+    /// Provider-backed app secrets are eagerly resolved here so that
+    /// `Secret::get` stays sync at call time. A failure for any provider-backed
+    /// secret aborts startup — this matches the behavior of missing-secret in
+    /// the Go runtime and surfaces backend outages immediately rather than at
+    /// random request time.
+    pub async fn new(
+        app_secrets: Vec<pb::AppSecret>,
+        provider_defs: Vec<pb::SecretProvider>,
+    ) -> anyhow::Result<Self> {
+        let providers = build_providers(provider_defs).await?;
+
+        let mut app_secret_map = HashMap::with_capacity(app_secrets.len());
+        for s in app_secrets {
+            let Some(data) = s.data else { continue };
+            let secret = Arc::new(Secret::new(data.clone()));
+
+            if let Some(Source::Provider(p_ref)) = &data.source {
+                let prov = providers.get(&p_ref.provider_rid).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "app secret {} references unknown provider {}",
+                        s.encore_name,
+                        p_ref.provider_rid
+                    )
+                })?;
+                let raw = prov
+                    .load(&p_ref.id, &p_ref.version)
+                    .await
+                    .with_context(|| format!("fetch app secret {}", s.encore_name))?;
+                let resolved = post_process(raw, &data);
+                // OnceLock::set returns Err only if already set, which can't
+                // happen here since we just constructed the Secret.
+                let _ = secret.resolved.set(resolved);
+            }
+
+            app_secret_map.insert(s.encore_name.into(), secret);
+        }
+
+        Ok(Self {
+            app_secrets: app_secret_map,
+        })
     }
 
     pub fn load(&self, data: SecretData) -> Secret {
@@ -40,6 +79,26 @@ impl Manager {
     pub fn app_secret(&self, name: EncoreName) -> Option<Arc<Secret>> {
         self.app_secrets.get(&name).cloned()
     }
+}
+
+async fn build_providers(
+    defs: Vec<pb::SecretProvider>,
+) -> anyhow::Result<HashMap<String, Arc<dyn Provider>>> {
+    let mut out: HashMap<String, Arc<dyn Provider>> = HashMap::with_capacity(defs.len());
+    for def in defs {
+        let rid = def.rid.clone();
+        let name = def.encore_name.clone();
+        let p: Arc<dyn Provider> = match def.provider {
+            Some(pb::secret_provider::Provider::GcpSm(cfg)) => Arc::new(
+                gcpsm::GcpProvider::new(cfg.project_id)
+                    .await
+                    .with_context(|| format!("init secret provider {name}"))?,
+            ),
+            None => anyhow::bail!("secret provider {name} has no provider configured"),
+        };
+        out.insert(rid, p);
+    }
+    Ok(out)
 }
 
 pub struct Secret {
@@ -85,6 +144,10 @@ pub enum ResolveError {
     InvalidGzip,
     InvalidSecretSource,
     UnknownEncoding,
+    /// Source is a provider reference but no value was pre-resolved.
+    /// Provider-backed SecretData is only supported for app_secrets, which are
+    /// fetched at Manager startup.
+    ProviderNotResolved,
 }
 
 impl std::error::Error for ResolveError {}
@@ -101,6 +164,9 @@ impl Display for ResolveError {
             ResolveError::InvalidJSONValue => write!(f, "invalid JSON value encoding"),
             ResolveError::InvalidSecretSource => write!(f, "invalid secret source"),
             ResolveError::UnknownEncoding => write!(f, "unknown encoding"),
+            ResolveError::ProviderNotResolved => {
+                write!(f, "provider-backed secret not pre-resolved")
+            }
         }
     }
 }
@@ -114,10 +180,17 @@ fn resolve(data: &SecretData) -> ResolveResult<Vec<u8>> {
             let value = std::env::var(name).map_err(|_| ResolveError::EnvVarNotFound)?;
             value.into_bytes()
         }
+        Some(Source::Provider(_)) => return Err(ResolveError::ProviderNotResolved),
         None => Err(ResolveError::InvalidSecretSource)?,
     };
 
-    // Shall we decode this?
+    post_process(value, data)
+}
+
+/// Apply encoding decode + sub_path extraction to a freshly fetched value.
+/// Shared between the sync resolve path (embedded/env) and the eager provider
+/// fetch path.
+fn post_process(value: Vec<u8>, data: &SecretData) -> ResolveResult<Vec<u8>> {
     let encoding = Encoding::try_from(data.encoding).map_err(|_| ResolveError::UnknownEncoding)?;
     let value = match encoding {
         Encoding::None => value,
@@ -137,7 +210,6 @@ fn resolve(data: &SecretData) -> ResolveResult<Vec<u8>> {
             .map_err(|_| ResolveError::InvalidBase64)?,
     };
 
-    // Is there a subpath?
     match &data.sub_path {
         None => Ok(value),
 
@@ -279,5 +351,66 @@ mod tests {
             });
             assert_matches!(secret.get().unwrap(), b"hello");
         }
+    }
+
+    #[test]
+    fn provider_source_without_resolution_errors() {
+        use super::*;
+        use encore::runtime::v1::secret_data::{ProviderRef, Source};
+
+        let secret = Secret::new(SecretData {
+            source: Some(Source::Provider(ProviderRef {
+                provider_rid: "rid".into(),
+                id: "id".into(),
+                version: String::new(),
+            })),
+            sub_path: None,
+            encoding: Encoding::None as i32,
+        });
+        assert_matches!(secret.get(), Err(ResolveError::ProviderNotResolved));
+    }
+
+    #[tokio::test]
+    async fn provider_backed_secret_pre_resolves_to_cache() {
+        use super::*;
+        use async_trait::async_trait;
+        use encore::runtime::v1::secret_data::{ProviderRef, Source};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        #[derive(Debug, Default)]
+        struct FakeProvider {
+            calls: AtomicUsize,
+        }
+        #[async_trait]
+        impl Provider for FakeProvider {
+            async fn load(&self, _id: &str, _version: &str) -> Result<Vec<u8>, ProviderError> {
+                self.calls.fetch_add(1, Ordering::SeqCst);
+                Ok(b"resolved-value".to_vec())
+            }
+        }
+
+        let fake = Arc::new(FakeProvider::default());
+
+        let data = SecretData {
+            source: Some(Source::Provider(ProviderRef {
+                provider_rid: "rid".into(),
+                id: "id".into(),
+                version: String::new(),
+            })),
+            sub_path: None,
+            encoding: Encoding::None as i32,
+        };
+        let secret = Arc::new(Secret::new(data.clone()));
+
+        // Simulate what Manager::new does for provider-backed app_secrets:
+        // call the provider once, pre-populate the OnceLock.
+        let raw = fake.load("id", "").await.unwrap();
+        let _ = secret.resolved.set(post_process(raw, &data));
+
+        // get() returns the pre-resolved value synchronously and never
+        // touches the provider again.
+        assert_eq!(secret.get().unwrap(), b"resolved-value");
+        assert_eq!(secret.get().unwrap(), b"resolved-value");
+        assert_eq!(fake.calls.load(Ordering::SeqCst), 1);
     }
 }

@@ -22,6 +22,29 @@ message Infrastructure {
     repeated RedisCluster redis_clusters = 4;
     repeated AppSecret app_secrets = 5;
     repeated BucketCluster bucket_clusters = 6;
+    repeated SecretProvider secret_providers = 7;
+  }
+}
+
+// SecretProvider declares an external secret-management backend that
+// AppSecrets can be fetched from via SecretData.ProviderRef.
+//
+// Authentication uses the backend's default credential chain (e.g. ADC for
+// GCP). Explicit credentials may be added later via additional fields here.
+message SecretProvider {
+  // The unique resource id for this provider.
+  string rid = 1;
+
+  // Human-readable identifier, used in logs.
+  string encore_name = 2;
+
+  oneof provider {
+    GCPSecretManager gcp_sm = 10;
+  }
+
+  message GCPSecretManager {
+    // The GCP project that owns the secrets.
+    string project_id = 1;
   }
 }
 

@@ -11,6 +11,7 @@ var singleton = NewManager(
 	appconf.Runtime,
 	encoreenv.Get("ENCORE_INFRA_CONFIG_PATH"),
 	encoreenv.Get("ENCORE_APP_SECRETS"),
+	encoreenv.Get("ENCORE_SECRET_PROVIDERS"),
 )
 
 func Load(key string, inService string) string {
