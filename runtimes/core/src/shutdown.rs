@@ -89,13 +89,15 @@ fn parse_k8s_grace_period(total: Duration) -> Duration {
 ///
 /// `_exit` terminates the process immediately (`exit_group(2)` on Linux) with
 /// no handlers and no destructors — exactly what we want when force-terminating
-/// with live threads. All observability data is already flushed by this point
-/// (see `run_blocking`). Known tradeoff: log lines emitted immediately before
-/// this call go through the async log writer thread (`log::writers`) and may
-/// not reach stderr before termination; the process exit code remains the
-/// authoritative shutdown signal.
+/// with live threads. On the normal path observability data is flushed before
+/// this is reached (see `run_blocking`); when the force-exit watchdog fires,
+/// shutdown is past its deadline and immediate termination takes priority.
+/// Known tradeoff: log lines emitted immediately before this call go through
+/// the async log writer thread (`log::writers`) and may not reach stderr
+/// before termination; the process exit code remains the authoritative
+/// shutdown signal.
 #[cfg(unix)]
-pub(crate) fn force_exit(code: i32) -> ! {
+pub fn force_exit(code: i32) -> ! {
     use std::io::Write;
 
     // Best-effort flush of Rust's stdio buffers (stderr is unbuffered; the
@@ -112,7 +114,7 @@ pub(crate) fn force_exit(code: i32) -> ! {
 /// against is specific to the Linux/glibc + Node + OpenSSL teardown chain that
 /// production deployments run on, and `_exit` semantics differ on Windows.
 #[cfg(not(unix))]
-pub(crate) fn force_exit(code: i32) -> ! {
+pub fn force_exit(code: i32) -> ! {
     std::process::exit(code)
 }
 
@@ -179,7 +181,9 @@ async fn wait_for_signal() {
 /// 3. Force-exits the process if the total deadline is exceeded
 ///
 /// The force exit is a safety net — normally `run_blocking` returns before
-/// the deadline, and the process exits cleanly when the tokio runtime drops.
+/// the deadline and the JS layer exits the process cleanly from Node's main
+/// thread. The watchdog covers the cases where that path never runs: a wedged
+/// drain, a stuck event loop, or a worker that won't terminate.
 pub async fn run(config: ShutdownConfig) -> ShutdownHandle {
     let initiated = CancellationToken::new();
     let handle = ShutdownHandle {
@@ -196,7 +200,7 @@ pub async fn run(config: ShutdownConfig) -> ShutdownHandle {
         // Safety net: force-exit the process if shutdown takes too long.
         // The deadline includes the keep_accepting grace period (K8s LB propagation)
         // plus the total drain/flush time.
-        // Normally run_blocking calls process::exit(0) well before this.
+        // Normally the JS layer has exited the process well before this.
         tokio::time::sleep(config.keep_accepting + config.total).await;
         ::log::warn!("graceful shutdown deadline reached, forcing exit");
         tokio::time::sleep(FORCE_EXIT_GRACE).await;

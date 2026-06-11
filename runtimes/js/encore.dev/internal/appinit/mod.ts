@@ -46,17 +46,32 @@ export async function run(entrypoint: string) {
     }
 
     const metricsBuffer = initGlobalMetricsBuffer();
+    const workers: Worker[] = [];
     const extraWorkers = runtime.RT.numWorkerThreads() - 1;
     if (extraWorkers > 0) {
       const path = fileURLToPath(entrypoint);
       for (let i = 0; i < extraWorkers; i++) {
-        new Worker(path, {
-          workerData: { metricsBuffer }
-        });
+        workers.push(
+          new Worker(path, {
+            workerData: { metricsBuffer }
+          })
+        );
       }
     }
 
-    return runtime.RT.runForever();
+    // Resolves once the Rust runtime has completed graceful shutdown
+    // (drained requests and pubsub, flushed traces/metrics), with the
+    // process exit code.
+    const exitCode = await runtime.RT.runForever();
+
+    // Exit from the main thread so Node tears down through its own orderly
+    // path (stdio flush, 'exit' handlers, env teardown). Exiting from a
+    // background thread instead runs exit-time teardown concurrently with
+    // live JS threads, which segfaults. Stop worker threads first so none
+    // of them executes JS while the process exits; if a worker is wedged,
+    // the Rust-side force-exit watchdog still terminates the process.
+    await Promise.allSettled(workers.map((w) => w.terminate()));
+    process.exit(exitCode);
   }
 
   // Worker thread: set metrics buffer from workerData

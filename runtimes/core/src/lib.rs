@@ -521,8 +521,18 @@ impl Runtime {
         self.runtime.handle()
     }
 
+    /// Runs the runtime until graceful shutdown completes, then returns the
+    /// process exit code (0 on clean shutdown, 1 on serve failure).
+    ///
+    /// This deliberately does NOT exit the process: the runtime is embedded in
+    /// Node via a NAPI addon, and exiting from this background thread runs
+    /// exit-time teardown concurrently with Node's live threads (see
+    /// `shutdown::force_exit`). Instead the caller propagates the code to the
+    /// JS layer, which calls `process.exit(code)` on Node's main thread so the
+    /// host exits through its own orderly teardown. The force-exit watchdog
+    /// (`shutdown::run`) remains the `_exit` backstop if that path wedges.
     #[inline]
-    pub fn run_blocking(&self) {
+    pub fn run_blocking(&self) -> i32 {
         self.runtime.block_on(async move {
             // Start the shutdown orchestrator (waits for signal in background).
             let shutdown = shutdown::run(self.shutdown_config.clone()).await;
@@ -565,25 +575,21 @@ impl Runtime {
                 flush.flush().await;
             }
 
-            // Exit. We can't just return here because the tokio runtime
-            // (and the orchestrator's force-exit task) is kept alive by Arc<Runtime>
-            // in the JS layer's static OnceLock.
-            //
-            // Use force_exit (libc `_exit`), not `std::process::exit`: running
-            // libc exit's atexit/teardown chain from this background thread
-            // races the still-live Node/V8/worker threads and segfaults. See
-            // shutdown::force_exit for the full story.
+            // Return the exit code rather than exiting; see the doc comment.
+            // The tokio runtime stays alive (Arc<Runtime> in the JS layer's
+            // static OnceLock), which also keeps the force-exit watchdog
+            // task running until the process exits.
             match serve_result {
                 Ok(()) => {
                     ::log::info!("shutdown complete");
-                    shutdown::force_exit(0);
+                    0
                 }
                 Err(err) => {
                     ::log::error!("server failed: {:?}", err);
-                    shutdown::force_exit(1);
+                    1
                 }
             }
-        });
+        })
     }
 
     #[inline]

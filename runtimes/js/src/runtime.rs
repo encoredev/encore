@@ -99,10 +99,13 @@ impl Runtime {
 
             // If we're running tests, there's no specific entrypoint so
             // start the runtime in the background immediately.
+            // Nothing awaits the exit code in test mode, so exit directly
+            // when shutdown completes (force_exit: see its docs).
             {
                 let rt = runtime.clone();
                 thread::spawn(move || {
-                    rt.run_blocking();
+                    let code = rt.run_blocking();
+                    encore_runtime_core::shutdown::force_exit(code);
                 });
             }
 
@@ -116,15 +119,24 @@ impl Runtime {
         Ok(Self { runtime })
     }
 
+    /// Runs the runtime until graceful shutdown completes, resolving with the
+    /// process exit code. The JS caller is expected to then exit the process
+    /// from Node's main thread (`process.exit(code)`), so that exit-time
+    /// teardown runs through Node's own orderly path instead of from a
+    /// background thread (which races live JS threads and segfaults; see
+    /// `shutdown::force_exit` in encore-runtime-core).
     #[napi]
-    pub async fn run_forever(&self) {
+    pub async fn run_forever(&self) -> i32 {
         let runtime = self.runtime.clone();
+        let (tx, rx) = tokio::sync::oneshot::channel::<i32>();
         thread::spawn(move || {
-            runtime.run_blocking();
+            let code = runtime.run_blocking();
+            let _ = tx.send(code);
         });
 
-        // Block the async function forever.
-        futures::future::pending::<()>().await;
+        // Resolves only when graceful shutdown has completed. If the runtime
+        // thread panicked (sender dropped), report failure.
+        rx.await.unwrap_or(1)
     }
 
     #[napi]
