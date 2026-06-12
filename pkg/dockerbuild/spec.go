@@ -12,7 +12,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
-	"github.com/rs/xid"
 
 	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/builder"
@@ -213,7 +212,7 @@ func Describe(cfg DescribeConfig) (*ImageSpec, error) {
 
 func newImageSpecBuilder() *imageSpecBuilder {
 	return &imageSpecBuilder{
-		procIDGen: randomProcID,
+		procIDGen: sequentialProcID(),
 		spec: &ImageSpec{
 			CopyData:        make(map[ImagePath]HostPath),
 			WriteFiles:      map[ImagePath][]byte{},
@@ -234,8 +233,10 @@ type imageArtifactDir struct {
 type imageSpecBuilder struct {
 	spec *ImageSpec
 
-	// procIDGen generates a random id for each process.
-	// Defaults to randomProcID.
+	// procIDGen generates an id for each process.
+	// Defaults to sequentialProcID, which is deterministic so that the
+	// supervisor config (and the image layer containing it) is
+	// reproducible across builds.
 	procIDGen func() string
 
 	// The artifact dirs we've already seen, to avoid
@@ -256,6 +257,9 @@ const (
 
 	// defaultMetaPath is the path in the image where the application metadata is located.
 	defaultMetaPath ImagePath = "/encore/meta"
+
+	// runtimesBaseDir is the directory in the image where the Encore runtimes are located.
+	runtimesBaseDir ImagePath = "/encore/runtimes"
 )
 
 func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
@@ -384,19 +388,19 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 			if _, ok := out.(*builder.JSBuildOutput); ok {
 				if nativeRuntimeHost, ok := cfg.NodeRuntime.Get(); ok {
 					// Add the encore-runtime.node file, and set the environment variable to point to it.
-					nativeRuntimeImg := ImagePath("/encore/runtimes/js/encore-runtime.node")
+					nativeRuntimeImg := runtimesBaseDir.Join("js", "encore-runtime.node")
 					b.spec.CopyData[nativeRuntimeImg] = nativeRuntimeHost
 					b.spec.Env = append(b.spec.Env, fmt.Sprintf("ENCORE_RUNTIME_LIB=%s", nativeRuntimeImg))
 					b.addPrio(nativeRuntimeImg)
 
 					// Copy the encore.dev package.
 					nativePackageHost := cfg.Runtimes.Join("js", "encore.dev")
-					nativePackageImg := ImagePath("/encore/runtimes/js/encore.dev")
+					nativePackageImg := runtimesBaseDir.Join("js", "encore.dev")
 					b.spec.CopyData[nativePackageImg] = nativePackageHost
 				} else {
 					// Copy the whole js runtime.
 					runtimeHost := cfg.Runtimes.Join("js")
-					runtimeImg := ImagePath("/encore/runtimes/js")
+					runtimeImg := runtimesBaseDir.Join("js")
 					b.spec.CopyData[runtimeImg] = runtimeHost
 
 					nativeRuntimeImg := runtimeImg.Join("encore-runtime.node")
@@ -493,8 +497,14 @@ func (b *imageSpecBuilder) allocArtifactDir(cfg DescribeConfig, out builder.Buil
 
 }
 
-func randomProcID() string {
-	return fmt.Sprintf("proc_%s", xid.New())
+// sequentialProcID returns a generator of deterministic process IDs.
+func sequentialProcID() func() string {
+	var n int
+	return func() string {
+		id := fmt.Sprintf("proc_%d", n)
+		n++
+		return id
+	}
 }
 
 // DetermineIncludes determines what paths within the workspace should be included in the image.

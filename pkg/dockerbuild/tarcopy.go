@@ -24,6 +24,83 @@ import (
 	"encr.dev/v2/compiler/build"
 )
 
+// layerKind identifies the image layer a file is placed in. The image
+// contents are split into layers by how frequently they are expected to
+// change, so that unchanged layers keep identical digests across builds
+// and can be skipped when pushing and pulling images.
+type layerKind int
+
+const (
+	certsLayer   layerKind = iota // CA certificates
+	runtimeLayer                  // Encore runtime and supervisor binaries
+	depsLayer                     // third-party dependencies (node_modules)
+	appLayer                      // application source code and compiled artifacts
+	configLayer                   // build info, app metadata, and runtime configuration
+)
+
+// layerOrder lists the layers from bottom to top,
+// ordered by how frequently their contents are expected to change.
+var layerOrder = []layerKind{certsLayer, runtimeLayer, depsLayer, appLayer, configLayer}
+
+func (k layerKind) String() string {
+	switch k {
+	case certsLayer:
+		return "ca-certificates"
+	case runtimeLayer:
+		return "encore-runtime"
+	case depsLayer:
+		return "dependencies"
+	case appLayer:
+		return "application"
+	case configLayer:
+		return "configuration"
+	default:
+		return fmt.Sprintf("layer-%d", int(k))
+	}
+}
+
+// layeredTarCopier groups tar copiers by the image layer they produce.
+type layeredTarCopier struct {
+	opts   []tarCopyOption
+	layers map[layerKind]*tarCopier
+}
+
+func newLayeredTarCopier(opts ...tarCopyOption) *layeredTarCopier {
+	return &layeredTarCopier{
+		opts:   opts,
+		layers: make(map[layerKind]*tarCopier),
+	}
+}
+
+// Layer returns the tar copier for the given layer, creating it if necessary.
+func (lc *layeredTarCopier) Layer(kind layerKind) *tarCopier {
+	tc, ok := lc.layers[kind]
+	if !ok {
+		tc = newTarCopier(lc.opts...)
+		lc.layers[kind] = tc
+	}
+	return tc
+}
+
+// imageLayer is a single layer to include in the image.
+type imageLayer struct {
+	kind   layerKind
+	opener tarball.Opener
+}
+
+// Layers returns an opener for each non-empty layer, ordered bottom to top.
+func (lc *layeredTarCopier) Layers() []imageLayer {
+	var layers []imageLayer
+	for _, kind := range layerOrder {
+		tc := lc.layers[kind]
+		if tc == nil || len(tc.entries) == 0 {
+			continue
+		}
+		layers = append(layers, imageLayer{kind: kind, opener: tc.Opener()})
+	}
+	return layers
+}
+
 type tarCopier struct {
 	fileTimes *time.Time
 	entries   []*tarEntry
@@ -59,9 +136,15 @@ type dirCopyDesc struct {
 
 	// Src paths to include.
 	IncludeSrcPaths []HostPath
+
+	// DepsCopier, if set, receives all entries within node_modules directories
+	// so that third-party dependencies are placed in their own layer.
+	DepsCopier *tarCopier
 }
 
-func (tc *tarCopier) CopyData(spec *ImageSpec) error {
+// CopyData copies the spec's CopyData entries, routing Encore runtime
+// components to the runtime layer and everything else to the app layer.
+func (lc *layeredTarCopier) CopyData(spec *ImageSpec) error {
 	// Sort the paths by the destination path so that the tar file is deterministic.
 	type pathPair struct {
 		Src  HostPath
@@ -77,6 +160,11 @@ func (tc *tarCopier) CopyData(spec *ImageSpec) error {
 	})
 
 	for _, p := range paths {
+		tc := lc.Layer(appLayer)
+		if isRuntimePath(p.Dest) {
+			tc = lc.Layer(runtimeLayer)
+		}
+
 		fi, err := os.Stat(string(p.Src))
 		if err != nil {
 			return errors.Wrap(err, "stat source file")
@@ -101,6 +189,23 @@ func (tc *tarCopier) CopyData(spec *ImageSpec) error {
 	}
 
 	return nil
+}
+
+// isRuntimePath reports whether the image path contains Encore runtime components.
+func isRuntimePath(p ImagePath) bool {
+	return p == runtimesBaseDir || strings.HasPrefix(string(p), string(runtimesBaseDir)+"/")
+}
+
+// nodeModulesPath reports whether relPath is within a node_modules tree, and
+// whether it is the root node_modules directory of that tree.
+func nodeModulesPath(relPath HostPath) (within, isRoot bool) {
+	components := strings.Split(string(relPath.ToUnix()), "/")
+	for i, c := range components {
+		if c == "node_modules" {
+			return true, i == len(components)-1
+		}
+	}
+	return false, false
 }
 
 // shouldInclude returns true if the path should be included in the tar.
@@ -153,6 +258,21 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 		}
 		dstPath := desc.DstPath.Join(string(relPath.ToImage()))
 
+		// Route node_modules trees to the dependency layer's copier, if configured.
+		dst := tc
+		if desc.DepsCopier != nil {
+			if within, isRoot := nodeModulesPath(relPath); within {
+				dst = desc.DepsCopier
+				if isRoot {
+					// Entering a node_modules tree: make sure its parent
+					// directories exist in the dependency layer.
+					if err := dst.MkdirAll(dstPath.Dir(), 0755); err != nil {
+						return errors.Wrap(err, "create deps dirs")
+					}
+				}
+			}
+		}
+
 		// If this is a symlink, compute the link target relative to DstPath.
 		var link ImagePath
 
@@ -184,7 +304,7 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		err = tc.CopyFile(dstPath, path, fi, link)
+		err = dst.CopyFile(dstPath, path, fi, link)
 		return errors.Wrap(err, "add file")
 	})
 
@@ -294,11 +414,17 @@ func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInf
 		return err
 	}
 	if tc.fileTimes != nil {
-		t := *tc.fileTimes
-		header.ModTime = t
-		header.AccessTime = t
-		header.ChangeTime = t
+		header.ModTime = *tc.fileTimes
+		header.AccessTime = time.Time{}
+		header.ChangeTime = time.Time{}
 	}
+
+	// Normalize ownership so the layer digest is reproducible across machines;
+	// FileInfoHeader populates these from the host file.
+	header.Uid = 0
+	header.Gid = 0
+	header.Uname = ""
+	header.Gname = ""
 
 	// HACK: make the linux binary executable when cross compiling from windows as the unix permissions gets lost.
 	if runtime.GOOS == "windows" && fi.Name() == build.BinaryName {
@@ -330,10 +456,7 @@ func (tc *tarCopier) WriteFile(dstPath ImagePath, mode fs.FileMode, data []byte)
 		Size:     int64(len(data)),
 	}
 	if tc.fileTimes != nil {
-		t := *tc.fileTimes
-		header.ModTime = t
-		header.AccessTime = t
-		header.ChangeTime = t
+		header.ModTime = *tc.fileTimes
 	}
 
 	tc.entries = append(tc.entries, &tarEntry{

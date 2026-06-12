@@ -1,13 +1,16 @@
 package dockerbuild
 
 import (
+	"archive/tar"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	qt "github.com/frankban/quicktest"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/option"
@@ -15,9 +18,7 @@ import (
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
-func TestBuildImage(t *testing.T) {
-	c := qt.New(t)
-
+func testImageConfig(c *qt.C) (DescribeConfig, HostPath) {
 	artifacts := paths.FS(c.TempDir())
 	writeFiles(c, artifacts, map[string]string{
 		"entrypoint":       "echo hello",
@@ -54,26 +55,113 @@ func TestBuildImage(t *testing.T) {
 		}},
 	}
 
-	spec, err := describe(cfg)
-	c.Assert(err, qt.IsNil)
-
 	encoreBinaries := paths.FS(c.TempDir())
 	writeFiles(c, encoreBinaries, map[string]string{
 		"supervisor.bin": "supervisor",
 	})
+	supervisorPath := HostPath(encoreBinaries.Join("supervisor.bin"))
+
+	return cfg, supervisorPath
+}
+
+func TestBuildImage(t *testing.T) {
+	c := qt.New(t)
+	cfg, supervisorPath := testImageConfig(c)
+
+	spec, err := describe(cfg)
+	c.Assert(err, qt.IsNil)
 
 	ctx := context.Background()
 	buildTime := time.Unix(1234567890, 0)
 	img, err := BuildImage(ctx, spec, ImageBuildConfig{
 		BuildTime:      buildTime,
-		SupervisorPath: option.Some(HostPath(encoreBinaries.Join("supervisor.bin"))),
+		SupervisorPath: option.Some(supervisorPath),
 	})
 	c.Assert(err, qt.IsNil)
 
 	_, err = img.Digest()
 	c.Assert(err, qt.IsNil)
-	// Note: this digest changes depending on the machine it's being built on
-	// c.Assert(digest.String(), qt.Equals, "sha256:6e0032a1560c506901bbc1bb291d7655639d242f5ca09d5e119876830e34813d")
+
+	// The image contents should be split into layers by volatility:
+	// runtime, dependencies, application, and configuration.
+	layers, err := img.Layers()
+	c.Assert(err, qt.IsNil)
+	c.Assert(len(layers), qt.Equals, 4)
+
+	c.Assert(layerEntryNames(c, layers[0]), qt.DeepEquals, []string{
+		"encore/",
+		"encore/runtimes/",
+		"encore/runtimes/js/",
+		"encore/runtimes/js/encore-runtime.node",
+		"encore/runtimes/js/encore.dev/",
+		"encore/runtimes/js/encore.dev/package.json",
+	})
+	c.Assert(layerEntryNames(c, layers[1]), qt.DeepEquals, []string{
+		"workspace/",
+		"workspace/node_modules/",
+		"workspace/node_modules/foo",
+	})
+	c.Assert(layerEntryNames(c, layers[2]), qt.DeepEquals, []string{
+		"workspace/",
+		"workspace/entrypoint",
+		"workspace/package.json",
+	})
+	c.Assert(layerEntryNames(c, layers[3]), qt.DeepEquals, []string{
+		"encore/build-info.json",
+		"encore/meta",
+	})
+}
+
+// TestBuildImage_ReproducibleLayers verifies that building the same app twice
+// produces identical layer digests, even with different build times, so that
+// unchanged layers can be reused from registry and pull caches.
+func TestBuildImage_ReproducibleLayers(t *testing.T) {
+	c := qt.New(t)
+	cfg, supervisorPath := testImageConfig(c)
+
+	ctx := context.Background()
+	build := func(buildTime time.Time) []v1.Layer {
+		spec, err := describe(cfg)
+		c.Assert(err, qt.IsNil)
+		img, err := BuildImage(ctx, spec, ImageBuildConfig{
+			BuildTime:      buildTime,
+			SupervisorPath: option.Some(supervisorPath),
+		})
+		c.Assert(err, qt.IsNil)
+		layers, err := img.Layers()
+		c.Assert(err, qt.IsNil)
+		return layers
+	}
+
+	first := build(time.Unix(1234567890, 0))
+	second := build(time.Unix(2222222222, 0))
+	c.Assert(len(second), qt.Equals, len(first))
+
+	for i := range first {
+		firstDigest, err := first[i].Digest()
+		c.Assert(err, qt.IsNil)
+		secondDigest, err := second[i].Digest()
+		c.Assert(err, qt.IsNil)
+		c.Assert(secondDigest, qt.Equals, firstDigest, qt.Commentf("layer %d digest differs", i))
+	}
+}
+
+func layerEntryNames(c *qt.C, layer v1.Layer) []string {
+	rc, err := layer.Uncompressed()
+	c.Assert(err, qt.IsNil)
+	defer func() { _ = rc.Close() }()
+
+	tr := tar.NewReader(rc)
+	var names []string
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		c.Assert(err, qt.IsNil)
+		names = append(names, hdr.Name)
+	}
+	return names
 }
 
 func writeFiles(c *qt.C, dir paths.FS, files map[string]string) {
