@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio_util::sync::CancellationToken;
@@ -7,8 +8,10 @@ use crate::encore::runtime::v1 as runtimepb;
 /// Default total shutdown time.
 const DEFAULT_TOTAL: Duration = Duration::from_secs(5);
 
-/// Default grace period after force shutdown before process exit.
-const FORCE_EXIT_GRACE: Duration = Duration::from_secs(1);
+/// Grace period after an exit has been requested before the process is
+/// force-terminated with `force_exit`. Must be generous enough to cover the
+/// host's orderly exit path (worker-thread termination plus Node teardown).
+const FORCE_EXIT_GRACE: Duration = Duration::from_secs(3);
 
 /// Configuration for graceful shutdown timings.
 #[derive(Debug, Clone)]
@@ -75,6 +78,77 @@ fn parse_k8s_grace_period(total: Duration) -> Duration {
     k8s_grace.saturating_sub(total)
 }
 
+/// Coordinates the process exit code between the graceful-shutdown path, the
+/// force-exit watchdog, and the host-language layer that performs the actual
+/// exit (e.g. `process.exit(code)` on Node's main thread).
+///
+/// The first request wins; later requests are ignored. This makes the
+/// graceful path and the watchdog race-safe: whoever reaches their exit
+/// condition first decides the code, and the host observes a single value.
+pub(crate) struct ExitCell {
+    code: Mutex<Option<i32>>,
+    notify: tokio::sync::Notify,
+}
+
+impl ExitCell {
+    pub(crate) fn new() -> Self {
+        Self {
+            code: Mutex::new(None),
+            notify: tokio::sync::Notify::new(),
+        }
+    }
+
+    /// Requests that the process exit with the given code.
+    /// The first request wins; subsequent requests are no-ops.
+    ///
+    /// Once an exit has been requested the process must terminate, so the
+    /// first request also arms a backstop that force-exits (with the same
+    /// code) if the host's exit path hasn't terminated the process within
+    /// the grace period — e.g. a wedged event loop, or a worker thread stuck
+    /// in native code during `worker.terminate()`. This covers every exit
+    /// origin (graceful completion, the watchdog deadline, and panic
+    /// recovery) without depending on a signal having been received.
+    pub(crate) fn request(&self, code: i32) {
+        {
+            let mut guard = self.code.lock().expect("exit cell lock poisoned");
+            if guard.is_some() {
+                return;
+            }
+            *guard = Some(code);
+            self.notify.notify_waiters();
+        }
+
+        let spawned = std::thread::Builder::new()
+            .name("encore-exit-backstop".into())
+            .spawn(move || {
+                std::thread::sleep(FORCE_EXIT_GRACE);
+                ::log::error!(
+                    "process still alive {FORCE_EXIT_GRACE:?} after exit was requested, force-exiting"
+                );
+                force_exit(code);
+            });
+        if let Err(err) = spawned {
+            // Extremely unlikely (thread exhaustion). The exit code is already
+            // recorded and waiters notified, so the normal exit path still
+            // works — we just lose the wedge protection.
+            ::log::error!("failed to spawn exit backstop thread: {err}");
+        }
+    }
+
+    /// Resolves once an exit code has been requested.
+    pub(crate) async fn wait(&self) -> i32 {
+        loop {
+            // Register interest before checking the state so a request
+            // between the check and the await can't be missed.
+            let notified = self.notify.notified();
+            if let Some(code) = *self.code.lock().expect("exit cell lock poisoned") {
+                return code;
+            }
+            notified.await;
+        }
+    }
+}
+
 /// Terminates the process immediately without running C `atexit` handlers or
 /// C++ static destructors.
 ///
@@ -89,12 +163,12 @@ fn parse_k8s_grace_period(total: Duration) -> Duration {
 ///
 /// `_exit` terminates the process immediately (`exit_group(2)` on Linux) with
 /// no handlers and no destructors — exactly what we want when force-terminating
-/// with live threads. On the normal path observability data is flushed before
-/// this is reached (see `run_blocking`); when the force-exit watchdog fires,
-/// shutdown is past its deadline and immediate termination takes priority.
-/// Known tradeoff: log lines emitted immediately before this call go through
-/// the async log writer thread (`log::writers`) and may not reach stderr
-/// before termination; the process exit code remains the authoritative
+/// with live threads. It is reached only from the exit backstop (the host
+/// failed to exit within the grace period after an exit was requested; see
+/// [`ExitCell::request`]) and from test mode, where nothing awaits the exit
+/// code. Known tradeoff: log lines emitted immediately before this call go
+/// through the async log writer thread (`log::writers`) and may not reach
+/// stderr before termination; the process exit code remains the authoritative
 /// shutdown signal.
 #[cfg(unix)]
 pub fn force_exit(code: i32) -> ! {
@@ -178,13 +252,16 @@ async fn wait_for_signal() {
 /// This function:
 /// 1. Waits for a shutdown signal (SIGINT/SIGTERM) in a background task
 /// 2. Initiates graceful shutdown (components stop accepting new work)
-/// 3. Force-exits the process if the total deadline is exceeded
+/// 3. If the total deadline is exceeded, requests a process exit (code 1)
+///    through the host's normal exit path
 ///
-/// The force exit is a safety net — normally `run_blocking` returns before
-/// the deadline and the JS layer exits the process cleanly from Node's main
-/// thread. The watchdog covers the cases where that path never runs: a wedged
-/// drain, a stuck event loop, or a worker that won't terminate.
-pub async fn run(config: ShutdownConfig) -> ShutdownHandle {
+/// The watchdog is a safety net — normally `run_blocking` finishes before the
+/// deadline and the JS layer exits the process cleanly from Node's main
+/// thread. The deadline request covers a wedged drain (the host is healthy,
+/// so it can still exit normally); a host that can't exit at all (wedged
+/// event loop, stuck worker termination) is covered by the force-exit
+/// backstop that arming any exit request starts (see [`ExitCell::request`]).
+pub(crate) async fn run(config: ShutdownConfig, exit: Arc<ExitCell>) -> ShutdownHandle {
     let initiated = CancellationToken::new();
     let handle = ShutdownHandle {
         initiated: initiated.clone(),
@@ -197,15 +274,15 @@ pub async fn run(config: ShutdownConfig) -> ShutdownHandle {
         // Initiate shutdown — components stop accepting new work.
         initiated.cancel();
 
-        // Safety net: force-exit the process if shutdown takes too long.
-        // The deadline includes the keep_accepting grace period (K8s LB propagation)
-        // plus the total drain/flush time.
-        // Normally the JS layer has exited the process well before this.
+        // When the deadline is reached, request a process exit through the
+        // host's normal exit path — the same mechanism graceful completion
+        // uses (first request wins). The deadline includes the keep_accepting
+        // grace period (K8s LB propagation) plus the total drain/flush time.
+        // Normally the process has exited well before this and this request
+        // is never made.
         tokio::time::sleep(config.keep_accepting + config.total).await;
-        ::log::warn!("graceful shutdown deadline reached, forcing exit");
-        tokio::time::sleep(FORCE_EXIT_GRACE).await;
-        ::log::error!("force shutdown grace period exceeded, exiting");
-        force_exit(1);
+        ::log::warn!("graceful shutdown deadline reached, requesting process exit");
+        exit.request(1);
     });
 
     handle
