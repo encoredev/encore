@@ -542,13 +542,12 @@ impl Runtime {
     /// code 1, so every caller (production and test mode alike) is guaranteed
     /// both a return value and an exit-cell request.
     pub fn run_blocking(&self) -> i32 {
-        let code = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            self.run_blocking_inner()
-        }))
-        .unwrap_or_else(|_| {
-            ::log::error!("runtime panicked while serving or shutting down");
-            1
-        });
+        let code =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run_blocking_inner()))
+                .unwrap_or_else(|_| {
+                    ::log::error!("runtime panicked while serving or shutting down");
+                    1
+                });
 
         // Request the exit (first request wins against the watchdog's
         // deadline request; arms the force-exit backstop). The tokio runtime
@@ -561,8 +560,7 @@ impl Runtime {
     fn run_blocking_inner(&self) -> i32 {
         self.runtime.block_on(async move {
             // Start the shutdown orchestrator (waits for signal in background).
-            let shutdown =
-                shutdown::run(self.shutdown_config.clone(), self.exit.clone()).await;
+            let shutdown = shutdown::run(self.shutdown_config.clone(), self.exit.clone()).await;
 
             // Start the API server with the shutdown handle.
             let api_handle = self.api().start_serving(shutdown.clone());
