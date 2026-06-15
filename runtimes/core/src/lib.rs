@@ -219,6 +219,7 @@ pub struct Runtime {
     runtime_config: runtime_config::RuntimeConfig,
     shutdown_config: shutdown::ShutdownConfig,
     tracer_flush: std::sync::Mutex<Option<trace::TracerFlush>>,
+    exit: Arc<shutdown::ExitCell>,
 }
 
 impl Runtime {
@@ -468,6 +469,7 @@ impl Runtime {
             runtime_config,
             shutdown_config,
             tracer_flush: std::sync::Mutex::new(tracer_flush),
+            exit: Arc::new(shutdown::ExitCell::new()),
         })
     }
 
@@ -521,11 +523,44 @@ impl Runtime {
         self.runtime.handle()
     }
 
-    #[inline]
-    pub fn run_blocking(&self) {
+    /// Runs the runtime until graceful shutdown completes, requesting the
+    /// process exit code (0 on clean shutdown, 1 on serve failure or panic)
+    /// and returning it.
+    ///
+    /// This deliberately does NOT exit the process: the runtime is embedded in
+    /// Node via a NAPI addon, and exiting from this background thread runs
+    /// exit-time teardown concurrently with Node's live threads (see
+    /// `shutdown::force_exit`). Instead the exit code is delivered through the
+    /// runtime's exit cell — the JS layer awaits it (`wait_for_exit_code`) and
+    /// calls `process.exit(code)` on Node's main thread so the host exits
+    /// through its own orderly teardown. The watchdog (`shutdown::run`)
+    /// requests an exit through the same cell at the shutdown deadline, and
+    /// every exit request arms a `_exit` backstop in case the host can't
+    /// exit at all.
+    ///
+    /// Panics during serving or shutdown are caught and converted into exit
+    /// code 1, so every caller (production and test mode alike) is guaranteed
+    /// both a return value and an exit-cell request.
+    pub fn run_blocking(&self) -> i32 {
+        let code =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run_blocking_inner()))
+                .unwrap_or_else(|_| {
+                    ::log::error!("runtime panicked while serving or shutting down");
+                    1
+                });
+
+        // Request the exit (first request wins against the watchdog's
+        // deadline request; arms the force-exit backstop). The tokio runtime
+        // stays alive (Arc<Runtime> in the JS layer's static OnceLock), which
+        // also keeps the watchdog task running until the process exits.
+        self.exit.request(code);
+        code
+    }
+
+    fn run_blocking_inner(&self) -> i32 {
         self.runtime.block_on(async move {
             // Start the shutdown orchestrator (waits for signal in background).
-            let shutdown = shutdown::run(self.shutdown_config.clone()).await;
+            let shutdown = shutdown::run(self.shutdown_config.clone(), self.exit.clone()).await;
 
             // Start the API server with the shutdown handle.
             let api_handle = self.api().start_serving(shutdown.clone());
@@ -565,20 +600,33 @@ impl Runtime {
                 flush.flush().await;
             }
 
-            // Exit. We can't just return here because the tokio runtime
-            // (and the orchestrator's force-exit task) is kept alive by Arc<Runtime>
-            // in the JS layer's static OnceLock.
+            // Return the exit code rather than exiting; run_blocking requests
+            // it through the exit cell (see its doc comment).
             match serve_result {
                 Ok(()) => {
                     ::log::info!("shutdown complete");
-                    std::process::exit(0);
+                    0
                 }
                 Err(err) => {
                     ::log::error!("server failed: {:?}", err);
-                    std::process::exit(1);
+                    1
                 }
             }
-        });
+        })
+    }
+
+    /// Requests that the process exit with the given code. The first request
+    /// (graceful completion, the watchdog deadline, or the host layer) wins.
+    pub fn request_exit(&self, code: i32) {
+        self.exit.request(code);
+    }
+
+    /// Resolves once a process exit code has been requested — either by
+    /// graceful shutdown completing ([`run_blocking`](Self::run_blocking)
+    /// finishing) or by the force-exit watchdog reaching its deadline with
+    /// the shutdown still in progress.
+    pub async fn wait_for_exit_code(&self) -> i32 {
+        self.exit.wait().await
     }
 
     #[inline]
