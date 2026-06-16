@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package encore.ecl.v1;
+
+option go_package = "encr.dev/proto/encore/ecl/v1;eclv1";
+
+// EvaluationResult is the output of evaluating an ECL policy set against an
+// environment: the resolved configuration for every resource, with the
+// effective constraints the resolved values satisfy.
+message EvaluationResult {
+  repeated Resource resources = 1;
+}
+
+// Resource is one evaluated infrastructure resource.
+message Resource {
+  string kind = 1; // resource kind, e.g. "service", "sql_cluster"
+  string name = 2; // resource name, e.g. "api", "main"
+
+  // managed is true if ECL instantiates this resource (a managed kind such as
+  // sql_cluster); false if it only configures a resource discovered from the
+  // application (such as service).
+  bool managed = 3;
+
+  // properties holds the resolved scalar configuration: explicitly-set values
+  // plus applied defaults, each with the effective constraint it satisfies.
+  repeated Property properties = 4;
+
+  // references holds the reference-valued properties, each resolved to a target
+  // resource (and any constraints that target must satisfy).
+  repeated Reference references = 5;
+}
+
+// Property is one resolved scalar property of a resource.
+message Property {
+  string path = 1;        // dotted property path, e.g. "cpu", "instances.min"
+  Value value = 2;        // the resolved value
+  ValueSource source = 3; // where the value came from
+
+  // constraint is the effective constraint the value must satisfy, merged from
+  // every rule that matched the resource. Unset if no rule constrains it.
+  Constraint constraint = 4;
+}
+
+// ValueSource says where a resolved value came from.
+enum ValueSource {
+  VALUE_SOURCE_UNSPECIFIED = 0;
+  VALUE_SOURCE_EXPLICIT = 1; // configured on the resource itself
+  VALUE_SOURCE_DEFAULT = 2;  // applied from a rule default (or exact-value default)
+}
+
+// Value is a resolved ECL value. Sizes are canonical bytes and durations are
+// canonical milliseconds; `unit` carries the original display unit.
+message Value {
+  oneof kind {
+    double number_value = 1;
+    bool bool_value = 2;
+    string string_value = 3;
+    double size_bytes = 4;  // size in bytes
+    double duration_ms = 5; // duration in milliseconds
+  }
+
+  // unit is the display unit for sizes/durations (e.g. "Gi", "d"); empty means
+  // choose one automatically. Ignored for number/bool/string.
+  string unit = 6;
+}
+
+// Constraint is the effective, merged constraint on a property: the
+// intersection of the constraints from every matching rule, normalized into
+// bounds and value sets. Shapes that don't normalize (e.g. a disjunction
+// containing ranges) are represented only by `expr`.
+message Constraint {
+  bool required = 1;           // the property must be set
+  Bound min = 2;               // lower bound (>= / >); absent if none
+  Bound max = 3;               // upper bound (<= / <); absent if none
+  repeated Value allowed = 4;  // allowed values (== or `in [...]`); empty if unconstrained
+  repeated Value excluded = 5; // disallowed values (!=)
+
+  // expr is the effective constraint rendered as ECL source text, e.g.
+  // ">= 1 & <= 4". Set whenever a constraint exists; the authoritative form when
+  // the structured fields above cannot represent it.
+  string expr = 6;
+}
+
+// Bound is one side of a numeric/size/duration range.
+message Bound {
+  Value value = 1;
+  bool inclusive = 2; // true for >= / <=, false for > / <
+}
+
+// Reference is a reference-valued property resolved to a target resource.
+message Reference {
+  string path = 1;        // property path holding the reference, e.g. "cluster"
+  string target_kind = 2; // referenced resource kind, e.g. "sql_cluster"
+  string target_name = 3; // resolved target name; empty if unresolved
+
+  // unresolved is the reason the reference could not be resolved; empty on
+  // success.
+  string unresolved = 4;
+
+  // object holds constraints the target resource must satisfy, from nested
+  // object syntax (e.g. `cluster: sql_cluster.main & { backup_retention: >= 90d }`).
+  repeated PropertyConstraint object = 5;
+}
+
+// PropertyConstraint is a constraint on a (referenced) resource's property,
+// without a resolved value.
+message PropertyConstraint {
+  string path = 1;
+  Constraint constraint = 2;
+}

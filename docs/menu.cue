@@ -1283,6 +1283,21 @@
 			},
 			{
 				kind: "accordion"
+				text: "Configuration Language (ECL)"
+				accordion: [{
+					kind: "basic"
+					text: "Overview & Tutorial"
+					path: "/platform/infrastructure/ecl"
+					file: "platform/infrastructure/ecl/overview"
+				}, {
+					kind: "basic"
+					text: "Language Reference"
+					path: "/platform/infrastructure/ecl/reference"
+					file: "platform/infrastructure/ecl/reference"
+				}]
+			},
+			{
+				kind: "accordion"
 				text: "GCP Infrastructure"
 				accordion: [{
 					kind: "basic"
