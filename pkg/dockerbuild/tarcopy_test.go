@@ -90,6 +90,32 @@ func TestMkdirAll_Deduplication(t *testing.T) {
 	})
 }
 
+func TestNodeModulesPath(t *testing.T) {
+	tests := []struct {
+		path   HostPath
+		within bool
+		isRoot bool
+	}{
+		{"node_modules", true, true},
+		{"node_modules/foo", true, false},
+		{"app/node_modules", true, true},
+		{"app/node_modules/pkg", true, false},
+		{"app/node_modules/pkg/node_modules", true, false},
+		{"app/src/index.ts", false, false},
+		{"node_modules_backup/foo", false, false},
+		{".", false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.path), func(t *testing.T) {
+			c := qt.New(t)
+			within, isRoot := nodeModulesPath(tt.path)
+			c.Assert(within, qt.Equals, tt.within)
+			c.Assert(isRoot, qt.Equals, tt.isRoot)
+		})
+	}
+}
+
 func TestMkdirAll_OrderingInvariant(t *testing.T) {
 	c := qt.New(t)
 	tc := newTarCopier()

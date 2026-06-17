@@ -3,7 +3,9 @@ package dockerbuild
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -27,8 +29,16 @@ import (
 // From https://go.dev/src/crypto/x509/root_linux.go.
 const DefaultCACertsPath ImagePath = "/etc/ssl/certs/ca-certificates.crt"
 
+// layerEpoch is the fixed timestamp used for all files in image layers.
+// Using a fixed time (rather than the build time) makes layer contents
+// reproducible, so unchanged layers keep identical digests across builds.
+var layerEpoch = time.Unix(0, 0)
+
 type ImageBuildConfig struct {
-	// The time to use when recording times in the image.
+	// The time to use when recording times in the image configuration,
+	// such as the image creation time and history entries.
+	// File timestamps in the image layers always use a fixed epoch
+	// so that layer digests are reproducible across builds.
 	BuildTime time.Time
 
 	// AddCACerts, if set, specifies where in the image to mount the CA certificates.
@@ -60,31 +70,34 @@ func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.
 		return nil, errors.Wrap(err, "resolve base image")
 	}
 
-	opener, err := buildImageFilesystem(ctx, spec, &cfg)
+	layers, err := buildImageFilesystem(ctx, spec, &cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "build image fs")
 	}
 
-	layer, err := tarball.LayerFromOpener(opener,
-		tarball.WithCompressionLevel(5), // balance speed and compression
-	)
-
-	if err != nil {
-		return nil, errors.Wrap(err, "create tarball layer")
+	adds := make([]mutate.Addendum, 0, len(layers))
+	for _, l := range layers {
+		layer, err := tarball.LayerFromOpener(l.opener,
+			tarball.WithCompressionLevel(5), // balance speed and compression
+		)
+		if err != nil {
+			return nil, errors.Wrapf(err, "create %s layer", l.kind)
+		}
+		adds = append(adds, mutate.Addendum{
+			Layer: layer,
+			History: v1.History{
+				Author:    "encore-app",
+				Created:   v1.Time{Time: cfg.BuildTime},
+				CreatedBy: "encore.dev",
+				Comment:   fmt.Sprintf("%s layer, built with encore.dev", l.kind),
+			},
+		})
 	}
 
-	log.Info().Msg("adding layer to base image")
-	img, err := mutate.Append(baseImg, mutate.Addendum{
-		Layer: layer,
-		History: v1.History{
-			Author:    "encore-app",
-			Created:   v1.Time{Time: cfg.BuildTime},
-			CreatedBy: "encore.dev",
-			Comment:   "Built with encore.dev, the backend development engine",
-		},
-	})
+	log.Info().Int("layers", len(adds)).Msg("adding layers to base image")
+	img, err := mutate.Append(baseImg, adds...)
 	if err != nil {
-		return nil, errors.Wrap(err, "add layer")
+		return nil, errors.Wrap(err, "add layers")
 	}
 
 	// Copy the base image's environment variables.
@@ -146,33 +159,33 @@ func resolveBaseImage(ctx context.Context, baseImgTag string, overrideBaseImage 
 	return ResolveRemoteImage(ctx, baseImgTag, options...)
 }
 
-func buildImageFilesystem(ctx context.Context, spec *ImageSpec, cfg *ImageBuildConfig) (opener tarball.Opener, err error) {
-	tc := newTarCopier(setFileTimes(cfg.BuildTime))
+func buildImageFilesystem(ctx context.Context, spec *ImageSpec, cfg *ImageBuildConfig) ([]imageLayer, error) {
+	lc := newLayeredTarCopier(setFileTimes(layerEpoch))
 
 	// Bundle the source code, if requested.
 	if bundle, ok := spec.BundleSource.Get(); ok {
-		if err := bundleSource(tc, spec, &bundle); err != nil {
+		if err := bundleSource(lc, spec, &bundle); err != nil {
 			return nil, err
 		}
 	}
 
 	// Copy data into the image.
-	if err := tc.CopyData(spec); err != nil {
+	if err := lc.CopyData(spec); err != nil {
 		return nil, err
 	}
 
 	// Copy Encore binaries into the image.
-	if err := setupSupervisor(tc, spec, cfg); err != nil {
+	if err := setupSupervisor(lc, spec, cfg); err != nil {
 		return nil, err
 	}
 
 	// Add build information.
-	if err := writeBuildInfo(tc, spec.BuildInfo); err != nil {
+	if err := writeBuildInfo(lc.Layer(configLayer), spec.BuildInfo); err != nil {
 		return nil, err
 	}
 
 	// Write additional files
-	if err := writeExtraFiles(tc, spec.WriteFiles); err != nil {
+	if err := writeExtraFiles(lc.Layer(configLayer), spec.WriteFiles); err != nil {
 		return nil, err
 	}
 
@@ -181,30 +194,31 @@ func buildImageFilesystem(ctx context.Context, spec *ImageSpec, cfg *ImageBuildC
 		if caCertsDest == "" {
 			caCertsDest = DefaultCACertsPath
 		}
-		if err := addCACerts(ctx, tc, caCertsDest); err != nil {
+		if err := addCACerts(ctx, lc.Layer(certsLayer), caCertsDest); err != nil {
 			return nil, errors.Wrap(err, "add ca certs")
 		}
 	}
 
-	return tc.Opener(), nil
+	return lc.Layers(), nil
 }
 
 func writeExtraFiles(tc *tarCopier, files map[ImagePath][]byte) error {
-	for path, data := range files {
-		if err := tc.WriteFile(path, 0644, data); err != nil {
+	// Sort the paths so the layer contents are deterministic.
+	for _, path := range slices.Sorted(maps.Keys(files)) {
+		if err := tc.WriteFile(path, 0644, files[path]); err != nil {
 			return errors.Wrap(err, "write image data")
 		}
 	}
 	return nil
 }
 
-func setupSupervisor(tc *tarCopier, spec *ImageSpec, cfg *ImageBuildConfig) error {
+func setupSupervisor(lc *layeredTarCopier, spec *ImageSpec, cfg *ImageBuildConfig) error {
 	super, ok := spec.Supervisor.Get()
 	if !ok {
 		return nil
 	}
 
-	// Add the supervisor binary.
+	// Add the supervisor binary to the runtime layer.
 	{
 		hostPath, ok := cfg.SupervisorPath.Get()
 		if !ok {
@@ -215,6 +229,7 @@ func setupSupervisor(tc *tarCopier, spec *ImageSpec, cfg *ImageBuildConfig) erro
 			return errors.Wrap(err, "stat supervisor")
 		}
 
+		tc := lc.Layer(runtimeLayer)
 		if err := tc.MkdirAll(super.MountPath.Dir(), 0755); err != nil {
 			return errors.Wrap(err, "create supervisor dir")
 		}
@@ -223,13 +238,13 @@ func setupSupervisor(tc *tarCopier, spec *ImageSpec, cfg *ImageBuildConfig) erro
 		}
 	}
 
-	// Write the supervisor configuration.
+	// Write the supervisor configuration to the config layer.
 	{
 		data, err := json.MarshalIndent(super.Config, "", "  ")
 		if err != nil {
 			return errors.Wrap(err, "marshal supervisor config")
 		}
-		if err := tc.WriteFile(super.ConfigPath, 0644, data); err != nil {
+		if err := lc.Layer(configLayer).WriteFile(super.ConfigPath, 0644, data); err != nil {
 			return errors.Wrap(err, "write supervisor config")
 		}
 	}
@@ -237,7 +252,7 @@ func setupSupervisor(tc *tarCopier, spec *ImageSpec, cfg *ImageBuildConfig) erro
 	return nil
 }
 
-func bundleSource(tc *tarCopier, spec *ImageSpec, bundle *BundleSourceSpec) error {
+func bundleSource(lc *layeredTarCopier, spec *ImageSpec, bundle *BundleSourceSpec) error {
 	includes := []HostPath{bundle.Source.Join(filepath.FromSlash(string(bundle.AppRootRelpath)))}
 	for _, ex := range bundle.IncludeSource {
 		includes = append(includes, bundle.Source.Join(string(ex)))
@@ -249,12 +264,13 @@ func bundleSource(tc *tarCopier, spec *ImageSpec, bundle *BundleSourceSpec) erro
 		excludes[absPath] = true
 	}
 
-	err := tc.CopyDir(&dirCopyDesc{
+	err := lc.Layer(appLayer).CopyDir(&dirCopyDesc{
 		Spec:            spec,
 		SrcPath:         bundle.Source,
 		DstPath:         bundle.Dest,
 		ExcludeSrcPaths: excludes,
 		IncludeSrcPaths: includes,
+		DepsCopier:      lc.Layer(depsLayer),
 	})
 	return errors.Wrap(err, "bundle source")
 }
