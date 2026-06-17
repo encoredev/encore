@@ -13,6 +13,7 @@ When you run your application locally, `encore run` starts a matching local impl
 ## A standard toolbox for developers and AI agents
 
 These primitives also make Encore.ts an ideal target for efficient development work, especially using AI coding agents. Almost any backend problem can be solved by composing this small, well-understood set of building blocks, so humans and agents don't need to evaluate dozens of competing libraries or assemble bespoke infrastructure for each task. Instead, you pick from a stable, typed vocabulary that maps directly to production cloud resources. The infrastructure building blocks capture the semantics of the infrastructure resources used, which means you can reason about the full stack from a single source of truth.
+
 ## Application building blocks
 
 These are the structural primitives that organize your code.
