@@ -8,11 +8,11 @@ lang: ts
 
 Encore.ts gives you the core set of infrastructure primitives that backend applications reach for 99% of the time: SQL databases, Pub/Sub, object storage, caches, cron jobs, and secrets. You declare them directly in your TypeScript code as typed objects and use them through their methods.
 
-When you run your application locally, Encore boots a matching local implementation of each primitive (real Postgres, a local Pub/Sub broker, local object storage, and so on). In production you have two options. With [Encore Cloud](/docs/platform), the same declarations are used to provision the equivalent managed services (RDS, SNS+SQS, S3, etc.) in your own AWS or GCP account. If you prefer to self-host, you provision the infrastructure yourself (using Terraform or any other tool) and point Encore at it through an [infrastructure config file](/docs/ts/self-host/configure-infra).
+When you run your application locally, `encore run` starts a matching local implementation of each primitive (real Postgres, a local Pub/Sub broker, local object storage, and so on). In production you have two options. With [Encore Cloud](/docs/platform), the same declarations are used to provision the equivalent managed services (RDS, SNS+SQS, S3, etc.) in your own AWS or GCP account. If you prefer to self-host, you provision the infrastructure yourself (using Terraform or any other tool) and point Encore at it through an [infrastructure config file](/docs/ts/self-host/configure-infra).
 
-## A standard toolbox for AI agents
+## A standard toolbox for developers and AI agents
 
-These primitives also make Encore.ts an ideal target for AI coding agents. Almost any backend problem can be solved by composing this small, well-understood set of building blocks, so an agent doesn't need to evaluate dozens of competing libraries or assemble bespoke infrastructure for each task. It picks from a stable, typed vocabulary that maps directly to production cloud resources. The same declarations that the agent writes are what gets provisioned, which means the agent can reason about the full stack from a single source of truth.
+These primitives also make Encore.ts an ideal target for efficient development work, especially using AI coding agents. Almost any backend problem can be solved by composing this small, well-understood set of building blocks, so humans and agents don't need to evaluate dozens of competing libraries or assemble bespoke infrastructure for each task. Instead, you pick from a stable, typed vocabulary that maps directly to production cloud resources. The infrastructure building blocks capture the semantics of the infrastructure resources used, which means you can reason about the full stack from a single source of truth.
 
 ## Application building blocks
 
