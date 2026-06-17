@@ -12,7 +12,7 @@ lang: go
     <div className="w-[75%] lg:w-[75%]">
         <h2 className="text-white lead-medium">Quick Start Guide</h2>
         <div className="body-small text-white mt-2">
-            Build your first Encore.go application in minutes
+            Try building with Encore.go
         </div>
         <a href="/docs/go/quick-start">
             <Button className="mt-4" kind="primary" section="black">Get started</Button>
