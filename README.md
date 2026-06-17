@@ -75,9 +75,9 @@ Encore provisions every resource with sane production defaults, then helps you m
 
 The same infrastructure model runs locally, in per-PR preview environments, and in production:
 
-1. **Local.** `encore run` boots the whole system on your laptop: real Postgres, real Pub/Sub semantics, type-safe service-to-service calls, plus a local dashboard with distributed tracing. No Docker Compose, no Localstack. [Infrastructure namespaces](https://encore.dev/docs/ts/cli/infra-namespaces) let multiple branches or agents work in parallel with isolated state.
-2. **Per-PR preview environment.** Open a pull request and Encore Cloud spins up an ephemeral environment in your own VPC, with the same infrastructure model and (optionally) a [database branched from a seed environment](https://encore.dev/docs/platform/infrastructure/neon). End-to-end validation against real cloud services before merge.
-3. **Production.** Push to deploy. Encore diffs the application graph against the environment, provisions whatever is missing in your AWS or GCP account, generates least-privilege IAM from real code paths, and rolls out the new code. No Terraform PR, no console wizard.
+1. **Local:** `encore run` boots the whole system on your laptop: real Postgres, real Pub/Sub semantics, type-safe service-to-service calls, plus a local dashboard with distributed tracing. No Docker Compose, no Localstack. [Infrastructure namespaces](https://encore.dev/docs/ts/cli/infra-namespaces) let multiple branches or agents work in parallel with isolated state.
+2. **Per-PR preview environment:** Open a pull request and Encore Cloud spins up an ephemeral environment in your own VPC, with the same infrastructure model and (optionally) a [database branched from a seed environment](https://encore.dev/docs/platform/infrastructure/neon). End-to-end validation against real cloud services before merge.
+3. **Production:** Push to deploy. Encore diffs the application graph against the environment, provisions whatever is missing in your AWS or GCP account, generates least-privilege IAM from real code paths, and rolls out the new code. No Terraform PR, no console wizard.
 
 The fail-loop moves from "push, wait, fix" to "run locally, see it work, push." This tight loop is also what makes Encore particularly effective with AI coding agents, since every change can be validated end-to-end against real infrastructure rather than guessed at. See the [Development Workflow](https://encore.dev/docs/platform/workflow) docs for the full picture.
 

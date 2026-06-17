@@ -30,29 +30,29 @@ When your application is deployed, **there are no runtime dependencies on Encore
 
 Because the SDK is the source of truth for your infrastructure, the same model runs locally, in per-PR preview environments, and in production:
 
-1. **Local**. `encore run` boots the whole system on your laptop with real Postgres, real Pub/Sub semantics, and real tracing. [Infrastructure namespaces](/docs/ts/cli/infra-namespaces) let multiple branches or agents work in parallel with isolated local state.
-2. **Per-PR preview environments**. Each pull request gets an ephemeral [preview environment](/docs/platform/deploy/preview-environments) in your own VPC, optionally with a [database branched from a seed environment](/docs/platform/infrastructure/neon). End-to-end validation against real cloud services before merge.
-3. **Production**. The same declarations provision the production resources on deploy.
+1. **Local:** `encore run` boots the whole system on your laptop with real Postgres, real Pub/Sub semantics, and real tracing. [Infrastructure namespaces](/docs/ts/cli/infra-namespaces) let multiple branches or agents work in parallel with isolated local state.
+2. **Per-PR preview environments:** Each pull request gets an ephemeral [preview environment](/docs/platform/deploy/preview-environments) in your own VPC, optionally with a [database branched from a seed environment](/docs/platform/infrastructure/neon). End-to-end validation against real cloud services before merge.
+3. **Production:** The same declarations provision the production resources on deploy.
 
 This loop is what's structurally missing from Terraform-based workflows, which tend to be production-centric and hard to run on a laptop. The tight feedback loop is especially impactful for [AI coding agents](/docs/platform/ai-integration), which work best when they can validate their own changes against real infrastructure rather than guess. See the [Development Workflow](/docs/platform/workflow) page for the full picture.
 
 ## What Encore Cloud gives you
 
 ### Infrastructure provisioning in your own cloud
-- **Direct provisioning via cloud APIs**. Encore Cloud creates resources using your cloud provider's official APIs. No IaC files to maintain; your code is the source of truth. See [Provisioning & Environments](/docs/platform/infrastructure/infra).
-- **Battle-tested managed services**. Provisions Cloud Run / Fargate, GKE / EKS, CloudSQL / RDS, Pub/Sub / SNS+SQS, and so on, with sensible defaults per cloud.
-- **Least-privilege IAM, generated from code**. Permissions are derived from how each resource is used, not hand-written policies.
-- **Infrastructure inventory and change management**. See every provisioned resource and review infrastructure changes before they're applied.
+- **Direct provisioning via cloud APIs:** Encore Cloud creates resources using your cloud provider's official APIs. No IaC files to maintain; your code is the source of truth. See [Provisioning & Environments](/docs/platform/infrastructure/infra).
+- **Battle-tested managed services:** Provisions Cloud Run / Fargate, GKE / EKS, CloudSQL / RDS, Pub/Sub / SNS+SQS, and so on, with sensible defaults per cloud.
+- **Least-privilege IAM, generated from code:** Permissions are derived from how each resource is used, not hand-written policies.
+- **Infrastructure inventory and change management:** See every provisioned resource and review infrastructure changes before they're applied.
 
 ### Deployments and environments
-- **Zero-config deploys**. Connect a [GitHub repo](/docs/platform/integrations/github) and your cloud account; push to deploy. See [Deploying & CI/CD](/docs/platform/deploy/deploying).
-- **[Preview environments](/docs/platform/deploy/preview-environments) per pull request**. Real cloud resources, automatically created and torn down.
-- **Multiple environments out of the box**. Staging, production, and ad-hoc environments share the same code path. See [Environments](/docs/platform/deploy/environments).
-- **Secrets management**. Reference secrets by name in code; Encore stores them in your cloud's secret manager and injects them at runtime.
+- **Zero-config deploys:** Connect a [GitHub repo](/docs/platform/integrations/github) and your cloud account; push to deploy. See [Deploying & CI/CD](/docs/platform/deploy/deploying).
+- **[Preview environments](/docs/platform/deploy/preview-environments) per pull request:** Real cloud resources, automatically created and torn down.
+- **Multiple environments out of the box:** Staging, production, and ad-hoc environments share the same code path. See [Environments](/docs/platform/deploy/environments).
+- **Secrets management:** Reference secrets by name in code; Encore stores them in your cloud's secret manager and injects them at runtime.
 
 ### Observability
 - **Distributed tracing, metrics, and logs**, with no agent code in your application. See [Tracing](/docs/platform/observability/tracing) and [Metrics](/docs/platform/observability/metrics).
-- **Third-party export**. Send telemetry to Datadog, Grafana, or other tools you already use.
+- **Third-party export:** Send telemetry to Datadog, Grafana, or other tools you already use.
 - **Cost monitoring** across your cloud resources (GCP today, AWS in progress).
 
 ### Documentation and discovery

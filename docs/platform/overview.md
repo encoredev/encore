@@ -15,10 +15,10 @@ You own the cloud account and the infrastructure. There are no runtime dependenc
 
 ## What Encore Cloud does
 
-- **[A tight iteration loop from local to production](/docs/platform/workflow)**. The same infrastructure model runs locally, in per-PR preview environments, and in production, so every change can be validated end-to-end against real cloud services before merge. This is what makes Encore work well with AI coding agents.
-- **[Provisions infrastructure in your cloud](/docs/platform/infrastructure/infra)**. Encore reads the resources you declared in code and creates the corresponding services in your AWS or GCP account, with least-privilege IAM generated from how the code uses them.
-- **[Manages deployments and environments](/docs/platform/deploy/deploying)**. Connect a GitHub repo and push to deploy; preview environments, staging, and production are all handled with no CI/CD pipeline to maintain.
-- **[Built-in observability](/docs/platform/observability/tracing)**. Distributed tracing, metrics, and logs, plus a [service catalog](/docs/platform/observability/service-catalog) and [architecture diagrams](/docs/platform/observability/encore-flow) generated from your code.
+- **[A tight iteration loop from local to production](/docs/platform/workflow):** The same infrastructure model runs locally, in per-PR preview environments, and in production, so every change can be validated end-to-end against real cloud services before merge. This is what makes Encore work well with AI coding agents.
+- **[Provisions infrastructure in your cloud](/docs/platform/infrastructure/infra):** Encore reads the resources you declared in code and creates the corresponding services in your AWS or GCP account, with least-privilege IAM generated from how the code uses them.
+- **[Manages deployments and environments](/docs/platform/deploy/deploying):** Connect a GitHub repo and push to deploy; preview environments, staging, and production are all handled with no CI/CD pipeline to maintain.
+- **[Built-in observability](/docs/platform/observability/tracing):** Distributed tracing, metrics, and logs, plus a [service catalog](/docs/platform/observability/service-catalog) and [architecture diagrams](/docs/platform/observability/encore-flow) generated from your code.
 
 See [customer stories](/customers) for how teams use Encore Cloud in production.
 
