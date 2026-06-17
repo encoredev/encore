@@ -1,19 +1,26 @@
 ---
-seotitle: Encore Cloud Docs
-seodesc: How Encore Cloud Platform helps you reduce DevOps work by 93% by automating infra in your cloud on AWS/GCP.
+seotitle: Encore Cloud — Provision and operate AWS and GCP from your application code
+seodesc: Encore Cloud is the optional managed platform that pairs with the Encore.ts and Encore.go infrastructure SDKs. It provisions and operates AWS and GCP infrastructure directly from the resources you declare in your code.
 title: Encore Cloud
-subtitle: The easiest way to develop and deploy your application to AWS/GCP
+subtitle: The managed platform that provisions and operates AWS and GCP from your application code
 toc: false
 lang: platform
 ---
 
-[Encore Cloud](/docs/platform) is a development platform for running production applications in your own AWS or GCP environment.
+Encore Cloud is a managed platform that pairs with the [Encore.ts](/docs/ts) and [Encore.go](/docs/go) infrastructure SDKs.
 
-It automates infrastructure provisioning, deployments, and operations, while providing built-in observability including distributed tracing, metrics, and logs.
+The SDKs let you declare cloud infrastructure (SQL databases, Pub/Sub, object storage, caches, cron jobs, secrets) directly in your application code. Encore Cloud reads those declarations and provisions matching resources (RDS, Cloud SQL, SNS+SQS, Pub/Sub, S3, GCS, etc.) in **your own AWS or GCP account**, then handles deployments, environments, secrets, and observability on top.
 
-Teams using Encore Cloud report **2-3x** faster development speed and **93%** less time spent on DevOps. See more details in [customer stories](/customers).
+You own the cloud account and the infrastructure. There are no runtime dependencies on Encore Cloud, and no proprietary code runs in your cloud. If you'd rather wire everything up yourself (with Terraform, Pulumi, or any other tool), [self-hosting](/docs/ts/self-host/build) is fully supported.
 
-Learn more about how it works in the [introduction](/docs/platform/introduction).
+## What Encore Cloud does
+
+- **[A tight iteration loop from local to production](/docs/platform/workflow):** The same infrastructure model runs locally, in per-PR preview environments, and in production, so every change can be validated end-to-end against real cloud services before merge. This is what makes Encore work well with AI coding agents.
+- **[Provisions infrastructure in your cloud](/docs/platform/infrastructure/infra):** Encore reads the resources you declared in code and creates the corresponding services in your AWS or GCP account, with least-privilege IAM generated from how the code uses them.
+- **[Manages deployments and environments](/docs/platform/deploy/deploying):** Connect a GitHub repo and push to deploy; preview environments, staging, and production are all handled with no CI/CD pipeline to maintain.
+- **[Built-in observability](/docs/platform/observability/tracing):** Distributed tracing, metrics, and logs, plus a [service catalog](/docs/platform/observability/service-catalog) and [architecture diagrams](/docs/platform/observability/encore-flow) generated from your code.
+
+See [customer stories](/customers) for how teams use Encore Cloud in production.
 
 <div className="min-h-72 bg-black p-8 relative overflow-hidden not-prose">
     <div className="w-[75%] lg:w-[85%]">

@@ -235,6 +235,11 @@
 			text: "Primitives"
 			items: [{
 				kind: "basic"
+				text: "Overview"
+				path: "/go/primitives"
+				file: "go/primitives/overview"
+			}, {
+				kind: "basic"
 				text: "App Structure"
 				path: "/go/primitives/app-structure"
 				file: "go/primitives/app-structure"
@@ -707,6 +712,11 @@
 			kind: "section"
 			text: "Primitives"
 			items: [{
+				kind: "basic"
+				text: "Overview"
+				path: "/ts/primitives"
+				file: "ts/primitives/overview"
+			}, {
 				kind: "basic"
 				text: "App Structure"
 				path: "/ts/primitives/app-structure"
@@ -1220,6 +1230,11 @@
 				text: "Introduction"
 				path: "/platform/introduction"
 				file: "platform/introduction"
+			}, {
+				kind: "basic"
+				text: "Development Workflow"
+				path: "/platform/workflow"
+				file: "platform/workflow"
 			}, {
 				kind: "basic"
 				text: "AI Integration"

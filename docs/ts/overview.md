@@ -1,8 +1,8 @@
 ---
-seotitle: Start building backends using Encore.ts
-seodesc: Learn how Encore.ts works, and get to know the powerful features that help you build cloud backend applications easier than ever before.
+seotitle: Encore.ts — Infrastructure SDK for TypeScript
+seodesc: Encore.ts is an open source infrastructure SDK that lets you declare cloud infrastructure, such as databases, Pub/Sub, and object storage, directly in your TypeScript code.
 title: Encore.ts
-subtitle: Use Encore.ts to build production-ready backend applications and distributed systems
+subtitle: An open source infrastructure SDK for TypeScript
 toc: false
 lang: ts
 ---
@@ -12,7 +12,7 @@ lang: ts
     <div className="w-[75%] lg:w-[75%]">
         <h2 className="text-white lead-medium">Quick Start Guide</h2>
         <div className="body-small text-white mt-2">
-            Build your first Encore.ts application in minutes
+            Try building with Encore.ts
         </div>
         <a href="/docs/ts/quick-start">
             <Button className="mt-4" kind="primary" section="black">Get started</Button>
@@ -20,15 +20,39 @@ lang: ts
     </div>
 </div>
 
-Encore.ts is an open source backend framework for building type-safe distributed system. It provides a declarative approach to working with essential backend primitives like APIs, microservices, databases, queues, caches, cron jobs, and storage buckets.
+Encore.ts is an open source infrastructure SDK that lets you declare the cloud infrastructure your application needs, such as databases, Pub/Sub topics, object storage, caches, cron jobs, and secrets, directly in your TypeScript code.
 
-The framework comes with a lot of built-in tooling for a productive end-to-end developer experience:
+Instead of stitching together Terraform, YAML, and cloud consoles to wire up these resources, you declare them as type-safe objects and use them through their SDK methods. Encore then takes care of running the matching infrastructure locally during development, and (with [Encore Cloud](/docs/platform)) provisioning the real cloud resources in your own AWS or GCP account when you deploy.
 
-- **Local Environment Management**: Encore automatically sets up and runs your local development environment and all local infrastructure.
-- **Enhanced Observability**: Encore comes with tools like a [Local Development Dashboard](/docs/ts/observability/dev-dash), [tracing](/docs/ts/observability/tracing), and a database explorer for monitoring application behavior.
-- **Automatic Documentation**: Generates and maintains [up-to-date documentation](/docs/ts/observability/service-catalog) for APIs and services, and created [architecture diagrams](/docs/ts/observability/flow) for your system.
-- **AI Integration:** Encore comes with built-in tools for effective AI assisted development, like [AI instructions](/docs/ts/ai-integration) and an [MCP server](/docs/ts/cli/mcp).
-- **DevOps Automation Platform (Optional)**: [Encore Cloud](/docs/platform) is an optional platform for automating infrastructure provisioning and DevOps processes in your cloud on AWS and GCP.
+## What you get with Encore.ts
+
+- **Infrastructure as TypeScript**: Declare [SQL databases](/docs/ts/primitives/databases), [Pub/Sub topics and subscriptions](/docs/ts/primitives/pubsub), [object storage buckets](/docs/ts/primitives/object-storage), [caches](/docs/ts/primitives/caching), [cron jobs](/docs/ts/primitives/cron-jobs), and [secrets](/docs/ts/primitives/secrets) as objects in your code. Encore understands how these resources are used and generates the runtime wiring for you.
+- **Local infrastructure, automatically**: Run `encore run` and Encore boots a local environment that mirrors production: real Postgres, a local Pub/Sub broker, local object storage, and so on. No Docker Compose files to maintain.
+- **Type-safe service-to-service calls**: Define APIs as plain TypeScript functions. Calling another service is a normal function call; Encore handles serialization, routing, and validation at the boundary.
+- **Built-in observability**: A [local development dashboard](/docs/ts/observability/dev-dash) with distributed [tracing](/docs/ts/observability/tracing), logs, and a database explorer, so you can see what your application is doing without bolting on extra tools.
+- **AI-ready by design**: Because infrastructure is declared in code, AI coding assistants can understand and modify your full stack. Encore also ships [AI instructions](/docs/ts/ai-integration) and an [MCP server](/docs/ts/cli/mcp) for editor integrations.
+
+## A tight iteration loop, local to production
+
+Because the SDK is the source of truth for your infrastructure, the same model runs locally, in per-PR preview environments, and in production. `encore run` boots the whole system on your laptop with real Postgres, real Pub/Sub semantics, and real tracing. Opening a pull request spins up a [preview environment](/docs/platform/deploy/preview-environments) in your own VPC with the same infrastructure model and (optionally) a [database branched from a seed environment](/docs/platform/infrastructure/neon).
+
+This is the loop that makes Encore.ts particularly effective with AI coding agents: every change can be validated end-to-end against real infrastructure, locally and in the cloud, instead of waiting for a production deploy to find out if it works. For more, see the [Development Workflow](/docs/platform/workflow) page.
+
+## Deploying to production
+
+Encore.ts is fully open source and you are never locked into a particular deployment path. There are two supported ways to run an Encore.ts application in production.
+
+**With [Encore Cloud](/docs/platform)**: the optional managed platform reads the infrastructure you declared in your code and provisions matching resources (RDS, Cloud SQL, SNS+SQS, Pub/Sub, S3, GCS, etc.) in your own AWS or GCP account, then manages deploys, environments, secrets, and IAM on top. You own the cloud account and the infrastructure; Encore Cloud is the control plane that drives it from your code.
+
+**Self-hosted**: build a standard Docker image with `encore build docker` and run it anywhere. You provision your own infrastructure however you like (Terraform, Pulumi, CloudFormation, the cloud console), and tell the Encore runtime how to reach those resources via an [infrastructure config file](/docs/ts/self-host/configure-infra). See the [self-hosting guide](/docs/ts/self-host/build) for the full workflow.
+
+## Where to go next
+
+- New to Encore? Start with the [Quick Start](/docs/ts/quick-start) to build and run your first application.
+- Want to understand the model first? Read [App Structure](/docs/ts/primitives/app-structure) and the [Services](/docs/ts/primitives/services) page.
+- Looking up a specific primitive? See the [Primitives overview](/docs/ts/primitives).
+- Curious about the local-to-production iteration loop? See the [Development Workflow](/docs/platform/workflow).
+- Ready to deploy? See [Deploy with Encore Cloud](/docs/platform/deploy/deploying) or [Build Docker Images](/docs/ts/self-host/build) for self-hosting.
 
 <div className="mt-6 grid grid-cols-2 gap-6 mobile:grid-cols-1 not-prose">
     <a className="block group relative no-brandient" target="_blank" href="https://www.youtube.com/watch?v=vvqTGfoXVsw">
