@@ -115,6 +115,20 @@ impl ToResponse for Error {
 pub type HandlerRequest = Arc<model::Request>;
 pub type HandlerResponse = APIResult<HandlerResponseInner>;
 
+/// Computes the synthesized error and the metric `code` label for a raw
+/// endpoint that responded with the given HTTP status. Raw handlers write their
+/// own response and never return an [`Error`], so a `>= 400` status synthesizes
+/// one for observability (traces, logs, metrics). Mirrors the Go runtime's
+/// `invokeHandlerRaw` + `Code(err, httpStatus)`.
+fn raw_response_outcome(status: axum::http::StatusCode) -> (Option<Error>, String) {
+    let error = Error::from_raw_status(status);
+    let code = error
+        .as_ref()
+        .map(|e| e.code.to_string())
+        .unwrap_or_else(|| httputil::code_for_http_status(status));
+    (error, code)
+}
+
 pub struct HandlerResponseInner {
     pub payload: JSONPayload,
     pub extra_headers: Option<HeaderMap>,
@@ -271,8 +285,8 @@ impl Drop for CancellationGuard<'_> {
                         )
                     }
                     ResponseData::Raw(ref r) => {
-                        let code = httputil::code_for_http_status(r.status());
-                        (r.status().as_u16(), None, None, code)
+                        let (error, code) = raw_response_outcome(r.status());
+                        (r.status().as_u16(), None, error, code)
                     }
                 };
 
@@ -782,8 +796,35 @@ impl EndpointHandler {
 
             let duration = tokio::time::Instant::now().duration_since(request.start);
 
+            let (mut encoded_resp, resp_payload, extra_headers, error, code) = match resp {
+                ResponseData::Raw(resp) => {
+                    let (error, code) = raw_response_outcome(resp.status());
+                    (resp, None, None, error, code)
+                }
+                ResponseData::Typed(Ok(response)) => (
+                    self.endpoint
+                        .response
+                        .encode(&response.payload, response.status.unwrap_or(200))
+                        .unwrap_or_else(|err| err.to_response(internal_caller)),
+                    Some(response.payload),
+                    response.extra_headers,
+                    None,
+                    "ok".to_string(),
+                ),
+                ResponseData::Typed(Err(err)) => {
+                    let code = err.code.to_string();
+                    (
+                        err.as_ref().to_response(internal_caller),
+                        None,
+                        None,
+                        Some(err),
+                        code,
+                    )
+                }
+            };
+
             // If we had a request failure, log that separately.
-            if let ResponseData::Typed(Err(err)) = &resp {
+            if let Some(err) = &error {
                 logger
                     .with_error(err)
                     .error(Some(&request), "request failed", {
@@ -812,12 +853,6 @@ impl EndpointHandler {
                     });
             }
 
-            let code = match &resp {
-                ResponseData::Typed(Ok(_)) => "ok".to_string(),
-                ResponseData::Typed(Err(err)) => err.code.to_string(),
-                ResponseData::Raw(resp) => httputil::code_for_http_status(resp.status()),
-            };
-
             logger.info(Some(&request), "request completed", {
                 let mut fields = crate::log::Fields::new();
                 let dur_ms = (duration.as_secs() as f64 * 1000f64)
@@ -836,25 +871,6 @@ impl EndpointHandler {
                 fields.insert("code".into(), serde_json::Value::String(code.clone()));
                 Some(fields)
             });
-
-            let (mut encoded_resp, resp_payload, extra_headers, error) = match resp {
-                ResponseData::Raw(resp) => (resp, None, None, None),
-                ResponseData::Typed(Ok(response)) => (
-                    self.endpoint
-                        .response
-                        .encode(&response.payload, response.status.unwrap_or(200))
-                        .unwrap_or_else(|err| err.to_response(internal_caller)),
-                    Some(response.payload),
-                    response.extra_headers,
-                    None,
-                ),
-                ResponseData::Typed(Err(err)) => (
-                    err.as_ref().to_response(internal_caller),
-                    None,
-                    None,
-                    Some(err),
-                ),
-            };
 
             {
                 let model_resp = model::Response {
@@ -926,4 +942,39 @@ impl axum::handler::Handler<(), ()> for EndpointHandler {
 
 pub fn path_supports_tsr(path: &str) -> bool {
     path != "/" && !path.ends_with('/') && !path.contains("/*")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::StatusCode;
+
+    #[test]
+    fn raw_response_outcome_success_statuses_have_no_error() {
+        let (error, code) = raw_response_outcome(StatusCode::OK);
+        assert!(error.is_none());
+        assert_eq!(code, "ok");
+
+        // Non-error status: the code falls back to the HTTP status.
+        let (error, code) = raw_response_outcome(StatusCode::CREATED); // 201
+        assert!(error.is_none());
+        assert_eq!(code, "http_201");
+    }
+
+    #[test]
+    fn raw_response_outcome_error_statuses_synthesize_error_and_code() {
+        let (error, code) = raw_response_outcome(StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(error.unwrap().code, ErrCode::Internal);
+        assert_eq!(code, "internal");
+
+        let (error, code) = raw_response_outcome(StatusCode::NOT_FOUND);
+        assert_eq!(error.unwrap().code, ErrCode::NotFound);
+        assert_eq!(code, "not_found");
+
+        // Unmapped >= 400: the code follows the synthesized error ("unknown"),
+        // not "http_418" — matching Go's Code(err, status).
+        let (error, code) = raw_response_outcome(StatusCode::IM_A_TEAPOT); // 418
+        assert_eq!(error.unwrap().code, ErrCode::Unknown);
+        assert_eq!(code, "unknown");
+    }
 }

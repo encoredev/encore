@@ -100,6 +100,28 @@ impl Error {
         }
     }
 
+    /// Synthesizes an error for a raw endpoint that responded with a `>= 400`
+    /// HTTP status code, returning `None` for non-error statuses. Raw handlers
+    /// don't return an `api::Error`, so this provides one for observability
+    /// (logs, traces, metrics); the handler still owns the actual HTTP response.
+    /// Mirrors the Go runtime's `invokeHandlerRaw`.
+    pub fn from_raw_status(status: axum::http::StatusCode) -> Option<Self> {
+        if status.as_u16() < 400 {
+            return None;
+        }
+        let message = status
+            .canonical_reason()
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("HTTP {}", status.as_u16()));
+        Some(Self {
+            code: ErrCode::from(status),
+            message,
+            internal_message: None,
+            stack: None,
+            details: None,
+        })
+    }
+
     pub fn invalid_argument<S, E>(public_msg: S, cause: E) -> Self
     where
         S: Into<String>,
@@ -507,5 +529,73 @@ impl From<axum::http::status::StatusCode> for ErrCode {
             504 => ErrCode::DeadlineExceeded,
             _ => ErrCode::Unknown,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::StatusCode;
+
+    #[test]
+    fn from_raw_status_ignores_non_error_statuses() {
+        // Raw handlers that respond with success (or informational/redirect)
+        // must not be recorded as failures.
+        assert!(Error::from_raw_status(StatusCode::OK).is_none()); // 200
+        assert!(Error::from_raw_status(StatusCode::CREATED).is_none()); // 201
+        assert!(Error::from_raw_status(StatusCode::NO_CONTENT).is_none()); // 204
+        assert!(Error::from_raw_status(StatusCode::FOUND).is_none()); // 302
+    }
+
+    #[test]
+    fn from_raw_status_maps_error_statuses_to_codes() {
+        let code = |s: StatusCode| Error::from_raw_status(s).map(|e| e.code);
+        assert_eq!(
+            code(StatusCode::BAD_REQUEST),
+            Some(ErrCode::InvalidArgument)
+        );
+        assert_eq!(
+            code(StatusCode::UNAUTHORIZED),
+            Some(ErrCode::Unauthenticated)
+        );
+        assert_eq!(code(StatusCode::NOT_FOUND), Some(ErrCode::NotFound));
+        assert_eq!(
+            code(StatusCode::INTERNAL_SERVER_ERROR),
+            Some(ErrCode::Internal)
+        );
+        assert_eq!(
+            code(StatusCode::SERVICE_UNAVAILABLE),
+            Some(ErrCode::Unavailable)
+        );
+        // Unmapped >= 400 statuses fall back to Unknown, matching the Go runtime.
+        assert_eq!(code(StatusCode::IM_A_TEAPOT), Some(ErrCode::Unknown)); // 418
+    }
+
+    #[test]
+    fn from_raw_status_uses_canonical_reason_as_message() {
+        let err = Error::from_raw_status(StatusCode::INTERNAL_SERVER_ERROR).unwrap();
+        assert_eq!(err.message, "Internal Server Error");
+        assert!(err.internal_message.is_none());
+    }
+
+    #[test]
+    fn raw_error_status_is_reflected_in_trace_status_code() {
+        // The trace span-end status byte is derived from the response error
+        // (see `trace::protocol`), so a raw error status must encode to its
+        // error's trace code rather than OK (0).
+        let trace_code = |s: StatusCode| {
+            Error::from_raw_status(s)
+                .map(|e| e.code.to_trace_code())
+                .unwrap_or(0)
+        };
+        assert_eq!(trace_code(StatusCode::OK), 0); // OK, not an error
+        assert_eq!(
+            trace_code(StatusCode::INTERNAL_SERVER_ERROR),
+            ErrCode::Internal.to_trace_code()
+        );
+        assert_eq!(
+            trace_code(StatusCode::NOT_FOUND),
+            ErrCode::NotFound.to_trace_code()
+        );
     }
 }
