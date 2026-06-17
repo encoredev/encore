@@ -17,7 +17,7 @@ Encore is the infrastructure platform for the intelligence era, where engineers 
 It has two parts that work together:
 
 - An open source **infrastructure SDK** for TypeScript and Go. Declare the resources your app needs (databases, Pub/Sub, object storage, caches, cron jobs, secrets) directly in your code, and `encore run` starts the whole system locally with real Postgres, real Pub/Sub semantics, and distributed tracing.
-- **Encore Cloud**, an optional managed platform that orchestrates cloud infrastructure, from per-PR preview environments for end-to-end testing to provisioning infrastructure in your AWS or GCP account in persistent environments for staging and production..
+- **Encore Cloud**, an optional managed platform that orchestrates cloud infrastructure, from per-PR preview environments for end-to-end testing to provisioning infrastructure in your AWS or GCP account in persistent environments for staging and production.
 
 You can also use just the SDK and provision everything yourself with Terraform or any other tool.
 
@@ -108,7 +108,7 @@ Encore integrates at the application layer, which means a few constraints to be 
 
 | Tool                                   | What it does                                            | How Encore differs                                                                                                                         |
 | -------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Pulumi / CDK / Terraform / SST**     | Infrastructure-as-Code for provisioning cloud resources | No separate IaC to write. Infrastructure is generated from your application code, so the same code runs locally and deploys to AWS or GCP. |
+| **Pulumi / CDK / Terraform / SST**     | Infrastructure-as-Code for provisioning cloud resources | Infrastructure is generated from your application code, so the same code runs locally and deploys to AWS or GCP. |
 | **Convex / Supabase / Firebase**       | Managed backend-as-a-service platforms                  | Runs in your own AWS or GCP account. No vendor lock-in.                                                                                    |
 | **Render / Fly.io / Railway / Vercel** | PaaS-style deployment platforms                         | Deploys to your own cloud account, not a managed runtime.                                                                                  |
 
@@ -156,7 +156,7 @@ You can also skip the platform entirely. Run `encore build docker` to produce a 
 
 ## Who's Using Encore
 
-150+ Teams are already shipping production apps with Encore, including: Groupon, Echo.xyz (a Coinbase company), Bookshop.org, Gradient Labs, Ashby, Later.com, Pallet, Pave Bank, and Playwire.
+200+ Teams are already shipping production apps with Encore, including: Groupon, Echo.xyz (a Coinbase company), Bookshop.org, Gradient Labs, Ashby, Later.com, Pallet, Pave Bank, and Playwire.
 Use cases span AI, fintech, logistics, commerce, web3, and more. See [case studies](https://encore.dev/customers) to learn more.
 
 ## Resources
