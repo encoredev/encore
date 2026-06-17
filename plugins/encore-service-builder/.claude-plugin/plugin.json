@@ -1,0 +1,29 @@
+{
+  "name": "encore-service-builder",
+  "version": "0.1.0",
+  "description": "Build, review, and verify Encore services with agent workflows.",
+  "author": {
+    "name": "Encore contributors"
+  },
+  "skills": "./skills/",
+  "repository": "https://github.com/encoredev/encore",
+  "keywords": [
+    "agent-plugin",
+    "evals",
+    "encore"
+  ],
+  "interface": {
+    "displayName": "Encore Service Builder",
+    "shortDescription": "Build, review, and verify Encore services with agent workflows.",
+    "longDescription": "Guide agents through Encore service changes, API metadata, infrastructure-aware checks, generated tests, and deployment readiness.",
+    "developerName": "Encore contributors",
+    "category": "Developer Tools",
+    "capabilities": [
+      "service design",
+      "API metadata review",
+      "test planning",
+      "deploy readiness"
+    ],
+    "defaultPrompt": "Use the Encore plugin to plan the workflow, identify verification checks, and produce plugin eval metadata."
+  }
+}
