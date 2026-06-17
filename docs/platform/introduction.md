@@ -1,122 +1,87 @@
 ---
 seotitle: Introduction to Encore Cloud
-seodesc: Learn how Encore Cloud works and how it helps backend developers build cloud-based backend applications without manually dealing with infrastructure.
+seodesc: Encore Cloud is the managed platform that pairs with the Encore.ts and Encore.go infrastructure SDKs to provision and operate AWS and GCP from your code.
 title: Encore Cloud
-subtitle: End-to-end development platform for building robust distributed systems
+subtitle: The managed platform that provisions and operates AWS and GCP from your application code
 lang: platform
 ---
 
-While cloud services enable us to build powerful applications, they come with significant complexity.
+Cloud platforms are powerful, but the path from code to a running production system on AWS or GCP usually involves Terraform, YAML, container orchestration, IAM policies, secret managers, and a CI/CD pipeline to glue it all together. Most teams end up building (and maintaining) their own internal developer platform on top of all that.
 
-Developers spend countless hours managing infrastructure, writing boilerplate code, and dealing with complex deployment processes instead of building features that matter to users.
+Encore Cloud removes the need for that internal platform. It pairs with the open source [Encore.ts](/docs/ts) and [Encore.go](/docs/go) infrastructure SDKs to take an application from local development to a production deployment in your own cloud, with the SDK declarations as the single source of truth.
 
-Launching a new app, migrating to the cloud, or breaking apart a monolith into microservices, can therefore be a daunting task.
-Encore Cloud is purpose-built to solve this problem and removes the need to build your own developer platform.
+## How Encore Cloud works with the SDKs
 
-It provides a complete platform for building, testing, and deploying your application. In the Encore Developer Survey 2025, the average impact reported by our users was:
-- 137% improvement in delivery speed
-- 93% reduction in time spent on DevOps tasks
-- 81% reduction in developer onboarding time
+The infrastructure SDKs let you declare the resources your application needs (SQL databases, Pub/Sub topics, object storage, caches, cron jobs, secrets) directly in your TypeScript or Go code, as typed objects.
 
-## A simplified cloud backend development workflow
+Encore Cloud reads those declarations to build an infrastructure model of your application. It then uses that model to:
 
-Encore Cloud provides a complete toolset for backend development: from local development, testing, and observability, to cloud infrastructure and DevOps automation.
+1. Provision matching resources in your AWS or GCP account using the cloud provider's API.
+2. Wire the running application up to those resources at deploy time (connection strings, IAM, secret injection).
+3. Keep the model and the running infrastructure in sync as your code changes.
 
-<img className="noshadow mx-auto d:w-3/4" src="/assets/docs/arch_full.png" title="Encore Overview" />
+The resources used in production are exactly the ones your code asked for, nothing more, nothing less.
 
-Encore Cloud's core functionality is enabled by Encore's open source backend frameworks, [Encore.ts](/docs/ts) and [Encore.go](/docs/go). These frameworks let you define essential backend resources – like APIs, microservices, databases, cron jobs, and Pub/Sub – as type-safe objects in your code using simple, declarative syntax.
+<img className="noshadow mx-auto d:w-3/4" src="/assets/docs/howitworks.png" title="How Encore Cloud provisions infrastructure from your code" />
 
-The frameworks have a minimal footprint, where one line of code is enough to define a backend resource, and are designed to be unobtrusive, so that you can focus on building your product without being distracted by the underlying infrastructure.
+When your application is deployed, **there are no runtime dependencies on Encore Cloud** and **no proprietary code runs in your cloud**. The application is a standard service talking to standard managed AWS or GCP resources.
 
-With the backend frameworks you only define **infrastructure semantics** — _the things that matter to your application's behavior_ — not configuration for _specific_ cloud services. Encore Cloud then automatically generates boilerplate and orchestrates the relevant infrastructure for each environment using your cloud provider's API or directly through Encore Cloud's built-in cloud hosting for development.
+## A tight iteration loop, local to production
 
-<img className="noshadow mx-auto d:w-3/4" src="/assets/docs/howitworks.png" title="Encore's infrastructure orchestration" />
+Because the SDK is the source of truth for your infrastructure, the same model runs locally, in per-PR preview environments, and in production:
 
-This means that, with Encore Cloud, your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP.
+1. **Local**. `encore run` boots the whole system on your laptop with real Postgres, real Pub/Sub semantics, and real tracing. [Infrastructure namespaces](/docs/ts/cli/infra-namespaces) let multiple branches or agents work in parallel with isolated local state.
+2. **Per-PR preview environments**. Each pull request gets an ephemeral [preview environment](/docs/platform/deploy/preview-environments) in your own VPC, optionally with a [database branched from a seed environment](/docs/platform/infrastructure/neon). End-to-end validation against real cloud services before merge.
+3. **Production**. The same declarations provision the production resources on deploy.
 
-When your application is deployed to your cloud, there are **no runtime dependencies on Encore Cloud** and there is **no proprietary code running in your cloud**.
+This loop is what's structurally missing from Terraform-based workflows, which tend to be production-centric and hard to run on a laptop. The tight feedback loop is especially impactful for [AI coding agents](/docs/platform/ai-integration), which work best when they can validate their own changes against real infrastructure rather than guess. See the [Development Workflow](/docs/platform/workflow) page for the full picture.
 
-## Local Development
+## What Encore Cloud gives you
 
-<img className="noshadow mx-auto d:w-3/4" src="/assets/docs/arch_local.png" title="Encore's Local Development Workflow" />
+### Infrastructure provisioning in your own cloud
+- **Direct provisioning via cloud APIs**. Encore Cloud creates resources using your cloud provider's official APIs. No IaC files to maintain; your code is the source of truth. See [Provisioning & Environments](/docs/platform/infrastructure/infra).
+- **Battle-tested managed services**. Provisions Cloud Run / Fargate, GKE / EKS, CloudSQL / RDS, Pub/Sub / SNS+SQS, and so on, with sensible defaults per cloud.
+- **Least-privilege IAM, generated from code**. Permissions are derived from how each resource is used, not hand-written policies.
+- **Infrastructure inventory and change management**. See every provisioned resource and review infrastructure changes before they're applied.
 
-The local development tooling is fully open source. When you run your app locally using the [Encore CLI](/docs/ts/install), it parses your code and automatically sets up the necessary local infrastructure on the fly. _No more messing around with Docker Compose!_
+### Deployments and environments
+- **Zero-config deploys**. Connect a [GitHub repo](/docs/platform/integrations/github) and your cloud account; push to deploy. See [Deploying & CI/CD](/docs/platform/deploy/deploying).
+- **[Preview environments](/docs/platform/deploy/preview-environments) per pull request**. Real cloud resources, automatically created and torn down.
+- **Multiple environments out of the box**. Staging, production, and ad-hoc environments share the same code path. See [Environments](/docs/platform/deploy/environments).
+- **Secrets management**. Reference secrets by name in code; Encore stores them in your cloud's secret manager and injects them at runtime.
 
-Aside from managing infrastructure, Encore's local development workflow comes with a lot of tools to make building distributed systems easier:
+### Observability
+- **Distributed tracing, metrics, and logs**, with no agent code in your application. See [Tracing](/docs/platform/observability/tracing) and [Metrics](/docs/platform/observability/metrics).
+- **Third-party export**. Send telemetry to Datadog, Grafana, or other tools you already use.
+- **Cost monitoring** across your cloud resources (GCP today, AWS in progress).
 
-- **Local environment matches cloud:** Encore automatically handles the semantics of service communication and interfacing with different types of infrastructure services, so that the local environment is a 1:1 representation of your cloud environment.
-- **Cross-service type-safety:** When building microservices applications with Encore, you get type-safety and auto-complete in your IDE when making cross-service API calls.
-- **Type-aware infrastructure:** With Encore, infrastructure like Pub/Sub queues are type-aware objects in your program. This enables full end-to-end type-safety when building event-driven applications.
-- **Tracing:** The [local development dashboard](/docs/ts/observability/dev-dash) provides local tracing to help understand application behavior and find bugs.
-- **Automatic API docs & clients:** Encore generates [API docs](/docs/ts/observability/service-catalog) and [API clients](/docs/ts/cli/client-generation) in Go, TypeScript, JavaScript, and OpenAPI specification.
+### Documentation and discovery
+The infrastructure model also drives a [Service Catalog](/docs/platform/observability/service-catalog) with API docs and a live [Flow architecture diagram](/docs/platform/observability/encore-flow). Useful for onboarding new engineers and for AI tooling, but not the reason most teams adopt Encore.
 
-## Testing
+## You're not locked in
 
-<img className="noshadow mx-auto d:w-3/4" src="/assets/docs/arch_testing.png" title="Encore's Testing Workflow" />
+Encore Cloud is optional. The SDKs are open source and produce a standard application binary or Node.js process. If you want to run things yourself:
 
-Encore's open source framework comes with several built-in tools to help with testing:
+- Build a Docker image with `encore build docker` and deploy it anywhere.
+- Provision your own infrastructure with [Terraform](/docs/platform/integrations/terraform), Pulumi, CloudFormation, or the cloud console.
+- Tell the Encore runtime how to reach your resources via an [infrastructure config file](/docs/ts/self-host/configure-infra).
 
-- **Built-in service/API mocking:** Encore provides built-in support for [mocking API calls](/docs/go/develop/testing/mocking), and interfaces for automatically generating mock objects for your services.
-- **Local test infra:** When running tests locally, Encore automatically provides dedicated [test infrastructure](/docs/go/develop/testing#test-only-infrastructure) to isolate individual tests.
-- **Local test tracing:** The [Local Development Dashboard](/docs/go/observability/dev-dash) provides distributed tracing for tests, providing great visibility into what's happening and making it easier to understand why a test failed.
+See the [self-hosting guide](/docs/ts/self-host/build) for the full workflow.
 
-Encore Cloud adds to this tool-set with:
-- **Preview Environments:** Encore automatically provisions a [Preview Environment](/docs/platform/deploy/preview-environments) for each Pull Request, an effective tool when doing end-to-end testing.
+## When Encore Cloud is a good fit
 
-## Infrastructure & DevOps automation
+Encore Cloud suits teams that want their application's infrastructure to be defined and operated from the same codebase as the application itself, deployed into AWS or GCP accounts they own. Typical use cases include:
 
-<img className="noshadow mx-auto d:w-3/4" src="/assets/docs/arch_devops.png" title="Encore's DevOps Workflow" />
+- Consumer apps and B2B platforms
+- Fintech and crypto applications
+- E-commerce marketplaces
+- Microservices backends and event-driven systems
 
-### Infrastructure Management
-- **Zero-config deployment:** Connect your repo and cloud account, then deploy and Encore Cloud orchestrates your cloud resources by integrating with your cloud provider's API.
-- **Automatic infrastructure:** Use battle-tested AWS/GCP services (Cloud Run/Fargate, GKE/EKS, CloudSQL/RDS, Pub/Sub / SQS/SNS, etc.) without any manual setup or configuration.
-- **No IaC required:** Say goodbye to Terraform and YAML - your code is the single source of truth.
-
-### Security & Governance
-- **Automated IAM:** Least-privilege security permissions generated from parsing your code
-- **Infrastructure tracking:** Complete visibility of all provisioned resources
-- **Change management:** Built-in approval workflow for infrastructure changes
-- **Configuration management:** Simple UI for config changes that automatically 2-way syncs to your cloud
-
-### Monitoring & Observability
-- **Cost monitoring:** Track infrastructure costs across your cloud resources (currently for GCP, AWS coming soon)
-- **Integrated observability:** Built-in logging, metrics, and tracing
-- **Third-party integration:** Works with Datadog, Grafana, and other tools
-- **Auto-generated documentation:**
-  - Service catalog with complete API docs
-  - Live architecture diagrams showing infrastructure dependencies
-
-## Why choose Encore Cloud?
-
-Encore Cloud's end-to-end workflow is an unfair advantage for teams that need to move quickly without sacrificing quality and scalability.
-By automating over 90% of the normal day-to-day DevOps work, you can focus on building your product instead of building your own developer platform.
-
-The benefits of Encore Cloud are:
-
-- **Faster Development**: Encore Cloud enables 2-3x faster iterations thanks to the streamlined the development process with its clear abstractions and built-in development tools.
-- **Reduced Costs**: Encore Cloud's infrastructure management minimizes wasteful cloud expenses and reduces DevOps workload by 90%.
-- **Scalability & Performance**: Encore Cloud simplifies building microservices applications that can handle growing user bases and demands, without the normal boilerplate and complexity.
-- **Control & Standardization**: Encore Cloud enforces standardization and provisions infrastructure consistently according to best practices for each cloud provider.
-- **Quality through understandability:** Built-in tools like automated architecture diagrams, generated API docs, and distributed tracing make it simple for teams to get an overview of their system and ensure the correct behavior.
-- **Security**: Encore Cloud makes your application secure by automatically implementing security best practices for each cloud provider.
-
-## Common use cases
-
-Encore Cloud is designed to give teams a productive and less complex experience when solving most common backend use cases.
-Many teams use Encore Cloud to build things like:
-
--   Consumer apps
--   High-performance B2B Platforms
--   Fintech & Crypto applications
--   Global E-commerce marketplaces
--   Microservices backends and event-driven systems for scalable SaaS applications
--   And much more...
-
-Check out the [showcase](https://encore.cloud/showcase) section for some examples of real-world products being built with Encore.
+See the [showcase](https://encore.cloud/showcase) for production examples, or read [customer stories](https://encore.cloud/customers) for how specific teams use it.
 
 ## Getting started
 
-- [Follow the Quick Start Guide](/docs/ts/quick-start)
-- [Join Discord](https://encore.dev/discord) to ask questions and meet other Encore developers
-- Follow and star the project on [GitHub](https://github.com/encoredev/encore) to stay up to date
-- [Book a demo](https://encore.dev/book) to speak to one of our founders about if Encore Cloud is a good fit for your team
+- Start with the [Quick Start for TypeScript](/docs/ts/quick-start) or [Go](/docs/go/quick-start).
+- [Connect your AWS or GCP account](/docs/platform/deploy/own-cloud).
+- [Book a demo](https://encore.dev/book) to talk through whether Encore Cloud fits your team.
+- [Join Discord](https://encore.dev/discord) to ask questions and meet other Encore developers.

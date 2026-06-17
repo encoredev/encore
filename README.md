@@ -12,13 +12,14 @@
 
 ## What is Encore?
 
-Encore derives infrastructure from your application code and manages it across local and cloud environments.
+Encore is the infrastructure platform for the intelligence era, where engineers and AI agents build production systems without waiting on infrastructure. Run and validate with real infrastructure locally and in preview environments, then deploy to your own AWS or GCP account.
 
-Build a backend that runs the same way on your laptop and in production: type-safe, traceable, and deployable to your own AWS or GCP account without Terraform or YAML.
+It has two parts that work together:
 
-You declare resources semantically in code, like “I need a Postgres database.” Encore turns your code into an application graph, then provisions the right infrastructure for each environment: local sandbox, managed cloud on AWS/GCP, or self-hosted Docker.
+- An open source **infrastructure SDK** for TypeScript and Go. Declare the resources your app needs (databases, Pub/Sub, object storage, caches, cron jobs, secrets) directly in your code, and `encore run` boots the whole system locally with real Postgres, real Pub/Sub semantics, and distributed tracing. No Docker Compose, no Localstack.
+- **Encore Cloud**, an optional managed platform that uses the same model to spin up a per-PR preview environment in your own VPC and provision matching resources in your AWS or GCP account on deploy. No Terraform PR, no CI/CD pipeline to maintain, IAM and firewall rules generated from real code paths.
 
-Because infrastructure is derived from the code that uses it, it stays in sync as your application evolves.
+You can also use just the SDK and provision everything yourself with Terraform or any other tool.
 
 ### Example: Declaring resources
 
@@ -70,25 +71,15 @@ Encore provisions every resource with sane production defaults, then helps you m
 | Go         | [encore.dev/docs/go](https://encore.dev/docs/go) |
 | Python     | Coming soon                                      |
 
-## What Changes
+## The Development Workflow
 
-Before Encore:
+The same infrastructure model runs locally, in per-PR preview environments, and in production:
 
-- Configure Localstack and docker compose to run app locally while developing.
-- Write Terraform to go to prod. Open a PR. Get approval. Apply.
-- Something breaks: IAM doesn't match what the code calls, a queue name drifts, a secret is missing in prod.
-- Fix, push, wait for the next apply, find the next thing.
-- Application code and infrastructure code meet for the first time in production.
+1. **Local.** `encore run` boots the whole system on your laptop: real Postgres, real Pub/Sub semantics, type-safe service-to-service calls, plus a local dashboard with distributed tracing. No Docker Compose, no Localstack. [Infrastructure namespaces](https://encore.dev/docs/ts/cli/infra-namespaces) let multiple branches or agents work in parallel with isolated state.
+2. **Per-PR preview environment.** Open a pull request and Encore Cloud spins up an ephemeral environment in your own VPC, with the same infrastructure model and (optionally) a [database branched from a seed environment](https://encore.dev/docs/platform/infrastructure/neon). End-to-end validation against real cloud services before merge.
+3. **Production.** Push to deploy. Encore diffs the application graph against the environment, provisions whatever is missing in your AWS or GCP account, generates least-privilege IAM from real code paths, and rolls out the new code. No Terraform PR, no console wizard.
 
-After Encore:
-
-- Declare the resource in code. Run locally with `encore run`.
-- Open a PR and get a cloud preview environment for end-to-end testing.
-- `git push` to deploy. Infrastructure is derived from the application code, validated at build time.
-- IAM is configured from real code paths. No missing permissions. No unnecessary access.
-
-The fail-loop moves from "push, wait, fix" to "run locally, see it work, push."
-Platform teams set guardrails once. Encore enforces them on every deploy.
+The fail-loop moves from "push, wait, fix" to "run locally, see it work, push." This tight loop is also what makes Encore particularly effective with AI coding agents, since every change can be validated end-to-end against real infrastructure rather than guessed at. See the [Development Workflow](https://encore.dev/docs/platform/workflow) docs for the full picture.
 
 ## Adopting Encore
 
@@ -139,7 +130,8 @@ Full walkthrough in the [Quickstart guide](https://encore.dev/docs/ts/quick-star
 
 ## AI Integration
 
-Encore is built for AI-assisted development. Every Encore app comes with built-in CLAUDE.md and an MCP server that lets agents introspect your app and generate type-safe code that follows your patterns.
+Encore is built for AI-assisted development. When you run `encore app create`, you can pick your AI tool (Cursor, Claude Code, etc.) and Encore generates the right rules files for it, plus configures an [MCP server](https://encore.dev/docs/ts/cli/mcp) that lets agents introspect your app: services, APIs, databases, traces. Combined with the fast local-to-preview-env iteration loop above, agents can validate their own changes end-to-end against real infrastructure instead of guessing.
+
 See the [AI integration docs](https://encore.dev/docs/ts/ai-integration) for more details.
 
 ## Local Dev Dashboard
@@ -150,17 +142,17 @@ https://github.com/user-attachments/assets/461b902f-8fd3-46f1-a73c-0ebbfa789ce3
 
 ## Deployment Platform
 
-Encore Cloud is the optional managed platform. It connects to your AWS or GCP account and provisions the resources your code declares in your own VPC. Other features:
+[Encore Cloud](https://encore.dev/docs/platform) is the optional managed platform. It connects to your AWS or GCP account and provisions the resources your code declares in your own VPC. Other features:
 
 - Preview environments for each PR
+- Self-serve infrastructure provisioning, with least-privilege IAM and firewall rules derived from real code paths
 - Distributed tracing, metrics, and logs across services
-- Architecture diagrams generated from the application graph
 - Cost analytics and infrastructure approval workflows
-- Service catalog and API documentation
+- Auto-generated service catalog and architecture diagrams from your code
 
-See [pricing](https://encore.dev/pricing) and learn more.
+See [pricing](https://encore.dev/pricing) for details.
 
-You can also skip the platform entirely. Run `encore build docker` to produce a standalone image you supply an infra config to.
+You can also skip the platform entirely. Run `encore build docker` to produce a standalone image and supply your own infra config (provisioned via Terraform, Pulumi, or any other tool). See the [self-hosting guide](https://encore.dev/docs/ts/self-host/build).
 
 ## Who's Using Encore
 
