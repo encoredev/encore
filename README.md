@@ -16,8 +16,8 @@ Encore is the infrastructure platform for the intelligence era, where engineers 
 
 It has two parts that work together:
 
-- An open source **infrastructure SDK** for TypeScript and Go. Declare the resources your app needs (databases, Pub/Sub, object storage, caches, cron jobs, secrets) directly in your code, and `encore run` boots the whole system locally with real Postgres, real Pub/Sub semantics, and distributed tracing. No Docker Compose, no Localstack.
-- **Encore Cloud**, an optional managed platform that uses the same model to spin up a per-PR preview environment in your own VPC and provision matching resources in your AWS or GCP account on deploy. No Terraform PR, no CI/CD pipeline to maintain, IAM and firewall rules generated from real code paths.
+- An open source **infrastructure SDK** for TypeScript and Go. Declare the resources your app needs (databases, Pub/Sub, object storage, caches, cron jobs, secrets) directly in your code, and `encore run` starts the whole system locally with real Postgres, real Pub/Sub semantics, and distributed tracing.
+- **Encore Cloud**, an optional managed platform that orchestrates cloud infrastructure, from per-PR preview environments for end-to-end testing to provisioning infrastructure in your AWS or GCP account in persistent environments for staging and production..
 
 You can also use just the SDK and provision everything yourself with Terraform or any other tool.
 
@@ -38,7 +38,7 @@ const signups = new Topic<SignupEvent>("signups", {
 const avatars = new Bucket("avatars", { versioned: true });
 ```
 
-Each declaration becomes a node in the application graph. Encore runs the migrations and stands up local equivalents on `encore run`, and provisions the cloud equivalents on deploy:
+Each declaration becomes a node in Encore's application graph. Encore runs the migrations and stands up local equivalents on `encore run`, and provisions the cloud equivalents on deploy:
 
 | Resource       | Local              | AWS             | GCP             |
 | -------------- | ------------------ | --------------- | --------------- |
@@ -75,15 +75,15 @@ Encore provisions every resource with sane production defaults, then helps you m
 
 The same infrastructure model runs locally, in per-PR preview environments, and in production:
 
-1. **Local:** `encore run` boots the whole system on your laptop: real Postgres, real Pub/Sub semantics, type-safe service-to-service calls, plus a local dashboard with distributed tracing. No Docker Compose, no Localstack. [Infrastructure namespaces](https://encore.dev/docs/ts/cli/infra-namespaces) let multiple branches or agents work in parallel with isolated state.
-2. **Per-PR preview environment:** Open a pull request and Encore Cloud spins up an ephemeral environment in your own VPC, with the same infrastructure model and (optionally) a [database branched from a seed environment](https://encore.dev/docs/platform/infrastructure/neon). End-to-end validation against real cloud services before merge.
-3. **Production:** Push to deploy. Encore diffs the application graph against the environment, provisions whatever is missing in your AWS or GCP account, generates least-privilege IAM from real code paths, and rolls out the new code. No Terraform PR, no console wizard.
+1. **Local:** `encore run` starts the whole system locally: real Postgres, real Pub/Sub semantics, type-safe service-to-service calls, plus a local dashboard with distributed tracing. [Infrastructure namespaces](https://encore.dev/docs/ts/cli/infra-namespaces) let multiple branches or agents work in parallel with isolated state. This lets you validate changes with real infrastructure semantics before pushing code.
+2. **Per-PR preview environments:** Open a pull request and Encore Cloud sets up an ephemeral environment and (optionally) [branches databases from a seed environment](https://encore.dev/docs/platform/infrastructure/neon). This Lets you do end-to-end validation against before merging to a shared staging environment.
+3. **Production:** Push to deploy. Encore diffs the application graph against the environment, provisions what is missing in your AWS or GCP account, wires up least-privilege IAM based on the application's code paths, and rolls out the new code.
 
-The fail-loop moves from "push, wait, fix" to "run locally, see it work, push." This tight loop is also what makes Encore particularly effective with AI coding agents, since every change can be validated end-to-end against real infrastructure rather than guessed at. See the [Development Workflow](https://encore.dev/docs/platform/workflow) docs for the full picture.
+With this workflow, the fail-loop moves from "push, wait, fix" to "run locally, see it work, push." This tight loop makes Encore particularly effective with AI coding agents, since every change can be validated with real infrastructure immediately after each code change. See the [Development Workflow](https://encore.dev/docs/platform/workflow) docs for more.
 
 ## Adopting Encore
 
-You don't need a rewrite, and you don't need to use Encore for every resource in your stack.
+You don't need a rewrite, and you don't need to use Encore for every part of your system.
 
 - **Use any infrastructure as normal:** Encore doesn't try to own every resource. Import the AWS SDK, GCP client libraries, or any third-party API and provision the resource yourself, or wire it up alongside Encore-managed resources via the [Terraform provider](https://encore.dev/docs/platform/integrations/terraform).
 - **Migrate service-by-service:** Build new services in Encore and run them next to your existing system, integrated over APIs.
@@ -100,7 +100,7 @@ See the [migrate-away guide](https://encore.dev/docs/ts/migration/migrate-away) 
 
 Encore integrates at the application layer, which means a few constraints to be clear about up front:
 
-- **Language:** Your services need to be written in a supported language: TypeScript (Node.js) or Go. Python is coming soon.
+- **Language:** Your services need to be written in a supported language in order to use the infrastructure SDK. TypeScript (Node.js) and Go is currently supported, and Python is coming soon.
 - **Infrastructure scope:** Encore is designed to solve the 99% use case, making it easier to work with the resources you use over and over again; services, databases, Pub/Sub, object storage, caches, cron jobs, and secrets. For the remaining 1% that is specific to your domain, you can still integrate any other service as you normally would. Encore doesn't prevent it or make it harder.
 - **Cloud providers:** Encore Cloud's fully-automated provisioning currently supports AWS and GCP. Azure is on the roadmap. Self-hosting via `encore build docker` works on any provider.
 
