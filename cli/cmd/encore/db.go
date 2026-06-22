@@ -138,8 +138,15 @@ when using tools like Prisma.
 			Namespace:   nonZeroPtr(nsName),
 			Role:        getDBRole(),
 		})
-		if err != nil {
-			fatalf("could not connect to db  %s: %v", dbName, err)
+		if err != nil { // if there is an error
+			st , ok :=status.FromError(err) // we check the error statud what kind of erro and where is it coming from
+			if ok && st.Code()== codes.NotFound{ // IF THE gRPC daemon status (st) is equals to NOT FOUND and 
+			// the ok (boolean) returns true
+			fatalf("Environment %q not found you can check your environment name and try again ",dbEnv) 
+			// now it shows where the exact error is coming from instead of wrongly pointing to the databse 
+
+			}
+			fatalf("could not connect to database %q in environment %q: %v", dbName, dbEnv, err) //HEY 
 		}
 
 		// If we have the psql binary, use that.
