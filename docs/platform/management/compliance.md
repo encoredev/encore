@@ -6,7 +6,7 @@ subtitle: How Encore protects your applications, code, and data
 lang: platform
 ---
 
-_Last updated: March 3, 2026_
+_Last updated: June 24, 2026_
 
 Your applications, code, and data are among your most important assets. Security is foundational to everything we build at Encore — it is embedded in our architecture, our processes, and our culture. This document provides a comprehensive overview of the security controls and practices we have in place today, structured around the SOC 2 trust service criteria.
 
@@ -17,19 +17,28 @@ Your applications, code, and data are among your most important assets. Security
 | **Infrastructure** | Hosted on GCP (ISO 27001 / SOC 2 certified). All servers are private, accessible only via VPN. |
 | **Encryption** | AES-256 at rest, TLS 1.2+ and WireGuard in transit. Customer secrets additionally encrypted via GCP KMS. |
 | **Zero-trust networking** | All server-to-server communication is authenticated and end-to-end encrypted via Tailscale / WireGuard. |
-| **Access control** | Principle of least privilege, MFA enforced, regular access reviews, VPN-only infrastructure access. |
-| **Authentication** | Managed by Clerk (SOC 2 certified). Passwordless by default — Encore never stores or handles user passwords. |
+| **Access control** | Principle of least privilege, MFA enforced, regular access reviews, VPN-only infrastructure access. Time-limited privileged access via GCP Privileged Access Manager (PAM) with full audit trail. |
+| **Authentication** | End-user authentication managed by Clerk (SOC 2 certified). Passwordless by default — Encore never stores or handles user passwords. Employee access governed by Google Workspace SSO with mandatory MFA. |
 | **Monitoring & alerting** | 24/7 monitoring via Grafana, Sentry, Cronitor, and GCP Cloud Monitoring (all SOC 2 certified). |
-| **Vendor security** | All critical vendors are SOC 2 and/or ISO 27001 certified (GCP, Tailscale, Clerk, GitHub, Sentry, Grafana). |
-| **Code quality** | Mandatory code review, CI/CD with automated testing, automated vulnerability scanning. |
-| **Data privacy** | GDPR compliant. Data minimization by design. |
+| **Vendor security** | All critical vendors are SOC 2 and/or ISO 27001 certified (GCP, Tailscale, Clerk, GitHub, Sentry, Grafana). Vendors are risk-classified and reviewed under a formal Vendor Management Policy. |
+| **Code quality** | Mandatory code review, CI/CD with automated testing, automated vulnerability scanning. Governed by a formal Change Management Policy. |
+| **Documented policies** | Formal written policy suite in place: Information Security, Vulnerability Management, Incident Response, Change Management, Data Classification, and Vendor Management. |
+| **Data privacy** | GDPR compliant. Data minimization by design. Four-tier data classification (Public, Internal, Confidential, Restricted). |
 | **Responsible disclosure** | Active bug bounty program for security researchers. |
 
 ## SOC 2
 
-SOC is short for "System and Organization Controls" — it is the de facto industry standard for software security and privacy. We have implemented controls aligned with the SOC 2 framework and are currently preparing for a formal SOC 2 Type 1 audit, during which an external auditor will verify that our controls meet the standard.
+SOC is short for "System and Organization Controls" — it is the de facto industry standard for software security and privacy. We have implemented controls aligned with the SOC 2 framework and are actively preparing for a formal SOC 2 Type I audit, during which an external auditor will verify that our controls meet the standard.
 
-After the Type 1 audit, we plan to proceed to Type 2, which involves continuous monitoring over an extended period.
+As part of this preparation, we have formalized our security program into a written policy suite, including an Information Security Policy, Vulnerability Management Policy, Incident Response Policy, Change Management Policy, Data Classification Policy, and Vendor Management Policy. These documents codify the practices described on this page and are available to customers under NDA as part of a vendor review.
+
+Our current SOC 2 timeline is:
+
+- **SOC 2 Type I:** target completion Q4 2026.
+- **SOC 2 Type II:** target completion Q2 2027, with the observation period beginning immediately after Type I.
+- **Third-party penetration test:** target completion October 30, 2026, so the report is available within the Type I audit window. An executive summary and remediation status are available without NDA; the full report is available under NDA on request.
+
+After the Type I audit, we will proceed to Type II, which involves continuous monitoring of our controls over an extended observation period.
 
 ### Trust Service Criteria
 
@@ -79,7 +88,7 @@ Since an organization is only as good as its people, Encore takes great care whe
 
 Individual performance monitoring is carried out by managers on a bi-weekly cadence. Overall organizational performance is tracked continuously and reviewed by management on a monthly cadence using Key Performance Indicators determined by management.
 
-Employees are required to complete yearly security awareness training. The training is designed to increase sensitivity to physical security (hardware and media handling, office access control, etc.), digital security (e.g. secure passwords, two-factor authentication), social engineering attacks ("phishing"), and other security-related topics.
+Encore is rolling out mandatory annual security awareness training for all employees and contractors, to be in place ahead of the SOC 2 Type I audit in Q4 2026. The training covers security responsibilities, data handling, access protection, phishing and social engineering, device security, incident reporting, and the relevant company security policies. It is designed to increase sensitivity to physical security (hardware and media handling, office access control, etc.), digital security (e.g. secure passwords, two-factor authentication), social engineering attacks ("phishing"), and other security-related topics.
 
 Encore employment policy mandates full-disk encryption on all employee devices.
 
@@ -93,7 +102,7 @@ Encore's service-based architecture provides natural isolation between component
 
 As a general principle, all of Encore's data is encrypted while being transported across networks and when stored ("in transit and at rest"). In case of unauthorized access to the data, an attacker would only see undecipherable garbage which cannot be decrypted without the corresponding keys. The encryption methods employed by Encore are industry standard and deemed unbreakable by contemporary standards. Data at rest (virtual filesystems, relational databases, and object storage) is encrypted using GCP's industry-standard AES-256, while data in transit is encrypted with TLS ≥ 1.2 (for Encore's REST API) or WireGuard (for internal communication).
 
-All customer secret information is further encrypted using GCP's Key Management Service (KMS). Any access to encrypted data by Encore employees requires elevated access and approval by multiple parties, and all such activity is audited.
+All customer secret information is further encrypted using GCP's Key Management Service (KMS). Any access to encrypted data by Encore employees requires elevated access and approval by multiple parties, and all such activity is audited. Elevated access to production systems is granted on a time-limited basis through GCP's Privileged Access Manager (PAM), which provides an audit trail of every request, its purpose, and its duration. Production database access does not expose cryptographic keys or secrets, which remain secured in GCP Cloud KMS.
 
 User account authentication is provided by _Clerk_, a SOC 2 compliant vendor.
 
@@ -106,6 +115,17 @@ Encore offers bug bounty incentives to individuals who discover any security dis
 All security issues undergo a triaging process by Encore's designated Security Officer and are escalated based on their criticality.
 
 Encore uses automated scans to detect software vulnerabilities. All teams are continuously monitoring their services for vulnerabilities and are committed to pro-actively reducing them. The progress is supervised by the Security Officer.
+
+Our Vulnerability Management Policy defines how findings are identified, prioritized based on actual risk (not scanner severity alone), and tracked to a clear outcome. Material findings are reviewed by a human, and each is fixed, mitigated, determined not applicable, deferred with a documented rationale, or accepted as a known risk. We target the following remediation timelines:
+
+| Severity | Remediation target |
+| --- | --- |
+| Critical | 7 days, or faster if actively exploited |
+| High | 30 days |
+| Medium | 90 days |
+| Low | Best effort / backlog |
+
+These targets are guided by judgment: a critical issue under active exploitation may warrant same-day mitigation, while a high-severity finding in unused code may be downgraded or closed as not applicable.
 
 ### Access control
 
@@ -120,6 +140,16 @@ Multi-factor authentication (MFA) adds another layer of security on top of class
 Stealing or guessing the password is not enough for an attacker to gain access to a system, because the second factor would also need to be stolen.
 
 Usually, the second factor is a physical device, such as a mobile phone which has been paired with the authentication system. Encore employs MFA to protect access to the infrastructure provider (GCP) and the version control systems (GitHub), among other systems.
+
+Employee access to internal systems is governed by Google Workspace SSO, configured to require mandatory MFA for all employees and to enforce strong password requirements. SMS-based factors are disabled in favour of stronger methods due to SIM-swap and spoofing risks. Server (SSH) access is available only over the Tailscale VPN, and obtaining `sudo` or root access requires re-authenticating with our SSO provider. Employee endpoints are used for development only and do not have standing access to sensitive production systems; elevated access requires Tailscale or time-limited elevation through GCP Privileged Access Manager.
+
+### Vendor and third-party risk management
+
+Encore relies on third-party services to build and operate its platform, and we manage the risk they introduce through a formal Vendor Management Policy. We maintain an inventory of vendors used for production systems, customer support, engineering, security, and other business-critical functions. Each vendor has a designated internal owner responsible for ensuring it is reviewed, used for its intended purpose, and offboarded when no longer needed.
+
+Vendors are reviewed in proportion to the risk they introduce, rather than with a single one-size-fits-all process. A vendor is classified as **Critical** when its failure or compromise could materially affect our ability to serve customers, protect customer data, or operate production systems — for example cloud infrastructure providers, identity providers, and platforms with administrative access to production. **High-risk** vendors have sensitive access or data but are not essential to running the service, and **Medium** and **Low-risk** vendors have progressively more limited access.
+
+Before adopting a Critical or High-risk vendor, we assess what data and systems it can access, what happens if it is breached or unavailable, and whether it provides appropriate security evidence such as a SOC 2 report, ISO 27001 certificate, or penetration test summary. Data protection terms (such as a DPA) are put in place where personal data is processed, access is limited to the minimum necessary, and SSO with MFA is required for administrative access. Critical and High-risk vendors are reviewed at least annually, and vendor access is removed and documented on offboarding. All of Encore's current critical vendors (including GCP, Tailscale, Clerk, GitHub, Sentry, and Grafana) are SOC 2 and/or ISO 27001 certified.
 
 ## Availability
 
@@ -139,17 +169,28 @@ Encore offers a public "Status page" where users and customers can find the curr
 
 To reduce the risk of simultaneous failure, Encore backs up data to multiple US regions in GCP, with very limited access. Relational databases are backed up on a daily schedule.
 
-Encore is currently planning a rehearsal of disaster recovery in Q4 of 2026. In this exercise, a clone of the production environment will be recovered from scratch using backups and tested for soundness.
+Encore will conduct its first full disaster recovery exercise in Q3 2026, cloning the production environment from backups end-to-end and validating its soundness. The exercise covers restoring the primary relational databases and object storage, end-to-end validation against our documented recovery objectives (an 8-hour Recovery Time Objective and a 24-hour Recovery Point Objective), and a tabletop walk-through of our business continuity plan for personnel and communications. DR testing will then run at least annually, plus on any material architecture change. Outcomes and remediation items are recorded and available for SOC 2 audit and, under NDA, for customer review.
 
 ### Incident handling
 
-Whenever an incident occurs, Encore's designated on-call engineer initiates an investigation and escalates to the broader engineering team as necessary based on severity. For issues deemed critical, they follow an iterative response process to identify and contain errors, recover systems and services, and remediate vulnerabilities.
+Whenever an incident occurs, Encore's designated on-call engineer initiates an investigation and escalates to the broader engineering team as necessary based on severity. Our Incident Response Policy defines escalation paths and a severity model (Low, Medium, High, and Critical) that distinguishes unverified suspicions from confirmed, actively exploited risks. For issues deemed critical, the response team follows an iterative process: a war room is convened, a breach timeline and indicators of compromise are maintained, emergency and long-term mitigations are tracked, and the incident is driven to a documented post-mortem. High-severity incidents require a retrospective. Critical incidents escalate directly to the CEO, CTO, and COO, and engage legal and PR where breach notification may be required.
 
-Customers and users can report outages via regular support channels (for example via email, or using the [Discord](https://encore.dev/discord) chat group). Encore's internal communication systems have dedicated channels for incident escalation.
+Customers and users can report outages via regular support channels (for example via email, or using the [Discord](https://encore.dev/discord) chat group). Encore's internal communication systems have dedicated channels for incident escalation, with out-of-band communication arrangements in case primary channels are compromised.
 
 ## Confidentiality
 
 When you use Encore, other users won't be able to see your content, unless you grant access explicitly by inviting them to your application. Encore engineers may use your data to provide support and when necessary to fix bugs.
+
+### Data classification
+
+Our Data Classification Policy defines four sensitivity levels, each with corresponding handling requirements:
+
+- **Public:** information approved for public release, such as published documentation and marketing content.
+- **Internal:** information intended for company use that is not harmful if disclosed in small amounts.
+- **Confidential:** information that could harm customers, the company, employees, or partners if disclosed. Customer production data, private source code, and support tickets default to Confidential. Access requires a business need, is protected with SSO, MFA, and role-based access, and is encrypted in transit and at rest.
+- **Restricted:** information where disclosure could cause serious harm, such as production secrets, tokens, private keys, and credentials. Access is limited to specific authorized people or systems, stored only in approved secret managers, and rotated if exposure is suspected.
+
+Access to internal support tooling is curated so that it does not expose Confidential customer data, is available only over the Tailscale VPN with SSO authentication, and logs all actions for audit. Access to Confidential and Restricted data is granted on a business-need basis and removed promptly on role change, offboarding, or when the need ends.
 
 ### Access controls
 
@@ -188,6 +229,8 @@ Several measures are put into place in order to keep product quality high:
 -   Testing of Open-Source libraries: Encore uses Open-Source libraries to provide certain functionality. Overnight tests run daily to discover potential issues, and manual testing is performed when any Open-Source libraries are version updated.
 
 Any code change is released only if all these steps succeed. Furthermore, access to the code base is protected via multi-factor authentication (MFA), which poses another layer of defense against the malicious injection of code.
+
+These practices are governed by our Change Management Policy, which requires that production changes go through GitHub pull requests, are reviewed by someone other than the author (segregation of duties enforced via protected branches), pass required automated checks before merge, and are deployed through approved CI/CD workflows. The pull request, review history, CI results, and deployment record together form the audit trail. Higher-risk changes — such as those affecting authentication, cryptography, secrets, billing, network exposure, or destructive database migrations — require additional approval from an appropriate owner and, where applicable, a documented rollback or recovery plan. Emergency changes may be expedited to contain an incident but must be documented and reviewed afterward.
 
 Since Encore depends on third-party software, we regularly contribute to the quality assurance of our suppliers. Whenever Encore becomes aware of regressions or bugs, they are reported upstream. In this way, Encore is contributing to the quality, stability, and accuracy of other software in the space.
 
