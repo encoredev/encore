@@ -116,6 +116,39 @@ func TestNodeModulesPath(t *testing.T) {
 	}
 }
 
+func TestIsVolatilePnpmMetadata(t *testing.T) {
+	tests := []struct {
+		path HostPath
+		want bool
+	}{
+		// Volatile pnpm bookkeeping files directly inside a node_modules dir.
+		{"node_modules/.modules.yaml", true},
+		{"node_modules/.pnpm-workspace-state.json", true},
+		{"node_modules/.pnpm-workspace-state-v1.json", true},
+		{"app/node_modules/.modules.yaml", true},
+		// Nested node_modules roots (e.g. pnpm virtual store) are still caught.
+		{"node_modules/.pnpm/pkg@1.0.0/node_modules/.modules.yaml", true},
+		// Not directly under node_modules -> a package may legitimately ship
+		// a coincidentally-named file deep inside it; must not be skipped.
+		{"node_modules/pkg/fixtures/.modules.yaml", false},
+		{"node_modules/pkg/.modules.yaml", false},
+		// At the workspace root (no node_modules parent) -> keep.
+		{".modules.yaml", false},
+		// Regular dependency files -> keep.
+		{"node_modules/foo", false},
+		{"node_modules/pkg/index.js", false},
+		// Not in the denylist -> keep.
+		{"node_modules/package.json", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.path), func(t *testing.T) {
+			c := qt.New(t)
+			c.Assert(isVolatilePnpmMetadata(tt.path), qt.Equals, tt.want)
+		})
+	}
+}
+
 func TestMkdirAll_OrderingInvariant(t *testing.T) {
 	c := qt.New(t)
 	tc := newTarCopier()

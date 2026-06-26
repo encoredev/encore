@@ -24,6 +24,11 @@ func testImageConfig(c *qt.C) (DescribeConfig, HostPath) {
 		"entrypoint":       "echo hello",
 		"package.json":     `{"name": "package/name"}`,
 		"node_modules/foo": "foo",
+		// pnpm bookkeeping files that must be excluded from the deps layer so
+		// its digest stays stable across installs. See pnpm#9474.
+		"node_modules/.modules.yaml":                 "prunedAt: Mon, 01 Jan 2024 00:00:00 GMT\n",
+		"node_modules/.pnpm-workspace-state.json":    `{"lastValidatedTimestamp":1}`,
+		"node_modules/.pnpm-workspace-state-v1.json": `{"lastValidatedTimestamp":1}`,
 	})
 	runtimes := paths.FS(c.TempDir())
 	writeFiles(c, runtimes, map[string]string{
@@ -144,6 +149,54 @@ func TestBuildImage_ReproducibleLayers(t *testing.T) {
 		c.Assert(err, qt.IsNil)
 		c.Assert(secondDigest, qt.Equals, firstDigest, qt.Commentf("layer %d digest differs", i))
 	}
+}
+
+// TestBuildImage_DeterministicDepsLayerAcrossInstalls verifies that two installs
+// producing identical dependencies but a different pnpm prunedAt timestamp in
+// node_modules/.modules.yaml yield the same dependency-layer digest, so the
+// (largest) node_modules layer is not needlessly re-pushed and re-pulled on every
+// deploy. See https://github.com/pnpm/pnpm/issues/9474.
+func TestBuildImage_DeterministicDepsLayerAcrossInstalls(t *testing.T) {
+	c := qt.New(t)
+	cfg, supervisorPath := testImageConfig(c)
+
+	source, ok := cfg.BundleSource.Get()
+	c.Assert(ok, qt.IsTrue)
+	modulesYAML := filepath.Join(string(source.Source), "node_modules", ".modules.yaml")
+
+	ctx := context.Background()
+	depsDigest := func() string {
+		spec, err := describe(cfg)
+		c.Assert(err, qt.IsNil)
+		img, err := BuildImage(ctx, spec, ImageBuildConfig{
+			BuildTime:      time.Unix(1234567890, 0),
+			SupervisorPath: option.Some(supervisorPath),
+		})
+		c.Assert(err, qt.IsNil)
+		layers, err := img.Layers()
+		c.Assert(err, qt.IsNil)
+		c.Assert(len(layers), qt.Equals, 4)
+
+		// Layer index 1 is the dependency (node_modules) layer; the volatile
+		// bookkeeping files must be excluded from it.
+		deps := layers[1]
+		c.Assert(layerEntryNames(c, deps), qt.DeepEquals, []string{
+			"workspace/",
+			"workspace/node_modules/",
+			"workspace/node_modules/foo",
+		})
+		digest, err := deps.Digest()
+		c.Assert(err, qt.IsNil)
+		return digest.String()
+	}
+
+	c.Assert(os.WriteFile(modulesYAML, []byte("prunedAt: Mon, 01 Jan 2024 00:00:00 GMT\n"), 0644), qt.IsNil)
+	first := depsDigest()
+
+	c.Assert(os.WriteFile(modulesYAML, []byte("prunedAt: Tue, 02 Jul 2030 12:34:56 GMT\n"), 0644), qt.IsNil)
+	second := depsDigest()
+
+	c.Assert(second, qt.Equals, first, qt.Commentf("deps layer digest changed when only .modules.yaml content changed"))
 }
 
 func layerEntryNames(c *qt.C, layer v1.Layer) []string {
