@@ -130,6 +130,22 @@ type Recursive struct {
     MapOfOptional map[string]option.Option[*Recursive]
 }
 
+// internalStatus is an unexported type used in exported struct fields.
+// It should NOT appear in the generated OpenAPI spec.
+type internalStatus int
+
+const (
+	statusOK    internalStatus = iota
+	statusError
+)
+
+// StatusResponse tests that unexported types in exported struct fields
+// are resolved inline rather than leaked as named schema components.
+type StatusResponse struct {
+	Status  internalStatus
+	Message string
+}
+
 -- svc/api.go --
 package svc
 
@@ -214,6 +230,11 @@ func Rec(ctx context.Context, req *Recursive) (*Recursive, error) {
 //encore:api public method=POST
 func CreateDocumentedOrder(ctx context.Context, req *DocumentedOrder) (*DocumentedOrder, error) {
     return req, nil
+}
+
+//encore:api public method=GET
+func GetStatus(ctx context.Context) (*StatusResponse, error) {
+    return &StatusResponse{Status: statusOK, Message: "ok"}, nil
 }
 -- svc/nested/nested.go --
 package nested
