@@ -1295,6 +1295,16 @@
 				text: "Managing Infrastructure"
 				path: "/platform/infrastructure/managing-infrastructure"
 				file: "platform/infrastructure/managing-infrastructure"
+			}, {
+				kind: "basic"
+				text: "Just-in-time Access"
+				path: "/platform/infrastructure/jit-access"
+				file: "platform/infrastructure/jit-access"
+			}, {
+				kind: "basic"
+				text: "External Vaults"
+				path: "/platform/infrastructure/external-vaults"
+				file: "platform/infrastructure/external-vaults"
 			},
 			{
 				kind: "accordion"
