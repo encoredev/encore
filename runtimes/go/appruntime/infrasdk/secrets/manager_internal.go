@@ -19,6 +19,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/infrasdk/secrets/provider"
 	"encore.dev/appruntime/shared/cfgutil"
+	"encore.dev/appruntime/shared/encoreenv"
 	"encore.dev/types/option"
 )
 
@@ -162,6 +163,7 @@ func parseProviders(s string) map[string]boundRef {
 
 // parse parses secrets in "key1=base64(val1),key2=base64(val2)" format into a map.
 func parse(s string) map[string]string {
+	s = expandEnvRef(s)
 	s, isGzipped := strings.CutPrefix(s, "gzip:")
 	if isGzipped {
 		var b []byte
@@ -200,4 +202,44 @@ func parse(s string) map[string]string {
 		m[kv[0]] = string(val)
 	}
 	return m
+}
+
+// envRefPrefix marks an env var whose content is split across multiple env
+// vars. The remainder after the prefix is a comma-separated list of env var
+// names whose values are concatenated, in order, to reconstruct the original
+// value before any further decoding (gzip/base64) takes place.
+//
+// This works around per-variable size limits on some platforms: the producer
+// splits the (encoded) ENCORE_APP_SECRETS payload into chunks and references
+// them here:
+//
+//	ENCORE_APP_SECRETS  -> "envref:ENCORE_APP_SECRETS_0,ENCORE_APP_SECRETS_1"
+//	ENCORE_APP_SECRETS_0 -> <chunk>
+//	...
+//
+// The indirection is non-recursive: a chunk whose value itself starts with
+// "envref:" is treated as literal content.
+const envRefPrefix = "envref:"
+
+// expandEnvRef expands the envref: indirection in an env var value (see
+// [envRefPrefix]). Values without the prefix are returned unchanged.
+func expandEnvRef(val string) string {
+	refs, ok := strings.CutPrefix(val, envRefPrefix)
+	if !ok {
+		return val
+	}
+
+	var b strings.Builder
+	for _, name := range strings.Split(refs, ",") {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue // tolerate trailing comma / stray whitespace
+		}
+		chunk := encoreenv.Get(name)
+		if chunk == "" {
+			log.Fatalf("encore runtime: fatal error: secret references missing env var %q", name)
+		}
+		b.WriteString(chunk)
+	}
+	return b.String()
 }
