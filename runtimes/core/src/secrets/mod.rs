@@ -136,6 +136,9 @@ const BASE64: general_purpose::GeneralPurpose = general_purpose::STANDARD;
 #[derive(Debug, Copy, Clone)]
 pub enum ResolveError {
     EnvVarNotFound,
+    /// A secret value uses the `envref:` indirection but one of the referenced
+    /// chunk env vars is not set.
+    EnvRefChunkNotFound,
     JsonKeyNotFound,
     JsonValueNotString,
     InvalidBase64,
@@ -156,6 +159,9 @@ impl Display for ResolveError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ResolveError::EnvVarNotFound => write!(f, "environment variable not found"),
+            ResolveError::EnvRefChunkNotFound => {
+                write!(f, "referenced envref chunk environment variable not found")
+            }
             ResolveError::JsonKeyNotFound => write!(f, "JSON key not found"),
             ResolveError::JsonValueNotString => write!(f, "JSON value is not a string"),
             ResolveError::InvalidBase64 => write!(f, "invalid base64"),
@@ -176,15 +182,49 @@ type ResolveResult<T> = Result<T, ResolveError>;
 fn resolve(data: &SecretData) -> ResolveResult<Vec<u8>> {
     let value = match &data.source {
         Some(Source::Embedded(data)) => data.clone(),
-        Some(Source::Env(name)) => {
-            let value = std::env::var(name).map_err(|_| ResolveError::EnvVarNotFound)?;
-            value.into_bytes()
-        }
+        Some(Source::Env(name)) => resolve_env_source(name)?,
         Some(Source::Provider(_)) => return Err(ResolveError::ProviderNotResolved),
         None => Err(ResolveError::InvalidSecretSource)?,
     };
 
     post_process(value, data)
+}
+
+/// Marker prefix in an env var value indicating its content is split across
+/// multiple env vars. The remainder is a comma-separated list of env var names
+/// whose values are concatenated, in order, to form the secret value.
+///
+/// This works around per-variable size limits on some platforms (e.g. AWS
+/// Lambda's 4KB total env budget). The producer splits the *encoded* value
+/// (post-base64/gzip) into N chunks and sets:
+///   SECRET      = "envref:SECRET_0,SECRET_1,SECRET_2"
+///   SECRET_0..N = <chunk>
+///
+/// Reassembly happens here, before `post_process`, so decoding still operates on
+/// the complete value. The indirection is non-recursive: a chunk whose value
+/// itself starts with `envref:` is treated as literal content.
+const ENV_REF_PREFIX: &str = "envref:";
+
+/// Resolve an env-var-backed secret value, expanding the `envref:` indirection
+/// (see [`ENV_REF_PREFIX`]) if present.
+fn resolve_env_source(name: &str) -> ResolveResult<Vec<u8>> {
+    let value = std::env::var(name).map_err(|_| ResolveError::EnvVarNotFound)?;
+
+    // Fast path: plain value, no indirection.
+    let Some(refs) = value.strip_prefix(ENV_REF_PREFIX) else {
+        return Ok(value.into_bytes());
+    };
+
+    let mut out = Vec::new();
+    for part in refs.split(',') {
+        let part = part.trim();
+        if part.is_empty() {
+            continue; // tolerate trailing comma / stray whitespace
+        }
+        let chunk = std::env::var(part).map_err(|_| ResolveError::EnvRefChunkNotFound)?;
+        out.extend_from_slice(chunk.as_bytes());
+    }
+    Ok(out)
 }
 
 /// Apply encoding decode + sub_path extraction to a freshly fetched value.
@@ -322,6 +362,31 @@ mod tests {
             std::env::set_var("TEST_SECRET", "hello");
             let secret = Secret::new(data);
             assert_eq!(secret.get().unwrap(), b"hello");
+        }
+
+        // Test envref: split across multiple env vars. The chunks are
+        // reassembled before decoding, so base64 split mid-string still works:
+        // "aGVs" + "bG8=" == "aGVsbG8=" which base64-decodes to "hello".
+        {
+            std::env::set_var("SPLIT_0", "aGVs");
+            std::env::set_var("SPLIT_1", "bG8=");
+            std::env::set_var("SPLIT", "envref:SPLIT_0, SPLIT_1");
+
+            let secret = Secret::new(SecretData {
+                source: Some(Source::Env("SPLIT".to_string())),
+                sub_path: None,
+                encoding: Encoding::Base64 as i32,
+            });
+            assert_eq!(secret.get().unwrap(), b"hello");
+
+            // A missing chunk reports the distinct error variant.
+            std::env::set_var("SPLIT_MISSING", "envref:SPLIT_0,NOPE");
+            let secret = Secret::new(SecretData {
+                source: Some(Source::Env("SPLIT_MISSING".to_string())),
+                sub_path: None,
+                encoding: Encoding::None as i32,
+            });
+            assert_matches!(secret.get(), Err(ResolveError::EnvRefChunkNotFound));
         }
 
         // Test json_key.
