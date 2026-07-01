@@ -2,6 +2,7 @@ package secrets
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"sync/atomic"
@@ -11,6 +12,7 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/infrasdk/secrets/provider"
+	"encore.dev/appruntime/shared/encoreenv"
 	"encore.dev/types/option"
 )
 
@@ -86,6 +88,32 @@ func TestLoad_ProviderErrorInLocalReturnsEmpty(t *testing.T) {
 		map[string]boundRef{"KEY": {provider: fp, ID: option.Some("x")}},
 	)
 	c.Assert(m.Load("KEY", ""), qt.Equals, "")
+}
+
+func TestExpandEnvRef(t *testing.T) {
+	c := qt.New(t)
+
+	// No prefix: returned unchanged.
+	c.Assert(expandEnvRef("plain-value"), qt.Equals, "plain-value")
+
+	// Chunks are concatenated in order, whitespace around names is tolerated,
+	// and a trailing comma produces an empty (skipped) part.
+	encoreenv.Set("SPLIT_0", "hel")
+	encoreenv.Set("SPLIT_1", "lo")
+	c.Assert(expandEnvRef("envref:SPLIT_0, SPLIT_1,"), qt.Equals, "hello")
+}
+
+func TestParse_EnvRef(t *testing.T) {
+	c := qt.New(t)
+
+	// The whole ENCORE_APP_SECRETS blob is split across env vars and
+	// reassembled before parsing: "KEY=" + base64url("world").
+	full := "KEY=" + base64.RawURLEncoding.EncodeToString([]byte("world"))
+	encoreenv.Set("CHUNK_0", full[:5])
+	encoreenv.Set("CHUNK_1", full[5:])
+
+	m := parse("envref:CHUNK_0,CHUNK_1")
+	c.Assert(m["KEY"], qt.Equals, "world")
 }
 
 func TestParseProviders_Empty(t *testing.T) {
