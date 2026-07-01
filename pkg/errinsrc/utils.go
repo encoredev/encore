@@ -52,10 +52,10 @@ func ExtractFromPanic(recovered any) error {
 			switch err := unwrapped.(type) {
 			case *ErrInSrc:
 				return err
-			case ErrorList:
-				return err
 			case Bailout:
 				return err.List
+			case ErrorList:
+				return err
 			case interface{ Unwrap() error }:
 				unwrapped = err.Unwrap()
 			default:

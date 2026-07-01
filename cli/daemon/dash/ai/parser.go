@@ -56,6 +56,7 @@ func parseDocList(doc, section string) (string, []docListItem) {
 	lines := strings.Split(doc, "\n")
 	start := -1
 	end := -1
+loop:
 	for i, line := range lines {
 		end = i
 		if strings.HasPrefix(strings.TrimSpace(line), section+":") {
@@ -68,7 +69,7 @@ func parseDocList(doc, section string) (string, []docListItem) {
 			case "-", "":
 			default:
 				end = i - 1
-				break
+				break loop
 			}
 		}
 		lines[i] = strings.TrimSpace(line)
@@ -183,8 +184,8 @@ func parseCode(ctx context.Context, app *apps.Instance, services []Service) (rtn
 				}
 				e := overlay.endpoint
 
-				pathDocs := map[string]string{}
 				e.Doc, e.Errors = parseErrorList(r.Doc)
+				var pathDocs map[string]string
 				e.Doc, pathDocs = parsePathList(e.Doc)
 				e.Name = r.Name
 				e.Method = r.HTTPMethods[0]
