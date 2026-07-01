@@ -311,6 +311,16 @@ func reduceForServices(infra *runtimev1.Infrastructure, md *meta.Data, svcs []st
 	}
 
 	cachesToKeep := make(map[string]bool)
+	for _, svc := range md.Svcs {
+		if !svcNames[svc.Name] {
+			continue
+		}
+		for _, ku := range svc.CacheKeyspaces {
+			cachesToKeep[ku.Cluster] = true
+		}
+	}
+	// Backwards compat with metadata produced before svc.CacheKeyspaces existed:
+	// fall back to the per-keyspace Service field.
 	for _, cacheCluster := range md.CacheClusters {
 		for _, keySpace := range cacheCluster.Keyspaces {
 			if svcNames[keySpace.Service] {

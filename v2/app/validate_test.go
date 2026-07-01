@@ -23,6 +23,7 @@ import (
 	"encr.dev/v2/internals/testutil"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/middleware"
+	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/crons"
 	"encr.dev/v2/parser/infra/metrics"
@@ -266,6 +267,20 @@ func parse(ts *testscript.TestScript, neg bool, args []string) {
 				}
 			}
 
+		case *caches.Cluster:
+			printf("cacheCluster %s", res.Name)
+		case *caches.Keyspace:
+			ksName := ""
+			for _, b := range desc.Parse.PkgDeclBinds(res) {
+				ksName = b.BoundName.Name
+				break
+			}
+			printf("cacheKeyspace %s pattern=%q", ksName, res.Path.String())
+			for _, u := range desc.Parse.Usages(res) {
+				if svc, found := desc.ServiceForPath(u.DeclaredIn().FSPath); found {
+					printf("cacheKeyspaceUser %s %s", ksName, svc.Name)
+				}
+			}
 		case *pubsub.Subscription:
 			svc, found := desc.ServiceForPath(res.File.FSPath)
 			if !found {

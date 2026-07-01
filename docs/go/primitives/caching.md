@@ -141,6 +141,94 @@ Also note that Encore ensures there are no conflicting `KeyPattern` definitions 
 Each keyspace must define its own, non-conflicting `KeyPattern`.
 This way, you can feel safe that there won't be any accidental overwrites of cache values, even with multiple services sharing the same cache cluster.
 
+### Sharing keyspaces across services
+
+Just like a cluster, a keyspace can be used from any service that imports it.
+The most flexible pattern is to declare both the cluster and its keyspaces in
+a regular (non-service) package — that way any service can import them and use
+the keyspace directly:
+
+```go
+// pkg/caches/caches.go
+package caches
+
+import (
+    "time"
+    "encore.dev/storage/cache"
+)
+
+var Cluster = cache.NewCluster("shared-cache", cache.ClusterConfig{
+    EvictionPolicy: cache.AllKeysLRU,
+})
+
+var RequestsPerUser = cache.NewIntKeyspace[string](Cluster, cache.KeyspaceConfig{
+    KeyPattern:    "requests/:key",
+    DefaultExpiry: cache.ExpireIn(10 * time.Second),
+})
+```
+
+```go
+// svc/handler.go
+package svc
+
+import (
+    "context"
+    "myapp/pkg/caches"
+)
+
+//encore:api public
+func Hello(ctx context.Context) error {
+    _, err := caches.RequestsPerUser.Increment(ctx, "user-123", 1)
+    return err
+}
+```
+
+Encore tracks which services use the keyspace and makes sure the cluster's
+connection is available to each one — you don't need to redeclare or wire up
+anything per service.
+
+#### Passing a keyspace to a utility package
+
+Calling methods on the keyspace, or passing it as a function argument, is
+enough for Encore to register the service as a user of the keyspace. This
+lets you put shared logic (like rate limiting) in a regular Go package and
+call it from any service:
+
+```go
+// pkg/ratelimit/ratelimit.go
+package ratelimit
+
+import (
+    "context"
+    "errors"
+    "encore.dev/storage/cache"
+)
+
+func Enforce(ctx context.Context, counter *cache.IntKeyspace[string], userID string, limit int64) error {
+    n, err := counter.Increment(ctx, userID, 1)
+    if err != nil {
+        return err
+    }
+    if n > limit {
+        return errors.New("rate limit exceeded")
+    }
+    return nil
+}
+```
+
+```go
+// svc/handler.go
+import (
+    "myapp/pkg/caches"
+    "myapp/pkg/ratelimit"
+)
+
+//encore:api public
+func Hello(ctx context.Context, userID string) error {
+    return ratelimit.Enforce(ctx, caches.RequestsPerUser, userID, 10)
+}
+```
+
 ## Keyspace operations
 
 Encore comes with a full suite of keyspace types, each with a wide variety of cache operations.
