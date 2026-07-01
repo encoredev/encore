@@ -25,7 +25,8 @@ func Str(ctx context.Context, p *Params) error { return nil }
 ── Invalid request type ───────────────────────────────────────────────────────────────────[E9999]──
 
 API request parameters of type *Nested are not supported in query strings. You can only use
-built-in types, or slices of built-in types such as strings, booleans, int, time.Time.
+built-in types, named types based on built-in types, or slices of those types such as strings,
+booleans, int, time.Time.
 
     ╭─[ svc/svc.go:14:9 ]
     │
