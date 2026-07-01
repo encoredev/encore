@@ -111,6 +111,31 @@ Alternatively, you can express these using type parameters, since `api` is a gen
 **Without any request or response data:**<br/>
 `api<void, void>({ ... }, async () => {});`
 
+### Default values
+
+Encore.ts does not support default values in request or response schemas. While TypeScript itself
+does not have syntax for default values on `interface` or `type` fields, you may be tempted to
+reach for patterns like assigning defaults inside the handler or relying on a class with property
+initializers. These patterns are not applied by Encore's request parser — incoming requests are
+validated and decoded strictly against the declared schema, and missing fields remain `undefined`
+unless the field is marked optional with `?`.
+
+If you need a default value, mark the field as optional and apply the default inside your handler:
+
+```ts
+interface ListParams {
+  limit?: Query<number>;
+}
+
+export const list = api(
+  { method: "GET", path: "/items" },
+  async (p: ListParams): Promise<Response> => {
+    const limit = p.limit ?? 100;
+    // ...
+  },
+);
+```
+
 ### Customizing request and response encoding
 Encore parses the source code to understand the request and response schema of each endpoint.
 By default, the data is parsed as a JSON body for incoming requests, and written back as JSON responses.
