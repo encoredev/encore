@@ -62,16 +62,12 @@ pub static GCP_FIELDS: FieldConfig = FieldConfig {
 
 impl FieldConfig {
     pub fn default() -> &'static FieldConfig {
-        // If we're running in GCP, then we'll use the GCP fields.
-        for var in &[
-            "GCP_PROJECT",
-            "GOOGLE_CLOUD_PROJECT",
-            "GCP_METADATA_PROJECT",
-        ] {
-            if std::env::var(var).is_ok() {
-                return &GCP_FIELDS;
-            }
+        // Select fields based on the cloud provider reported by the Encore
+        // runtime. The "encore" cloud runs on GCP under the hood, so it uses the
+        // GCP fields as well.
+        match std::env::var("ENCORE_CLOUD_PROVIDER").as_deref() {
+            Ok("gcp" | "encore") => &GCP_FIELDS,
+            _ => &DEFAULT_FIELDS,
         }
-        &DEFAULT_FIELDS
     }
 }
