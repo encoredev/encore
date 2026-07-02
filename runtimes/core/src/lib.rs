@@ -693,10 +693,7 @@ fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
         Err(std::env::VarError::NotPresent) => {
             // Not present. Check the ENCORE_RUNTIME_CONFIG_PATH environment variable.
             match std::env::var("ENCORE_RUNTIME_CONFIG_PATH") {
-                Ok(path) => {
-                    let path = Path::new(&path);
-                    return parse_runtime_config(path);
-                }
+                Ok(location) => return load_runtime_config_from_location(&location),
                 Err(std::env::VarError::NotPresent) => return Err(ParseError::EnvNotPresent),
                 Err(e) => return Err(ParseError::EnvVar(e)),
             }
@@ -724,9 +721,125 @@ fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
     }
 }
 
+/// Load the runtime config from a location, which is either a local file path
+/// or a storage bucket URL (`gs://bucket/object` or `s3://bucket/key`).
+fn load_runtime_config_from_location(
+    location: &str,
+) -> Result<runtimepb::RuntimeConfig, ParseError> {
+    match BucketUrl::parse(location) {
+        Some(url) => {
+            let bytes = fetch_from_bucket(&url)?;
+            decode_runtime_config_proto(&bytes)
+        }
+        None => parse_runtime_config(Path::new(location)),
+    }
+}
+
 fn parse_runtime_config(path: &Path) -> Result<runtimepb::RuntimeConfig, ParseError> {
     let data = std::fs::read(path).map_err(ParseError::IO)?;
-    runtimepb::RuntimeConfig::decode(&data[..]).map_err(ParseError::Proto)
+    decode_runtime_config_proto(&data)
+}
+
+/// Decode raw RuntimeConfig protobuf bytes, transparently gunzipping first if
+/// the payload is gzip-compressed (magic bytes 0x1f 0x8b).
+fn decode_runtime_config_proto(bytes: &[u8]) -> Result<runtimepb::RuntimeConfig, ParseError> {
+    if bytes.starts_with(&[0x1f, 0x8b]) {
+        let mut decoder = flate2::read::GzDecoder::new(bytes);
+        let mut raw = Vec::new();
+        decoder.read_to_end(&mut raw).map_err(ParseError::IO)?;
+        runtimepb::RuntimeConfig::decode(&raw[..]).map_err(ParseError::Proto)
+    } else {
+        runtimepb::RuntimeConfig::decode(bytes).map_err(ParseError::Proto)
+    }
+}
+
+/// A storage bucket location the runtime config can be read from.
+enum BucketUrl {
+    Gcs { bucket: String, object: String },
+    S3 { bucket: String, key: String },
+}
+
+impl BucketUrl {
+    /// Parse a `gs://bucket/object` or `s3://bucket/key` URL. Returns None for
+    /// anything else (inline config or a local file path).
+    fn parse(s: &str) -> Option<Self> {
+        if let Some(rest) = s.strip_prefix("gs://") {
+            let (bucket, object) = rest.split_once('/')?;
+            Some(Self::Gcs {
+                bucket: bucket.to_string(),
+                object: object.to_string(),
+            })
+        } else if let Some(rest) = s.strip_prefix("s3://") {
+            let (bucket, key) = rest.split_once('/')?;
+            Some(Self::S3 {
+                bucket: bucket.to_string(),
+                key: key.to_string(),
+            })
+        } else {
+            None
+        }
+    }
+}
+
+fn io_err<E: std::fmt::Display>(e: E) -> ParseError {
+    ParseError::IO(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+}
+
+/// Fetch an object's bytes from a storage bucket. The builder runs in a sync
+/// context before any tokio runtime exists, so we drive the async SDKs on a
+/// temporary current-thread runtime.
+fn fetch_from_bucket(url: &BucketUrl) -> Result<Vec<u8>, ParseError> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(ParseError::IO)?;
+
+    rt.block_on(async {
+        match url {
+            BucketUrl::Gcs { bucket, object } => fetch_gcs(bucket, object).await,
+            BucketUrl::S3 { bucket, key } => fetch_s3(bucket, key).await,
+        }
+    })
+}
+
+async fn fetch_gcs(bucket: &str, object: &str) -> Result<Vec<u8>, ParseError> {
+    use google_cloud_storage::client::{Client, ClientConfig};
+    use google_cloud_storage::http::objects::{download::Range, get::GetObjectRequest};
+
+    // Resolve credentials via ADC, same as objects::gcs.
+    let config = ClientConfig::default().with_auth().await.map_err(io_err)?;
+    let client = Client::new(config);
+
+    client
+        .download_object(
+            &GetObjectRequest {
+                bucket: bucket.to_string(),
+                object: object.to_string(),
+                ..Default::default()
+            },
+            &Range::default(),
+        )
+        .await
+        .map_err(io_err)
+}
+
+async fn fetch_s3(bucket: &str, key: &str) -> Result<Vec<u8>, ParseError> {
+    // Region and credentials resolved from the default provider chain
+    // (AWS_REGION, shared config/profile, instance metadata, ...).
+    let config = aws_config::defaults(aws_config::BehaviorVersion::v2025_08_07())
+        .load()
+        .await;
+    let client = aws_sdk_s3::Client::new(&config);
+
+    let resp = client
+        .get_object()
+        .bucket(bucket)
+        .key(key)
+        .send()
+        .await
+        .map_err(io_err)?;
+    let body = resp.body.collect().await.map_err(io_err)?;
+    Ok(body.into_bytes().to_vec())
 }
 
 fn proc_config_from_env() -> Result<Option<proccfg::ProcessConfig>, ParseError> {
