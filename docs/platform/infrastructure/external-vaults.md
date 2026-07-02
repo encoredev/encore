@@ -12,7 +12,7 @@ This is useful when secrets are owned by another team or system, managed by an e
 
 <Callout type="info">
 
-External vaults are an **Enterprise** feature. [Contact us](https://encore.cloud/book) to enable them for your organization.
+External vaults are an **Enterprise** feature. [Contact us](https://encore.dev/book) to enable them for your organization.
 
 </Callout>
 
@@ -22,11 +22,10 @@ You connect a vault to your Encore app, pointing it at an external secret store.
 
 ### Supported providers
 
-| Provider               | Description                                              |
-| ---------------------- | -------------------------------------------------------- |
-| **GCP Secret Manager** | Reference secrets stored in Google Cloud Secret Manager. |
-
-More providers may be added over time.
+| Provider               | Status                                                          |
+| ---------------------- | --------------------------------------------------------------- |
+| **GCP Secret Manager** | Available. Reference secrets stored in Google Cloud Secret Manager. |
+| **AWS Secrets Manager** | In active development — [reach out](https://encore.dev/book) if you're interested. |
 
 ## Adding a vault
 
@@ -39,7 +38,9 @@ Vaults are configured at the **app level**. You need the **Admin** or **Member**
 5. Fill in the provider configuration (see below).
 6. Click **Save**.
 
-### GCP Secret Manager configuration
+## GCP Secret Manager
+
+### Configuration
 
 To connect a GCP Secret Manager vault you'll provide:
 
@@ -57,13 +58,13 @@ The dashboard shows the exact account email and permissions, with copy-to-clipbo
 
 Notice that the connected account only needs `getIamPolicy` and `setIamPolicy` — **not** access to the secret values themselves. Encore Cloud uses these permissions to grant your application's runtime service accounts access to the referenced secrets; it never needs to read the values itself.
 
-## Preventing Encore from reading secret values
+### Preventing Encore from reading secret values
 
 Because the connected account holds `setIamPolicy`, it could in principle grant itself (or another principal it controls) access to the secret values. If your security model requires that Encore Cloud is *able to manage access but never able to read the secrets*, you can enforce that with two [GCP IAM deny policies][gcp-deny].
 
 Deny policies take precedence over allow policies, so they hold even if an `allow` binding is later added. Attach them at the project, folder, or organization level that contains the secrets.
 
-### 1. Deny secret access outside your production projects
+#### 1. Deny secret access outside your production projects
 
 This deny policy blocks the `access` permission on Secret Manager for every principal **except** the service accounts that belong to your production project(s). Even if Encore's connected account granted itself an allow binding, this deny rule would override it — only your runtime workloads can read the values.
 
@@ -86,7 +87,7 @@ Replace `123456789012` with the numeric project ID of the project whose service 
 }
 ```
 
-### 2. Block Encore from impersonating service accounts
+#### 2. Block Encore from impersonating service accounts
 
 The boundary above relies on only your production service accounts being able to read secrets. To prevent Encore's connected account from sidestepping it by impersonating one of those accounts, deny it the Service Account Credentials impersonation permissions.
 
@@ -120,6 +121,12 @@ Make sure the `exceptionPrincipals` in the first policy cover every service acco
 
 </Callout>
 
+## AWS
+
+External vault support for **AWS** (including AWS Secrets Manager) is in active development.
+
+If you're running on AWS and want to reference secrets from an external store, [reach out](https://encore.dev/book) — we'd love to hear about your use case and can let you know when AWS support is available.
+
 ## Referencing a vault secret
 
 Once a vault is connected, you can point a secret at it instead of storing a value in Encore:
@@ -135,7 +142,7 @@ Your application keeps reading the secret [by name in code](/docs/ts/primitives/
 From the **External Vaults** section you can:
 
 - **Rename** a vault.
-- **Edit configuration** — change the GCP account or project ID.
+- **Edit configuration** — change the provider configuration (e.g. the GCP account or project ID).
 - **Remove** a vault. Each vault shows which secrets currently reference it (its "used by" list), so you can see the impact before removing it.
 
 ## Related
