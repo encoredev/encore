@@ -87,7 +87,7 @@ impl Logger {
                 msg,
                 error,
                 caller,
-                convert_fields(env, fields),
+                convert_fields(fields),
             )
             .map_err(Error::from);
 
@@ -109,10 +109,10 @@ impl Logger {
     #[napi]
     pub fn with(
         &self,
-        env: Env,
         #[napi(ts_arg_type = "Record<string, unknown>")] fields: HashMap<String, napi::JsUnknown>,
     ) -> napi::Result<Self> {
-        let fields = convert_fields(env, Some(fields)).unwrap();
+        // convert_fields returns None for an empty object; default to no fields
+        let fields = convert_fields(Some(fields)).unwrap_or_default();
 
         Ok(Self {
             logger: self.logger.with(fields),
@@ -231,7 +231,7 @@ fn extract_file_line_col(string: &str) -> Option<(String, u32, Option<u32>)> {
 }
 
 /// converts a hash map of unknown JS values to a BTree of serde_json::Value's
-fn convert_fields(env: Env, input: Option<HashMap<String, napi::JsUnknown>>) -> Option<Fields> {
+fn convert_fields(input: Option<HashMap<String, napi::JsUnknown>>) -> Option<Fields> {
     match input {
         None => None,
         Some(input) if input.is_empty() => None,
@@ -239,20 +239,24 @@ fn convert_fields(env: Env, input: Option<HashMap<String, napi::JsUnknown>>) -> 
             let mut fields = Fields::new();
 
             for (key, value) in input {
-                let val: napi::Result<serde_json::Value> = env.from_js_value(&value);
+                // Capture the type up front so we can fall back to it if the
+                // value can't be converted (the conversion below consumes it).
+                let value_type = value.get_type().unwrap_or(napi::ValueType::Unknown);
+
+                // Convert through PValue rather than env.from_js_value: the
+                // latter recurses without a depth limit and overflows the
+                // native stack on a circular object
+                let val = crate::pvalue::parse_pvalue(value).and_then(|pv| {
+                    serde_json::to_value(&pv).map_err(|e| Error::from_reason(e.to_string()))
+                });
                 match val {
                     Ok(val) => {
                         fields.insert(key, val);
                     }
                     Err(_) => {
-                        // if value is not deserializable (e.g Function), print its type
-                        let value_type = serde_json::Value::from(
-                            value
-                                .get_type()
-                                .unwrap_or(napi::ValueType::Unknown)
-                                .to_string(),
-                        );
-                        fields.insert(key, value_type);
+                        // if value is not serializable (e.g Function) or is
+                        // circular, print its type instead.
+                        fields.insert(key, serde_json::Value::from(value_type.to_string()));
                     }
                 };
             }

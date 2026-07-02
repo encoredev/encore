@@ -2,7 +2,6 @@ use std::{cell::Cell, str::FromStr, sync::Arc};
 
 use crate::cookies::{cookie_to_napi_value, JsCookie};
 use crate::runtime::Runtime;
-use chrono::TimeZone;
 use encore_runtime_core::api::{self, auth, schema, Decimal, PValue, PValues};
 use malachite::{rational::Rational, Integer, Natural};
 use napi::{
@@ -262,7 +261,7 @@ impl FromNapiValue for PVal {
                     if is_date {
                         let dt = JsDate::from_napi_value(env, napi_val)?;
                         let millis = dt.value_of()?;
-                        let ts = timestamp_to_dt(millis);
+                        let ts = timestamp_to_dt(millis)?;
                         PValue::DateTime(ts)
                     } else {
                         // Check if it's a Decimal instance by checking for __encore_decimal property
@@ -432,12 +431,17 @@ fn add_fields_to_obj<'a, I: IntoIterator<Item = (&'a String, &'a PValue)>>(
     Ok(())
 }
 
-fn timestamp_to_dt(millis: f64) -> chrono::DateTime<chrono::FixedOffset> {
+fn timestamp_to_dt(millis: f64) -> Result<chrono::DateTime<chrono::FixedOffset>> {
     let millis = millis.trunc() as i64;
-    let secs = millis / 1000;
-    let nanos = (millis % 1000) * 1_000_000;
-    let ts = chrono::Utc.timestamp_opt(secs, nanos as u32);
-    ts.unwrap().fixed_offset()
+    // `from_timestamp_millis` handles negative (pre-1970) values correctly.
+    chrono::DateTime::from_timestamp_millis(millis)
+        .map(|dt| dt.fixed_offset())
+        .ok_or_else(|| {
+            Error::new(
+                Status::InvalidArg,
+                format!("timestamp {millis}ms is outside the supported range"),
+            )
+        })
 }
 
 // This is an inlined version of JsObject::get that distinguishes between null and undefined.

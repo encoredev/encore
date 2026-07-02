@@ -1,4 +1,5 @@
 import { setCurrentRequest } from "../internal/reqtrack/mod";
+import log from "../log/mod";
 import { DurationString } from "../types/mod";
 import { Topic } from "./topic";
 import * as runtime from "../internal/runtime/mod";
@@ -28,9 +29,20 @@ export class Subscription<Msg extends object> {
 
   private startSubscribing() {
     const that = this;
-    this.impl.subscribe().finally(() => {
-      setTimeout(() => that.startSubscribing(), 1000);
-    });
+    this.impl
+      .subscribe()
+      .catch((err) => {
+        // Swallow the rejection so it doesn't become an unhandled rejection
+        // (which terminates the process). The subscription is retried by the
+        // finally() below.
+        log.error(err, "pubsub subscription failed, retrying", {
+          topic: that.topic.name,
+          subscription: that.name,
+        });
+      })
+      .finally(() => {
+        setTimeout(() => that.startSubscribing(), 1000);
+      });
   }
 }
 
