@@ -1321,6 +1321,16 @@
 					file: "platform/infrastructure/import-cloud-sql"
 				}, {
 					kind: "basic"
+					text: "Import Pub/Sub Topic"
+					path: "/platform/infrastructure/gcp/import-pubsub-topic"
+					file: "platform/infrastructure/import-pubsub-topic"
+				}, {
+					kind: "basic"
+					text: "Import Cloud Storage Bucket"
+					path: "/platform/infrastructure/gcp/import-gcs-bucket"
+					file: "platform/infrastructure/import-gcs-bucket"
+				}, {
+					kind: "basic"
 					text: "Import Project"
 					path: "/platform/infrastructure/gcp/import-project"
 					file: "platform/infrastructure/import-project"
@@ -1343,6 +1353,16 @@
 					text: "Import RDS Database"
 					path: "/platform/infrastructure/aws/import-rds"
 					file: "platform/infrastructure/import-rds"
+				}, {
+					kind: "basic"
+					text: "Import SNS Topic"
+					path: "/platform/infrastructure/aws/import-sns-topic"
+					file: "platform/infrastructure/import-sns-topic"
+				}, {
+					kind: "basic"
+					text: "Import S3 Bucket"
+					path: "/platform/infrastructure/aws/import-s3-bucket"
+					file: "platform/infrastructure/import-s3-bucket"
 				}, {
 					kind: "basic"
 					text: "Configure Network"
