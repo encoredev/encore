@@ -2,11 +2,13 @@
 package schema
 
 import (
+	"encoding/json"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/fatih/structtag"
@@ -40,6 +42,39 @@ type Parser struct {
 func (p *Parser) ParseType(file *pkginfo.File, expr ast.Expr) Type {
 	r := p.newTypeResolver(nil, nil)
 	return r.parseType(file, expr)
+}
+
+func openAPIFieldValues(tags structtag.Tags) (exampleJSON, defaultJSON string) {
+	tag, err := tags.Get("openapi")
+	if err != nil || tag == nil {
+		return "", ""
+	}
+	settings := make(map[string]string)
+	for _, part := range append([]string{tag.Name}, tag.Options...) {
+		for _, p := range strings.Split(part, ";") {
+			p = strings.TrimSpace(p)
+			if p == "" || p == "-" {
+				continue
+			}
+			key, val, ok := strings.Cut(p, "=")
+			if ok {
+				settings[strings.TrimSpace(key)] = strings.TrimSpace(val)
+			}
+		}
+	}
+	return openAPIJSON(settings["example"]), openAPIJSON(settings["default"])
+}
+
+func openAPIJSON(s string) string {
+	if s == "" {
+		return ""
+	}
+	var v any
+	if json.Unmarshal([]byte(s), &v) == nil {
+		return s
+	}
+	b, _ := json.Marshal(s)
+	return string(b)
 }
 
 // newTypeResolver is a helper function to create a new typeResolver.
@@ -183,13 +218,16 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 					docs = field.Comment.Text()
 				}
 
+				exampleJSON, defaultJSON := openAPIFieldValues(tags)
 				for _, name := range field.Names {
 					st.Fields = append(st.Fields, StructField{
-						AST:  field,
-						Name: option.Some(name.Name),
-						Type: typ,
-						Tag:  tags,
-						Doc:  docs,
+						AST:                field,
+						Name:               option.Some(name.Name),
+						Type:               typ,
+						Tag:                tags,
+						Doc:                docs,
+						OpenAPIExampleJSON: exampleJSON,
+						OpenAPIDefaultJSON: defaultJSON,
 					})
 				}
 			}
