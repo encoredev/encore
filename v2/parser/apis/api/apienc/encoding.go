@@ -170,6 +170,10 @@ type ParameterEncoding struct {
 	Doc string `json:"doc"`
 	// Type is the field's type description.
 	Type schema.Type `json:"type"`
+	// OpenAPIExampleJSON is the JSON-encoded OpenAPI example value for the parameter.
+	OpenAPIExampleJSON string `json:"openapi_example_json,omitempty"`
+	// OpenAPIDefaultJSON is the JSON-encoded OpenAPI default value for the parameter.
+	OpenAPIDefaultJSON string `json:"openapi_default_json,omitempty"`
 }
 
 // DescribeResponse generates a ParameterEncoding per field of the response struct and returns it as
@@ -469,11 +473,13 @@ func describeParam(errs *perr.List, encodingHints *encodingHints, field schema.S
 
 	defaultWireName := formatName(encodingHints.defaultLocation, srcName)
 	param := ParameterEncoding{
-		OmitEmpty: false,
-		SrcName:   srcName,
-		Doc:       field.Doc,
-		Type:      field.Type,
-		WireName:  defaultWireName,
+		OmitEmpty:          false,
+		SrcName:            srcName,
+		Doc:                field.Doc,
+		Type:               field.Type,
+		WireName:           defaultWireName,
+		OpenAPIExampleJSON: field.OpenAPIExampleJSON,
+		OpenAPIDefaultJSON: field.OpenAPIDefaultJSON,
 	}
 
 	// Determine which location we should use for this field.
@@ -488,12 +494,14 @@ func describeParam(errs *perr.List, encodingHints *encodingHints, field schema.S
 			}
 
 			return &ParameterEncoding{
-				SrcName:   srcName,
-				WireName:  "httpstatus",
-				Location:  HTTPStatus,
-				OmitEmpty: false,
-				Doc:       field.Doc,
-				Type:      field.Type,
+				SrcName:            srcName,
+				WireName:           "httpstatus",
+				Location:           HTTPStatus,
+				OmitEmpty:          false,
+				Doc:                field.Doc,
+				Type:               field.Type,
+				OpenAPIExampleJSON: field.OpenAPIExampleJSON,
+				OpenAPIDefaultJSON: field.OpenAPIDefaultJSON,
 			}, true
 		}
 
