@@ -275,6 +275,51 @@ var x ` + test.typ + `
 	}
 }
 
+func TestParser_ParseEnumDecl(t *testing.T) {
+	c := qt.New(t)
+	a := testutil.ParseTxtar(`
+-- go.mod --
+module example.com
+require encore.dev v1.52.0
+-- code.go --
+package foo
+
+//encore:enum
+type Currency string
+
+const (
+	EUR Currency = "EUR"
+	USD Currency = "USD"
+)
+
+//encore:enum
+type App uint
+
+const (
+	AppNEHO App = iota
+	AppNEMA
+)
+`)
+	tc := testutil.NewContext(c, false, a)
+	tc.GoModDownload()
+	tc.FailTestOnErrors()
+	defer tc.FailTestOnBailout()
+
+	l := pkginfo.New(tc.Context)
+	p := NewParser(tc.Context, l)
+	pkg := l.MustLoadPkg(token.NoPos, "example.com")
+
+	currency := p.ParseTypeDecl(pkg.Names().PkgDecls["Currency"])
+	c.Assert(currency.EnumValues, qt.HasLen, 2)
+	c.Assert(currency.EnumValues[0].Str.MustGet(), qt.Equals, "EUR")
+	c.Assert(currency.EnumValues[1].Str.MustGet(), qt.Equals, "USD")
+
+	app := p.ParseTypeDecl(pkg.Names().PkgDecls["App"])
+	c.Assert(app.EnumValues, qt.HasLen, 2)
+	c.Assert(app.EnumValues[0].Int.MustGet(), qt.Equals, int64(0))
+	c.Assert(app.EnumValues[1].Int.MustGet(), qt.Equals, int64(1))
+}
+
 func TestParser_ParseFuncDecl(t *testing.T) {
 	type testCase struct {
 		name     string

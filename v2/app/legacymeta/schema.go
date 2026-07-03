@@ -167,14 +167,16 @@ func (b *builder) schemaTypeUnwrapPointer(typ schemav2.Type) *schema.Type {
 
 func (b *builder) structField(f schemav2.StructField) *schema.Field {
 	field := &schema.Field{
-		Typ:             b.schemaType(f.Type),
-		Name:            f.Name.MustGet(),
-		Doc:             f.Doc,
-		JsonName:        "",
-		Optional:        false,
-		QueryStringName: "",
-		RawTag:          f.Tag.String(),
-		Tags:            nil,
+		Typ:                b.schemaType(f.Type),
+		Name:               f.Name.MustGet(),
+		Doc:                f.Doc,
+		JsonName:           "",
+		Optional:           false,
+		QueryStringName:    "",
+		RawTag:             f.Tag.String(),
+		Tags:               nil,
+		OpenapiExampleJson: f.OpenAPIExampleJSON,
+		OpenapiDefaultJson: f.OpenAPIDefaultJSON,
 	}
 
 	for _, tag := range f.Tag.Tags() {
@@ -311,6 +313,24 @@ func (b *builder) schemaTypes(typs ...schemav2.Type) []*schema.Type {
 	return fns.Map(typs, b.schemaType)
 }
 
+func (b *builder) enumValues(vals []schemav2.EnumValue) []*schema.Literal {
+	return fns.Map(vals, func(v schemav2.EnumValue) *schema.Literal {
+		if val, ok := v.Str.Get(); ok {
+			return &schema.Literal{Value: &schema.Literal_Str{Str: val}}
+		}
+		if val, ok := v.Int.Get(); ok {
+			return &schema.Literal{Value: &schema.Literal_Int{Int: val}}
+		}
+		if val, ok := v.Float.Get(); ok {
+			return &schema.Literal{Value: &schema.Literal_Float{Float: val}}
+		}
+		if val, ok := v.Bool.Get(); ok {
+			return &schema.Literal{Value: &schema.Literal_Boolean{Boolean: val}}
+		}
+		return nil
+	})
+}
+
 func (b *builder) decl(decl schemav2.Decl) uint32 {
 	typeDecl, ok := decl.(*schemav2.TypeDecl)
 	if !ok {
@@ -351,6 +371,7 @@ func (b *builder) decl(decl schemav2.Decl) uint32 {
 		TypeParams: typeParams,
 		Doc:        typeDecl.Info.Doc,
 		Loc:        b.schemaLoc(file, decl.ASTNode()),
+		EnumValues: b.enumValues(typeDecl.EnumValues),
 	}
 	b.md.Decls = append(b.md.Decls, d)
 
