@@ -243,8 +243,10 @@ impl CallMeta {
             }
 
             meta.ext_correlation_id = headers.get_meta(MetaKey::XCorrelationId).map(|s| {
-                // Limit the maximum length the correlation id can have.
-                s[..s.len().min(64)].to_string()
+                // Limit the maximum length the correlation id can have. Truncate
+                // by characters rather than bytes: a byte-offset slice panics
+                // when a multi-byte UTF-8 sequence straddles the 64-byte limit.
+                s.chars().take(64).collect::<String>()
             });
 
             Ok(meta)

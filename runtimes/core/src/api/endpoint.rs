@@ -613,7 +613,22 @@ impl EndpointHandler {
             .request
             .iter()
             .find(|schema| schema.methods.contains(&api_method))
-            .expect("request schema must exist for all endpoints");
+            // axum dispatches HEAD requests to the GET handler when the endpoint
+            // has no explicit HEAD route, so there is no HEAD request schema.
+            // Fall back to the GET schema instead of panicking.
+            .or_else(|| {
+                (api_method == Method::HEAD)
+                    .then(|| {
+                        self.endpoint
+                            .request
+                            .iter()
+                            .find(|schema| schema.methods.contains(&Method::GET))
+                    })
+                    .flatten()
+            });
+        let Some(req_schema) = req_schema else {
+            return Err(Error::not_found("no matching route for method"));
+        };
 
         let streaming_request = req_schema.stream;
         let streaming_response = self.endpoint.response.stream;
