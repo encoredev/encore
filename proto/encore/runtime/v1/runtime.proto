@@ -39,6 +39,7 @@ message Environment {
     CLOUD_AWS = 3;
     CLOUD_GCP = 4;
     CLOUD_AZURE = 5;
+    CLOUD_SCALEWAY = 6;
   }
 }
 
@@ -205,6 +206,10 @@ message MetricsProvider {
   message PrometheusRemoteWrite {
     // The URL to send metrics to.
     SecretData remote_write_url = 1;
+
+    // Additional HTTP headers to send with each remote write request,
+    // e.g. for token-based authentication (like Scaleway Cockpit's X-TOKEN).
+    map<string, SecretData> auth_headers = 2;
   }
 
   message Datadog {

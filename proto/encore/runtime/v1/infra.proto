@@ -40,11 +40,22 @@ message SecretProvider {
 
   oneof provider {
     GCPSecretManager gcp_sm = 10;
+    ScalewaySecretManager scw_sm = 11;
   }
 
   message GCPSecretManager {
     // The GCP project that owns the secrets.
     string project_id = 1;
+  }
+
+  message ScalewaySecretManager {
+    // The Scaleway region the secrets live in.
+    string region = 1;
+    // The Scaleway project that owns the secrets.
+    string project_id = 2;
+    // API key with read access to Secret Manager in the project.
+    string access_key = 3;
+    SecretData secret_key = 4;
   }
 }
 
@@ -245,7 +256,18 @@ message PubSubCluster {
   }
 
   message EncoreCloud {}
-  message AWSSqsSns {}
+  message AWSSqsSns {
+    // Optional overrides for connecting to SQS/SNS-compatible services
+    // (e.g. Scaleway Messaging & Queuing). When unset, the default AWS
+    // credential chain and endpoints are used.
+    optional string region = 1;
+    optional string sns_endpoint_url = 2;
+    optional string sqs_endpoint_url = 3;
+    optional string sns_access_key = 4;
+    optional SecretData sns_secret_key = 5;
+    optional string sqs_access_key = 6;
+    optional SecretData sqs_secret_key = 7;
+  }
   message GCPPubSub {}
 
   message NSQ {

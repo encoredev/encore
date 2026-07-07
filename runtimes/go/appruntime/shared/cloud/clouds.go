@@ -7,9 +7,10 @@ package cloud
 type CloudProvider = string
 
 const (
-	AWS   CloudProvider = "aws"
-	GCP   CloudProvider = "gcp"
-	Azure CloudProvider = "azure"
+	AWS      CloudProvider = "aws"
+	GCP      CloudProvider = "gcp"
+	Azure    CloudProvider = "azure"
+	Scaleway CloudProvider = "scaleway"
 
 	// Encore is Encore's own cloud offering, and the default provider for new Environments.
 	Encore CloudProvider = "encore"

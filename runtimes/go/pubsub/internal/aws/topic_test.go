@@ -55,7 +55,7 @@ func Test_AWS_PubSub_E2E(t *testing.T) {
 	topic := mgr.NewTopic(runtime.PubsubProviders[0], types.TopicConfig{DeliveryGuarantee: types.AtLeastOnce}, runtime.PubsubTopics["test-topic"])
 
 	// Purge the queue of any messages from previous failed tests
-	_, err := mgr.getSQSClient(ctx).PurgeQueue(ctx, &sqs.PurgeQueueInput{
+	_, err := mgr.getSQSClient(ctx, nil).PurgeQueue(ctx, &sqs.PurgeQueueInput{
 		QueueUrl: aws.String(testQueueURL),
 	})
 	if err != nil {

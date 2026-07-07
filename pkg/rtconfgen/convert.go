@@ -328,7 +328,19 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 				case *runtimev1.PubSubCluster_Encore:
 					p.EncoreCloud = &config.EncoreCloudPubsubProvider{}
 				case *runtimev1.PubSubCluster_Aws:
-					p.AWS = &config.AWSPubsubProvider{}
+					p.AWS = &config.AWSPubsubProvider{
+						Region:         prov.Aws.GetRegion(),
+						SNSEndpointURL: prov.Aws.GetSnsEndpointUrl(),
+						SQSEndpointURL: prov.Aws.GetSqsEndpointUrl(),
+						SNSAccessKey:   prov.Aws.GetSnsAccessKey(),
+						SQSAccessKey:   prov.Aws.GetSqsAccessKey(),
+					}
+					if sk := prov.Aws.GetSnsSecretKey(); sk != nil {
+						p.AWS.SNSSecretKey = c.secretString(sk)
+					}
+					if sk := prov.Aws.GetSqsSecretKey(); sk != nil {
+						p.AWS.SQSSecretKey = c.secretString(sk)
+					}
 				case *runtimev1.PubSubCluster_Gcp:
 					p.GCP = &config.GCPPubsubProvider{}
 				case *runtimev1.PubSubCluster_Nsq:
@@ -495,6 +507,12 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 				pp := p.PromRemoteWrite
 				m.Prometheus = &config.PrometheusRemoteWriteProvider{
 					RemoteWriteURL: c.secretString(pp.RemoteWriteUrl),
+				}
+				for key, val := range pp.AuthHeaders {
+					if m.Prometheus.AuthHeaders == nil {
+						m.Prometheus.AuthHeaders = make(map[string]string, len(pp.AuthHeaders))
+					}
+					m.Prometheus.AuthHeaders[key] = c.secretString(val)
 				}
 
 			default:

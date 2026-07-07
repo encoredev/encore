@@ -141,9 +141,10 @@ const (
 type CloudProvider = cloud.CloudProvider
 
 const (
-	CloudAWS   CloudProvider = cloud.AWS
-	CloudGCP   CloudProvider = cloud.GCP
-	CloudAzure CloudProvider = cloud.Azure
+	CloudAWS      CloudProvider = cloud.AWS
+	CloudGCP      CloudProvider = cloud.GCP
+	CloudAzure    CloudProvider = cloud.Azure
+	CloudScaleway CloudProvider = cloud.Scaleway
 
 	// EncoreCloud is Encore's own cloud offering, and the default provider for new Environments.
 	EncoreCloud CloudProvider = cloud.Encore

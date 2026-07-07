@@ -6,4 +6,5 @@ package secrets
 // the provider registry. Add new providers (e.g. Vault) here.
 import (
 	_ "encore.dev/appruntime/infrasdk/secrets/gcpsm"
+	_ "encore.dev/appruntime/infrasdk/secrets/scwsm"
 )

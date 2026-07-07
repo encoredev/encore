@@ -198,7 +198,7 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 		case "prometheus":
 			if infraCfg.Metrics.Prometheus != nil {
 				cfg.Metrics.Prometheus = &PrometheusRemoteWriteProvider{
-					infraCfg.Metrics.Prometheus.RemoteWriteURL.Value(),
+					RemoteWriteURL: infraCfg.Metrics.Prometheus.RemoteWriteURL.Value(),
 				}
 			}
 		case "datadog":

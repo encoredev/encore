@@ -191,6 +191,7 @@ type SecretProvider struct {
 	// Types that are valid to be assigned to Provider:
 	//
 	//	*SecretProvider_GcpSm
+	//	*SecretProvider_ScwSm
 	Provider      isSecretProvider_Provider `protobuf_oneof:"provider"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -256,6 +257,15 @@ func (x *SecretProvider) GetGcpSm() *SecretProvider_GCPSecretManager {
 	return nil
 }
 
+func (x *SecretProvider) GetScwSm() *SecretProvider_ScalewaySecretManager {
+	if x != nil {
+		if x, ok := x.Provider.(*SecretProvider_ScwSm); ok {
+			return x.ScwSm
+		}
+	}
+	return nil
+}
+
 type isSecretProvider_Provider interface {
 	isSecretProvider_Provider()
 }
@@ -264,7 +274,13 @@ type SecretProvider_GcpSm struct {
 	GcpSm *SecretProvider_GCPSecretManager `protobuf:"bytes,10,opt,name=gcp_sm,json=gcpSm,proto3,oneof"`
 }
 
+type SecretProvider_ScwSm struct {
+	ScwSm *SecretProvider_ScalewaySecretManager `protobuf:"bytes,11,opt,name=scw_sm,json=scwSm,proto3,oneof"`
+}
+
 func (*SecretProvider_GcpSm) isSecretProvider_Provider() {}
+
+func (*SecretProvider_ScwSm) isSecretProvider_Provider() {}
 
 type SQLCluster struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2062,6 +2078,77 @@ func (x *SecretProvider_GCPSecretManager) GetProjectId() string {
 	return ""
 }
 
+type SecretProvider_ScalewaySecretManager struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The Scaleway region the secrets live in.
+	Region string `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
+	// The Scaleway project that owns the secrets.
+	ProjectId string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	// API key with read access to Secret Manager in the project.
+	AccessKey     string      `protobuf:"bytes,3,opt,name=access_key,json=accessKey,proto3" json:"access_key,omitempty"`
+	SecretKey     *SecretData `protobuf:"bytes,4,opt,name=secret_key,json=secretKey,proto3" json:"secret_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretProvider_ScalewaySecretManager) Reset() {
+	*x = SecretProvider_ScalewaySecretManager{}
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretProvider_ScalewaySecretManager) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretProvider_ScalewaySecretManager) ProtoMessage() {}
+
+func (x *SecretProvider_ScalewaySecretManager) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretProvider_ScalewaySecretManager.ProtoReflect.Descriptor instead.
+func (*SecretProvider_ScalewaySecretManager) Descriptor() ([]byte, []int) {
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{1, 1}
+}
+
+func (x *SecretProvider_ScalewaySecretManager) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *SecretProvider_ScalewaySecretManager) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *SecretProvider_ScalewaySecretManager) GetAccessKey() string {
+	if x != nil {
+		return x.AccessKey
+	}
+	return ""
+}
+
+func (x *SecretProvider_ScalewaySecretManager) GetSecretKey() *SecretData {
+	if x != nil {
+		return x.SecretKey
+	}
+	return nil
+}
+
 type RedisRole_AuthACL struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
@@ -2072,7 +2159,7 @@ type RedisRole_AuthACL struct {
 
 func (x *RedisRole_AuthACL) Reset() {
 	*x = RedisRole_AuthACL{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[24]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2084,7 +2171,7 @@ func (x *RedisRole_AuthACL) String() string {
 func (*RedisRole_AuthACL) ProtoMessage() {}
 
 func (x *RedisRole_AuthACL) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[24]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2122,7 +2209,7 @@ type PubSubCluster_EncoreCloud struct {
 
 func (x *PubSubCluster_EncoreCloud) Reset() {
 	*x = PubSubCluster_EncoreCloud{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[25]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2134,7 +2221,7 @@ func (x *PubSubCluster_EncoreCloud) String() string {
 func (*PubSubCluster_EncoreCloud) ProtoMessage() {}
 
 func (x *PubSubCluster_EncoreCloud) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[25]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2151,14 +2238,24 @@ func (*PubSubCluster_EncoreCloud) Descriptor() ([]byte, []int) {
 }
 
 type PubSubCluster_AWSSqsSns struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional overrides for connecting to SQS/SNS-compatible services
+	// (e.g. Scaleway Messaging & Queuing). When unset, the default AWS
+	// credential chain and endpoints are used.
+	Region         *string     `protobuf:"bytes,1,opt,name=region,proto3,oneof" json:"region,omitempty"`
+	SnsEndpointUrl *string     `protobuf:"bytes,2,opt,name=sns_endpoint_url,json=snsEndpointUrl,proto3,oneof" json:"sns_endpoint_url,omitempty"`
+	SqsEndpointUrl *string     `protobuf:"bytes,3,opt,name=sqs_endpoint_url,json=sqsEndpointUrl,proto3,oneof" json:"sqs_endpoint_url,omitempty"`
+	SnsAccessKey   *string     `protobuf:"bytes,4,opt,name=sns_access_key,json=snsAccessKey,proto3,oneof" json:"sns_access_key,omitempty"`
+	SnsSecretKey   *SecretData `protobuf:"bytes,5,opt,name=sns_secret_key,json=snsSecretKey,proto3,oneof" json:"sns_secret_key,omitempty"`
+	SqsAccessKey   *string     `protobuf:"bytes,6,opt,name=sqs_access_key,json=sqsAccessKey,proto3,oneof" json:"sqs_access_key,omitempty"`
+	SqsSecretKey   *SecretData `protobuf:"bytes,7,opt,name=sqs_secret_key,json=sqsSecretKey,proto3,oneof" json:"sqs_secret_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *PubSubCluster_AWSSqsSns) Reset() {
 	*x = PubSubCluster_AWSSqsSns{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[26]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2170,7 +2267,7 @@ func (x *PubSubCluster_AWSSqsSns) String() string {
 func (*PubSubCluster_AWSSqsSns) ProtoMessage() {}
 
 func (x *PubSubCluster_AWSSqsSns) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[26]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2186,6 +2283,55 @@ func (*PubSubCluster_AWSSqsSns) Descriptor() ([]byte, []int) {
 	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{15, 1}
 }
 
+func (x *PubSubCluster_AWSSqsSns) GetRegion() string {
+	if x != nil && x.Region != nil {
+		return *x.Region
+	}
+	return ""
+}
+
+func (x *PubSubCluster_AWSSqsSns) GetSnsEndpointUrl() string {
+	if x != nil && x.SnsEndpointUrl != nil {
+		return *x.SnsEndpointUrl
+	}
+	return ""
+}
+
+func (x *PubSubCluster_AWSSqsSns) GetSqsEndpointUrl() string {
+	if x != nil && x.SqsEndpointUrl != nil {
+		return *x.SqsEndpointUrl
+	}
+	return ""
+}
+
+func (x *PubSubCluster_AWSSqsSns) GetSnsAccessKey() string {
+	if x != nil && x.SnsAccessKey != nil {
+		return *x.SnsAccessKey
+	}
+	return ""
+}
+
+func (x *PubSubCluster_AWSSqsSns) GetSnsSecretKey() *SecretData {
+	if x != nil {
+		return x.SnsSecretKey
+	}
+	return nil
+}
+
+func (x *PubSubCluster_AWSSqsSns) GetSqsAccessKey() string {
+	if x != nil && x.SqsAccessKey != nil {
+		return *x.SqsAccessKey
+	}
+	return ""
+}
+
+func (x *PubSubCluster_AWSSqsSns) GetSqsSecretKey() *SecretData {
+	if x != nil {
+		return x.SqsSecretKey
+	}
+	return nil
+}
+
 type PubSubCluster_GCPPubSub struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2194,7 +2340,7 @@ type PubSubCluster_GCPPubSub struct {
 
 func (x *PubSubCluster_GCPPubSub) Reset() {
 	*x = PubSubCluster_GCPPubSub{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[27]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2206,7 +2352,7 @@ func (x *PubSubCluster_GCPPubSub) String() string {
 func (*PubSubCluster_GCPPubSub) ProtoMessage() {}
 
 func (x *PubSubCluster_GCPPubSub) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[27]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2232,7 +2378,7 @@ type PubSubCluster_NSQ struct {
 
 func (x *PubSubCluster_NSQ) Reset() {
 	*x = PubSubCluster_NSQ{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[28]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2244,7 +2390,7 @@ func (x *PubSubCluster_NSQ) String() string {
 func (*PubSubCluster_NSQ) ProtoMessage() {}
 
 func (x *PubSubCluster_NSQ) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[28]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2276,7 +2422,7 @@ type PubSubCluster_AzureServiceBus struct {
 
 func (x *PubSubCluster_AzureServiceBus) Reset() {
 	*x = PubSubCluster_AzureServiceBus{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[29]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2288,7 +2434,7 @@ func (x *PubSubCluster_AzureServiceBus) String() string {
 func (*PubSubCluster_AzureServiceBus) ProtoMessage() {}
 
 func (x *PubSubCluster_AzureServiceBus) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[29]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2321,7 +2467,7 @@ type PubSubTopic_GCPConfig struct {
 
 func (x *PubSubTopic_GCPConfig) Reset() {
 	*x = PubSubTopic_GCPConfig{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[30]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2333,7 +2479,7 @@ func (x *PubSubTopic_GCPConfig) String() string {
 func (*PubSubTopic_GCPConfig) ProtoMessage() {}
 
 func (x *PubSubTopic_GCPConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[30]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2372,7 +2518,7 @@ type PubSubSubscription_GCPConfig struct {
 
 func (x *PubSubSubscription_GCPConfig) Reset() {
 	*x = PubSubSubscription_GCPConfig{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[31]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2384,7 +2530,7 @@ func (x *PubSubSubscription_GCPConfig) String() string {
 func (*PubSubSubscription_GCPConfig) ProtoMessage() {}
 
 func (x *PubSubSubscription_GCPConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[31]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2437,7 +2583,7 @@ type BucketCluster_S3 struct {
 
 func (x *BucketCluster_S3) Reset() {
 	*x = BucketCluster_S3{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[32]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2449,7 +2595,7 @@ func (x *BucketCluster_S3) String() string {
 func (*BucketCluster_S3) ProtoMessage() {}
 
 func (x *BucketCluster_S3) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[32]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2508,7 +2654,7 @@ type BucketCluster_GCS struct {
 
 func (x *BucketCluster_GCS) Reset() {
 	*x = BucketCluster_GCS{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[33]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2520,7 +2666,7 @@ func (x *BucketCluster_GCS) String() string {
 func (*BucketCluster_GCS) ProtoMessage() {}
 
 func (x *BucketCluster_GCS) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[33]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2571,7 +2717,7 @@ type BucketCluster_GCS_LocalSignOptions struct {
 
 func (x *BucketCluster_GCS_LocalSignOptions) Reset() {
 	*x = BucketCluster_GCS_LocalSignOptions{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[34]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2583,7 +2729,7 @@ func (x *BucketCluster_GCS_LocalSignOptions) String() string {
 func (*BucketCluster_GCS_LocalSignOptions) ProtoMessage() {}
 
 func (x *BucketCluster_GCS_LocalSignOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[34]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2662,7 +2808,7 @@ type Gateway_CORS struct {
 
 func (x *Gateway_CORS) Reset() {
 	*x = Gateway_CORS{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[35]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2674,7 +2820,7 @@ func (x *Gateway_CORS) String() string {
 func (*Gateway_CORS) ProtoMessage() {}
 
 func (x *Gateway_CORS) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[35]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2789,7 +2935,7 @@ type Gateway_CORSAllowedOrigins struct {
 
 func (x *Gateway_CORSAllowedOrigins) Reset() {
 	*x = Gateway_CORSAllowedOrigins{}
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[36]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2801,7 +2947,7 @@ func (x *Gateway_CORSAllowedOrigins) String() string {
 func (*Gateway_CORSAllowedOrigins) ProtoMessage() {}
 
 func (x *Gateway_CORSAllowedOrigins) ProtoReflect() protoreflect.Message {
-	mi := &file_encore_runtime_v1_infra_proto_msgTypes[36]
+	mi := &file_encore_runtime_v1_infra_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2845,16 +2991,25 @@ const file_encore_runtime_v1_infra_proto_rawDesc = "" +
 	"\vapp_secrets\x18\x05 \x03(\v2\x1c.encore.runtime.v1.AppSecretR\n" +
 	"appSecrets\x12I\n" +
 	"\x0fbucket_clusters\x18\x06 \x03(\v2 .encore.runtime.v1.BucketClusterR\x0ebucketClusters\x12L\n" +
-	"\x10secret_providers\x18\a \x03(\v2!.encore.runtime.v1.SecretProviderR\x0fsecretProviders\"\xcf\x01\n" +
+	"\x10secret_providers\x18\a \x03(\v2!.encore.runtime.v1.SecretProviderR\x0fsecretProviders\"\xcf\x03\n" +
 	"\x0eSecretProvider\x12\x10\n" +
 	"\x03rid\x18\x01 \x01(\tR\x03rid\x12\x1f\n" +
 	"\vencore_name\x18\x02 \x01(\tR\n" +
 	"encoreName\x12K\n" +
 	"\x06gcp_sm\x18\n" +
-	" \x01(\v22.encore.runtime.v1.SecretProvider.GCPSecretManagerH\x00R\x05gcpSm\x1a1\n" +
+	" \x01(\v22.encore.runtime.v1.SecretProvider.GCPSecretManagerH\x00R\x05gcpSm\x12P\n" +
+	"\x06scw_sm\x18\v \x01(\v27.encore.runtime.v1.SecretProvider.ScalewaySecretManagerH\x00R\x05scwSm\x1a1\n" +
 	"\x10GCPSecretManager\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectIdB\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x1a\xab\x01\n" +
+	"\x15ScalewaySecretManager\x12\x16\n" +
+	"\x06region\x18\x01 \x01(\tR\x06region\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x1d\n" +
+	"\n" +
+	"access_key\x18\x03 \x01(\tR\taccessKey\x12<\n" +
+	"\n" +
+	"secret_key\x18\x04 \x01(\v2\x1d.encore.runtime.v1.SecretDataR\tsecretKeyB\n" +
 	"\n" +
 	"\bprovider\"\x94\x01\n" +
 	"\n" +
@@ -2943,7 +3098,7 @@ const file_encore_runtime_v1_infra_proto_rawDesc = "" +
 	"\x03rid\x18\x01 \x01(\tR\x03rid\x12\x1f\n" +
 	"\vencore_name\x18\x02 \x01(\tR\n" +
 	"encoreName\x121\n" +
-	"\x04data\x18\x03 \x01(\v2\x1d.encore.runtime.v1.SecretDataR\x04data\"\xf5\x04\n" +
+	"\x04data\x18\x03 \x01(\v2\x1d.encore.runtime.v1.SecretDataR\x04data\"\xdc\b\n" +
 	"\rPubSubCluster\x12\x10\n" +
 	"\x03rid\x18\x01 \x01(\tR\x03rid\x126\n" +
 	"\x06topics\x18\x02 \x03(\v2\x1e.encore.runtime.v1.PubSubTopicR\x06topics\x12K\n" +
@@ -2953,8 +3108,22 @@ const file_encore_runtime_v1_infra_proto_rawDesc = "" +
 	"\x03gcp\x18\a \x01(\v2*.encore.runtime.v1.PubSubCluster.GCPPubSubH\x00R\x03gcp\x12H\n" +
 	"\x05azure\x18\b \x01(\v20.encore.runtime.v1.PubSubCluster.AzureServiceBusH\x00R\x05azure\x128\n" +
 	"\x03nsq\x18\t \x01(\v2$.encore.runtime.v1.PubSubCluster.NSQH\x00R\x03nsq\x1a\r\n" +
-	"\vEncoreCloud\x1a\v\n" +
-	"\tAWSSqsSns\x1a\v\n" +
+	"\vEncoreCloud\x1a\xf1\x03\n" +
+	"\tAWSSqsSns\x12\x1b\n" +
+	"\x06region\x18\x01 \x01(\tH\x00R\x06region\x88\x01\x01\x12-\n" +
+	"\x10sns_endpoint_url\x18\x02 \x01(\tH\x01R\x0esnsEndpointUrl\x88\x01\x01\x12-\n" +
+	"\x10sqs_endpoint_url\x18\x03 \x01(\tH\x02R\x0esqsEndpointUrl\x88\x01\x01\x12)\n" +
+	"\x0esns_access_key\x18\x04 \x01(\tH\x03R\fsnsAccessKey\x88\x01\x01\x12H\n" +
+	"\x0esns_secret_key\x18\x05 \x01(\v2\x1d.encore.runtime.v1.SecretDataH\x04R\fsnsSecretKey\x88\x01\x01\x12)\n" +
+	"\x0esqs_access_key\x18\x06 \x01(\tH\x05R\fsqsAccessKey\x88\x01\x01\x12H\n" +
+	"\x0esqs_secret_key\x18\a \x01(\v2\x1d.encore.runtime.v1.SecretDataH\x06R\fsqsSecretKey\x88\x01\x01B\t\n" +
+	"\a_regionB\x13\n" +
+	"\x11_sns_endpoint_urlB\x13\n" +
+	"\x11_sqs_endpoint_urlB\x11\n" +
+	"\x0f_sns_access_keyB\x11\n" +
+	"\x0f_sns_secret_keyB\x11\n" +
+	"\x0f_sqs_access_keyB\x11\n" +
+	"\x0f_sqs_secret_key\x1a\v\n" +
 	"\tGCPPubSub\x1a\x1b\n" +
 	"\x03NSQ\x12\x14\n" +
 	"\x05hosts\x18\x01 \x03(\tR\x05hosts\x1a/\n" +
@@ -3078,102 +3247,107 @@ func file_encore_runtime_v1_infra_proto_rawDescGZIP() []byte {
 }
 
 var file_encore_runtime_v1_infra_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_encore_runtime_v1_infra_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
+var file_encore_runtime_v1_infra_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_encore_runtime_v1_infra_proto_goTypes = []any{
-	(ServerKind)(0),                            // 0: encore.runtime.v1.ServerKind
-	(PubSubTopic_DeliveryGuarantee)(0),         // 1: encore.runtime.v1.PubSubTopic.DeliveryGuarantee
-	(*Infrastructure)(nil),                     // 2: encore.runtime.v1.Infrastructure
-	(*SecretProvider)(nil),                     // 3: encore.runtime.v1.SecretProvider
-	(*SQLCluster)(nil),                         // 4: encore.runtime.v1.SQLCluster
-	(*TLSConfig)(nil),                          // 5: encore.runtime.v1.TLSConfig
-	(*SQLServer)(nil),                          // 6: encore.runtime.v1.SQLServer
-	(*ClientCert)(nil),                         // 7: encore.runtime.v1.ClientCert
-	(*SQLRole)(nil),                            // 8: encore.runtime.v1.SQLRole
-	(*SQLDatabase)(nil),                        // 9: encore.runtime.v1.SQLDatabase
-	(*SQLConnectionPool)(nil),                  // 10: encore.runtime.v1.SQLConnectionPool
-	(*RedisCluster)(nil),                       // 11: encore.runtime.v1.RedisCluster
-	(*RedisServer)(nil),                        // 12: encore.runtime.v1.RedisServer
-	(*RedisConnectionPool)(nil),                // 13: encore.runtime.v1.RedisConnectionPool
-	(*RedisRole)(nil),                          // 14: encore.runtime.v1.RedisRole
-	(*RedisDatabase)(nil),                      // 15: encore.runtime.v1.RedisDatabase
-	(*AppSecret)(nil),                          // 16: encore.runtime.v1.AppSecret
-	(*PubSubCluster)(nil),                      // 17: encore.runtime.v1.PubSubCluster
-	(*PubSubTopic)(nil),                        // 18: encore.runtime.v1.PubSubTopic
-	(*PubSubSubscription)(nil),                 // 19: encore.runtime.v1.PubSubSubscription
-	(*BucketCluster)(nil),                      // 20: encore.runtime.v1.BucketCluster
-	(*Bucket)(nil),                             // 21: encore.runtime.v1.Bucket
-	(*Gateway)(nil),                            // 22: encore.runtime.v1.Gateway
-	(*Infrastructure_Credentials)(nil),         // 23: encore.runtime.v1.Infrastructure.Credentials
-	(*Infrastructure_Resources)(nil),           // 24: encore.runtime.v1.Infrastructure.Resources
-	(*SecretProvider_GCPSecretManager)(nil),    // 25: encore.runtime.v1.SecretProvider.GCPSecretManager
-	(*RedisRole_AuthACL)(nil),                  // 26: encore.runtime.v1.RedisRole.AuthACL
-	(*PubSubCluster_EncoreCloud)(nil),          // 27: encore.runtime.v1.PubSubCluster.EncoreCloud
-	(*PubSubCluster_AWSSqsSns)(nil),            // 28: encore.runtime.v1.PubSubCluster.AWSSqsSns
-	(*PubSubCluster_GCPPubSub)(nil),            // 29: encore.runtime.v1.PubSubCluster.GCPPubSub
-	(*PubSubCluster_NSQ)(nil),                  // 30: encore.runtime.v1.PubSubCluster.NSQ
-	(*PubSubCluster_AzureServiceBus)(nil),      // 31: encore.runtime.v1.PubSubCluster.AzureServiceBus
-	(*PubSubTopic_GCPConfig)(nil),              // 32: encore.runtime.v1.PubSubTopic.GCPConfig
-	(*PubSubSubscription_GCPConfig)(nil),       // 33: encore.runtime.v1.PubSubSubscription.GCPConfig
-	(*BucketCluster_S3)(nil),                   // 34: encore.runtime.v1.BucketCluster.S3
-	(*BucketCluster_GCS)(nil),                  // 35: encore.runtime.v1.BucketCluster.GCS
-	(*BucketCluster_GCS_LocalSignOptions)(nil), // 36: encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
-	(*Gateway_CORS)(nil),                       // 37: encore.runtime.v1.Gateway.CORS
-	(*Gateway_CORSAllowedOrigins)(nil),         // 38: encore.runtime.v1.Gateway.CORSAllowedOrigins
-	(*SecretData)(nil),                         // 39: encore.runtime.v1.SecretData
+	(ServerKind)(0),                              // 0: encore.runtime.v1.ServerKind
+	(PubSubTopic_DeliveryGuarantee)(0),           // 1: encore.runtime.v1.PubSubTopic.DeliveryGuarantee
+	(*Infrastructure)(nil),                       // 2: encore.runtime.v1.Infrastructure
+	(*SecretProvider)(nil),                       // 3: encore.runtime.v1.SecretProvider
+	(*SQLCluster)(nil),                           // 4: encore.runtime.v1.SQLCluster
+	(*TLSConfig)(nil),                            // 5: encore.runtime.v1.TLSConfig
+	(*SQLServer)(nil),                            // 6: encore.runtime.v1.SQLServer
+	(*ClientCert)(nil),                           // 7: encore.runtime.v1.ClientCert
+	(*SQLRole)(nil),                              // 8: encore.runtime.v1.SQLRole
+	(*SQLDatabase)(nil),                          // 9: encore.runtime.v1.SQLDatabase
+	(*SQLConnectionPool)(nil),                    // 10: encore.runtime.v1.SQLConnectionPool
+	(*RedisCluster)(nil),                         // 11: encore.runtime.v1.RedisCluster
+	(*RedisServer)(nil),                          // 12: encore.runtime.v1.RedisServer
+	(*RedisConnectionPool)(nil),                  // 13: encore.runtime.v1.RedisConnectionPool
+	(*RedisRole)(nil),                            // 14: encore.runtime.v1.RedisRole
+	(*RedisDatabase)(nil),                        // 15: encore.runtime.v1.RedisDatabase
+	(*AppSecret)(nil),                            // 16: encore.runtime.v1.AppSecret
+	(*PubSubCluster)(nil),                        // 17: encore.runtime.v1.PubSubCluster
+	(*PubSubTopic)(nil),                          // 18: encore.runtime.v1.PubSubTopic
+	(*PubSubSubscription)(nil),                   // 19: encore.runtime.v1.PubSubSubscription
+	(*BucketCluster)(nil),                        // 20: encore.runtime.v1.BucketCluster
+	(*Bucket)(nil),                               // 21: encore.runtime.v1.Bucket
+	(*Gateway)(nil),                              // 22: encore.runtime.v1.Gateway
+	(*Infrastructure_Credentials)(nil),           // 23: encore.runtime.v1.Infrastructure.Credentials
+	(*Infrastructure_Resources)(nil),             // 24: encore.runtime.v1.Infrastructure.Resources
+	(*SecretProvider_GCPSecretManager)(nil),      // 25: encore.runtime.v1.SecretProvider.GCPSecretManager
+	(*SecretProvider_ScalewaySecretManager)(nil), // 26: encore.runtime.v1.SecretProvider.ScalewaySecretManager
+	(*RedisRole_AuthACL)(nil),                    // 27: encore.runtime.v1.RedisRole.AuthACL
+	(*PubSubCluster_EncoreCloud)(nil),            // 28: encore.runtime.v1.PubSubCluster.EncoreCloud
+	(*PubSubCluster_AWSSqsSns)(nil),              // 29: encore.runtime.v1.PubSubCluster.AWSSqsSns
+	(*PubSubCluster_GCPPubSub)(nil),              // 30: encore.runtime.v1.PubSubCluster.GCPPubSub
+	(*PubSubCluster_NSQ)(nil),                    // 31: encore.runtime.v1.PubSubCluster.NSQ
+	(*PubSubCluster_AzureServiceBus)(nil),        // 32: encore.runtime.v1.PubSubCluster.AzureServiceBus
+	(*PubSubTopic_GCPConfig)(nil),                // 33: encore.runtime.v1.PubSubTopic.GCPConfig
+	(*PubSubSubscription_GCPConfig)(nil),         // 34: encore.runtime.v1.PubSubSubscription.GCPConfig
+	(*BucketCluster_S3)(nil),                     // 35: encore.runtime.v1.BucketCluster.S3
+	(*BucketCluster_GCS)(nil),                    // 36: encore.runtime.v1.BucketCluster.GCS
+	(*BucketCluster_GCS_LocalSignOptions)(nil),   // 37: encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
+	(*Gateway_CORS)(nil),                         // 38: encore.runtime.v1.Gateway.CORS
+	(*Gateway_CORSAllowedOrigins)(nil),           // 39: encore.runtime.v1.Gateway.CORSAllowedOrigins
+	(*SecretData)(nil),                           // 40: encore.runtime.v1.SecretData
 }
 var file_encore_runtime_v1_infra_proto_depIdxs = []int32{
 	24, // 0: encore.runtime.v1.Infrastructure.resources:type_name -> encore.runtime.v1.Infrastructure.Resources
 	23, // 1: encore.runtime.v1.Infrastructure.credentials:type_name -> encore.runtime.v1.Infrastructure.Credentials
 	25, // 2: encore.runtime.v1.SecretProvider.gcp_sm:type_name -> encore.runtime.v1.SecretProvider.GCPSecretManager
-	6,  // 3: encore.runtime.v1.SQLCluster.servers:type_name -> encore.runtime.v1.SQLServer
-	9,  // 4: encore.runtime.v1.SQLCluster.databases:type_name -> encore.runtime.v1.SQLDatabase
-	0,  // 5: encore.runtime.v1.SQLServer.kind:type_name -> encore.runtime.v1.ServerKind
-	5,  // 6: encore.runtime.v1.SQLServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
-	39, // 7: encore.runtime.v1.ClientCert.key:type_name -> encore.runtime.v1.SecretData
-	39, // 8: encore.runtime.v1.SQLRole.password:type_name -> encore.runtime.v1.SecretData
-	10, // 9: encore.runtime.v1.SQLDatabase.conn_pools:type_name -> encore.runtime.v1.SQLConnectionPool
-	12, // 10: encore.runtime.v1.RedisCluster.servers:type_name -> encore.runtime.v1.RedisServer
-	15, // 11: encore.runtime.v1.RedisCluster.databases:type_name -> encore.runtime.v1.RedisDatabase
-	0,  // 12: encore.runtime.v1.RedisServer.kind:type_name -> encore.runtime.v1.ServerKind
-	5,  // 13: encore.runtime.v1.RedisServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
-	26, // 14: encore.runtime.v1.RedisRole.acl:type_name -> encore.runtime.v1.RedisRole.AuthACL
-	39, // 15: encore.runtime.v1.RedisRole.auth_string:type_name -> encore.runtime.v1.SecretData
-	13, // 16: encore.runtime.v1.RedisDatabase.conn_pools:type_name -> encore.runtime.v1.RedisConnectionPool
-	39, // 17: encore.runtime.v1.AppSecret.data:type_name -> encore.runtime.v1.SecretData
-	18, // 18: encore.runtime.v1.PubSubCluster.topics:type_name -> encore.runtime.v1.PubSubTopic
-	19, // 19: encore.runtime.v1.PubSubCluster.subscriptions:type_name -> encore.runtime.v1.PubSubSubscription
-	27, // 20: encore.runtime.v1.PubSubCluster.encore:type_name -> encore.runtime.v1.PubSubCluster.EncoreCloud
-	28, // 21: encore.runtime.v1.PubSubCluster.aws:type_name -> encore.runtime.v1.PubSubCluster.AWSSqsSns
-	29, // 22: encore.runtime.v1.PubSubCluster.gcp:type_name -> encore.runtime.v1.PubSubCluster.GCPPubSub
-	31, // 23: encore.runtime.v1.PubSubCluster.azure:type_name -> encore.runtime.v1.PubSubCluster.AzureServiceBus
-	30, // 24: encore.runtime.v1.PubSubCluster.nsq:type_name -> encore.runtime.v1.PubSubCluster.NSQ
-	1,  // 25: encore.runtime.v1.PubSubTopic.delivery_guarantee:type_name -> encore.runtime.v1.PubSubTopic.DeliveryGuarantee
-	32, // 26: encore.runtime.v1.PubSubTopic.gcp_config:type_name -> encore.runtime.v1.PubSubTopic.GCPConfig
-	33, // 27: encore.runtime.v1.PubSubSubscription.gcp_config:type_name -> encore.runtime.v1.PubSubSubscription.GCPConfig
-	21, // 28: encore.runtime.v1.BucketCluster.buckets:type_name -> encore.runtime.v1.Bucket
-	34, // 29: encore.runtime.v1.BucketCluster.s3:type_name -> encore.runtime.v1.BucketCluster.S3
-	35, // 30: encore.runtime.v1.BucketCluster.gcs:type_name -> encore.runtime.v1.BucketCluster.GCS
-	37, // 31: encore.runtime.v1.Gateway.cors:type_name -> encore.runtime.v1.Gateway.CORS
-	7,  // 32: encore.runtime.v1.Infrastructure.Credentials.client_certs:type_name -> encore.runtime.v1.ClientCert
-	8,  // 33: encore.runtime.v1.Infrastructure.Credentials.sql_roles:type_name -> encore.runtime.v1.SQLRole
-	14, // 34: encore.runtime.v1.Infrastructure.Credentials.redis_roles:type_name -> encore.runtime.v1.RedisRole
-	22, // 35: encore.runtime.v1.Infrastructure.Resources.gateways:type_name -> encore.runtime.v1.Gateway
-	4,  // 36: encore.runtime.v1.Infrastructure.Resources.sql_clusters:type_name -> encore.runtime.v1.SQLCluster
-	17, // 37: encore.runtime.v1.Infrastructure.Resources.pubsub_clusters:type_name -> encore.runtime.v1.PubSubCluster
-	11, // 38: encore.runtime.v1.Infrastructure.Resources.redis_clusters:type_name -> encore.runtime.v1.RedisCluster
-	16, // 39: encore.runtime.v1.Infrastructure.Resources.app_secrets:type_name -> encore.runtime.v1.AppSecret
-	20, // 40: encore.runtime.v1.Infrastructure.Resources.bucket_clusters:type_name -> encore.runtime.v1.BucketCluster
-	3,  // 41: encore.runtime.v1.Infrastructure.Resources.secret_providers:type_name -> encore.runtime.v1.SecretProvider
-	39, // 42: encore.runtime.v1.RedisRole.AuthACL.password:type_name -> encore.runtime.v1.SecretData
-	39, // 43: encore.runtime.v1.BucketCluster.S3.secret_access_key:type_name -> encore.runtime.v1.SecretData
-	36, // 44: encore.runtime.v1.BucketCluster.GCS.local_sign:type_name -> encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
-	38, // 45: encore.runtime.v1.Gateway.CORS.allowed_origins:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
-	38, // 46: encore.runtime.v1.Gateway.CORS.allowed_origins_without_credentials:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
-	47, // [47:47] is the sub-list for method output_type
-	47, // [47:47] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	26, // 3: encore.runtime.v1.SecretProvider.scw_sm:type_name -> encore.runtime.v1.SecretProvider.ScalewaySecretManager
+	6,  // 4: encore.runtime.v1.SQLCluster.servers:type_name -> encore.runtime.v1.SQLServer
+	9,  // 5: encore.runtime.v1.SQLCluster.databases:type_name -> encore.runtime.v1.SQLDatabase
+	0,  // 6: encore.runtime.v1.SQLServer.kind:type_name -> encore.runtime.v1.ServerKind
+	5,  // 7: encore.runtime.v1.SQLServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
+	40, // 8: encore.runtime.v1.ClientCert.key:type_name -> encore.runtime.v1.SecretData
+	40, // 9: encore.runtime.v1.SQLRole.password:type_name -> encore.runtime.v1.SecretData
+	10, // 10: encore.runtime.v1.SQLDatabase.conn_pools:type_name -> encore.runtime.v1.SQLConnectionPool
+	12, // 11: encore.runtime.v1.RedisCluster.servers:type_name -> encore.runtime.v1.RedisServer
+	15, // 12: encore.runtime.v1.RedisCluster.databases:type_name -> encore.runtime.v1.RedisDatabase
+	0,  // 13: encore.runtime.v1.RedisServer.kind:type_name -> encore.runtime.v1.ServerKind
+	5,  // 14: encore.runtime.v1.RedisServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
+	27, // 15: encore.runtime.v1.RedisRole.acl:type_name -> encore.runtime.v1.RedisRole.AuthACL
+	40, // 16: encore.runtime.v1.RedisRole.auth_string:type_name -> encore.runtime.v1.SecretData
+	13, // 17: encore.runtime.v1.RedisDatabase.conn_pools:type_name -> encore.runtime.v1.RedisConnectionPool
+	40, // 18: encore.runtime.v1.AppSecret.data:type_name -> encore.runtime.v1.SecretData
+	18, // 19: encore.runtime.v1.PubSubCluster.topics:type_name -> encore.runtime.v1.PubSubTopic
+	19, // 20: encore.runtime.v1.PubSubCluster.subscriptions:type_name -> encore.runtime.v1.PubSubSubscription
+	28, // 21: encore.runtime.v1.PubSubCluster.encore:type_name -> encore.runtime.v1.PubSubCluster.EncoreCloud
+	29, // 22: encore.runtime.v1.PubSubCluster.aws:type_name -> encore.runtime.v1.PubSubCluster.AWSSqsSns
+	30, // 23: encore.runtime.v1.PubSubCluster.gcp:type_name -> encore.runtime.v1.PubSubCluster.GCPPubSub
+	32, // 24: encore.runtime.v1.PubSubCluster.azure:type_name -> encore.runtime.v1.PubSubCluster.AzureServiceBus
+	31, // 25: encore.runtime.v1.PubSubCluster.nsq:type_name -> encore.runtime.v1.PubSubCluster.NSQ
+	1,  // 26: encore.runtime.v1.PubSubTopic.delivery_guarantee:type_name -> encore.runtime.v1.PubSubTopic.DeliveryGuarantee
+	33, // 27: encore.runtime.v1.PubSubTopic.gcp_config:type_name -> encore.runtime.v1.PubSubTopic.GCPConfig
+	34, // 28: encore.runtime.v1.PubSubSubscription.gcp_config:type_name -> encore.runtime.v1.PubSubSubscription.GCPConfig
+	21, // 29: encore.runtime.v1.BucketCluster.buckets:type_name -> encore.runtime.v1.Bucket
+	35, // 30: encore.runtime.v1.BucketCluster.s3:type_name -> encore.runtime.v1.BucketCluster.S3
+	36, // 31: encore.runtime.v1.BucketCluster.gcs:type_name -> encore.runtime.v1.BucketCluster.GCS
+	38, // 32: encore.runtime.v1.Gateway.cors:type_name -> encore.runtime.v1.Gateway.CORS
+	7,  // 33: encore.runtime.v1.Infrastructure.Credentials.client_certs:type_name -> encore.runtime.v1.ClientCert
+	8,  // 34: encore.runtime.v1.Infrastructure.Credentials.sql_roles:type_name -> encore.runtime.v1.SQLRole
+	14, // 35: encore.runtime.v1.Infrastructure.Credentials.redis_roles:type_name -> encore.runtime.v1.RedisRole
+	22, // 36: encore.runtime.v1.Infrastructure.Resources.gateways:type_name -> encore.runtime.v1.Gateway
+	4,  // 37: encore.runtime.v1.Infrastructure.Resources.sql_clusters:type_name -> encore.runtime.v1.SQLCluster
+	17, // 38: encore.runtime.v1.Infrastructure.Resources.pubsub_clusters:type_name -> encore.runtime.v1.PubSubCluster
+	11, // 39: encore.runtime.v1.Infrastructure.Resources.redis_clusters:type_name -> encore.runtime.v1.RedisCluster
+	16, // 40: encore.runtime.v1.Infrastructure.Resources.app_secrets:type_name -> encore.runtime.v1.AppSecret
+	20, // 41: encore.runtime.v1.Infrastructure.Resources.bucket_clusters:type_name -> encore.runtime.v1.BucketCluster
+	3,  // 42: encore.runtime.v1.Infrastructure.Resources.secret_providers:type_name -> encore.runtime.v1.SecretProvider
+	40, // 43: encore.runtime.v1.SecretProvider.ScalewaySecretManager.secret_key:type_name -> encore.runtime.v1.SecretData
+	40, // 44: encore.runtime.v1.RedisRole.AuthACL.password:type_name -> encore.runtime.v1.SecretData
+	40, // 45: encore.runtime.v1.PubSubCluster.AWSSqsSns.sns_secret_key:type_name -> encore.runtime.v1.SecretData
+	40, // 46: encore.runtime.v1.PubSubCluster.AWSSqsSns.sqs_secret_key:type_name -> encore.runtime.v1.SecretData
+	40, // 47: encore.runtime.v1.BucketCluster.S3.secret_access_key:type_name -> encore.runtime.v1.SecretData
+	37, // 48: encore.runtime.v1.BucketCluster.GCS.local_sign:type_name -> encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
+	39, // 49: encore.runtime.v1.Gateway.CORS.allowed_origins:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
+	39, // 50: encore.runtime.v1.Gateway.CORS.allowed_origins_without_credentials:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
+	51, // [51:51] is the sub-list for method output_type
+	51, // [51:51] is the sub-list for method input_type
+	51, // [51:51] is the sub-list for extension type_name
+	51, // [51:51] is the sub-list for extension extendee
+	0,  // [0:51] is the sub-list for field type_name
 }
 
 func init() { file_encore_runtime_v1_infra_proto_init() }
@@ -3184,6 +3358,7 @@ func file_encore_runtime_v1_infra_proto_init() {
 	file_encore_runtime_v1_secretdata_proto_init()
 	file_encore_runtime_v1_infra_proto_msgTypes[1].OneofWrappers = []any{
 		(*SecretProvider_GcpSm)(nil),
+		(*SecretProvider_ScwSm)(nil),
 	}
 	file_encore_runtime_v1_infra_proto_msgTypes[3].OneofWrappers = []any{}
 	file_encore_runtime_v1_infra_proto_msgTypes[4].OneofWrappers = []any{}
@@ -3212,10 +3387,11 @@ func file_encore_runtime_v1_infra_proto_init() {
 		(*BucketCluster_Gcs)(nil),
 	}
 	file_encore_runtime_v1_infra_proto_msgTypes[19].OneofWrappers = []any{}
-	file_encore_runtime_v1_infra_proto_msgTypes[31].OneofWrappers = []any{}
+	file_encore_runtime_v1_infra_proto_msgTypes[27].OneofWrappers = []any{}
 	file_encore_runtime_v1_infra_proto_msgTypes[32].OneofWrappers = []any{}
 	file_encore_runtime_v1_infra_proto_msgTypes[33].OneofWrappers = []any{}
-	file_encore_runtime_v1_infra_proto_msgTypes[35].OneofWrappers = []any{
+	file_encore_runtime_v1_infra_proto_msgTypes[34].OneofWrappers = []any{}
+	file_encore_runtime_v1_infra_proto_msgTypes[36].OneofWrappers = []any{
 		(*Gateway_CORS_AllowedOrigins)(nil),
 		(*Gateway_CORS_UnsafeAllowAllOriginsWithCredentials)(nil),
 	}
@@ -3225,7 +3401,7 @@ func file_encore_runtime_v1_infra_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_encore_runtime_v1_infra_proto_rawDesc), len(file_encore_runtime_v1_infra_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   37,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/rs/xid"
@@ -59,23 +60,43 @@ func (mgr *Manager) getConfig(ctx context.Context) aws.Config {
 	return mgr.awsCfg
 }
 
-func (mgr *Manager) getSNSClient(ctx context.Context) *sns.Client {
+func (mgr *Manager) getSNSClient(ctx context.Context, provider *config.AWSPubsubProvider) *sns.Client {
 	if mgr.snsClient == nil {
-		mgr.snsClient = sns.NewFromConfig(mgr.getConfig(ctx))
+		if provider != nil && provider.SNSEndpointURL != "" {
+			cfg := aws.Config{
+				Region:      provider.Region,
+				Credentials: credentials.NewStaticCredentialsProvider(provider.SNSAccessKey, provider.SNSSecretKey, ""),
+			}
+			mgr.snsClient = sns.NewFromConfig(cfg, func(o *sns.Options) {
+				o.BaseEndpoint = aws.String(provider.SNSEndpointURL)
+			})
+		} else {
+			mgr.snsClient = sns.NewFromConfig(mgr.getConfig(ctx))
+		}
 	}
 	return mgr.snsClient
 }
 
-func (mgr *Manager) getSQSClient(ctx context.Context) *sqs.Client {
+func (mgr *Manager) getSQSClient(ctx context.Context, provider *config.AWSPubsubProvider) *sqs.Client {
 	if mgr.sqsClient == nil {
-		mgr.sqsClient = sqs.NewFromConfig(mgr.getConfig(ctx))
+		if provider != nil && provider.SQSEndpointURL != "" {
+			cfg := aws.Config{
+				Region:      provider.Region,
+				Credentials: credentials.NewStaticCredentialsProvider(provider.SQSAccessKey, provider.SQSSecretKey, ""),
+			}
+			mgr.sqsClient = sqs.NewFromConfig(cfg, func(o *sqs.Options) {
+				o.BaseEndpoint = aws.String(provider.SQSEndpointURL)
+			})
+		} else {
+			mgr.sqsClient = sqs.NewFromConfig(mgr.getConfig(ctx))
+		}
 	}
 	return mgr.sqsClient
 }
 
-func (mgr *Manager) NewTopic(_ *config.PubsubProvider, staticCfg types.TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation {
-	snsClient := mgr.getSNSClient(mgr.ctxs.Connection)
-	sqsClient := mgr.getSQSClient(mgr.ctxs.Connection)
+func (mgr *Manager) NewTopic(providerCfg *config.PubsubProvider, staticCfg types.TopicConfig, runtimeCfg *config.PubsubTopic) types.TopicImplementation {
+	snsClient := mgr.getSNSClient(mgr.ctxs.Connection, providerCfg.AWS)
+	sqsClient := mgr.getSQSClient(mgr.ctxs.Connection, providerCfg.AWS)
 
 	// Check we have permissions to interact with the given topic
 	// otherwise the first time we will find out is when we try and publish to it

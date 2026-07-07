@@ -275,6 +275,16 @@ type GCPPubsubProvider struct {
 
 // AWSPubsubProvider currently has no specific configuration.
 type AWSPubsubProvider struct {
+	// Optional overrides for connecting to SQS/SNS-compatible services
+	// (e.g. Scaleway Messaging & Queuing). When unset, the default AWS
+	// credential chain and endpoints are used.
+	Region         string `json:"region,omitempty"`
+	SNSEndpointURL string `json:"sns_endpoint_url,omitempty"`
+	SQSEndpointURL string `json:"sqs_endpoint_url,omitempty"`
+	SNSAccessKey   string `json:"sns_access_key,omitempty"`
+	SNSSecretKey   string `json:"sns_secret_key,omitempty"`
+	SQSAccessKey   string `json:"sqs_access_key,omitempty"`
+	SQSSecretKey   string `json:"sqs_secret_key,omitempty"`
 }
 
 type PubsubTopic struct {
@@ -486,6 +496,10 @@ type AWSCloudWatchMetricsProvider struct {
 type PrometheusRemoteWriteProvider struct {
 	// The URL of the endpoint to send samples to.
 	RemoteWriteURL string
+
+	// AuthHeaders are additional HTTP headers to send with each remote
+	// write request, e.g. for token-based authentication.
+	AuthHeaders map[string]string `json:"auth_headers,omitempty"`
 }
 
 type DatadogProvider struct {
