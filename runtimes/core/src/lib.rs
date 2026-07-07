@@ -782,7 +782,10 @@ impl BucketUrl {
 }
 
 fn io_err<E: std::fmt::Display>(e: E) -> ParseError {
-    ParseError::IO(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+    ParseError::IO(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        e.to_string(),
+    ))
 }
 
 /// Fetch an object's bytes from a storage bucket. The builder runs in a sync
