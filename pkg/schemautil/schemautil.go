@@ -53,7 +53,7 @@ func StructBitsWithDecls(decls map[uint32]*schema.Decl, s *schema.Struct, typeAr
 			var queryParams []string
 			for _, field := range fieldsByLocation[FieldLocationQuery] {
 				fieldName := field.Name
-				fieldValue := renderFieldValueAsQueryParam(decls, typeArgs, field.Typ)
+				fieldValue := renderFieldValueAsQueryParam(decls, typeArgs, field.Typ, field.Tags)
 
 				queryParams = append(queryParams, url.QueryEscape(fieldName)+"="+fieldValue)
 
@@ -323,7 +323,15 @@ func renderLiteralValue(buf *bytes.Buffer, lit *schema.Literal) {
 }
 
 // renderFieldValueAsQueryParam returns a URL-encoded string representation of a field's value
-func renderFieldValueAsQueryParam(decls map[uint32]*schema.Decl, typeArgs []*schema.Type, typ *schema.Type) string {
+func renderFieldValueAsQueryParam(decls map[uint32]*schema.Decl, typeArgs []*schema.Type, typ *schema.Type, tags []*schema.Tag) string {
+	if ex, ok := openAPIExample(tags); ok {
+		var s string
+		if json.Unmarshal(ex, &s) == nil {
+			return url.QueryEscape(s)
+		}
+		return url.QueryEscape(string(ex))
+	}
+
 	var buf bytes.Buffer
 
 	if typ.GetBuiltin() != schema.Builtin_ANY {

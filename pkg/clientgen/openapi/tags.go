@@ -2,11 +2,11 @@ package openapi
 
 import (
 	"encoding/json"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/fatih/structtag"
 	"github.com/getkin/kin-openapi/openapi3"
 
 	schema "encr.dev/proto/encore/parser/schema/v1"
@@ -36,15 +36,11 @@ func applyOpenAPIRawTag(ref *openapi3.SchemaRef, raw string) *openapi3.SchemaRef
 	if raw == "" {
 		return ref
 	}
-	tags, err := structtag.Parse(raw)
-	if err != nil {
+	val, ok := reflect.StructTag(raw).Lookup("openapi")
+	if !ok {
 		return ref
 	}
-	tag, err := tags.Get("openapi")
-	if err != nil || tag == nil {
-		return ref
-	}
-	return applyOpenAPITagParts(ref, append([]string{tag.Name}, tag.Options...))
+	return applyOpenAPITagParts(ref, []string{val})
 }
 
 func applyOpenAPITags(ref *openapi3.SchemaRef, tags []*schema.Tag) *openapi3.SchemaRef {
@@ -67,7 +63,7 @@ func applyOpenAPITagParts(ref *openapi3.SchemaRef, parts []string) *openapi3.Sch
 func parseOpenAPISettings(parts []string) map[string]string {
 	settings := make(map[string]string)
 	for _, part := range parts {
-		for _, p := range strings.Split(part, ";") {
+		for _, p := range splitOpenAPISettings(part) {
 			p = strings.TrimSpace(p)
 			if p == "" || p == "-" {
 				continue
@@ -83,6 +79,30 @@ func parseOpenAPISettings(parts []string) map[string]string {
 	return settings
 }
 
+func splitOpenAPISettings(s string) []string {
+	var parts []string
+	start, depth := 0, 0
+	inString, escape := false, false
+	for i, r := range s {
+		switch {
+		case escape:
+			escape = false
+		case r == '\\' && inString:
+			escape = true
+		case r == '"':
+			inString = !inString
+		case !inString && (r == '[' || r == '{' || r == '('):
+			depth++
+		case !inString && depth > 0 && (r == ']' || r == '}' || r == ')'):
+			depth--
+		case !inString && depth == 0 && (r == ';' || r == ','):
+			parts = append(parts, s[start:i])
+			start = i + 1
+		}
+	}
+	return append(parts, s[start:])
+}
+
 func applyOpenAPISettings(s *openapi3.Schema, settings map[string]string) {
 	for key, val := range settings {
 		switch key {
@@ -94,6 +114,8 @@ func applyOpenAPISettings(s *openapi3.Schema, settings map[string]string) {
 			s.Format = val
 		case "deprecated":
 			s.Deprecated = parseBoolDefaultTrue(val)
+		case "nullable":
+			s.Nullable = parseBoolDefaultTrue(val)
 		case "enum":
 			if vals := parseEnumValues(val); len(vals) > 0 {
 				s.Enum = vals
@@ -213,11 +235,11 @@ func applyValidationRule(s *openapi3.Schema, rule *schema.ValidationRule) {
 		v := rule.GetMaxVal()
 		s.Max = &v
 	case *schema.ValidationRule_StartsWith:
-		s.Pattern = "^" + regexp.QuoteMeta(rule.GetStartsWith())
+		s.Pattern = combinePattern(s.Pattern, "^"+regexp.QuoteMeta(rule.GetStartsWith()))
 	case *schema.ValidationRule_EndsWith:
-		s.Pattern = regexp.QuoteMeta(rule.GetEndsWith()) + "$"
+		s.Pattern = combinePattern(s.Pattern, regexp.QuoteMeta(rule.GetEndsWith())+"$")
 	case *schema.ValidationRule_MatchesRegexp:
-		s.Pattern = rule.GetMatchesRegexp()
+		s.Pattern = combinePattern(s.Pattern, rule.GetMatchesRegexp())
 	case *schema.ValidationRule_Is_:
 		switch rule.GetIs() {
 		case schema.ValidationRule_EMAIL:
@@ -226,4 +248,21 @@ func applyValidationRule(s *openapi3.Schema, rule *schema.ValidationRule) {
 			s.Format = "uri"
 		}
 	}
+}
+
+func combinePattern(existing, next string) string {
+	if existing == "" {
+		return next
+	}
+	if strings.HasPrefix(existing, "(?=") || strings.HasPrefix(existing, "(?=.*") {
+		return existing + patternLookahead(next)
+	}
+	return patternLookahead(existing) + patternLookahead(next)
+}
+
+func patternLookahead(pattern string) string {
+	if strings.HasPrefix(pattern, "^") || strings.HasSuffix(pattern, "$") {
+		return "(?=" + pattern + ")"
+	}
+	return "(?=.*(?:" + pattern + "))"
 }

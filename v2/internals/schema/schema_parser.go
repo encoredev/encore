@@ -62,13 +62,16 @@ func openAPIFieldValues(tags structtag.Tags) (exampleJSON, defaultJSON string) {
 			}
 		}
 	}
-	return openAPIJSON(settings["example"]), openAPIJSON(settings["default"])
+	if val, ok := settings["example"]; ok {
+		exampleJSON = openAPIJSON(val)
+	}
+	if val, ok := settings["default"]; ok {
+		defaultJSON = openAPIJSON(val)
+	}
+	return exampleJSON, defaultJSON
 }
 
 func openAPIJSON(s string) string {
-	if s == "" {
-		return ""
-	}
 	var v any
 	if json.Unmarshal([]byte(s), &v) == nil {
 		return s
