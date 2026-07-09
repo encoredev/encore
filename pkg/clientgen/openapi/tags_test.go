@@ -21,7 +21,7 @@ func TestOpenAPITagAppliesSchemaMetadata(t *testing.T) {
 		Tags: []*schema.Tag{{
 			Key:     "openapi",
 			Name:    "format=email",
-			Options: []string{"example=user@example.com", "default=unknown@example.com", "nullable=true", "minLength=3", "maxLength=255", "pattern=^.+@.+$"},
+			Options: []string{"example=user@example.com", "default=unknown@example.com", "nullable=true", "title=Email", "readOnly", "writeOnly=false", "multipleOf=2", "minLength=3", "maxLength=255", "pattern=^.+@.+$"},
 		}},
 	}}}}})
 
@@ -30,6 +30,10 @@ func TestOpenAPITagAppliesSchemaMetadata(t *testing.T) {
 	c.Assert(prop.Example, qt.Equals, "user@example.com")
 	c.Assert(prop.Default, qt.Equals, "unknown@example.com")
 	c.Assert(prop.Nullable, qt.IsTrue)
+	c.Assert(prop.Title, qt.Equals, "Email")
+	c.Assert(prop.ReadOnly, qt.IsTrue)
+	c.Assert(prop.WriteOnly, qt.IsFalse)
+	c.Assert(*prop.MultipleOf, qt.Equals, 2.0)
 	c.Assert(prop.MinLength, qt.Equals, uint64(3))
 	c.Assert(*prop.MaxLength, qt.Equals, uint64(255))
 	c.Assert(prop.Pattern, qt.Equals, "^.+@.+$")
