@@ -116,6 +116,16 @@ func applyOpenAPISettings(s *openapi3.Schema, settings map[string]string) {
 			s.Deprecated = parseBoolDefaultTrue(val)
 		case "nullable":
 			s.Nullable = parseBoolDefaultTrue(val)
+		case "title":
+			s.Title = val
+		case "readOnly":
+			s.ReadOnly = parseBoolDefaultTrue(val)
+		case "writeOnly":
+			s.WriteOnly = parseBoolDefaultTrue(val)
+		case "multipleOf":
+			if f, ok := parseFloat(val); ok {
+				s.MultipleOf = &f
+			}
 		case "enum":
 			if vals := parseEnumValues(val); len(vals) > 0 {
 				s.Enum = vals
