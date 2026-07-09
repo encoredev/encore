@@ -36,6 +36,18 @@ func TestStructBitsUsesOpenAPIExample(t *testing.T) {
 	c.Assert(body, qt.Contains, `"id": "00000000-0000-0000-0000-000000000000"`)
 }
 
+func TestStructBitsUsesOpenAPIExampleForQueryString(t *testing.T) {
+	c := qt.New(t)
+	f := field("ID", "id", builtin(schema.Builtin_STRING))
+	f.QueryStringName = "id"
+	f.Tags = []*schema.Tag{{Key: "openapi", Name: "example=user 123"}}
+	s := &schema.Struct{Fields: []*schema.Field{f}}
+
+	query, _, _, _ := StructBitsWithDecls(nil, s, nil, "GET", false, false, false)
+
+	c.Assert(query, qt.Equals, "?id=user+123")
+}
+
 func TestStructBitsWithDeclsResolvesNamedGenericType(t *testing.T) {
 	c := qt.New(t)
 	typeParam := &schema.Type{Typ: &schema.Type_TypeParameter{TypeParameter: &schema.TypeParameterRef{DeclId: 1, ParamIdx: 0}}}

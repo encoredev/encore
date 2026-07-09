@@ -119,10 +119,10 @@ func (g *Generator) schemaTypeNoValidation(typ *schema.Type) *openapi3.SchemaRef
 		return arr.NewRef()
 
 	case *schema.Type_Pointer:
-		return g.schemaType(t.Pointer.Base)
+		return decorateSchemaRef(g.schemaType(t.Pointer.Base), func(s *openapi3.Schema) { s.Nullable = true })
 
 	case *schema.Type_Option:
-		return g.schemaType(t.Option.Value)
+		return decorateSchemaRef(g.schemaType(t.Option.Value), func(s *openapi3.Schema) { s.Nullable = true })
 
 	case *schema.Type_Literal:
 		switch tt := t.Literal.Value.(type) {

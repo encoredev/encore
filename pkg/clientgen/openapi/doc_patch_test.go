@@ -46,6 +46,14 @@ responses:
 	c.Assert(*patch.Responses["200"].Value.Description, qt.Equals, "Logo uploaded.")
 }
 
+func TestOpenAPIOperationPatchErrorsOnUnterminatedBlock(t *testing.T) {
+	c := qt.New(t)
+
+	_, _, err := openAPIOperationPatch("Docs.\n\n```openapi\nsummary: Broken")
+
+	c.Assert(err, qt.ErrorMatches, "unterminated ```openapi block.*")
+}
+
 func TestMergeOpenAPIOperationReplacesPathParameter(t *testing.T) {
 	c := qt.New(t)
 	dst := &openapi3.Operation{Parameters: openapi3.Parameters{{Value: &openapi3.Parameter{Name: "id", In: openapi3.ParameterInPath}}}}
