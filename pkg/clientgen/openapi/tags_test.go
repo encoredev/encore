@@ -21,7 +21,7 @@ func TestOpenAPITagAppliesSchemaMetadata(t *testing.T) {
 		Tags: []*schema.Tag{{
 			Key:     "openapi",
 			Name:    "format=email",
-			Options: []string{"example=user@example.com", "default=unknown@example.com", "minLength=3", "maxLength=255", "pattern=^.+@.+$"},
+			Options: []string{"example=user@example.com", "default=unknown@example.com", "nullable=true", "minLength=3", "maxLength=255", "pattern=^.+@.+$"},
 		}},
 	}}}}})
 
@@ -29,6 +29,7 @@ func TestOpenAPITagAppliesSchemaMetadata(t *testing.T) {
 	c.Assert(prop.Format, qt.Equals, "email")
 	c.Assert(prop.Example, qt.Equals, "user@example.com")
 	c.Assert(prop.Default, qt.Equals, "unknown@example.com")
+	c.Assert(prop.Nullable, qt.IsTrue)
 	c.Assert(prop.MinLength, qt.Equals, uint64(3))
 	c.Assert(*prop.MaxLength, qt.Equals, uint64(255))
 	c.Assert(prop.Pattern, qt.Equals, "^.+@.+$")
@@ -37,6 +38,14 @@ func TestOpenAPITagAppliesSchemaMetadata(t *testing.T) {
 func TestOpenAPIRawTagParsesEnumValues(t *testing.T) {
 	c := qt.New(t)
 	ref := applyOpenAPIRawTag(gStringSchema(), `openapi:"enum=pending|paid,example=paid"`)
+
+	c.Assert(ref.Value.Enum, qt.DeepEquals, []any{"pending", "paid"})
+	c.Assert(ref.Value.Example, qt.Equals, "paid")
+}
+
+func TestOpenAPIRawTagPreservesCommasInValues(t *testing.T) {
+	c := qt.New(t)
+	ref := applyOpenAPIRawTag(gStringSchema(), `openapi:"enum=[\"pending\",\"paid\"],example=paid"`)
 
 	c.Assert(ref.Value.Enum, qt.DeepEquals, []any{"pending", "paid"})
 	c.Assert(ref.Value.Example, qt.Equals, "paid")
@@ -87,6 +96,17 @@ func TestOpenAPITagParsesEnumValues(t *testing.T) {
 	c.Assert(prop.Example, qt.Equals, "paid")
 }
 
+func TestOpenAPIPointerAndOptionAreNullable(t *testing.T) {
+	c := qt.New(t)
+	g := New(LatestVersion)
+
+	ptr := g.schemaType(&schema.Type{Typ: &schema.Type_Pointer{Pointer: &schema.Pointer{Base: &schema.Type{Typ: &schema.Type_Builtin{Builtin: schema.Builtin_STRING}}}}})
+	opt := g.schemaType(&schema.Type{Typ: &schema.Type_Option{Option: &schema.Option{Value: &schema.Type{Typ: &schema.Type_Builtin{Builtin: schema.Builtin_STRING}}}}})
+
+	c.Assert(ptr.Value.Nullable, qt.IsTrue)
+	c.Assert(opt.Value.Nullable, qt.IsTrue)
+}
+
 func TestValidationExprAppliesOpenAPIConstraints(t *testing.T) {
 	c := qt.New(t)
 	g := New(LatestVersion)
@@ -96,11 +116,15 @@ func TestValidationExprAppliesOpenAPIConstraints(t *testing.T) {
 		Validation: &schema.ValidationExpr{Expr: &schema.ValidationExpr_And_{And: &schema.ValidationExpr_And{Exprs: []*schema.ValidationExpr{
 			{Expr: &schema.ValidationExpr_Rule{Rule: &schema.ValidationRule{Rule: &schema.ValidationRule_MinLen{MinLen: 2}}}},
 			{Expr: &schema.ValidationExpr_Rule{Rule: &schema.ValidationRule{Rule: &schema.ValidationRule_MaxLen{MaxLen: 8}}}},
+			{Expr: &schema.ValidationExpr_Rule{Rule: &schema.ValidationRule{Rule: &schema.ValidationRule_StartsWith{StartsWith: "A"}}}},
+			{Expr: &schema.ValidationExpr_Rule{Rule: &schema.ValidationRule{Rule: &schema.ValidationRule_EndsWith{EndsWith: "Z"}}}},
+			{Expr: &schema.ValidationExpr_Rule{Rule: &schema.ValidationRule{Rule: &schema.ValidationRule_MatchesRegexp{MatchesRegexp: "[0-9]+"}}}},
 			{Expr: &schema.ValidationExpr_Rule{Rule: &schema.ValidationRule{Rule: &schema.ValidationRule_Is_{Is: schema.ValidationRule_EMAIL}}}},
 		}}}},
 	})
 
 	c.Assert(ref.Value.MinLength, qt.Equals, uint64(2))
 	c.Assert(*ref.Value.MaxLength, qt.Equals, uint64(8))
+	c.Assert(ref.Value.Pattern, qt.Equals, "(?=^A)(?=Z$)(?=.*(?:[0-9]+))")
 	c.Assert(ref.Value.Format, qt.Equals, "email")
 }

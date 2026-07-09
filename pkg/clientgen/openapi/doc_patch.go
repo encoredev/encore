@@ -22,8 +22,12 @@ func openAPIOperationPatch(doc string) (string, *openapi3.Operation, error) {
 
 		var block []string
 		i++
+		start := i
 		for ; i < len(lines) && strings.TrimSpace(lines[i]) != "```"; i++ {
 			block = append(block, lines[i])
+		}
+		if i >= len(lines) {
+			return doc, nil, errors.Newf("unterminated ```openapi block starting near line %d", start+1)
 		}
 
 		p, err := parseOpenAPIOperationPatch(strings.Join(block, "\n"))
