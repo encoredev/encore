@@ -18,6 +18,17 @@ import (
 	"encr.dev/v2/internals/testutil"
 )
 
+func TestOpenAPIFieldValuesPreservesEmptyValues(t *testing.T) {
+	c := qt.New(t)
+	tags, err := structtag.Parse(`openapi:"example=;default="`)
+	c.Assert(err, qt.IsNil)
+
+	exampleJSON, defaultJSON := openAPIFieldValues(*tags)
+
+	c.Assert(exampleJSON, qt.Equals, `""`)
+	c.Assert(defaultJSON, qt.Equals, `""`)
+}
+
 func TestParser_ParseType(t *testing.T) {
 	type testCase struct {
 		name     string
