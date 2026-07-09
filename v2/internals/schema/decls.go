@@ -71,8 +71,7 @@ func (d *TypeDecl) Clone() *TypeDecl {
 	}
 }
 
-// DeclTypeParam represents a type parameter on a declaration.
-// For example A in "type Foo[A any] struct { ... }"
+// EnumValue represents one constant value for an enum declaration.
 type EnumValue struct {
 	Str   option.Option[string]
 	Int   option.Option[int64]
@@ -188,8 +187,7 @@ func (p *Parser) ParseTypeDecl(d *pkginfo.PkgDeclInfo) *TypeDecl {
 	return decl
 }
 
-// ParseFuncDecl parses the func from a package declaration.
-// It errors if the type is not a func declaration.
+// enumValues returns the const values associated with an enum declaration.
 func (p *Parser) enumValues(decl *TypeDecl) []EnumValue {
 	if !hasEnumDirective(decl) {
 		return nil
