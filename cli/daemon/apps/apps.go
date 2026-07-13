@@ -227,6 +227,15 @@ func (mgr *Manager) resolve(appRoot string) (*Instance, error) {
 	defer mgr.instanceMu.Unlock()
 
 	if existing, ok := mgr.instances[appRoot]; ok {
+		if _, err := os.Stat(filepath.Join(appRoot, appfile.Name)); err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				delete(mgr.instances, appRoot)
+				if closeErr := existing.Close(); closeErr != nil {
+					log.Error().Err(closeErr).Str("root", appRoot).Msg("unable to close missing app instance")
+				}
+			}
+			return nil, err
+		}
 		return existing, nil
 	}
 
