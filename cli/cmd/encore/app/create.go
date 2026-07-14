@@ -341,7 +341,7 @@ func createApp(ctx context.Context, name, template string, lang cmdutil.Language
 	fmt.Println()
 	if app != nil {
 		fmt.Printf("App ID:   %s\n", cyanf(app.Slug))
-		fmt.Printf("Web URL:  %s%s", cyanf("https://app.encore.cloud/"+app.Slug), cmdutil.Newline)
+		fmt.Printf("Web URL:  %s%s", cyanf("https://app.encore.dev/"+app.Slug), cmdutil.Newline)
 	}
 	fmt.Printf("App Root: %s\n", cyanf(appRoot))
 	llm_rules.PrintLLMRulesInfo(llmRules)

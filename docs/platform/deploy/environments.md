@@ -29,7 +29,7 @@ Environment type is also used for [Secrets management](/docs/ts/primitives/secre
 
 ## Creating environments
 
-1. Open your app in the [Encore Cloud dashboard](https://app.encore.cloud)
+1. Open your app in the [Encore Cloud dashboard](https://app.encore.dev)
 2. Go to **Environments** > **Create env**
 3. Configure your environment:
    - Name your environment
@@ -45,7 +45,7 @@ Environment type is also used for [Secrets management](/docs/ts/primitives/secre
 
 When using GitHub, you can configure Encore Cloud to automatically trigger deploys when you push to a specific branch name.
 
-To configure which branch name is used to trigger deploys, open your app in the [Encore Cloud dashboard](https://app.encore.cloud) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
+To configure which branch name is used to trigger deploys, open your app in the [Encore Cloud dashboard](https://app.encore.dev) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
 
 ### Configuring infrastructure approval
 
@@ -71,7 +71,7 @@ Every Encore app has a configurable Primary environment that serves as the defau
 - CLI functionality (like API client generation)
 
 **Configuring your Primary environment:**
-1. Open your app in the [Encore Cloud dashboard](https://app.encore.cloud)
+1. Open your app in the [Encore Cloud dashboard](https://app.encore.dev)
 2. Navigate to **Settings** > **General** > **Primary Environment**
 3. Select your desired environment from the dropdown
 4. Click **Update**

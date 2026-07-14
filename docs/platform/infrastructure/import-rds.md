@@ -21,7 +21,7 @@ Using an existing AWS RDS instance allows you to:
 
 Follow these steps to import your existing AWS RDS instance:
 
-1. Navigate to **Create Environment** in the [Encore Cloud dashboard](https://app.encore.cloud)
+1. Navigate to **Create Environment** in the [Encore Cloud dashboard](https://app.encore.dev)
 2. Select the AWS cloud provider
 3. Pick the `AWS Region` your database resides in
 3. Choose **Import Existing RDS Instance**

@@ -13,13 +13,13 @@ Encore Cloud gives you flexibility in where you run your applications. You have 
 1. **Deploy to a new cluster**: Encore Cloud can automatically provision and manage a new Kubernetes cluster in your cloud account on AWS or GCP.
 2. **Use an existing cluster**: Deploy to your pre-existing Kubernetes cluster ([see instructions here](/docs/platform/infrastructure/import-kubernetes-cluster))
 
-All infrastructure provisioning is automated, and configuration is managed through the [Encore Cloud Dashboard](https://app.encore.cloud), keeping your application code clean and infrastructure-agnostic.
+All infrastructure provisioning is automated, and configuration is managed through the [Encore Cloud Dashboard](https://app.encore.dev), keeping your application code clean and infrastructure-agnostic.
 
 ## Deploying to a new Kubernetes cluster
 
 **1. Connect your cloud account:** Ensure your cloud account (Google Cloud Platform or AWS) is connected to Encore Cloud. ([See docs](/docs/platform/deploy/own-cloud))
 
-**2. Create environment:** Open your app in the [Encore Cloud dashboard](https://app.encore.cloud) and go to **Environments**, then click on **Create Environment**.
+**2. Create environment:** Open your app in the [Encore Cloud dashboard](https://app.encore.dev) and go to **Environments**, then click on **Create Environment**.
 
 Next, select your cloud (AWS or GCP) and then specify Kubernetes as the compute platform. Encore Cloud supports deploying to GKE on GCP, and EKS Fargate on AWS.
 

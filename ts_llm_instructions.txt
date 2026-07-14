@@ -51,7 +51,7 @@ These do what `Glob`/`Grep`/`Read` can't. For static config (services, endpoints
 
 ### Cloud MCP (deployed environments)
 
-If deployed to Encore Cloud, also register `encore-cloud` via `claude mcp add --transport http encore-cloud https://api.encore.cloud/mcp` for prod traces / deploy state — `encore-local` only sees local app.
+If deployed to Encore Cloud, also register `encore-cloud` via `claude mcp add --transport http encore-cloud https://api.encore.dev/mcp` for prod traces / deploy state — `encore-local` only sees local app.
 
 ## Encore check (verify app builds + endpoints work)
 
@@ -494,7 +494,7 @@ async function callGitHub() {
 Secret keys globally unique across app.
 
 Storage methods:
-- Cloud dashboard: https://app.encore.cloud → Settings → Secrets
+- Cloud dashboard: https://app.encore.dev → Settings → Secrets
 - CLI: encore secret set --type <types> <secret-name> (types: production/prod, development/dev, preview/pr, local)
 - Local override: .secrets.local.cue file (e.g., GitHubAPIToken: "my-local-override-token")
 

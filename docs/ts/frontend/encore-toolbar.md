@@ -30,7 +30,7 @@ The toolbar automatically detects your App ID and environment by calling the `/_
 
 | Parameter | Description |
 | --------- | ----------- |
-| `appId` | Your Encore app slug (the one in your `app.encore.cloud` URL). |
+| `appId` | Your Encore app slug (the one in your `app.encore.dev` URL). |
 | `envName` | The environment name, e.g. `staging`, or `production`. |
 
 You can also set or change these values later in the toolbar's Settings panel.
@@ -107,5 +107,5 @@ If the toolbar shows "Trace link could not be created", it means the toolbar doe
 Backend log streaming only works when running locally. The toolbar connects to the local Encore daemon over WebSocket at `localhost:9400` to fetch logs for a given trace.
 
 1. **Make sure your app is running.** Backend logs require `encore run` to be active.
-2. **Check the environment.** Log streaming is only available for the `local` environment. In deployed environments, use the trace link to view logs in [Encore Cloud](https://app.encore.cloud).
+2. **Check the environment.** Log streaming is only available for the `local` environment. In deployed environments, use the trace link to view logs in [Encore Cloud](https://app.encore.dev).
 3. **Verify the App ID is set.** The toolbar needs a valid App ID to request logs from the daemon. If `/__encore/healthz` is not reachable then set the App ID via the script tag or in the toolbars Settings.

@@ -77,7 +77,7 @@ Encore Cloud suits teams that want their application's infrastructure to be defi
 - E-commerce marketplaces
 - Microservices backends and event-driven systems
 
-See the [showcase](https://encore.cloud/showcase) for production examples, or read [customer stories](https://encore.cloud/customers) for how specific teams use it.
+See the [showcase](https://encore.dev/showcase) for production examples, or read [customer stories](https://encore.dev/customers) for how specific teams use it.
 
 ## Getting started
 

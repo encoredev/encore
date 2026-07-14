@@ -16,7 +16,7 @@ a Neon account at [neon.tech](https://neon.tech/). Once you have an account, you
 [Neon Console](https://neon.tech/docs/manage/api-keys)
 
 Then, head over to the Neon settings page by going to the
-[Encore Cloud dashboard](https://app.encore.cloud) > (Select your app) > App Settings > Integrations > Neon.
+[Encore Cloud dashboard](https://app.encore.dev) > (Select your app) > App Settings > Integrations > Neon.
 
 Click the "Connect Account" button, give it a name, and enter your API key.
 
@@ -27,7 +27,7 @@ Neon organizes databases in projects. A project consist of a main branch and any
 [Branches](https://neon.tech/docs/introduction/branching) in Neon are similar to branches in git, letting you to create a new branch for each feature or bug fix, to test your changes in isolation.
 
 When configuring your Encore Cloud environment to use Neon, you can choose which project and branch to use. To get started,
-head to the [Encore Cloud dashboard](https://app.encore.cloud) > (Select your app) > Environments > Create Environment. In the Database section, select
+head to the [Encore Cloud dashboard](https://app.encore.dev) > (Select your app) > Environments > Create Environment. In the Database section, select
 `Neon database`.
 
 <img src="/assets/docs/create-neon.png" title="Create Neon Environment" className="mx-auto"/>
@@ -56,7 +56,7 @@ then choose the account, project and branch you want to use.
 See more in the [Roles](#roles) section below.
 
 ## Edit your Neon environment
-Once the environment is created, you can edit the Neon settings by going to the [Encore Cloud dashboard](https://app.encore.cloud) > (Select your app) > Environments > (Select your environment) > Infrastructure.
+Once the environment is created, you can edit the Neon settings by going to the [Encore Cloud dashboard](https://app.encore.dev) > (Select your app) > Environments > (Select your environment) > Infrastructure.
 Here you can view and edit your Neon account resources. As a safety precaution, we've disabled editing of imported
 resources to prevent accidental changes to shared data.
 
@@ -77,7 +77,7 @@ Neon is a great choice for [Preview Environments](/docs/platform/deploy/preview-
 database and test your changes in isolation.
 
 To configure which branch to use for Preview Environments, head to the
-[Encore Cloud dashboard](https://app.encore.cloud) > (Select your app) > App Settings > Preview Environments
+[Encore Cloud dashboard](https://app.encore.dev) > (Select your app) > App Settings > Preview Environments
 and select the environment with the database you want to branch from. Hit save and you're all done.
 
 Keep in mind that you can only branch from environments that use Neon as the database provider; this is the default for Encore Cloud environments, but is a configurable option when creating AWS and GCP environments.
@@ -134,7 +134,7 @@ This ensures that each service has the appropriate level of access to perform it
 
 ### Viewing credentials
 
-To view database credentials, open your app in the [Encore Cloud dashboard](https://app.encore.cloud), navigate to the **Infrastructure page** for the appropriate **Environment**, and locate the **USERS** section within the relevant **Database Cluster**.
+To view database credentials, open your app in the [Encore Cloud dashboard](https://app.encore.dev), navigate to the **Infrastructure page** for the appropriate **Environment**, and locate the **USERS** section within the relevant **Database Cluster**.
 
 
 ### Best Practices

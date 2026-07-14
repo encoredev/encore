@@ -41,7 +41,7 @@ var ProfilePictures = objects.NewBucket("profile-pictures", objects.BucketConfig
 
 ## Importing a Cloud Storage bucket
 
-1. Open the **Infrastructure** page for your environment in the [Encore Cloud dashboard](https://app.encore.cloud).
+1. Open the **Infrastructure** page for your environment in the [Encore Cloud dashboard](https://app.encore.dev).
 2. Locate the bucket resource, expand it, and click **Import** next to the bucket you want to connect.
 3. In the dialog:
    - Select the **GCP Account** that owns the bucket.

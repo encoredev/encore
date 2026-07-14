@@ -90,7 +90,7 @@ If you'd prefer to grant more narrowly scoped permissions, only grant the roles 
 
 ### Setup
 
-To find your app's Service Account email and configure GCP deployments, head over to the Connect Cloud page by going to the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
+To find your app's Service Account email and configure GCP deployments, head over to the Connect Cloud page by going to the **[Encore Cloud dashboard](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
 ![Connect GCP account](/assets/docs/connectgcp.png "Connect GCP account")
 
@@ -155,7 +155,7 @@ It's also possible to configure a more narrowly scoped IAM policy. The required 
 ### Setup
 
 To configure your Encore Cloud app to deploy to your AWS account, head over to the Connect Cloud page by going to the
-**[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
+**[Encore Cloud dashboard](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
 Follow the instructions to create an IAM Role, and then connect the role with Encore Cloud.
 [Learn more in the AWS docs](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html).

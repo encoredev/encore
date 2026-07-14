@@ -7,7 +7,7 @@ lang: platform
 
 Encore Cloud provisions your databases automatically, meaning you don't need to manually create database users. However, in some use cases you need access to the database user credentials, so Encore Cloud makes it simple to view them.
 
-As an application **Admin**, open the [Encore Cloud dashboard](https://app.encore.cloud) and go to the **Infrastructure** page for the relevant environment.
+As an application **Admin**, open the [Encore Cloud dashboard](https://app.encore.dev) and go to the **Infrastructure** page for the relevant environment.
 
 In the section for the relevant **Database Cluster**, you will find a **Users** sub-section which lists your database users. Click on the "eye" icon next to each username to decrypt the password.
 
@@ -27,7 +27,7 @@ Encore Cloud provisions unique credentials at multiple levels to ensure proper s
 
 ## Credential rotation
 
-To rotate database credentials, open the [Encore Cloud dashboard](https://app.encore.cloud) and navigate to the **Infrastructure** page for the relevant environment. In the database cluster section, use the rotation controls to generate new credentials. Existing connections will be updated automatically on the next deployment.
+To rotate database credentials, open the [Encore Cloud dashboard](https://app.encore.dev) and navigate to the **Infrastructure** page for the relevant environment. In the database cluster section, use the rotation controls to generate new credentials. Existing connections will be updated automatically on the next deployment.
 
 <Callout type="important">
 

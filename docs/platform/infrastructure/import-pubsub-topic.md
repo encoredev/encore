@@ -45,7 +45,7 @@ var Signups = pubsub.NewTopic[*SignupEvent]("signups", pubsub.TopicConfig{
 
 ## Importing a Pub/Sub topic
 
-1. Open the **Infrastructure** page for your environment in the [Encore Cloud dashboard](https://app.encore.cloud).
+1. Open the **Infrastructure** page for your environment in the [Encore Cloud dashboard](https://app.encore.dev).
 2. Locate the Pub/Sub topic you want to connect and click **Import**.
 3. In the dialog:
    - Select the **GCP Account** that owns the topic.
