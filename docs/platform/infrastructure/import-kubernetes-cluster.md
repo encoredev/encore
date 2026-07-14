@@ -14,7 +14,7 @@ Kubernetes imports are supported on GCP, AWS support is coming soon.
 
 ## Importing a cluster
 
-To import your cluster, go to **Create Environment** in the [Encore Cloud dashboard](https://app.encore.cloud), select **Kubernetes: Existing GKE Cluster** as the compute platform, and then specify your cluster's `Project ID`, `Region`, and `Cluster Name`.
+To import your cluster, go to **Create Environment** in the [Encore Cloud dashboard](https://app.encore.dev), select **Kubernetes: Existing GKE Cluster** as the compute platform, and then specify your cluster's `Project ID`, `Region`, and `Cluster Name`.
 
 When you deploy to this environment, Encore Cloud will use your imported cluster as the compute instance.
 

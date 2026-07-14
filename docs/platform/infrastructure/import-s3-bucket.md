@@ -41,7 +41,7 @@ var ProfilePictures = objects.NewBucket("profile-pictures", objects.BucketConfig
 
 ## Importing an S3 bucket
 
-1. Open the **Infrastructure** page for your environment in the [Encore Cloud dashboard](https://app.encore.cloud).
+1. Open the **Infrastructure** page for your environment in the [Encore Cloud dashboard](https://app.encore.dev).
 2. Locate the bucket resource, expand it, and click **Import** next to the bucket you want to connect.
 3. In the dialog:
    - Select the **AWS Account** that owns the bucket.

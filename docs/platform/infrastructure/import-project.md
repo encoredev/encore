@@ -22,7 +22,7 @@ Using an existing GCP project allows you to:
 
 Follow these steps to import your existing GCP project:
 
-1. Navigate to **Create Environment** in the [Encore Cloud dashboard](https://app.encore.cloud)
+1. Navigate to **Create Environment** in the [Encore Cloud dashboard](https://app.encore.dev)
 2. Select the GCP cloud provider
 3. Choose **Import Project**
 4. Add permissions for the Encore Service Account:
@@ -33,4 +33,4 @@ Follow these steps to import your existing GCP project:
 6. Enter your `Project ID` 
 7. Click the `Resolve` button to validate the project
 
-Once validated, you can create the environment. When you deploy to this environment, Encore Cloud will automatically deploy your application to your imported GCP project rather than provisioning a new one. 
+Once validated, you can create the environment. When you deploy to this environment, Encore Cloud will automatically deploy your application to your imported GCP project rather than provisioning a new one.

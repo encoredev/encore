@@ -17,7 +17,7 @@ For AI access to your local development environment, see the [Local MCP Server](
 Connect your AI tool to the Cloud MCP Server at:
 
 ```
-https://api.encore.cloud/mcp
+https://api.encore.dev/mcp
 ```
 
 ## Authentication
@@ -34,7 +34,7 @@ The Cloud MCP Server supports two authentication methods:
 Add the Cloud MCP Server to Claude Code:
 
 ```bash
-claude mcp add --transport http encore-cloud https://api.encore.cloud/mcp
+claude mcp add --transport http encore-cloud https://api.encore.dev/mcp
 ```
 
 The first time you use the server, Claude Code will open a browser window to complete the OAuth flow and grant access to your Encore Cloud account.
@@ -47,14 +47,14 @@ If you'd rather not use OAuth (for example, in CI environments or when sharing c
 
 **1. Generate an API key**
 
-In the [Encore Cloud dashboard](https://app.encore.cloud), navigate to **Settings → API Keys** for your app and generate a new API key. Copy the token — you won't be able to see it again.
+In the [Encore Cloud dashboard](https://app.encore.dev), navigate to **Settings → API Keys** for your app and generate a new API key. Copy the token — you won't be able to see it again.
 
 **2. Configure Claude Code with the API key**
 
 Add the Cloud MCP Server with an `Authorization: Bearer` header:
 
 ```bash
-claude mcp add --transport http encore-cloud https://api.encore.cloud/mcp \
+claude mcp add --transport http encore-cloud https://api.encore.dev/mcp \
   --header "Authorization: Bearer <your-api-key>"
 ```
 

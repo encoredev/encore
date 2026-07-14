@@ -664,7 +664,7 @@ $ git push encore
 
 Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
 
-After triggering the deployment, you will see a URL where you can view its progress in the [Encore Cloud dashboard](https://app.encore.cloud). It will look something like: `https://app.encore.cloud/$APP_ID/deploys/...`
+After triggering the deployment, you will see a URL where you can view its progress in the [Encore Cloud dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
 
 From the Cloud Dashboard you can also see metrics, trigger Cron Jobs, see traces, and later connect your own AWS or GCP account to use for deployment.
 

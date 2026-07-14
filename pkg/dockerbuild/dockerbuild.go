@@ -305,7 +305,7 @@ func tryFetch(ctx context.Context, url string) (*http.Response, error) {
 
 func addCACerts(ctx context.Context, tc *tarCopier, dest ImagePath) error {
 	const (
-		encoreCachedRootCerts = "https://api.encore.cloud/artifacts/build/root-certs"
+		encoreCachedRootCerts = "https://api.encore.dev/artifacts/build/root-certs"
 		curlCACertStore       = "https://curl.se/ca/cacert.pem"
 	)
 	var (

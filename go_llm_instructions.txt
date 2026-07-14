@@ -44,7 +44,7 @@ Do what `Glob`/`Grep`/`Read` can't. For static config (services, endpoints, topi
 
 ### Cloud MCP (deployed environments)
 
-If deployed Encore Cloud, also register `encore-cloud` via `claude mcp add --transport http encore-cloud https://api.encore.cloud/mcp` for prod traces / deploy state — `encore-local` only sees local app.
+If deployed Encore Cloud, also register `encore-cloud` via `claude mcp add --transport http encore-cloud https://api.encore.dev/mcp` for prod traces / deploy state — `encore-local` only sees local app.
 
 ## Encore check (verify app builds + endpoints work)
 

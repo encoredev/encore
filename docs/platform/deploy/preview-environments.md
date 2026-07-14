@@ -24,7 +24,7 @@ To use Preview Environments, you first need to [connect your application to GitH
 
 Preview Environments are named after the pull request, for example PR #72 creates a Preview Environment named `pr:72` with the API base url `https://pr72-$APP_ID.encr.app`.
 
-You can also view the environment in the Encore Cloud dashboard, where the url will be `https://app.encore.cloud/$APP_ID/envs/pr:72`.
+You can also view the environment in the Encore Cloud dashboard, where the url will be `https://app.encore.dev/$APP_ID/envs/pr:72`.
 
 ![Preview environment linked in GitHub](/assets/docs/ghpreviewenv.png "Preview environment linked in GitHub")
 
@@ -37,7 +37,7 @@ Preview Environments can automatically come with pre-populated test data thanks 
 3. This happens automatically - no manual data copying needed!
 
 #### Setup instructions
-1. Go to [Encore Cloud dashboard](https://app.encore.cloud)
+1. Go to [Encore Cloud dashboard](https://app.encore.dev)
 2. Select your app > App Settings > Preview Environments
 3. Choose which environment's database to copy from (e.g., staging)
 4. Save your changes

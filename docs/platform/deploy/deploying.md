@@ -58,7 +58,7 @@ For production applications we recommend integrating with GitHub instead of usin
 
 #### **Connecting your GitHub account**
 
-Open your app in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > GitHub**.
+Open your app in the **[Encore Cloud dashboard](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > GitHub**.
 Click the **Connect Account to GitHub** button, which will open GitHub where you can grant access either to the relevant repositorie(s).
 
 [See the full docs](/docs/platform/integrations/github) on integrating with GitHub to learn how to configure different repository structures.
@@ -73,7 +73,7 @@ If you're just trying out Encore Cloud, skip this step to deploy to a free devel
 
 #### **Connecting your cloud account**
 
-Open your app in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
+Open your app in the **[Encore Cloud dashboard](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
 Learn more in the [connecting your cloud docs](/docs/platform/deploy/own-cloud).
 
@@ -102,13 +102,13 @@ This will trigger Encore Cloud's deployment process, consisting of the following
 * An infrastructure provisioning phase
 * A deployment phase
 
-Once you've pushed your code, you can monitor the progress in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > Deployments**.
+Once you've pushed your code, you can monitor the progress in the **[Encore Cloud dashboard](https://app.encore.dev/) > (Select your app) > Deployments**.
 
 ## Configuring deploy trigger
 
 When using GitHub, you can configure Encore Cloud to automatically trigger deploys when you push to a specific branch name.
 
-To configure which branch name is used to trigger deploys, open your app in the [Encore Cloud dashboard](https://app.encore.cloud) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
+To configure which branch name is used to trigger deploys, open your app in the [Encore Cloud dashboard](https://app.encore.dev) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
 
 ### Integrating using Encore Cloud's API
 

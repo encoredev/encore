@@ -21,7 +21,7 @@ Using an existing Cloud SQL instance allows you to:
 
 Follow these steps to import your existing Cloud SQL instance:
 
-1. Navigate to **Create Environment** in the [Encore Cloud dashboard](https://app.encore.cloud)
+1. Navigate to **Create Environment** in the [Encore Cloud dashboard](https://app.encore.dev)
 2. Select the GCP cloud provider
 3. Choose **Import Existing Cloud SQL Instance**
 4. Add permissions for the Encore Service Account:

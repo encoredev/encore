@@ -8,7 +8,7 @@ lang: platform
 
 Encore Cloud supercharges AI-powered development by letting AI agents provision real infrastructure in your AWS or GCP account with automatic guardrails.
 
-When you connect your cloud account to [Encore Cloud](https://encore.cloud), AI-generated code that declares databases, pub/sub topics, cron jobs, and other [primitives](/docs/ts/primitives) gets automatically provisioned with production-ready defaults: proper networking, IAM permissions, and security configurations.
+When you connect your cloud account to [Encore Cloud](https://encore.dev), AI-generated code that declares databases, pub/sub topics, cron jobs, and other [primitives](/docs/ts/primitives) gets automatically provisioned with production-ready defaults: proper networking, IAM permissions, and security configurations.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
   <source src="/assets/docs/aws-demo.mp4" type="video/mp4" />
@@ -64,7 +64,7 @@ The [Local MCP Server](/docs/ts/cli/mcp) runs alongside `encore run` and gives A
 
 ### Cloud MCP Server
 
-The [Cloud MCP Server](/docs/platform/cloud-mcp) gives AI agents access to your deployed environments on Encore Cloud, including production traces, deployment status, environment configuration, and infrastructure metadata. It's hosted at `https://api.encore.cloud/mcp` and authenticates via OAuth or a Bearer API token.
+The [Cloud MCP Server](/docs/platform/cloud-mcp) gives AI agents access to your deployed environments on Encore Cloud, including production traces, deployment status, environment configuration, and infrastructure metadata. It's hosted at `https://api.encore.dev/mcp` and authenticates via OAuth or a Bearer API token.
 
 ## Connecting Your Cloud
 

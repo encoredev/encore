@@ -8,7 +8,7 @@ lang: ts
 
 Encore is built for AI-assisted development. Encore-specific rules and [MCP](/docs/ts/ai-integration#mcp-server) integration let AI understand your architecture and generate type-safe code that follows your patterns. Run `encore run` to start your app; Encore provisions local infrastructure automatically.
 
-For production, [self-host](/docs/ts/self-host/build) or use [Encore Cloud](https://encore.cloud) to provision infrastructure in your own AWS or GCP account.
+For production, [self-host](/docs/ts/self-host/build) or use [Encore Cloud](https://encore.dev) to provision infrastructure in your own AWS or GCP account.
 
 ## What AI Enables
 
