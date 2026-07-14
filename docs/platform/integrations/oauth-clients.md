@@ -88,7 +88,7 @@ func main() {
     client := oauthConfig.Client(context.Background())
 
     // Make API calls using `client.Get` etc.
-    resp, err := client.Get("https://api.encore.dev.com/api/...")
+    resp, err := client.Get("https://api.encore.dev/api/...")
     // ...
 }
 ```
