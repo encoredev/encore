@@ -296,7 +296,7 @@ impl MetaBuilder<'_> {
                         .ok_or(
                             secret
                                 .range
-                                .parse_err(format!("missing service: {}", &service.name)),
+                                .parse_err(format!("missing service: {}", service.name)),
                         )?
                         .to_owned();
                     let pkg = &mut self.data.pkgs[pkg_idx];

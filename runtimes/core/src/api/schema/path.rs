@@ -171,7 +171,7 @@ impl Path {
                             message: "missing field in request payload".into(),
                             internal_message: Some(format!(
                                 "missing field in request payload: {}",
-                                &name
+                                name
                             )),
                             stack: None,
                             details: None,
@@ -185,7 +185,7 @@ impl Path {
                             message: "missing field in request payload".into(),
                             internal_message: Some(format!(
                                 "missing field in request payload: {}",
-                                &name
+                                name
                             )),
                             stack: None,
                             details: None,
@@ -219,7 +219,7 @@ impl Path {
                                 message: "unsupported type in request payload".into(),
                                 internal_message: Some(format!(
                                     "unsupported type in request payload for field {}",
-                                    &name
+                                    name
                                 )),
                                 stack: None,
                                 details: None,

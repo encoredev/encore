@@ -215,7 +215,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 .path
                 .as_deref()
                 .cloned()
-                .unwrap_or_else(|| format!("/{}.{}", &service_name, r.endpoint_name));
+                .unwrap_or_else(|| format!("/{}.{}", service_name, r.endpoint_name));
 
             let path = match Path::parse(path_span, &path_str, Default::default()) {
                 Ok(path) => path,

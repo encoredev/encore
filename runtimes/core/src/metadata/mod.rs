@@ -146,7 +146,7 @@ impl ContainerMetadata {
 /// Process environment variable substitution in labels
 /// Replaces $ENV:VARIABLE_NAME with the actual environment variable value
 pub fn process_env_substitution(labels: &mut HashMap<String, String>) {
-    for (_, value) in labels.iter_mut() {
+    for value in labels.values_mut() {
         if value.starts_with("$ENV:") {
             let env_var = &value[5..];
             if let Ok(env_value) = std::env::var(env_var) {

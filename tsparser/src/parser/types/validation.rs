@@ -357,7 +357,7 @@ impl Display for UnsupportedValidation<'_> {
 impl Display for UnsupportedValidationsError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.0.len() == 1 {
-            write!(f, "unsupported validation: {}", &self.0[0])
+            write!(f, "unsupported validation: {}", self.0[0])
         } else {
             f.write_str("unsupported validation: ")?;
             for (i, rule) in self.0.iter().enumerate() {

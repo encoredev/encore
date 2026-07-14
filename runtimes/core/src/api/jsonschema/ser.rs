@@ -14,7 +14,7 @@ impl Serialize for SchemaSerializeWrapper<'_> {
     {
         let mut map = serializer.serialize_map(None)?;
         if let Some(payload) = self.payload {
-            for (key, _value) in self.schema.fields.iter() {
+            for key in self.schema.fields.keys() {
                 if let Some(value) = payload.get(key) {
                     map.serialize_entry(key, value)?;
                 }
