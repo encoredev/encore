@@ -168,6 +168,33 @@ impl CacheCluster {
         Ok(result.into_iter().map(|v| v.map(|b| b.into())).collect())
     }
 
+    /// Set multiple key-value pairs with optional TTL.
+    #[napi]
+    pub async fn mset(
+        &self,
+        keys: Vec<String>,
+        values: Vec<Buffer>,
+        ttl_ms: Option<i64>,
+        source: Option<&Request>,
+    ) -> napi::Result<()> {
+        if keys.len() != values.len() {
+            return Err(Error::new(
+                Status::InvalidArg,
+                "keys and values must have the same length",
+            ));
+        }
+        let source = source.map(|s| s.inner.as_ref());
+        let items: Vec<(&str, &[u8])> = keys
+            .iter()
+            .zip(values.iter())
+            .map(|(k, v)| (k.as_str(), v.as_ref()))
+            .collect();
+        self.client()?
+            .mset(&items, to_ttl_op(ttl_ms), source)
+            .await
+            .map_err(to_error)
+    }
+
     /// Append to a string value.
     #[napi]
     pub async fn append(

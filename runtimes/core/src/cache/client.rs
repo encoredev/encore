@@ -273,6 +273,33 @@ impl RedisBackend {
         self.query(|pipe| pipe.mget(keys)).await
     }
 
+    async fn mset(&self, items: &[(&str, &[u8])], ttl: Option<TtlOp>) -> Result<()> {
+        if items.is_empty() {
+            return Ok(());
+        }
+        let set_exp = ttl.and_then(|t| match t {
+            TtlOp::Keep => Some(SetExpiry::KEEPTTL),
+            TtlOp::SetMs(ms) => Some(SetExpiry::PX(ms)),
+            TtlOp::Persist => None,
+        });
+        match set_exp {
+            None => self.query(|pipe| pipe.mset(items)).await,
+            // MSET cannot express TTLs, so set each key with its expiry
+            // in a single atomic transaction instead.
+            Some(exp) => {
+                let opts = redis::SetOptions::default().with_expiration(exp);
+                let mut pipe = redis::pipe();
+                pipe.atomic();
+                for (key, value) in items {
+                    pipe.set_options(*key, *value, opts.clone()).ignore();
+                }
+                let mut conn = self.conn().await?;
+                pipe.query_async::<()>(&mut *conn).await?;
+                Ok(())
+            }
+        }
+    }
+
     async fn append(&self, key: &str, value: &[u8], ttl: Option<TtlOp>) -> Result<i64> {
         self.query_with_ttl(key, ttl, |pipe| pipe.append(key, value))
             .await
@@ -603,6 +630,27 @@ impl Client {
         self.tracer
             .trace(source, "multi get", false, &key_refs, async || {
                 self.backend.mget(&key_refs).await
+            })
+            .await
+    }
+
+    /// Set multiple key-value pairs (MSET), with an optional TTL applied to all keys.
+    pub async fn mset(
+        &self,
+        items: &[(&str, &[u8])],
+        ttl: Option<TtlOp>,
+        source: Option<&Request>,
+    ) -> OpResult<()> {
+        let prefixed: Vec<String> = items.iter().map(|(k, _)| self.prefixed_key(k)).collect();
+        let prefixed_items: Vec<(&str, &[u8])> = prefixed
+            .iter()
+            .zip(items.iter())
+            .map(|(k, (_, v))| (k.as_str(), *v))
+            .collect();
+        let key_refs: Vec<&str> = prefixed.iter().map(|s| s.as_str()).collect();
+        self.tracer
+            .trace(source, "multi set", true, &key_refs, async || {
+                self.backend.mset(&prefixed_items, ttl).await
             })
             .await
     }
