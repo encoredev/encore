@@ -59,6 +59,16 @@ func (s *StructKeyspace[K, V]) MultiGet(ctx context.Context, keys ...K) ([]Resul
 	return s.basicKeyspace.MultiGet(ctx, keys...)
 }
 
+// MultiSet updates the values stored at multiple keys.
+// The keyspace's expiry is applied to all keys.
+//
+// Use KV to construct the key-value pairs.
+//
+// See https://redis.io/commands/mset/ for more information.
+func (s *StructKeyspace[K, V]) MultiSet(ctx context.Context, entries ...KeyValue[K, V]) error {
+	return s.basicKeyspace.MultiSet(ctx, entries...)
+}
+
 // Set updates the value stored at key to val.
 //
 // See https://redis.io/commands/set/ for more information.
