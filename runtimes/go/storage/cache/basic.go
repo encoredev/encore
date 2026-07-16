@@ -47,6 +47,16 @@ func (s *StringKeyspace[K]) MultiGet(ctx context.Context, keys ...K) ([]Result[s
 	return s.basicKeyspace.MultiGet(ctx, keys...)
 }
 
+// MultiSet updates the values stored at multiple keys.
+// The keyspace's expiry is applied to all keys.
+//
+// Use KV to construct the key-value pairs.
+//
+// See https://redis.io/commands/mset/ for more information.
+func (s *StringKeyspace[K]) MultiSet(ctx context.Context, entries ...KeyValue[K, string]) error {
+	return s.basicKeyspace.MultiSet(ctx, entries...)
+}
+
 // Set updates the value stored at key to val.
 //
 // See https://redis.io/commands/set/ for more information.
@@ -250,6 +260,16 @@ func (s *IntKeyspace[K]) MultiGet(ctx context.Context, keys ...K) ([]Result[int6
 	return s.basicKeyspace.MultiGet(ctx, keys...)
 }
 
+// MultiSet updates the values stored at multiple keys.
+// The keyspace's expiry is applied to all keys.
+//
+// Use KV to construct the key-value pairs.
+//
+// See https://redis.io/commands/mset/ for more information.
+func (s *IntKeyspace[K]) MultiSet(ctx context.Context, entries ...KeyValue[K, int64]) error {
+	return s.basicKeyspace.MultiSet(ctx, entries...)
+}
+
 // Set updates the value stored at key to val.
 //
 // See https://redis.io/commands/set/ for more information.
@@ -399,6 +419,16 @@ func (s *FloatKeyspace[K]) Get(ctx context.Context, key K) (float64, error) {
 // See https://redis.io/commands/mget/ for more information.
 func (s *FloatKeyspace[K]) MultiGet(ctx context.Context, keys ...K) ([]Result[float64], error) {
 	return s.basicKeyspace.MultiGet(ctx, keys...)
+}
+
+// MultiSet updates the values stored at multiple keys.
+// The keyspace's expiry is applied to all keys.
+//
+// Use KV to construct the key-value pairs.
+//
+// See https://redis.io/commands/mset/ for more information.
+func (s *FloatKeyspace[K]) MultiSet(ctx context.Context, entries ...KeyValue[K, float64]) error {
+	return s.basicKeyspace.MultiSet(ctx, entries...)
 }
 
 // Set updates the value stored at key to val.
@@ -565,6 +595,54 @@ func (s *basicKeyspace[K, V]) MultiGet(ctx context.Context, keys ...K) ([]Result
 	return results, nil
 }
 
+func (s *basicKeyspace[K, V]) MultiSet(ctx context.Context, entries ...KeyValue[K, V]) (err error) {
+	const op = "multi set"
+	keys := fnMap(entries, func(e KeyValue[K, V]) K { return e.Key })
+	ks, err := s.keys(keys, op)
+	endTrace := s.doTrace(op, true, ks...)
+	defer func() { endTrace(err) }()
+	if err != nil {
+		return err
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+
+	vals := make([]any, len(entries))
+	for i, e := range entries {
+		vals[i], err = s.toRedis(e.Value)
+		if err != nil {
+			return toErr(err, op, ks[i])
+		}
+	}
+
+	now := time.Now()
+	exp := s.expiry(now)
+	if exp == neverExpire {
+		pairs := make([]any, 0, 2*len(entries))
+		for i := range entries {
+			pairs = append(pairs, ks[i], vals[i])
+		}
+		err = toErr(s.redis.MSet(ctx, pairs...).Err(), op, ks[0])
+		return err
+	}
+
+	// MSET cannot express expiry, so set each key together with its
+	// expiry in a single atomic transaction instead.
+	pipe := s.redis.TxPipeline()
+	for i := range entries {
+		args := make([]any, 3, 5)
+		args[0] = "set"
+		args[1] = ks[i]
+		args[2] = vals[i]
+		args = appendSetExpiryArgs(args, exp, now)
+		_ = pipe.Process(ctx, redis.NewStatusCmd(ctx, args...))
+	}
+	_, err = pipe.Exec(ctx)
+	err = toErr(err, op, ks[0])
+	return err
+}
+
 func (s *basicKeyspace[K, V]) Set(ctx context.Context, key K, val V) error {
 	_, _, err := s.set(ctx, key, val, 0, "set")
 	return err
@@ -679,6 +757,24 @@ func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFla
 
 	now := time.Now()
 	exp := s.expiry(now)
+	args = appendSetExpiryArgs(args, exp, now)
+
+	if get {
+		cmd := redis.NewStringCmd(ctx, args...)
+		_ = s.redis.Process(ctx, cmd)
+		res, err := cmd.Result()
+		err = toErr(err, op, k)
+		return res, k, err
+	}
+
+	cmd := redis.NewStatusCmd(ctx, args...)
+	_ = s.redis.Process(ctx, cmd)
+	return "", k, toErr(cmd.Err(), op, k)
+}
+
+// appendSetExpiryArgs appends the expiry arguments for a SET command,
+// given the resolved expiry time.
+func appendSetExpiryArgs(args []any, exp, now time.Time) []any {
 	switch exp {
 	case neverExpire:
 		// do nothing; default Redis behavior
@@ -699,18 +795,7 @@ func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFla
 			}
 		}
 	}
-
-	if get {
-		cmd := redis.NewStringCmd(ctx, args...)
-		_ = s.redis.Process(ctx, cmd)
-		res, err := cmd.Result()
-		err = toErr(err, op, k)
-		return res, k, err
-	}
-
-	cmd := redis.NewStatusCmd(ctx, args...)
-	_ = s.redis.Process(ctx, cmd)
-	return "", k, toErr(cmd.Err(), op, k)
+	return args
 }
 
 func usePreciseDur(dur time.Duration) bool {

@@ -305,6 +305,76 @@ async fn test_mget_duplicate_keys() {
 }
 
 #[tokio::test]
+async fn test_mset() {
+    let p = new_test_pool();
+
+    p.mset(&[("a", b"1"), ("b", b"2"), ("c", b"3")], None, None)
+        .await
+        .unwrap();
+
+    let vals = p.mget(&["a", "b", "c"], None).await.unwrap();
+    assert_eq!(
+        vals,
+        vec![
+            Some(b"1".to_vec()),
+            Some(b"2".to_vec()),
+            Some(b"3".to_vec())
+        ]
+    );
+}
+
+#[tokio::test]
+async fn test_mset_overwrites() {
+    let p = new_test_pool();
+    p.set("a", b"old", None, None).await.unwrap();
+    p.mset(&[("a", b"new" as &[u8]), ("b", b"2")], None, None)
+        .await
+        .unwrap();
+    assert_eq!(p.get("a", None).await.unwrap(), b"new".to_vec());
+    assert_eq!(p.get("b", None).await.unwrap(), b"2".to_vec());
+}
+
+#[tokio::test]
+async fn test_mset_with_ttl() {
+    let p = new_test_pool();
+    p.mset(
+        &[("a", b"1"), ("b", b"2")],
+        Some(TtlOp::SetMs(100_000)),
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(p.get("a", None).await.unwrap(), b"1".to_vec());
+    assert_eq!(p.get("b", None).await.unwrap(), b"2".to_vec());
+}
+
+#[tokio::test]
+async fn test_mset_keep_ttl() {
+    let p = new_test_pool();
+    p.set("a", b"old", Some(TtlOp::SetMs(100_000)), None)
+        .await
+        .unwrap();
+    p.mset(&[("a", b"new")], Some(TtlOp::Keep), None)
+        .await
+        .unwrap();
+    assert_eq!(p.get("a", None).await.unwrap(), b"new".to_vec());
+}
+
+#[tokio::test]
+async fn test_mset_single_pair() {
+    let p = new_test_pool();
+    p.mset(&[("k", b"v")], None, None).await.unwrap();
+    assert_eq!(p.get("k", None).await.unwrap(), b"v".to_vec());
+}
+
+#[tokio::test]
+async fn test_mset_empty() {
+    let p = new_test_pool();
+    let items: &[(&str, &[u8])] = &[];
+    p.mset(items, None, None).await.unwrap();
+}
+
+#[tokio::test]
 async fn test_append() {
     let p = new_test_pool();
 

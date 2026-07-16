@@ -59,6 +59,24 @@ abstract class BasicKeyspace<K, V> extends Keyspace<K> {
   }
 
   /**
+   * Updates the values stored at multiple keys.
+   *
+   * The keyspace's expiry (or the expiry provided in `options`) is
+   * applied to all keys.
+   *
+   * @param entries - The key-value pairs to set.
+   * @see https://redis.io/commands/mset/
+   */
+  async multiSet(entries: [K, V][], options?: WriteOptions): Promise<void> {
+    const source = getCurrentRequest();
+    const keys = entries.map(([key]) => this.mapKey(key));
+    const values = entries.map(([, value]) => this.serialize(value));
+    const ttlMs = this.resolveTtl(options);
+
+    await this.cluster.impl.mset(keys, values, ttlMs, source);
+  }
+
+  /**
    * Updates the value stored at key to val.
    *
    * @see https://redis.io/commands/set/

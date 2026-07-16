@@ -155,6 +155,47 @@ func TestMultiGet(t *testing.T) {
 	}
 }
 
+func TestMultiSet(t *testing.T) {
+	kt := newStringTest(t)
+	ks, ctx := kt.ks, kt.ctx
+
+	check(ks.MultiSet(ctx, KV("one", "alpha"), KV("two", "beta")))
+	kt.Val("one", "alpha")
+	kt.Val("two", "beta")
+
+	// MultiSet overwrites existing values.
+	check(ks.MultiSet(ctx, KV("one", "gamma")))
+	kt.Val("one", "gamma")
+
+	// An empty MultiSet is a no-op.
+	check(ks.MultiSet(ctx))
+
+	// With an expiry, the TTL is applied to all keys.
+	check(ks.With(ExpireIn(time.Second)).MultiSet(ctx, KV("three", "delta"), KV("four", "epsilon")))
+	kt.Val("three", "delta")
+	kt.Val("four", "epsilon")
+	kt.TTL("three", time.Second)
+	kt.TTL("four", time.Second)
+
+	// An expiry in the past deletes the keys immediately.
+	check(ks.With(ExpireIn(-time.Second)).MultiSet(ctx, KV("one", "zeta")))
+	kt.Missing("one")
+
+	// KeepTTL preserves the existing TTL.
+	check(ks.With(ExpireIn(time.Minute)).Set(ctx, "five", "a"))
+	check(ks.With(KeepTTL).MultiSet(ctx, KV("five", "b")))
+	kt.Val("five", "b")
+	kt.TTL("five", time.Minute)
+
+	// Without an expiry, MultiSet discards any existing TTL,
+	// just like Set does.
+	check(ks.With(ExpireIn(time.Minute)).Set(ctx, "six", "a"))
+	kt.TTL("six", time.Minute)
+	check(ks.MultiSet(ctx, KV("six", "b")))
+	kt.Val("six", "b")
+	kt.TTL("six", 0)
+}
+
 func newStringTest(t *testing.T) *stringTester {
 	cluster, srv := newTestCluster(t)
 	ks := NewStringKeyspace[string](cluster, KeyspaceConfig{

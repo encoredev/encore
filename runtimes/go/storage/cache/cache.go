@@ -146,6 +146,17 @@ type Result[V any] struct {
 	Err error
 }
 
+// KeyValue is a key-value pair, for use with MultiSet.
+type KeyValue[K, V any] struct {
+	Key   K
+	Value V
+}
+
+// KV constructs a KeyValue pair.
+func KV[K, V any](key K, value V) KeyValue[K, V] {
+	return KeyValue[K, V]{Key: key, Value: value}
+}
+
 // An WriteOption customizes the behavior of a single cache write operation.
 type WriteOption interface {
 	//publicapigen:keep

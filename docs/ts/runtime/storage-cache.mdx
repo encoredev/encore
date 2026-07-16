@@ -185,7 +185,7 @@ CacheMiss is thrown when a cache key is not found.
 <!-- symbol-end -->
 
 <!-- symbol-start: FloatKeyspace -->
-### FloatKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L410" />
+### FloatKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L428" />
 
 FloatKeyspace stores 64-bit floating point values.
 
@@ -212,7 +212,7 @@ const newScore = await scores.increment("player1", 10.25);
 
 #### Constructors
 
-##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L411" />
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L429" />
 
 `new FloatKeyspace<K>(cluster, config): FloatKeyspace<K>`
 
@@ -272,7 +272,7 @@ const newScore = await scores.increment("player1", 10.25);
 
 #### Methods
 
-##### decrement() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L462" />
+##### decrement() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L480" />
 
 ```ts
 decrement(
@@ -344,7 +344,7 @@ https://redis.io/commands/del/
 
 `BasicKeyspace.delete`
 
-##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L419" />
+##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L437" />
 
 `protected deserialize(data): number`
 
@@ -391,7 +391,7 @@ https://redis.io/commands/get/
 
 `BasicKeyspace.get`
 
-##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" />
+##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L183" />
 
 `getAndDelete(key): Promise<number | undefined>`
 
@@ -418,7 +418,7 @@ https://redis.io/commands/getdel/
 
 `BasicKeyspace.getAndDelete`
 
-##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" />
+##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L152" />
 
 ```ts
 getAndSet(
@@ -458,7 +458,7 @@ https://redis.io/commands/getset/
 
 `BasicKeyspace.getAndSet`
 
-##### increment() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L437" />
+##### increment() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L455" />
 
 ```ts
 increment(
@@ -550,7 +550,40 @@ https://redis.io/commands/mget/
 
 `BasicKeyspace.multiGet`
 
-##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" />
+##### multiSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L70" />
+
+`multiSet(entries, options?): Promise<void>`
+
+Updates the values stored at multiple keys.
+
+The keyspace's expiry (or the expiry provided in `options`) is
+applied to all keys.
+
+###### Parameters
+
+###### entries
+
+\[`K`, `number`\][]
+
+The key-value pairs to set.
+
+###### options?
+
+[`WriteOptions`](#writeoptions)
+
+###### Returns
+
+`Promise`\<`void`\>
+
+###### See
+
+https://redis.io/commands/mset/
+
+###### Inherited from
+
+`BasicKeyspace.multiSet`
+
+##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L127" />
 
 ```ts
 replace(
@@ -612,7 +645,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `BasicKeyspace.resolveTtl`
 
-##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L415" />
+##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L433" />
 
 `protected serialize(value): Buffer`
 
@@ -632,7 +665,7 @@ Serializes a value to a Buffer for storage.
 
 `BasicKeyspace.serialize`
 
-##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" />
+##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L84" />
 
 ```ts
 set(
@@ -669,7 +702,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.set`
 
-##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" />
+##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L99" />
 
 ```ts
 setIfNotExists(
@@ -740,7 +773,7 @@ This allows setting expiry for a chain of operations.
 <!-- symbol-end -->
 
 <!-- symbol-start: IntKeyspace -->
-### IntKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L323" />
+### IntKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L341" />
 
 IntKeyspace stores 64-bit integer values.
 Values are floored to integers using `Math.floor`.
@@ -769,7 +802,7 @@ const newCount = await counters.increment("page-views", 1);
 
 #### Constructors
 
-##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L324" />
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L342" />
 
 `new IntKeyspace<K>(cluster, config): IntKeyspace<K>`
 
@@ -829,7 +862,7 @@ const newCount = await counters.increment("page-views", 1);
 
 #### Methods
 
-##### decrement() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L380" />
+##### decrement() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L398" />
 
 ```ts
 decrement(
@@ -901,7 +934,7 @@ https://redis.io/commands/del/
 
 `BasicKeyspace.delete`
 
-##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L332" />
+##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L350" />
 
 `protected deserialize(data): number`
 
@@ -948,7 +981,7 @@ https://redis.io/commands/get/
 
 `BasicKeyspace.get`
 
-##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" />
+##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L183" />
 
 `getAndDelete(key): Promise<number | undefined>`
 
@@ -975,7 +1008,7 @@ https://redis.io/commands/getdel/
 
 `BasicKeyspace.getAndDelete`
 
-##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" />
+##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L152" />
 
 ```ts
 getAndSet(
@@ -1015,7 +1048,7 @@ https://redis.io/commands/getset/
 
 `BasicKeyspace.getAndSet`
 
-##### increment() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L350" />
+##### increment() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L368" />
 
 ```ts
 increment(
@@ -1107,7 +1140,40 @@ https://redis.io/commands/mget/
 
 `BasicKeyspace.multiGet`
 
-##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" />
+##### multiSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L70" />
+
+`multiSet(entries, options?): Promise<void>`
+
+Updates the values stored at multiple keys.
+
+The keyspace's expiry (or the expiry provided in `options`) is
+applied to all keys.
+
+###### Parameters
+
+###### entries
+
+\[`K`, `number`\][]
+
+The key-value pairs to set.
+
+###### options?
+
+[`WriteOptions`](#writeoptions)
+
+###### Returns
+
+`Promise`\<`void`\>
+
+###### See
+
+https://redis.io/commands/mset/
+
+###### Inherited from
+
+`BasicKeyspace.multiSet`
+
+##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L127" />
 
 ```ts
 replace(
@@ -1169,7 +1235,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `BasicKeyspace.resolveTtl`
 
-##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L328" />
+##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L346" />
 
 `protected serialize(value): Buffer`
 
@@ -1189,7 +1255,7 @@ Serializes a value to a Buffer for storage.
 
 `BasicKeyspace.serialize`
 
-##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" />
+##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L84" />
 
 ```ts
 set(
@@ -1226,7 +1292,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.set`
 
-##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" />
+##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L99" />
 
 ```ts
 setIfNotExists(
@@ -3140,7 +3206,7 @@ This allows setting expiry for a chain of operations.
 <!-- symbol-end -->
 
 <!-- symbol-start: StringKeyspace -->
-### StringKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L193" />
+### StringKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L211" />
 
 StringKeyspace stores string values.
 
@@ -3168,7 +3234,7 @@ const token = await tokens.get("abc123");
 
 #### Constructors
 
-##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L194" />
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L212" />
 
 `new StringKeyspace<K>(cluster, config): StringKeyspace<K>`
 
@@ -3228,7 +3294,7 @@ const token = await tokens.get("abc123");
 
 #### Methods
 
-##### append() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L215" />
+##### append() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L233" />
 
 ```ts
 append(
@@ -3293,7 +3359,7 @@ https://redis.io/commands/del/
 
 `BasicKeyspace.delete`
 
-##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L202" />
+##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L220" />
 
 `protected deserialize(data): string`
 
@@ -3340,7 +3406,7 @@ https://redis.io/commands/get/
 
 `BasicKeyspace.get`
 
-##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" />
+##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L183" />
 
 `getAndDelete(key): Promise<string | undefined>`
 
@@ -3367,7 +3433,7 @@ https://redis.io/commands/getdel/
 
 `BasicKeyspace.getAndDelete`
 
-##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" />
+##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L152" />
 
 ```ts
 getAndSet(
@@ -3407,7 +3473,7 @@ https://redis.io/commands/getset/
 
 `BasicKeyspace.getAndSet`
 
-##### getRange() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L245" />
+##### getRange() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L263" />
 
 ```ts
 getRange(
@@ -3456,7 +3522,7 @@ The substring.
 
 https://redis.io/commands/getrange/
 
-##### len() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L300" />
+##### len() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L318" />
 
 `len(key): Promise<number>`
 
@@ -3527,7 +3593,40 @@ https://redis.io/commands/mget/
 
 `BasicKeyspace.multiGet`
 
-##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" />
+##### multiSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L70" />
+
+`multiSet(entries, options?): Promise<void>`
+
+Updates the values stored at multiple keys.
+
+The keyspace's expiry (or the expiry provided in `options`) is
+applied to all keys.
+
+###### Parameters
+
+###### entries
+
+\[`K`, `string`\][]
+
+The key-value pairs to set.
+
+###### options?
+
+[`WriteOptions`](#writeoptions)
+
+###### Returns
+
+`Promise`\<`void`\>
+
+###### See
+
+https://redis.io/commands/mset/
+
+###### Inherited from
+
+`BasicKeyspace.multiSet`
+
+##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L127" />
 
 ```ts
 replace(
@@ -3589,7 +3688,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `BasicKeyspace.resolveTtl`
 
-##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L198" />
+##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L216" />
 
 `protected serialize(value): Buffer`
 
@@ -3609,7 +3708,7 @@ Serializes a value to a Buffer for storage.
 
 `BasicKeyspace.serialize`
 
-##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" />
+##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L84" />
 
 ```ts
 set(
@@ -3646,7 +3745,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.set`
 
-##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" />
+##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L99" />
 
 ```ts
 setIfNotExists(
@@ -3687,7 +3786,7 @@ https://redis.io/commands/setnx/
 
 `BasicKeyspace.setIfNotExists`
 
-##### setRange() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L273" />
+##### setRange() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L291" />
 
 ```ts
 setRange(
@@ -5616,7 +5715,7 @@ This allows setting expiry for a chain of operations.
 <!-- symbol-end -->
 
 <!-- symbol-start: StructKeyspace -->
-### StructKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L499" />
+### StructKeyspace <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L517" />
 
 StructKeyspace stores arbitrary objects serialized as JSON.
 
@@ -5654,7 +5753,7 @@ const user = await users.get("user1");
 
 #### Constructors
 
-##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L500" />
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L518" />
 
 `new StructKeyspace<K, V>(cluster, config): StructKeyspace<K, V>`
 
@@ -5741,7 +5840,7 @@ https://redis.io/commands/del/
 
 `BasicKeyspace.delete`
 
-##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L508" />
+##### deserialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L526" />
 
 `protected deserialize(data): V`
 
@@ -5788,7 +5887,7 @@ https://redis.io/commands/get/
 
 `BasicKeyspace.get`
 
-##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L165" />
+##### getAndDelete() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L183" />
 
 `getAndDelete(key): Promise<V | undefined>`
 
@@ -5815,7 +5914,7 @@ https://redis.io/commands/getdel/
 
 `BasicKeyspace.getAndDelete`
 
-##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L134" />
+##### getAndSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L152" />
 
 ```ts
 getAndSet(
@@ -5902,7 +6001,40 @@ https://redis.io/commands/mget/
 
 `BasicKeyspace.multiGet`
 
-##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L109" />
+##### multiSet() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L70" />
+
+`multiSet(entries, options?): Promise<void>`
+
+Updates the values stored at multiple keys.
+
+The keyspace's expiry (or the expiry provided in `options`) is
+applied to all keys.
+
+###### Parameters
+
+###### entries
+
+\[`K`, `V`\][]
+
+The key-value pairs to set.
+
+###### options?
+
+[`WriteOptions`](#writeoptions)
+
+###### Returns
+
+`Promise`\<`void`\>
+
+###### See
+
+https://redis.io/commands/mset/
+
+###### Inherited from
+
+`BasicKeyspace.multiSet`
+
+##### replace() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L127" />
 
 ```ts
 replace(
@@ -5964,7 +6096,7 @@ Returns i64 sentinel for NAPI: undefined=no config, -1=KeepTTL, -2=Persist/Never
 
 `BasicKeyspace.resolveTtl`
 
-##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L504" />
+##### serialize() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L522" />
 
 `protected serialize(value): Buffer`
 
@@ -5984,7 +6116,7 @@ Serializes a value to a Buffer for storage.
 
 `BasicKeyspace.serialize`
 
-##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L66" />
+##### set() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L84" />
 
 ```ts
 set(
@@ -6021,7 +6153,7 @@ https://redis.io/commands/set/
 
 `BasicKeyspace.set`
 
-##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L81" />
+##### setIfNotExists() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/cache/basic.ts#L99" />
 
 ```ts
 setIfNotExists(
