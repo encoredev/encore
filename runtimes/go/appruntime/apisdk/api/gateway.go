@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
@@ -59,6 +60,11 @@ func (s *Server) createGatewayHandlerAdapter(h Handler) httprouter.Handle {
 		ic := s.NewIncomingContext(w, req, toUnnamedParams(ps), meta)
 		info, proceed := s.runAuthHandler(h, ic)
 		if proceed {
+			if meta.Internal == nil {
+				// Only verified internal callers may carry inbound Encore metadata;
+				// for everyone else it's re-derived below.
+				stripInboundMeta(req.Header)
+			}
 			meta.Internal = &InternalCallMeta{
 				Caller: GatewayCaller{
 					GatewayName: "api-gateway",
@@ -72,6 +78,17 @@ func (s *Server) createGatewayHandlerAdapter(h Handler) httprouter.Handle {
 				logger.Trace().Msg("proxying request to service")
 			}
 			proxy.ServeHTTP(w, req)
+		}
+	}
+}
+
+// stripInboundMeta removes all inbound x-encore-meta-* headers from the request.
+// The gateway re-derives this metadata itself, so inbound values are only kept
+// for verified internal callers.
+func stripInboundMeta(h http.Header) {
+	for key := range h {
+		if strings.HasPrefix(key, "X-Encore-Meta-") {
+			h.Del(key)
 		}
 	}
 }
