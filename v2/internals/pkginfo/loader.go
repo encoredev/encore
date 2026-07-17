@@ -41,6 +41,12 @@ type Loader struct {
 	modulesMu sync.Mutex
 	modules   map[paths.Mod]*Module
 
+	// moduleDirs holds the on-disk directory of every module the app depends
+	// on, populated once by loadModuleDirs. sortedModulePaths is its keys, sorted.
+	moduleDirsOnce    sync.Once
+	moduleDirs        map[paths.Mod]string
+	sortedModulePaths []paths.Mod
+
 	// parsed is a cache of parse results, guarded by parsedMu.
 	parsedMu sync.Mutex
 	parsed   map[paths.Pkg]*parseResult // importPath -> result

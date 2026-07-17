@@ -1,10 +1,13 @@
 package pkginfo
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"go/token"
 	"io/fs"
 	"os"
+	"os/exec"
 	"slices"
 
 	"golang.org/x/mod/modfile"
@@ -73,6 +76,67 @@ func (l *Loader) loadModuleFromDisk(rootDir paths.FS, fallbackModPath paths.Mod)
 	slices.Sort(m.sortedOtherDeps)
 
 	return m
+}
+
+// buildListModuleDir returns the module that pkgPath belongs to, and that
+// module's directory on disk, looked up from the batched module list.
+func (l *Loader) buildListModuleDir(pkgPath paths.Pkg) (modPath paths.Mod, dir string, ok bool) {
+	l.moduleDirsOnce.Do(l.loadModuleDirs)
+	modPath, ok = findModule(l.sortedModulePaths, pkgPath)
+	if !ok {
+		return "", "", false
+	}
+	dir = l.moduleDirs[modPath]
+	return modPath, dir, dir != ""
+}
+
+// loadModuleDirs finds the directory of every module the app depends on,
+// using one `go list -m -e -json all` invocation.
+func (l *Loader) loadModuleDirs() {
+	l.moduleDirs = make(map[paths.Mod]string)
+
+	// -e makes go list report broken modules in its output
+	// instead of failing the whole command.
+	goBin := l.c.Build.GOROOT.Join("bin", "go").ToIO()
+	cmd := exec.CommandContext(l.c.Ctx, goBin, "list", "-m", "-e", "-json", "all")
+	cmd.Dir = l.packagesConfig.Dir
+	cmd.Env = l.packagesConfig.Env
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		// Non-fatal: resolveModuleForPkg falls back to per-module packages.Load.
+		l.c.Log.Warn().Err(err).Str("stderr", stderr.String()).
+			Msg("go list -m -e -json all failed; falling back to per-module resolution")
+		return
+	}
+
+	type modError struct{ Err string }
+	type modJSON struct {
+		Path  string
+		Dir   string
+		Error *modError
+	}
+	dec := json.NewDecoder(bytes.NewReader(out))
+	for dec.More() {
+		var m modJSON
+		if err := dec.Decode(&m); err != nil {
+			// Keep whatever decoded cleanly.
+			l.c.Log.Warn().Err(err).Msg("failed to decode go list module output; using partial module list")
+			break
+		}
+		// Skip errored modules and any without a resolved directory.
+		if m.Error != nil || m.Path == "" || m.Dir == "" || !paths.ValidModPath(m.Path) {
+			continue
+		}
+		l.moduleDirs[paths.MustModPath(m.Path)] = m.Dir
+	}
+
+	l.sortedModulePaths = make([]paths.Mod, 0, len(l.moduleDirs))
+	for modPath := range l.moduleDirs {
+		l.sortedModulePaths = append(l.sortedModulePaths, modPath)
+	}
+	slices.Sort(l.sortedModulePaths)
 }
 
 var stdModule = paths.StdlibMod()
@@ -170,6 +234,26 @@ func (l *Loader) resolveModuleForPkg(cause token.Pos, pkgPath paths.Pkg) (result
 
 	tr := l.c.Trace("resolve module for package", "pkgPath", pkgPath)
 	defer tr.Done("result", result)
+
+	// Fast path: look up the module's directory in the batched module list
+	// instead of spawning a `go list` subprocess per module.
+	// realMod can differ from the modPath guess above: if modPath is "foo" but
+	// the package actually lives in a separate nested module "foo/bar", realMod
+	// is "foo/bar". Cache under realMod, the module the package belongs to.
+	if realMod, dir, ok := l.buildListModuleDir(pkgPath); ok {
+		l.modulesMu.Lock()
+		if cached, ok := l.modules[realMod]; ok {
+			l.modulesMu.Unlock()
+			return cached
+		}
+		l.modulesMu.Unlock()
+
+		result = l.loadModuleFromDisk(paths.RootedFSPath(dir, "."), realMod)
+		l.modulesMu.Lock()
+		defer l.modulesMu.Unlock()
+		l.modules[realMod] = result
+		return result
+	}
 
 	pkgs, err := packages.Load(l.packagesConfig, "pattern="+string(pkgPath))
 	l.c.Errs.AssertStd(err)
