@@ -169,6 +169,41 @@ impl Display for SameSite {
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Decimal(Rational);
 
+/// Upper bound on the length of a decimal string. Postgres `NUMERIC` values, in
+/// the expanded form this type parses (see [`Numeric`]'s `Display`), stay well
+/// within this, so it only trims implausibly long inputs.
+///
+/// [`Numeric`]: crate::sqldb::numeric::Numeric
+const MAX_DECIMAL_STR_LEN: usize = 1 << 18; // 262144
+
+/// Upper bound on the absolute base-10 exponent accepted in scientific notation.
+/// `10^16384` is already far outside `f64`'s range (~`1e308`), so this keeps the
+/// magnitude sensible without rejecting any real value. Postgres formats values
+/// in expanded notation, so it never trips this.
+const MAX_DECIMAL_ABS_EXPONENT: u64 = 1 << 14; // 16384
+
+/// Sanity-checks a decimal string before parsing, keeping its length and
+/// magnitude within reasonable bounds.
+fn validate_decimal_str(s: &str) -> anyhow::Result<()> {
+    if s.len() > MAX_DECIMAL_STR_LEN {
+        anyhow::bail!("decimal string too long: {} bytes", s.len());
+    }
+
+    // Base 10, so 'e'/'E' introduces the exponent (as in malachite's
+    // `preprocess_sci_string` for base < 15); everything after the last one is
+    // the exponent. A value that doesn't fit in `i64` is rejected during parsing
+    // anyway, so there's nothing extra to check there.
+    if let Some(pos) = s.bytes().rposition(|b| b == b'e' || b == b'E') {
+        if let Ok(exp) = s[pos + 1..].parse::<i64>() {
+            if exp.unsigned_abs() > MAX_DECIMAL_ABS_EXPONENT {
+                anyhow::bail!("decimal exponent out of range: {exp}");
+            }
+        }
+    }
+
+    Ok(())
+}
+
 impl Add for &Decimal {
     type Output = Decimal;
 
@@ -254,6 +289,7 @@ impl FromStr for Decimal {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        validate_decimal_str(s)?;
         let r = Rational::from_sci_string(s)
             .ok_or_else(|| anyhow::anyhow!("Failed to parse decimal from string: {s}"))?;
         Ok(Decimal(r))
@@ -372,5 +408,57 @@ impl From<serde_json::Value> for PValue {
                 PValue::Object(o.into_iter().map(|(k, v)| (k, PValue::from(v))).collect())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_ordinary_decimals() {
+        for s in ["0", "-0", "19.99", "-42", "1234567.89", "0.001", "1.5e10", "1.5e-10"] {
+            assert!(Decimal::from_str(s).is_ok(), "expected {s} to parse");
+        }
+    }
+
+    #[test]
+    fn parses_scientific_within_bounds() {
+        // Well beyond any real decimal (f64 tops out near 1e308) yet within the
+        // bound, so it must still parse.
+        assert!(Decimal::from_str("1e16384").is_ok());
+        assert!(Decimal::from_str("1e-16384").is_ok());
+    }
+
+    #[test]
+    fn rejects_out_of_range_exponents() {
+        for s in ["1e16385", "1e-16385", "1e1000000", "1e1000000000", "1E1000000000", "1.5e2000000"] {
+            assert!(
+                Decimal::from_str(s).is_err(),
+                "expected {s} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn i64_overflowing_exponent_is_rejected() {
+        // An exponent that doesn't fit in i64 is rejected during parsing, before
+        // the magnitude check.
+        assert!(Decimal::from_str("1e99999999999999999999").is_err());
+    }
+
+    #[test]
+    fn rejects_overlong_strings() {
+        let long = format!("1{}", "0".repeat(MAX_DECIMAL_STR_LEN));
+        assert!(Decimal::from_str(&long).is_err());
+    }
+
+    #[test]
+    fn accepts_long_expanded_values() {
+        // Postgres NUMERIC values round-trip through `from_str` in expanded
+        // notation (no `e`); such a value within the length bound must parse.
+        let expanded = format!("1{}", "0".repeat(1000));
+        let d = Decimal::from_str(&expanded).expect("expanded value should parse");
+        assert_eq!(d.to_string(), expanded);
     }
 }
