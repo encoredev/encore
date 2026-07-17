@@ -9,14 +9,12 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/cli/daemon/dash/ai"
 	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run"
@@ -39,7 +37,6 @@ type handler struct {
 	apps *apps.Manager
 	run  *run.Manager
 	ns   *namespace.Manager
-	ai   *ai.Manager
 	tr   trace2.Store
 }
 
@@ -383,187 +380,6 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			resp.Editors = append(resp.Editors, string(e.Editor))
 		}
 		return reply(ctx, resp, nil)
-	case "ai/propose-system-design":
-		telemetry.Send("ai.propose")
-		log.Debug().Msg("dash: propose-system-design")
-		var params struct {
-			AppID  string `json:"app_id"`
-			Prompt string `json:"prompt"`
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		md, err := h.GetMeta(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		sessionCh := make(chan *ai.AINotification)
-		defer close(sessionCh)
-		idResp := sync.Once{}
-		task, err := h.ai.ProposeSystemDesign(ctx, params.AppID, params.Prompt, md, func(ctx context.Context, msg *ai.AINotification) error {
-			if _, ok := msg.Value.(ai.SessionUpdate); ok || msg.Error != nil {
-				idResp.Do(func() {
-					sessionCh <- msg
-				})
-				if ok {
-					return nil
-				}
-			}
-			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
-		})
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-
-		select {
-		case msg := <-sessionCh:
-			su, ok := msg.Value.(ai.SessionUpdate)
-			if !ok || msg.Error != nil {
-				if msg.Error != nil {
-					err = jsonrpc2.NewError(ai.ErrorCodeMap[msg.Error.Code], msg.Error.Message)
-				} else {
-					err = jsonrpc2.NewError(1, "missing session_id")
-				}
-				return reply(ctx, nil, err)
-			}
-			return reply(ctx, map[string]string{
-				"session_id":      string(su.Id),
-				"subscription_id": task.SubscriptionID,
-			}, nil)
-		case <-ctx.Done():
-			return reply(ctx, nil, ctx.Err())
-		case <-time.NewTimer(10 * time.Second).C:
-			_ = task.Stop()
-			return reply(ctx, nil, errors.New("timed out waiting for response"))
-		}
-
-	case "ai/modify-system-design":
-		telemetry.Send("ai.modify")
-		log.Debug().Msg("dash: modify-system-design")
-		var params struct {
-			AppID          string         `json:"app_id"`
-			SessionID      ai.AISessionID `json:"session_id"`
-			OriginalPrompt string         `json:"original_prompt"`
-			Prompt         string         `json:"prompt"`
-			Proposed       []ai.Service   `json:"proposed"`
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		md, err := h.GetMeta(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		task, err := h.ai.ModifySystemDesign(ctx, params.AppID, params.SessionID, params.OriginalPrompt, params.Proposed, params.Prompt, md, func(ctx context.Context, msg *ai.AINotification) error {
-			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
-		})
-		return reply(ctx, task.SubscriptionID, err)
-	case "ai/define-endpoints":
-		telemetry.Send("ai.details")
-		log.Debug().Msg("dash: define-endpoints")
-		log.Debug().Msg("dash: define-endpoints")
-		var params struct {
-			AppID     string         `json:"app_id"`
-			SessionID ai.AISessionID `json:"session_id"`
-			Prompt    string         `json:"prompt"`
-			Proposed  []ai.Service   `json:"proposed"`
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		md, err := h.GetMeta(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		task, err := h.ai.DefineEndpoints(ctx, params.AppID, params.SessionID, params.Prompt, md, params.Proposed, func(ctx context.Context, msg *ai.AINotification) error {
-			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
-		})
-		return reply(ctx, task.SubscriptionID, err)
-	case "ai/parse-code":
-		log.Debug().Msg("dash: parse-code")
-		var params struct {
-			AppID    string       `json:"app_id"`
-			Services []ai.Service `json:"services"`
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		results, err := h.ai.ParseCode(ctx, params.Services, app)
-		return reply(ctx, results, err)
-	case "ai/update-code":
-		log.Debug().Msg("dash: update-code")
-		var params struct {
-			AppID     string       `json:"app_id"`
-			Services  []ai.Service `json:"services"`
-			Overwrite bool         `json:"overwrite"` // Ovwerwrite any existing endpoint code
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		results, err := h.ai.UpdateCode(ctx, params.Services, app, params.Overwrite)
-		return reply(ctx, results, err)
-	case "ai/preview-files":
-		telemetry.Send("ai.preview")
-		log.Debug().Msg("dash: preview-files")
-		var params struct {
-			AppID    string       `json:"app_id"`
-			Services []ai.Service `json:"services"`
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		result, err := h.ai.PreviewFiles(ctx, params.Services, app)
-		return reply(ctx, result, err)
-	case "ai/write-files":
-		telemetry.Send("ai.write")
-		log.Debug().Msg("dash: write-files")
-		var params struct {
-			AppID    string       `json:"app_id"`
-			Services []ai.Service `json:"services"`
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		result, err := h.ai.WriteFiles(ctx, params.Services, app)
-		return reply(ctx, result, err)
-	case "ai/parse-sql-schema":
-		var params struct {
-			AppID string `json:"app_id"`
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		md, err := h.GetMeta(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		for _, db := range md.SqlDatabases {
-			_, err := ai.ParseSQLSchema(app, *db.MigrationRelPath)
-			if err != nil {
-				return reply(ctx, nil, err)
-			}
-		}
-		return reply(ctx, true, err)
 	case "editors/open":
 		telemetry.Send("editors.open")
 		var params struct {

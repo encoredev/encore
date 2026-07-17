@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/cli/daemon/dash/ai"
 	"encr.dev/cli/daemon/dash/apiproxy"
 	"encr.dev/cli/daemon/dash/dashproxy"
 	"encr.dev/cli/daemon/engine/trace2"
@@ -24,7 +25,22 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(*http.Request) bool { return true },
+	CheckOrigin: func(req *http.Request) bool {
+		origin := req.Header.Get("Origin")
+		if origin == "" {
+			// Non-browser clients don't send an Origin header.
+			return true
+		}
+		u, err := url.Parse(origin)
+		if err != nil {
+			return false
+		}
+		hostname := u.Hostname()
+		if ip := net.ParseIP(hostname); ip != nil {
+			return ip.IsLoopback()
+		}
+		return hostname == "localhost"
+	},
 }
 
 // NewServer starts a new server and returns it.
@@ -39,8 +55,6 @@ func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, nsMgr *namespace.Mana
 		log.Fatal().Err(err).Msg("could not create graphql proxy")
 	}
 
-	aiMgr := ai.NewAIManager()
-
 	s := &Server{
 		proxy:    proxy,
 		apiProxy: apiProxy,
@@ -51,7 +65,6 @@ func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, nsMgr *namespace.Mana
 		dashPort: dashPort,
 		traceCh:  make(chan trace2.NewSpanEvent, 10),
 		clients:  make(map[chan<- *notification]struct{}),
-		ai:       aiMgr,
 	}
 
 	runMgr.AddListener(s)
@@ -70,7 +83,6 @@ type Server struct {
 	tr       trace2.Store
 	dashPort int
 	traceCh  chan trace2.NewSpanEvent
-	ai       *ai.Manager
 
 	mu      sync.Mutex
 	clients map[chan<- *notification]struct{}
@@ -99,7 +111,7 @@ func (s *Server) WebSocket(w http.ResponseWriter, req *http.Request) {
 
 	stream := &wsStream{c: c}
 	conn := jsonrpc2.NewConn(stream)
-	handler := &handler{rpc: conn, apps: s.apps, run: s.run, ns: s.ns, tr: s.tr, ai: s.ai}
+	handler := &handler{rpc: conn, apps: s.apps, run: s.run, ns: s.ns, tr: s.tr}
 	conn.Go(req.Context(), handler.Handle)
 
 	ch := make(chan *notification, 20)
