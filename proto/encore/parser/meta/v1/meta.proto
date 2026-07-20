@@ -25,6 +25,7 @@ message Data {
   repeated Gateway gateways = 15;
   Lang language = 16;
   repeated Bucket buckets = 17;
+  int64 build_time = 18; // the time the build was created, as Unix milliseconds (0 if unknown)
 }
 
 // Lang describes the language an application is written in.

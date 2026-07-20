@@ -152,6 +152,15 @@ impl From<&meta::Data> for BuildMeta {
     }
 }
 
+/// Returns the build time recorded in the app metadata, if present.
+/// `build_time` is stored as Unix milliseconds; 0 means "unknown".
+pub fn build_time_of(md: &meta::Data) -> Option<chrono::DateTime<chrono::Utc>> {
+    match md.build_time {
+        0 => None,
+        millis => chrono::DateTime::from_timestamp_millis(millis),
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct HostedService {
     // The name of the service

@@ -91,6 +91,7 @@ func (mgr *Manager) ExecSpec(ctx context.Context, p ExecSpecParams) (*ExecSpecRe
 		KeepOutput:         false,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
+		BuildTime:          time.Now(),
 
 		// Use the local JS runtime if this is a development build.
 		UseLocalJSRuntime: version.Channel == version.DevBuild,

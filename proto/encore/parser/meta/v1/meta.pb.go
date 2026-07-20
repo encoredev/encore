@@ -635,6 +635,7 @@ type Data struct {
 	Gateways           []*Gateway             `protobuf:"bytes,15,rep,name=gateways,proto3" json:"gateways,omitempty"`
 	Language           Lang                   `protobuf:"varint,16,opt,name=language,proto3,enum=encore.parser.meta.v1.Lang" json:"language,omitempty"`
 	Buckets            []*Bucket              `protobuf:"bytes,17,rep,name=buckets,proto3" json:"buckets,omitempty"`
+	BuildTime          int64                  `protobuf:"varint,18,opt,name=build_time,json=buildTime,proto3" json:"build_time,omitempty"` // the time the build was created, as Unix milliseconds (0 if unknown)
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -786,6 +787,13 @@ func (x *Data) GetBuckets() []*Bucket {
 		return x.Buckets
 	}
 	return nil
+}
+
+func (x *Data) GetBuildTime() int64 {
+	if x != nil {
+		return x.BuildTime
+	}
+	return 0
 }
 
 // QualifiedName is a name of an object in a specific package.
@@ -3639,7 +3647,7 @@ var File_encore_parser_meta_v1_meta_proto protoreflect.FileDescriptor
 
 const file_encore_parser_meta_v1_meta_proto_rawDesc = "" +
 	"\n" +
-	" encore/parser/meta/v1/meta.proto\x12\x15encore.parser.meta.v1\x1a$encore/parser/schema/v1/schema.proto\"\xdc\a\n" +
+	" encore/parser/meta/v1/meta.proto\x12\x15encore.parser.meta.v1\x1a$encore/parser/schema/v1/schema.proto\"\xfb\a\n" +
 	"\x04Data\x12\x1f\n" +
 	"\vmodule_path\x18\x01 \x01(\tR\n" +
 	"modulePath\x12!\n" +
@@ -3661,7 +3669,9 @@ const file_encore_parser_meta_v1_meta_proto_rawDesc = "" +
 	"\rsql_databases\x18\x0e \x03(\v2\".encore.parser.meta.v1.SQLDatabaseR\fsqlDatabases\x12:\n" +
 	"\bgateways\x18\x0f \x03(\v2\x1e.encore.parser.meta.v1.GatewayR\bgateways\x127\n" +
 	"\blanguage\x18\x10 \x01(\x0e2\x1b.encore.parser.meta.v1.LangR\blanguage\x127\n" +
-	"\abuckets\x18\x11 \x03(\v2\x1d.encore.parser.meta.v1.BucketR\abucketsB\x0f\n" +
+	"\abuckets\x18\x11 \x03(\v2\x1d.encore.parser.meta.v1.BucketR\abuckets\x12\x1d\n" +
+	"\n" +
+	"build_time\x18\x12 \x01(\x03R\tbuildTimeB\x0f\n" +
 	"\r_auth_handler\"5\n" +
 	"\rQualifiedName\x12\x10\n" +
 	"\x03pkg\x18\x01 \x01(\tR\x03pkg\x12\x12\n" +
