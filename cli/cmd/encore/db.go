@@ -159,7 +159,7 @@ when using tools like Prisma.
 				}
 			}
 
-			cmd = exec.Command("docker", "run", "-it", "--rm", "--network=host", docker.Image, "psql", dsn)
+			cmd = exec.Command("docker", "run", "-it", "--rm", "--network=host", docker.GetPostgresImage(), "psql", dsn)
 		}
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

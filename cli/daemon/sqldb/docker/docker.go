@@ -144,7 +144,7 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 		if p.Memfs {
 			args = append(args,
 				"--mount", "type=tmpfs,destination="+defaultDataDir,
-				Image,
+				GetPostgresImage(),
 				"-c", "fsync=off",
 			)
 		} else {
@@ -154,7 +154,7 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 			}
 			args = append(args,
 				"-v", fmt.Sprintf("%s:%s", volumeName, defaultDataDir),
-				Image)
+				GetPostgresImage())
 		}
 
 		cmd := exec.CommandContext(ctx, "docker", args...)
@@ -361,7 +361,7 @@ func containerNames(id sqldb.ClusterID) []string {
 
 // ImageExists reports whether the docker image exists.
 func ImageExists(ctx context.Context) (ok bool, err error) {
-	out, err := exec.CommandContext(ctx, "docker", "image", "inspect", Image).CombinedOutput()
+	out, err := exec.CommandContext(ctx, "docker", "image", "inspect", GetPostgresImage()).CombinedOutput()
 	switch {
 	case err == nil:
 		return true, nil
@@ -371,19 +371,25 @@ func ImageExists(ctx context.Context) (ok bool, err error) {
 	case bytes.Contains(out, []byte("failed to find image")):
 		return false, nil
 	default:
-		return false, errors.WithStack(errors.Wrapf(err, "docker image inspect failed: %s", Image))
+		return false, errors.WithStack(errors.Wrapf(err, "docker image inspect failed: %s", GetPostgresImage()))
 	}
 }
 
 // PullImage pulls the image.
 func PullImage(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "docker", "pull", Image)
+	cmd := exec.CommandContext(ctx, "docker", "pull", GetPostgresImage())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-const Image = "encoredotdev/postgres:18"
+func GetPostgresImage() string {
+	image := os.Getenv("ENCORE_POSTGRES_IMAGE")
+	if image == "" {
+		image = "encoredotdev/postgres:18"
+	}
+	return image
+}
 
 func isDockerRunning(ctx context.Context) bool {
 	err := exec.CommandContext(ctx, "docker", "info").Run()
