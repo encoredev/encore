@@ -312,7 +312,7 @@ func markdownDoc(doc string) string {
 	var parser comment.Parser
 	var pr comment.Printer
 	d := parser.Parse(doc)
-	return string(pr.Markdown(d))
+	return strings.ReplaceAll(string(pr.Markdown(d)), "\t", "    ")
 }
 
 func ptr[T any](t T) *T {
