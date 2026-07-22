@@ -134,8 +134,14 @@ func (g *Generator) getOrCreatePath(rpc *meta.RPC) *openapi3.PathItem {
 
 func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc *encoding.RequestEncoding, respEnc *encoding.ResponseEncoding) (*openapi3.Operation, error) {
 	summary, desc := "", ""
+	var docPatch *openapi3.Operation
 	if rpc.Doc != nil {
-		summary, desc = splitDoc(*rpc.Doc)
+		cleanDoc, patch, err := openAPIOperationPatch(*rpc.Doc)
+		if err != nil {
+			return nil, err
+		}
+		docPatch = patch
+		summary, desc = splitDoc(cleanDoc)
 	}
 	op := &openapi3.Operation{
 		Summary:     summary,
@@ -182,7 +188,7 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 				AllowReserved:   false,
 				Deprecated:      false,
 				Required:        !param.Optional,
-				Schema:          g.schemaType(param.Type),
+				Schema:          applyOpenAPIRawTag(g.schemaType(param.Type), param.RawTag),
 				Example:         nil,
 				Examples:        nil,
 				Content:         nil,
@@ -203,7 +209,7 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 				AllowReserved:   false,
 				Deprecated:      false,
 				Required:        !param.Optional,
-				Schema:          g.schemaType(param.Type),
+				Schema:          applyOpenAPIRawTag(g.schemaType(param.Type), param.RawTag),
 				Example:         nil,
 				Examples:        nil,
 				Content:         nil,
@@ -241,7 +247,7 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 						AllowReserved:   false,
 						Deprecated:      false,
 						Required:        !param.Optional,
-						Schema:          g.schemaType(param.Type),
+						Schema:          applyOpenAPIRawTag(g.schemaType(param.Type), param.RawTag),
 						Example:         nil,
 						Examples:        nil,
 						Content:         nil,
@@ -260,6 +266,10 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 		op.Responses["default"] = &openapi3.ResponseRef{
 			Ref: "#/components/responses/APIError",
 		}
+	}
+
+	if docPatch != nil {
+		mergeOpenAPIOperation(op, docPatch)
 	}
 
 	return op, nil
@@ -302,7 +312,7 @@ func markdownDoc(doc string) string {
 	var parser comment.Parser
 	var pr comment.Printer
 	d := parser.Parse(doc)
-	return string(pr.Markdown(d))
+	return strings.ReplaceAll(string(pr.Markdown(d)), "\t", "    ")
 }
 
 func ptr[T any](t T) *T {
