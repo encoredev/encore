@@ -56,6 +56,11 @@ impl MetaBuilder<'_> {
     pub fn build(mut self) -> PResult<v1::Data> {
         // self.data.app_revision = parse_app_revision(&self.app_root)?;
         self.data.app_revision = std::env::var("ENCORE_APP_REVISION").unwrap_or_default();
+        self.data.build_time = std::env::var("ENCORE_APP_BUILD_TIME")
+            .ok()
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+            .map(|dt| dt.timestamp_millis())
+            .unwrap_or(0);
 
         let mut svc_index = HashMap::new();
         let mut svc_to_pkg_index = HashMap::new();
@@ -1084,6 +1089,7 @@ fn new_meta() -> v1::Data {
         module_path: "app".to_string(),
         app_revision: "".to_string(),
         uncommitted_changes: false,
+        build_time: 0,
         decls: vec![],
         pkgs: vec![],
         svcs: vec![],

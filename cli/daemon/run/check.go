@@ -3,6 +3,7 @@ package run
 import (
 	"context"
 	"runtime"
+	"time"
 
 	"github.com/cockroachdb/errors"
 
@@ -57,6 +58,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 		KeepOutput:         p.CodegenDebug,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
+		BuildTime:          time.Now(),
 
 		// Use the local JS runtime if this is a development build.
 		UseLocalJSRuntime: version.Channel == version.DevBuild,
