@@ -57,6 +57,10 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 		case *caches.Cluster:
 			// Cache clusters are allowed anywhere
 			continue
+		case *caches.Keyspace:
+			// Cache keyspaces are allowed anywhere — shared keyspaces can live
+			// in non-service packages and be used from multiple services.
+			continue
 
 		default:
 			_, ok := d.ServiceForPath(b.Package().FSPath)

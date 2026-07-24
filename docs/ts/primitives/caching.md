@@ -156,6 +156,65 @@ await resourceRequestsPerUser.increment(
 );
 ```
 
+### Sharing keyspaces across services
+
+A keyspace can be used from any service that imports it. The service that defines
+the keyspace is its single source of truth (key type, value type, and key pattern),
+and other services can read from and write to it like any other module export:
+
+```typescript
+// svc-a/cache.ts
+import { CacheCluster, IntKeyspace, expireIn } from "encore.dev/storage/cache";
+
+export const cluster = new CacheCluster("shared");
+
+export const requestsPerUser = new IntKeyspace<{ userId: string }>(cluster, {
+  keyPattern: "requests/:userId",
+  defaultExpiry: expireIn(10 * 1000),
+});
+```
+
+```typescript
+// svc-b/handler.ts
+import { requestsPerUser } from "../svc-a/cache";
+
+const count = await requestsPerUser.increment({ userId: "user123" }, 1);
+```
+
+Encore tracks which services use the keyspace and makes sure the cluster's
+connection is available to each one — you don't need to redeclare anything.
+
+#### Passing a keyspace to a utility package
+
+Calling methods on the keyspace, or passing it directly as a function or
+constructor argument, is enough for Encore to register the service as a user
+of the keyspace:
+
+```typescript
+// shared/rate-limit.ts
+import type { IntKeyspace } from "encore.dev/storage/cache";
+import { APIError } from "encore.dev/api";
+
+export async function enforceRateLimit(
+  counter: IntKeyspace<{ userId: string }>,
+  userId: string,
+  limit: number,
+) {
+  const count = await counter.increment({ userId }, 1);
+  if (count > limit) {
+    throw APIError.resourceExhausted("rate limit exceeded");
+  }
+}
+```
+
+```typescript
+// svc-b/handler.ts
+import { requestsPerUser } from "../svc-a/cache";
+import { enforceRateLimit } from "../shared/rate-limit";
+
+await enforceRateLimit(requestsPerUser, userId, 10);
+```
+
 ## Keyspace types
 
 Encore comes with several keyspace types, each designed for different use cases:
