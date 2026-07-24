@@ -174,7 +174,7 @@ func (mgr *Manager) listRoots() ([]string, error) {
 }
 
 // RegisterAppListener registers a callback that gets invoked every time
-// an app is tracked.
+// an app starts being actively watched (i.e. run with live-reload enabled).
 func (mgr *Manager) RegisterAppListener(fn func(*Instance)) {
 	mgr.instanceMu.Lock()
 	defer mgr.instanceMu.Unlock()
@@ -183,9 +183,22 @@ func (mgr *Manager) RegisterAppListener(fn func(*Instance)) {
 	mgr.appListeners = append(mgr.appListeners, fn)
 	mgr.appRegMu.Unlock()
 
-	// Call the handler for all existing apps
+	// Call the handler for all apps that are already being watched.
 	for _, inst := range mgr.instances {
-		fn(inst)
+		if inst.watcher != nil {
+			fn(inst)
+		}
+	}
+}
+
+// notifyAppListeners invokes all registered app listeners for i.
+func (mgr *Manager) notifyAppListeners(i *Instance) {
+	mgr.appRegMu.Lock()
+	listeners := mgr.appListeners
+	mgr.appRegMu.Unlock()
+
+	for _, fn := range listeners {
+		fn(i)
 	}
 }
 
@@ -244,15 +257,13 @@ func (mgr *Manager) resolve(appRoot string) (*Instance, error) {
 	i := NewInstance(appRoot, man.LocalID, platformID)
 	i.tutorial = man.Tutorial
 	i.mgr = mgr
-	if err := i.beginWatch(); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		log.Error().Err(err).Str("id", i.PlatformOrLocalID()).Msg("unable to begin watching app")
-	}
+	// Note: we deliberately don't start the file watcher (or notify app
+	// listeners) here. Both are lazy, triggered only via Watch() (i.e. only
+	// for apps actually running with live-reload enabled), so that commands
+	// like `encore check` and `encore run --watch=false` never hold a
+	// recursive fsnotify watch open, and never trigger a codegen-regen parse
+	// for apps that aren't being actively developed against.
 	mgr.instances[appRoot] = i
-
-	// Notify any listeners about the new app
-	for _, fn := range mgr.appListeners {
-		fn(i)
-	}
 
 	return i, nil
 }
@@ -480,6 +491,13 @@ func (i *Instance) beginWatch() error {
 				}
 			}
 		}()
+
+		// Now that this app is actively watched (i.e. running with
+		// live-reload), notify listeners so they can e.g. regenerate
+		// user-facing codegen and keep it fresh as files change.
+		if i.mgr != nil {
+			i.mgr.notifyAppListeners(i)
+		}
 
 		return nil
 	})

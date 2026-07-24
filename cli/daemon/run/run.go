@@ -283,6 +283,7 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 			// so handle the other cases.
 			close(r.started)
 			close(r.exited)
+			r.Mgr.removeRun(r.ID)
 		}
 	}()
 
@@ -332,6 +333,7 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 					ln.OnStop(r)
 				}
 				close(r.exited)
+				r.Mgr.removeRun(r.ID)
 				return
 			}
 		}
