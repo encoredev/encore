@@ -44,7 +44,7 @@ jobs:
           path: encr.dev
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version-file: "encr.dev/go.mod"
           check-latest: true
@@ -75,7 +75,7 @@ jobs:
       - name: "Tar artifacts"
         run: tar -czvf encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz -C encr.dev/dist/${{ matrix.goos }}_${{ matrix.goarch }} .
       - name: Publish artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}
           path: encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz
@@ -93,9 +93,10 @@ jobs:
         with:
           sparse-checkout: .github
       - name: Download Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: .github/dockerimg/artifacts
+          merge-multiple: true
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v1
 
@@ -106,7 +107,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Cache Docker layers
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ github.sha }}
