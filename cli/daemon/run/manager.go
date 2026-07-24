@@ -85,6 +85,16 @@ func (mgr *Manager) FindRunByAppID(appID string) *Run {
 	return nil
 }
 
+// removeRun removes a run from the set of tracked runs once it has exited.
+// Without this, mgr.runs grows without bound for the lifetime of the daemon:
+// every run's Builder (and the AST/type-checking data cached inside it) stays
+// reachable through the map long after the run's own process has exited.
+func (mgr *Manager) removeRun(id string) {
+	mgr.mu.Lock()
+	delete(mgr.runs, id)
+	mgr.mu.Unlock()
+}
+
 // ListRuns provides a snapshot of all runs.
 func (mgr *Manager) ListRuns() []*Run {
 	mgr.mu.Lock()
