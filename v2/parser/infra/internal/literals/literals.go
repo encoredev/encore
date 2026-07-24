@@ -53,8 +53,8 @@ elemLoop:
 	for _, elem := range cl.Elts {
 		switch elem := elem.(type) {
 		case *ast.KeyValueExpr:
-			ident, ok := elem.Key.(*ast.Ident)
-			if !ok {
+			ident, subOk := elem.Key.(*ast.Ident)
+			if !subOk {
 				errs.Add(errExpectedKeyToBeIdentifier(reflect.TypeOf(elem.Key)).AtGoNode(elem.Key))
 				continue elemLoop
 			}

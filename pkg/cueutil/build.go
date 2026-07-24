@@ -198,7 +198,7 @@ func addOrphanedFiles(i *build.Instance) (err error) {
 				return err
 			}
 		default:
-			return errors.New(fmt.Sprintf("unsupported encoding: %s", f.Encoding))
+			return fmt.Errorf("unsupported encoding: %s", f.Encoding)
 		}
 
 		if err != nil {

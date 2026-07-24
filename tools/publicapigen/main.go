@@ -760,8 +760,8 @@ type keepDirective string
 
 const (
 	none     keepDirective = "none"
-	mustKeep               = "keep"
-	mustDrop               = "drop"
+	mustKeep keepDirective = "keep"
+	mustDrop keepDirective = "drop"
 )
 
 // directiveCache caches the directive for a given comment group,

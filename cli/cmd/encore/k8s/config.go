@@ -200,24 +200,24 @@ func readKubeConfig(file string) (*Cfg, error) {
 	}
 
 	if clusters, ok := kubeConfig["clusters"]; ok {
-		if clusters, ok := clusters.([]any); ok {
-			cfg.clusters = clusters
+		if clustersSlice, ok := clusters.([]any); ok {
+			cfg.clusters = clustersSlice
 		} else {
 			return nil, errors.Newf("clusters is not an array got %T", clusters)
 		}
 	}
 
 	if users, ok := kubeConfig["users"]; ok {
-		if users, ok := users.([]any); ok {
-			cfg.users = users
+		if usersSlice, ok := users.([]any); ok {
+			cfg.users = usersSlice
 		} else {
 			return nil, errors.Newf("users is not an array got %T", users)
 		}
 	}
 
 	if contexts, ok := kubeConfig["contexts"]; ok {
-		if contexts, ok := contexts.([]any); ok {
-			cfg.contexts = contexts
+		if contextsSlice, ok := contexts.([]any); ok {
+			cfg.contexts = contextsSlice
 		} else {
 			return nil, errors.Newf("contexts is not an array got %T", contexts)
 		}

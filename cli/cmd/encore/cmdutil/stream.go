@@ -71,7 +71,6 @@ func StreamCommandOutput(stream CommandOutputStream, converter OutputConverter) 
 						// The scanner failed, likely due to a too-long line. Log an error
 						// and create a new scanner since the old one is in an unrecoverable state.
 						fmt.Fprintln(os.Stderr, "failed to read output:", err)
-						scanner = bufio.NewScanner(read)
 						continue
 					} else {
 						break
