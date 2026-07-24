@@ -10,7 +10,7 @@ import (
 	"runtime"
 
 	"github.com/fatih/color"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 	"google.golang.org/grpc/status"
 
 	"encr.dev/cli/internal/manifest"
@@ -157,7 +157,7 @@ func DisplayError(out *os.File, err []byte) {
 
 	// Get the width of the terminal we're rendering in
 	// if we can so we render using the most space possible.
-	width, _, sizeErr := terminal.GetSize(int(out.Fd()))
+	width, _, sizeErr := term.GetSize(int(out.Fd()))
 	if sizeErr == nil {
 		errinsrc.TerminalWidth = width
 	}
