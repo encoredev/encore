@@ -126,14 +126,14 @@ For example:
 ```go
 func getBoard(ctx context.Context, boardID int64) (*Board, error) {
     // Construct a new error builder with errs.B()
-	eb := errs.B().Meta("board_id", params.ID)
+	eb := errs.B().Meta("board_id", boardID)
 
-	b := &Board{ID: params.ID}
+	b := &Board{ID: boardID}
 	err := sqldb.QueryRow(ctx, `
 		SELECT name, created
 		FROM board
 		WHERE id = $1
-	`, params.ID).Scan(&b.Name, &b.Created)
+	`, boardID).Scan(&b.Name, &b.Created)
 	if errors.Is(err, sqldb.ErrNoRows) {
         // Return a "board not found" error with code == NotFound
 		return nil, eb.Code(errs.NotFound).Msg("board not found").Err()
