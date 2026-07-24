@@ -244,9 +244,10 @@ func (mgr *Manager) resolve(appRoot string) (*Instance, error) {
 	i := NewInstance(appRoot, man.LocalID, platformID)
 	i.tutorial = man.Tutorial
 	i.mgr = mgr
-	if err := i.beginWatch(); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		log.Error().Err(err).Str("id", i.PlatformOrLocalID()).Msg("unable to begin watching app")
-	}
+	// Note: we deliberately don't start the file watcher here. Watching is
+	// lazy, started only via Watch() (i.e. only for apps actually running
+	// with live-reload enabled), so that commands like `encore check` and
+	// `encore run --watch=false` never hold a recursive fsnotify watch open.
 	mgr.instances[appRoot] = i
 
 	// Notify any listeners about the new app
