@@ -227,6 +227,15 @@ func (mgr *Manager) resolve(appRoot string) (*Instance, error) {
 	defer mgr.instanceMu.Unlock()
 
 	if existing, ok := mgr.instances[appRoot]; ok {
+		if _, err := os.Stat(filepath.Join(appRoot, appfile.Name)); err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				delete(mgr.instances, appRoot)
+				if closeErr := existing.Close(); closeErr != nil {
+					log.Error().Err(closeErr).Str("root", appRoot).Msg("unable to close missing app instance")
+				}
+			}
+			return nil, err
+		}
 		return existing, nil
 	}
 
@@ -273,10 +282,11 @@ func (mgr *Manager) Close() error {
 
 // Instance describes an app instance known by the Encore daemon.
 type Instance struct {
-	root       string
-	localID    string
-	platformID *goldfish.Cache[string]
-	tutorial   string
+	root          string
+	localID       string
+	platformID    *goldfish.Cache[string]
+	workspaceName string
+	tutorial      string
 
 	// mgr is a reference to the manager that created it.
 	// It may be nil if an instance was created without a manager.
@@ -294,9 +304,10 @@ type Instance struct {
 
 func NewInstance(root, localID, platformID string) *Instance {
 	i := &Instance{
-		root:     root,
-		localID:  localID,
-		watchers: make(map[WatchSubscriptionID]*watchSubscription),
+		root:          root,
+		localID:       localID,
+		workspaceName: findWorkspaceName(root),
+		watchers:      make(map[WatchSubscriptionID]*watchSubscription),
 	}
 	i.platformID = goldfish.New[string](1*time.Second, i.fetchPlatformID)
 	if platformID != "" {
@@ -312,6 +323,10 @@ func (i *Instance) Tutorial() string {
 // Root returns the filesystem path for the app root.
 // It always returns a non-empty string.
 func (i *Instance) Root() string { return i.root }
+
+// WorkspaceName returns "primary" for a repository's primary checkout and
+// the worktree directory name for a linked Git worktree.
+func (i *Instance) WorkspaceName() string { return i.workspaceName }
 
 // LocalID reports a local, random id unique for this app,
 // as persisted in the .encore/manifest.json file.
@@ -341,6 +356,24 @@ func (i *Instance) Name() string {
 	}
 
 	return filepath.Base(i.root)
+}
+
+func findWorkspaceName(appRoot string) string {
+	dir := filepath.Clean(appRoot)
+	for {
+		if info, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			if info.IsDir() {
+				return "primary"
+			}
+			return filepath.Base(dir)
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return filepath.Base(appRoot)
+		}
+		dir = parent
+	}
 }
 
 func (i *Instance) fetchPlatformID() (string, error) {

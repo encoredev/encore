@@ -1,11 +1,66 @@
 package dash
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
+	"encr.dev/cli/daemon/apps"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
+
+func TestAppDisplayNamesDistinguishesWorktrees(t *testing.T) {
+	root := t.TempDir()
+	primaryRoot := filepath.Join(root, "project", "apps", "backend")
+	worktreeRoot := filepath.Join(root, "worktrees", "DRE-103", "apps", "backend")
+	if err := os.MkdirAll(filepath.Join(root, "project", ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(worktreeRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "worktrees", "DRE-103", ".git"), []byte("gitdir: /tmp/repo/.git/worktrees/DRE-103\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	primary := apps.NewInstance(primaryRoot, "primary-local", "linked-app")
+	worktree := apps.NewInstance(worktreeRoot, "worktree-local", "linked-app")
+	other := apps.NewInstance(primaryRoot, "other-local", "other-app")
+	got := appDisplayNames([]*apps.Instance{primary, worktree, other})
+
+	if got[primary] != "linked-app (primary)" {
+		t.Errorf("primary display name = %q, want %q", got[primary], "linked-app (primary)")
+	}
+	if got[worktree] != "linked-app (DRE-103)" {
+		t.Errorf("worktree display name = %q, want %q", got[worktree], "linked-app (DRE-103)")
+	}
+	if got[other] != "other-app" {
+		t.Errorf("unique display name = %q, want %q", got[other], "other-app")
+	}
+}
+
+func TestAppDisplayNamesFallsBackToRoot(t *testing.T) {
+	root := t.TempDir()
+	firstRoot := filepath.Join(root, "first", "project", "apps", "backend")
+	secondRoot := filepath.Join(root, "second", "project", "apps", "backend")
+	for _, appRoot := range []string{firstRoot, secondRoot} {
+		if err := os.MkdirAll(filepath.Join(appRoot, "..", "..", ".git"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	first := apps.NewInstance(firstRoot, "first-local", "linked-app")
+	second := apps.NewInstance(secondRoot, "second-local", "linked-app")
+	got := appDisplayNames([]*apps.Instance{first, second})
+
+	if got[first] != "linked-app ("+firstRoot+")" {
+		t.Errorf("first display name = %q, want root qualifier", got[first])
+	}
+	if got[second] != "linked-app ("+secondRoot+")" {
+		t.Errorf("second display name = %q, want root qualifier", got[second])
+	}
+}
 
 func TestBuildMigrationHistory(t *testing.T) {
 	tests := []struct {

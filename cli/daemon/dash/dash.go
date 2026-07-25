@@ -43,6 +43,33 @@ type handler struct {
 	tr   trace2.Store
 }
 
+// appDisplayNames adds the workspace name to apps that otherwise have the same
+// display name. This commonly happens when the same linked app is used from
+// multiple Git worktrees.
+func appDisplayNames(instances []*apps.Instance) map[*apps.Instance]string {
+	nameCounts := make(map[string]int)
+	workspaceCounts := make(map[string]int)
+	for _, instance := range instances {
+		name := instance.Name()
+		nameCounts[name]++
+		workspaceCounts[name+"\x00"+instance.WorkspaceName()]++
+	}
+
+	displayNames := make(map[*apps.Instance]string, len(instances))
+	for _, instance := range instances {
+		name := instance.Name()
+		if nameCounts[name] > 1 {
+			workspaceName := instance.WorkspaceName()
+			if workspaceCounts[name+"\x00"+workspaceName] > 1 {
+				workspaceName = instance.Root()
+			}
+			name = fmt.Sprintf("%s (%s)", name, workspaceName)
+		}
+		displayNames[instance] = name
+	}
+	return displayNames
+}
+
 func (h *handler) GetMeta(appID string) (*meta.Data, error) {
 	runInstance := h.run.FindRunByAppID(appID)
 	var md *meta.Data
@@ -181,10 +208,11 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
+		displayNames := appDisplayNames(allApp)
 		for _, instance := range allApp {
 			data := app{
 				ID:      instance.PlatformOrLocalID(),
-				Name:    instance.Name(),
+				Name:    displayNames[instance],
 				AppRoot: instance.Root(),
 				Offline: true,
 			}
