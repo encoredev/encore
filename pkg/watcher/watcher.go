@@ -27,6 +27,7 @@ type Watcher struct {
 	watcher     *fsnotify.Watcher
 	directories map[string]struct{}
 	stop        chan struct{}
+	closeOnce   sync.Once
 }
 
 func New(appID string) (*Watcher, error) {
@@ -188,7 +189,22 @@ func (w *Watcher) WaitForEvents() (events []Event, ok bool) {
 }
 
 func (w *Watcher) Close() error {
-	close(w.stop)
+	w.closeOnce.Do(func() {
+		// Drop the watches ourselves before closing. fsnotify's kqueue
+		// backend (macOS/BSD) marks the watcher closed before removing its
+		// own watches, so every Remove it performs during Close is a no-op
+		// and each watched file and directory leaks its file descriptor.
+		// Removing them here, while the watcher is still open, actually
+		// releases them.
+		w.mutex.Lock()
+		for folder := range w.directories {
+			_ = w.watcher.Remove(folder)
+			delete(w.directories, folder)
+		}
+		w.mutex.Unlock()
+
+		close(w.stop)
+	})
 	return nil
 }
 
