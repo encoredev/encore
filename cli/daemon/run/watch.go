@@ -8,11 +8,15 @@ import (
 	"encr.dev/pkg/watcher"
 )
 
-// watch watches the given app for changes, and reports
-// them on c.
-func (mgr *Manager) watch(run *Run) error {
+// watch watches the given app for changes, keeping generated code fresh for
+// as long as run is alive. liveReload controls whether we additionally
+// reload the running app on changes - this is what `--watch=false` disables;
+// it doesn't stop us from watching altogether, since the app's files should
+// stay watched regardless so codegen doesn't go stale while `encore run` is
+// up.
+func (mgr *Manager) watch(run *Run, liveReload bool) error {
 	sub, err := run.App.Watch(func(i *apps.Instance, event []watcher.Event) {
-		if IgnoreEvents(event) {
+		if !liveReload || IgnoreEvents(event) {
 			return
 		}
 

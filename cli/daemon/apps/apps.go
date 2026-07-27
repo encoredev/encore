@@ -294,7 +294,15 @@ type Instance struct {
 	mgr     *Manager
 	watcher *watcher.Watcher
 
-	setupWatch  syncutil.Once
+	// watchStateMu guards watcher and watchRefs, controlling the lifetime of
+	// the underlying file watcher: it starts on the first beginWatch() call
+	// and stops once the matching number of endWatch() calls brings the
+	// refcount back to zero, so it can be started and stopped repeatedly
+	// over the instance's lifetime (e.g. once per `encore run` invocation),
+	// rather than running forever once started.
+	watchStateMu sync.Mutex
+	watchRefs    int
+
 	watchMu     sync.Mutex
 	nextWatchID WatchSubscriptionID
 	watchers    map[WatchSubscriptionID]*watchSubscription
@@ -448,59 +456,92 @@ func (i *Instance) Unwatch(id WatchSubscriptionID) {
 	i.watchMu.Lock()
 	delete(i.watchers, id)
 	i.watchMu.Unlock()
+	i.endWatch()
 }
 
+// beginWatch takes a reference on the app's file watcher, starting it if
+// this is the first reference. It must be paired with a call to endWatch
+// once the caller no longer needs the app watched (e.g. Unwatch does this
+// automatically for callers that went through Watch).
 func (i *Instance) beginWatch() error {
-	return i.setupWatch.Do(func() error {
-		watch, err := watcher.New(i.PlatformOrLocalID())
-		if err != nil {
-			return errors.Wrap(err, "unable to create watcher")
-		}
-		i.watcher = watch
+	i.watchStateMu.Lock()
+	defer i.watchStateMu.Unlock()
 
-		if err := i.watcher.RecursivelyWatch(i.root); err != nil {
-			return errors.Wrap(err, "unable to watch app")
-		}
-
-		// If we're in dev mode, we want to watch the runtime
-		// too, so we can develop changes to the runtime without
-		// needing to restart the application.
-		if conf.DevDaemon {
-			if err := i.watcher.RecursivelyWatch(env.EncoreRuntimesPath()); err != nil {
-				return errors.Wrap(err, "unable to watch runtime")
-			}
-		}
-
-		go func() {
-			for {
-				events, ok := i.watcher.WaitForEvents()
-				if !ok {
-					// We're done watching.
-					return
-				}
-
-				if i.mgr != nil {
-					i.mgr.onWatchEvent(i, events)
-				}
-
-				i.watchMu.Lock()
-				watchers := i.watchers
-				i.watchMu.Unlock()
-				for _, sub := range watchers {
-					sub.f(i, events)
-				}
-			}
-		}()
-
-		// Now that this app is actively watched (i.e. running with
-		// live-reload), notify listeners so they can e.g. regenerate
-		// user-facing codegen and keep it fresh as files change.
-		if i.mgr != nil {
-			i.mgr.notifyAppListeners(i)
-		}
-
+	i.watchRefs++
+	if i.watchRefs > 1 {
+		// Already watching; nothing more to do.
 		return nil
-	})
+	}
+
+	watch, err := watcher.New(i.PlatformOrLocalID())
+	if err != nil {
+		i.watchRefs--
+		return errors.Wrap(err, "unable to create watcher")
+	}
+	i.watcher = watch
+
+	if err := i.watcher.RecursivelyWatch(i.root); err != nil {
+		i.watchRefs--
+		return errors.Wrap(err, "unable to watch app")
+	}
+
+	// If we're in dev mode, we want to watch the runtime
+	// too, so we can develop changes to the runtime without
+	// needing to restart the application.
+	if conf.DevDaemon {
+		if err := i.watcher.RecursivelyWatch(env.EncoreRuntimesPath()); err != nil {
+			i.watchRefs--
+			return errors.Wrap(err, "unable to watch runtime")
+		}
+	}
+
+	go func() {
+		for {
+			events, ok := i.watcher.WaitForEvents()
+			if !ok {
+				// We're done watching.
+				return
+			}
+
+			if i.mgr != nil {
+				i.mgr.onWatchEvent(i, events)
+			}
+
+			i.watchMu.Lock()
+			watchers := i.watchers
+			i.watchMu.Unlock()
+			for _, sub := range watchers {
+				sub.f(i, events)
+			}
+		}
+	}()
+
+	// Now that this app is being watched, notify listeners so they can
+	// e.g. regenerate user-facing codegen and keep it fresh as files
+	// change.
+	if i.mgr != nil {
+		i.mgr.notifyAppListeners(i)
+	}
+
+	return nil
+}
+
+// endWatch releases one reference on the app's file watcher, closing the
+// underlying watcher once the last reference has been released. Safe to
+// call even if beginWatch never succeeded.
+func (i *Instance) endWatch() {
+	i.watchStateMu.Lock()
+	defer i.watchStateMu.Unlock()
+
+	if i.watchRefs == 0 {
+		return
+	}
+	i.watchRefs--
+	if i.watchRefs > 0 || i.watcher == nil {
+		return
+	}
+	i.watcher.Close()
+	i.watcher = nil
 }
 
 // CachePath returns the path to the cache directory for this app.

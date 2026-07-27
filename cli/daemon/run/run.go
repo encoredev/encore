@@ -208,10 +208,12 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 		return nil, err
 	}
 
-	if params.Watch {
-		if err := mgr.watch(run); err != nil {
-			return nil, err
-		}
+	// Keep the app watched for as long as it's running, regardless of
+	// params.Watch: that flag only controls whether we live-reload the app
+	// on changes, not whether we watch its files at all, so that generated
+	// code doesn't go stale for the duration of `encore run --watch=false`.
+	if err := mgr.watch(run, params.Watch); err != nil {
+		return nil, err
 	}
 
 	return run, nil
