@@ -174,7 +174,7 @@ func (mgr *Manager) listRoots() ([]string, error) {
 }
 
 // RegisterAppListener registers a callback that gets invoked every time
-// an app starts being actively watched (i.e. run with live-reload enabled).
+// an app starts being actively watched (i.e. an `encore run` for it starts).
 func (mgr *Manager) RegisterAppListener(fn func(*Instance)) {
 	mgr.instanceMu.Lock()
 	defer mgr.instanceMu.Unlock()
@@ -259,10 +259,11 @@ func (mgr *Manager) resolve(appRoot string) (*Instance, error) {
 	i.mgr = mgr
 	// Note: we deliberately don't start the file watcher (or notify app
 	// listeners) here. Both are lazy, triggered only via Watch() (i.e. only
-	// for apps actually running with live-reload enabled), so that commands
-	// like `encore check` and `encore run --watch=false` never hold a
-	// recursive fsnotify watch open, and never trigger a codegen-regen parse
-	// for apps that aren't being actively developed against.
+	// while an `encore run` is alive), so that resolving an app - e.g. for
+	// `encore check`, or on daemon boot for every app ever tracked - never
+	// holds a recursive fsnotify watch open, and never triggers a
+	// codegen-regen parse for apps that aren't being actively developed
+	// against.
 	mgr.instances[appRoot] = i
 
 	return i, nil

@@ -86,6 +86,12 @@ type StartParams struct {
 	// Watch enables watching for code changes for live reloading.
 	Watch bool
 
+	// SkipFileWatch disables file watching entirely for this run.
+	// Interactive runs are watched even with Watch=false so generated code
+	// stays fresh while they're up; for short-lived runs (like `encore
+	// check` booting the app) that's pure overhead.
+	SkipFileWatch bool
+
 	Listener   net.Listener // listener to use
 	ListenAddr string       // address we're listening on
 
@@ -212,8 +218,10 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 	// params.Watch: that flag only controls whether we live-reload the app
 	// on changes, not whether we watch its files at all, so that generated
 	// code doesn't go stale for the duration of `encore run --watch=false`.
-	if err := mgr.watch(run, params.Watch); err != nil {
-		return nil, err
+	if !params.SkipFileWatch {
+		if err := mgr.watch(run, params.Watch); err != nil {
+			return nil, err
+		}
 	}
 
 	return run, nil
