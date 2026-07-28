@@ -28,6 +28,7 @@ type Watcher struct {
 	directories map[string]struct{}
 	stop        chan struct{}
 	closeOnce   sync.Once
+	closed      bool // guarded by mutex
 }
 
 func New(appID string) (*Watcher, error) {
@@ -69,6 +70,10 @@ func (w *Watcher) RecursivelyWatch(folder string) error {
 
 			// Track the fact we're watching this directory
 			w.mutex.Lock()
+			if w.closed {
+				w.mutex.Unlock()
+				return filepath.SkipAll
+			}
 			if _, found := w.directories[folder]; found {
 				w.mutex.Unlock()
 				return filepath.SkipDir
@@ -77,8 +82,24 @@ func (w *Watcher) RecursivelyWatch(folder string) error {
 			w.mutex.Unlock() // unlock here to prevent reentrant locks during recursion
 
 			// Now start watching this folder
-			if err := w.watcher.Add(folder); err != nil {
-				return eerror.Wrap(err, "watcher", "unable to add folder to watch", map[string]any{"folder": folder})
+			addErr := w.watcher.Add(folder)
+
+			// Close may have run its removal sweep while the add was in
+			// flight, in which case this watch missed it and must be
+			// dropped here instead.
+			w.mutex.Lock()
+			stale := w.closed || addErr != nil
+			if stale {
+				delete(w.directories, folder)
+			}
+			w.mutex.Unlock()
+
+			if stale {
+				_ = w.watcher.Remove(folder)
+				if addErr != nil {
+					return eerror.Wrap(addErr, "watcher", "unable to add folder to watch", map[string]any{"folder": folder})
+				}
+				return filepath.SkipAll
 			}
 		}
 
@@ -204,6 +225,9 @@ func (w *Watcher) Close() error {
 		// on the goroutine that delivers events, which may itself be
 		// waiting on the mutex.
 		w.mutex.Lock()
+		// Stops RecursivelyWatch from registering new watches after the
+		// sweep below, which would leak them.
+		w.closed = true
 		folders := make([]string, 0, len(w.directories))
 		for folder := range w.directories {
 			folders = append(folders, folder)
