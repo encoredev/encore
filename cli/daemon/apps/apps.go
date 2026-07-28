@@ -205,7 +205,8 @@ func (mgr *Manager) notifyAppListeners(i *Instance) {
 // WatchFunc is the signature of functions registered as app watchers.
 type WatchFunc func(*Instance, []watcher.Event)
 
-// WatchAll watches all apps for changes.
+// WatchAll registers fn to receive change events from every app that is
+// being actively watched, now or in the future.
 func (mgr *Manager) WatchAll(fn WatchFunc) error {
 	err := mgr.setupWatch.Do(func() error {
 		// Begin tracking all known apps by calling List (since it calls resolve).
