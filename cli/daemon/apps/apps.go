@@ -185,7 +185,7 @@ func (mgr *Manager) RegisterAppListener(fn func(*Instance)) {
 
 	// Call the handler for all apps that are already being watched.
 	for _, inst := range mgr.instances {
-		if inst.watcher != nil {
+		if inst.isWatching() {
 			fn(inst)
 		}
 	}
@@ -291,19 +291,14 @@ type Instance struct {
 
 	// mgr is a reference to the manager that created it.
 	// It may be nil if an instance was created without a manager.
-	mgr     *Manager
-	watcher *watcher.Watcher
+	mgr *Manager
 
-	// watchStateMu guards watcher and watchRefs, controlling the lifetime of
-	// the underlying file watcher: it starts on the first beginWatch() call
-	// and stops once the matching number of endWatch() calls brings the
-	// refcount back to zero, so it can be started and stopped repeatedly
-	// over the instance's lifetime (e.g. once per `encore run` invocation),
-	// rather than running forever once started.
-	watchStateMu sync.Mutex
-	watchRefs    int
-
+	// watchMu guards the fields below. The file watcher runs exactly while
+	// watchers is non-empty: the first Watch starts it and the last Unwatch
+	// stops it, so it can start and stop repeatedly over the instance's
+	// lifetime (e.g. once per `encore run` invocation).
 	watchMu     sync.Mutex
+	watcher     *watcher.Watcher
 	nextWatchID WatchSubscriptionID
 	watchers    map[WatchSubscriptionID]*watchSubscription
 
@@ -440,48 +435,62 @@ func (i *Instance) GlobalCORS() (appfile.CORS, error) {
 }
 
 func (i *Instance) Watch(fn WatchFunc) (WatchSubscriptionID, error) {
-	if err := i.beginWatch(); err != nil {
-		return 0, err
-	}
-
 	i.watchMu.Lock()
+	started := false
+	if len(i.watchers) == 0 {
+		if err := i.startWatching(); err != nil {
+			i.watchMu.Unlock()
+			return 0, err
+		}
+		started = true
+	}
 	i.nextWatchID++
 	id := i.nextWatchID
 	i.watchers[id] = &watchSubscription{id, fn}
 	i.watchMu.Unlock()
+
+	if started && i.mgr != nil {
+		// Now that this app is being watched, notify listeners so they can
+		// e.g. regenerate user-facing codegen and keep it fresh as files
+		// change. Done outside the lock: listeners parse the app and write
+		// generated files into the watched tree, which is slow and produces
+		// events whose delivery needs the lock.
+		i.mgr.notifyAppListeners(i)
+	}
 	return id, nil
 }
 
 func (i *Instance) Unwatch(id WatchSubscriptionID) {
 	i.watchMu.Lock()
+	if _, ok := i.watchers[id]; !ok {
+		// Unknown or already-removed id; it must not affect the watcher
+		// or other subscriptions.
+		i.watchMu.Unlock()
+		return
+	}
 	delete(i.watchers, id)
+	var w *watcher.Watcher
+	if len(i.watchers) == 0 {
+		w = i.watcher
+		i.watcher = nil
+	}
 	i.watchMu.Unlock()
-	i.endWatch()
+
+	if w != nil {
+		_ = w.Close()
+	}
 }
 
-// beginWatch takes a reference on the app's file watcher, starting it if
-// this is the first reference. It must be paired with a call to endWatch
-// once the caller no longer needs the app watched (e.g. Unwatch does this
-// automatically for callers that went through Watch).
-func (i *Instance) beginWatch() error {
-	i.watchStateMu.Lock()
-	defer i.watchStateMu.Unlock()
-
-	i.watchRefs++
-	if i.watchRefs > 1 {
-		// Already watching; nothing more to do.
-		return nil
-	}
-
+// startWatching starts the app's file watcher and the goroutine delivering
+// its events to subscribers. i.watchMu must be held.
+func (i *Instance) startWatching() error {
 	watch, err := watcher.New(i.PlatformOrLocalID())
 	if err != nil {
-		i.watchRefs--
 		return errors.Wrap(err, "unable to create watcher")
 	}
-	i.watcher = watch
 
-	if err := i.watcher.RecursivelyWatch(i.root); err != nil {
-		i.watchRefs--
+	if err := watch.RecursivelyWatch(i.root); err != nil {
+		_ = watch.Close()
 		return errors.Wrap(err, "unable to watch app")
 	}
 
@@ -489,59 +498,52 @@ func (i *Instance) beginWatch() error {
 	// too, so we can develop changes to the runtime without
 	// needing to restart the application.
 	if conf.DevDaemon {
-		if err := i.watcher.RecursivelyWatch(env.EncoreRuntimesPath()); err != nil {
-			i.watchRefs--
+		if err := watch.RecursivelyWatch(env.EncoreRuntimesPath()); err != nil {
+			_ = watch.Close()
 			return errors.Wrap(err, "unable to watch runtime")
 		}
 	}
 
+	i.watcher = watch
+
 	go func() {
 		for {
-			events, ok := i.watcher.WaitForEvents()
+			events, ok := watch.WaitForEvents()
 			if !ok {
 				// We're done watching.
 				return
 			}
 
+			i.watchMu.Lock()
+			if i.watcher != watch {
+				// This watcher was stopped while the batch was in flight;
+				// the events must not reach subscribers of a newer one.
+				i.watchMu.Unlock()
+				return
+			}
+			subs := make([]*watchSubscription, 0, len(i.watchers))
+			for _, sub := range i.watchers {
+				subs = append(subs, sub)
+			}
+			i.watchMu.Unlock()
+
 			if i.mgr != nil {
 				i.mgr.onWatchEvent(i, events)
 			}
-
-			i.watchMu.Lock()
-			watchers := i.watchers
-			i.watchMu.Unlock()
-			for _, sub := range watchers {
+			for _, sub := range subs {
 				sub.f(i, events)
 			}
 		}
 	}()
 
-	// Now that this app is being watched, notify listeners so they can
-	// e.g. regenerate user-facing codegen and keep it fresh as files
-	// change.
-	if i.mgr != nil {
-		i.mgr.notifyAppListeners(i)
-	}
-
 	return nil
 }
 
-// endWatch releases one reference on the app's file watcher, closing the
-// underlying watcher once the last reference has been released. Safe to
-// call even if beginWatch never succeeded.
-func (i *Instance) endWatch() {
-	i.watchStateMu.Lock()
-	defer i.watchStateMu.Unlock()
-
-	if i.watchRefs == 0 {
-		return
-	}
-	i.watchRefs--
-	if i.watchRefs > 0 || i.watcher == nil {
-		return
-	}
-	i.watcher.Close()
-	i.watcher = nil
+// isWatching reports whether the app's file watcher is currently running.
+func (i *Instance) isWatching() bool {
+	i.watchMu.Lock()
+	defer i.watchMu.Unlock()
+	return i.watcher != nil
 }
 
 // CachePath returns the path to the cache directory for this app.
@@ -619,8 +621,16 @@ func (i *Instance) CachedMetadata() (*meta.Data, error) {
 }
 
 func (i *Instance) Close() error {
-	if i.watcher != nil {
-		return i.watcher.Close()
+	i.watchMu.Lock()
+	w := i.watcher
+	i.watcher = nil
+	// Clear the subscriptions so an Unwatch arriving after shutdown
+	// (e.g. from a run exiting) is a no-op.
+	clear(i.watchers)
+	i.watchMu.Unlock()
+
+	if w != nil {
+		return w.Close()
 	}
 	return nil
 }
