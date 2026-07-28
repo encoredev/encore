@@ -176,15 +176,18 @@ func (w *Watcher) WaitForEvents() (events []Event, ok bool) {
 			return nil, false
 
 		default:
-			if w.events == nil || len(w.events.latestEvents) == 0 {
-				w.eventCond.Wait()
-			}
-			// Post-condition: we have at least one event.
-
-			events := w.events.Events()
-			w.events = newEventBatch()
-			return events, true
 		}
+
+		if w.events == nil || len(w.events.latestEvents) == 0 {
+			// A wakeup doesn't guarantee events: Close broadcasts too,
+			// so re-check both the stop channel and the batch.
+			w.eventCond.Wait()
+			continue
+		}
+
+		events := w.events.Events()
+		w.events = newEventBatch()
+		return events, true
 	}
 }
 
@@ -196,14 +199,31 @@ func (w *Watcher) Close() error {
 		// and each watched file and directory leaks its file descriptor.
 		// Removing them here, while the watcher is still open, actually
 		// releases them.
+		//
+		// Remove without holding the mutex: on some backends Remove waits
+		// on the goroutine that delivers events, which may itself be
+		// waiting on the mutex.
 		w.mutex.Lock()
+		folders := make([]string, 0, len(w.directories))
 		for folder := range w.directories {
-			_ = w.watcher.Remove(folder)
-			delete(w.directories, folder)
+			folders = append(folders, folder)
 		}
+		clear(w.directories)
 		w.mutex.Unlock()
 
+		for _, folder := range folders {
+			_ = w.watcher.Remove(folder)
+		}
+
+		// Close under the mutex guarding the condition, so a WaitForEvents
+		// caller cannot check w.stop, miss the broadcast below, and then
+		// park on the condition forever.
+		w.mutex.Lock()
 		close(w.stop)
+		w.mutex.Unlock()
+
+		// Wake anyone parked in WaitForEvents so they observe the close.
+		w.eventCond.Broadcast()
 	})
 	return nil
 }
