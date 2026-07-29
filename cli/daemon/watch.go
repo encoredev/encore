@@ -31,9 +31,9 @@ func (s *Server) watchApps() {
 		}
 	})
 	if err := s.apps.WatchAll(s.onWatchEvent); err != nil {
-		log.Error().Err(err).Msg("unable to set up app watchers")
+		log.Error().Err(err).Msg("unable to register app watch listener")
 	} else {
-		log.Info().Msg("successfully set up file watchers")
+		log.Info().Msg("registered app watch listener")
 	}
 }
 

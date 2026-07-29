@@ -99,10 +99,13 @@ func (s *Server) RunSpec(req *daemonpb.RunSpecRequest, stream daemonpb.Daemon_Ru
 		Listener:   ln,
 		ListenAddr: listenAddr,
 		Watch:      false,
-		Environ:    req.Environ,
-		OpsTracker: ops,
-		Browser:    run.BrowserModeNever,
-		Debug:      builder.DebugModeDisabled,
+		// The run only lives for the duration of the spec commands;
+		// watching its files would be pure overhead.
+		SkipFileWatch: true,
+		Environ:       req.Environ,
+		OpsTracker:    ops,
+		Browser:       run.BrowserModeNever,
+		Debug:         builder.DebugModeDisabled,
 	})
 	if err != nil {
 		// Forward errlist details (compile errors, parse errors) as plain text

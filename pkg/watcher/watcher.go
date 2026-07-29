@@ -27,6 +27,8 @@ type Watcher struct {
 	watcher     *fsnotify.Watcher
 	directories map[string]struct{}
 	stop        chan struct{}
+	closeOnce   sync.Once
+	closed      bool // guarded by mutex
 }
 
 func New(appID string) (*Watcher, error) {
@@ -68,6 +70,10 @@ func (w *Watcher) RecursivelyWatch(folder string) error {
 
 			// Track the fact we're watching this directory
 			w.mutex.Lock()
+			if w.closed {
+				w.mutex.Unlock()
+				return filepath.SkipAll
+			}
 			if _, found := w.directories[folder]; found {
 				w.mutex.Unlock()
 				return filepath.SkipDir
@@ -76,8 +82,24 @@ func (w *Watcher) RecursivelyWatch(folder string) error {
 			w.mutex.Unlock() // unlock here to prevent reentrant locks during recursion
 
 			// Now start watching this folder
-			if err := w.watcher.Add(folder); err != nil {
-				return eerror.Wrap(err, "watcher", "unable to add folder to watch", map[string]any{"folder": folder})
+			addErr := w.watcher.Add(folder)
+
+			// Close may have run its removal sweep while the add was in
+			// flight, in which case this watch missed it and must be
+			// dropped here instead.
+			w.mutex.Lock()
+			stale := w.closed || addErr != nil
+			if stale {
+				delete(w.directories, folder)
+			}
+			w.mutex.Unlock()
+
+			if stale {
+				_ = w.watcher.Remove(folder)
+				if addErr != nil {
+					return eerror.Wrap(addErr, "watcher", "unable to add folder to watch", map[string]any{"folder": folder})
+				}
+				return filepath.SkipAll
 			}
 		}
 
@@ -175,20 +197,58 @@ func (w *Watcher) WaitForEvents() (events []Event, ok bool) {
 			return nil, false
 
 		default:
-			if w.events == nil || len(w.events.latestEvents) == 0 {
-				w.eventCond.Wait()
-			}
-			// Post-condition: we have at least one event.
-
-			events := w.events.Events()
-			w.events = newEventBatch()
-			return events, true
 		}
+
+		if w.events == nil || len(w.events.latestEvents) == 0 {
+			// A wakeup doesn't guarantee events: Close broadcasts too,
+			// so re-check both the stop channel and the batch.
+			w.eventCond.Wait()
+			continue
+		}
+
+		events := w.events.Events()
+		w.events = newEventBatch()
+		return events, true
 	}
 }
 
 func (w *Watcher) Close() error {
-	close(w.stop)
+	w.closeOnce.Do(func() {
+		// Drop the watches ourselves before closing. fsnotify's kqueue
+		// backend (macOS/BSD) marks the watcher closed before removing its
+		// own watches, so every Remove it performs during Close is a no-op
+		// and each watched file and directory leaks its file descriptor.
+		// Removing them here, while the watcher is still open, actually
+		// releases them.
+		//
+		// Remove without holding the mutex: on some backends Remove waits
+		// on the goroutine that delivers events, which may itself be
+		// waiting on the mutex.
+		w.mutex.Lock()
+		// Stops RecursivelyWatch from registering new watches after the
+		// sweep below, which would leak them.
+		w.closed = true
+		folders := make([]string, 0, len(w.directories))
+		for folder := range w.directories {
+			folders = append(folders, folder)
+		}
+		clear(w.directories)
+		w.mutex.Unlock()
+
+		for _, folder := range folders {
+			_ = w.watcher.Remove(folder)
+		}
+
+		// Close under the mutex guarding the condition, so a WaitForEvents
+		// caller cannot check w.stop, miss the broadcast below, and then
+		// park on the condition forever.
+		w.mutex.Lock()
+		close(w.stop)
+		w.mutex.Unlock()
+
+		// Wake anyone parked in WaitForEvents so they observe the close.
+		w.eventCond.Broadcast()
+	})
 	return nil
 }
 
