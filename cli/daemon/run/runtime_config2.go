@@ -634,9 +634,7 @@ func (g *RuntimeConfigGenerator) ProcPerServiceWithNewRuntimeConfig(proxy *svcpr
 	sd := &runtimev1.ServiceDiscovery{Services: make(map[string]*runtimev1.ServiceDiscovery_Location)}
 
 	svcListenAddr := make(map[string]netip.AddrPort)
-	var svcNames []string
 	for _, svc := range g.md.Svcs {
-		svcNames = append(svcNames, svc.Name)
 		listenAddr, err := freeLocalhostAddress()
 		if err != nil {
 			return nil, nil, nil, errors.Wrap(err, "failed to find free localhost address")

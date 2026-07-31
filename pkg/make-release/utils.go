@@ -180,6 +180,9 @@ func downloadLatestGithubRelease(org, repo, os, arch string) (pathToFile string,
 
 	// Create the file
 	downloadFile, err := osPkg.Create(downloadPath)
+	if err != nil {
+		return "", errors.Wrap(err, "unable to create download file")
+	}
 	defer func() {
 		_ = downloadFile.Close()
 		if rtnErr != nil {

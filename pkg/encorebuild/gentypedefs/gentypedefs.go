@@ -299,9 +299,7 @@ func correctStringIndent(src string, indent int) string {
 	}
 
 	res := result.String()
-	if strings.HasSuffix(res, "\n") {
-		res = res[:len(res)-1]
-	}
+	res = strings.TrimSuffix(res, "\n")
 
 	return res
 }

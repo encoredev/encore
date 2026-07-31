@@ -194,6 +194,9 @@ func (m *Manager) Delete(ctx context.Context, app *apps.Instance, name Name) err
 		WHERE app_id = ? AND name = ?
 		RETURNING id, name, active, created_at, last_active_at
 	`, app.PlatformOrLocalID(), name).Scan(&ns.ID, &ns.Name, &ns.Active, &ns.CreatedAt, &ns.LastActiveAt)
+	if err != nil {
+		return errors.Newf("failed to delete namespace: %v", err)
+	}
 	if ns.Active {
 		return ErrActive
 	}
