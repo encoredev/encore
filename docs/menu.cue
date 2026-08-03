@@ -1339,6 +1339,11 @@
 					text: "Configure Network"
 					path: "/platform/infrastructure/configure-network"
 					file: "platform/infrastructure/configure-network"
+				}, {
+					kind: "basic"
+					text: "Static Outbound IP"
+					path: "/platform/infrastructure/gcp/static-ip"
+					file: "platform/infrastructure/gcp-static-ip"
 				}]
 			}, {
 				kind: "accordion"
