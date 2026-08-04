@@ -159,7 +159,7 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 		js.WriteString("/**\n")
 		for scanner.Scan() {
 			js.WriteString(" * ")
-			js.WriteString(scanner.Text())
+			js.WriteString(escapeDocComment(scanner.Text()))
 			js.WriteByte('\n')
 		}
 		js.WriteString(" */\n")
@@ -203,7 +203,7 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 			for scanner.Scan() {
 				indent()
 				js.WriteString(" * ")
-				js.WriteString(scanner.Text())
+				js.WriteString(escapeDocComment(scanner.Text()))
 				js.WriteByte('\n')
 			}
 			indent()
@@ -567,7 +567,7 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 			} else {
 				fieldValue := "resp.headers.getSetCookie()[0]"
 				if !headerField.Optional {
-					fieldValue = fmt.Sprintf("mustBeSet(\"Header `%s`\", %s)", headerField.WireFormat, fieldValue)
+					fieldValue = fmt.Sprintf("mustBeSet(%s, %s)", js.Quote("Header `"+headerField.WireFormat+"`"), fieldValue)
 				}
 				inner.WriteStringf("%s = %s\n", js.Dot("rtn", headerField.SrcName), js.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 			}
@@ -575,15 +575,15 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 		} else if headerField.Type.GetList() != nil {
 			// The Fetch API joins multiple header values with ", " so we get a single string.
 			// Wrap it in an array to match the list type.
-			fieldValue := fmt.Sprintf("resp.headers.get(\"%s\")", headerField.WireFormat)
+			fieldValue := fmt.Sprintf("resp.headers.get(%s)", js.Quote(headerField.WireFormat))
 			if !headerField.Optional {
-				fieldValue = fmt.Sprintf("mustBeSet(\"Header `%s`\", %s)", headerField.WireFormat, fieldValue)
+				fieldValue = fmt.Sprintf("mustBeSet(%s, %s)", js.Quote("Header `"+headerField.WireFormat+"`"), fieldValue)
 			}
 			w.WriteStringf("%s = [%s]\n", js.Dot("rtn", headerField.SrcName), fieldValue)
 		} else {
-			fieldValue := fmt.Sprintf("resp.headers.get(\"%s\")", headerField.WireFormat)
+			fieldValue := fmt.Sprintf("resp.headers.get(%s)", js.Quote(headerField.WireFormat))
 			if !headerField.Optional {
-				fieldValue = fmt.Sprintf("mustBeSet(\"Header `%s`\", %s)", headerField.WireFormat, fieldValue)
+				fieldValue = fmt.Sprintf("mustBeSet(%s, %s)", js.Quote("Header `"+headerField.WireFormat+"`"), fieldValue)
 			}
 			w.WriteStringf("%s = %s\n", js.Dot("rtn", headerField.SrcName), js.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 		}
@@ -1213,7 +1213,7 @@ func (js *javascript) newIdentWriter(indent int) *indentWriter {
 }
 
 func (js *javascript) Quote(s string) string {
-	return fmt.Sprintf("\"%s\"", strings.Replace(s, "\"", "\\\"", -1))
+	return quoteJSString(s)
 }
 
 func (js *javascript) QuoteIfRequired(s string) string {

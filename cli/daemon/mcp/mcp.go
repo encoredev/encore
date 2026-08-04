@@ -117,7 +117,25 @@ func addAppToContext(ctx context.Context, r *http.Request) context.Context {
 }
 
 func (m *Manager) Serve(listener net.Listener) error {
-	return http.Serve(listener, m.sse)
+	return http.Serve(listener, originCheck(m.sse))
+}
+
+// originCheck restricts the MCP server to local code agents (editors, CLI tools),
+// which don't send an Origin header, and rejects browser requests.
+func originCheck(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !allowedOrigin(r) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func allowedOrigin(req *http.Request) bool {
+	// The MCP server is only consumed by local code agents, which don't send an
+	// Origin header. Browsers always do, so reject any request that carries one.
+	return req.Header.Get("Origin") == ""
 }
 
 func (m *Manager) getApp(ctx context.Context) (*apps.Instance, error) {

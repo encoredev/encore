@@ -154,7 +154,7 @@ fn serialize_headers(
         };
 
         // Skip Encore-internal headers.
-        if v.starts_with("x-encore-meta") {
+        if k.as_str().starts_with("x-encore-meta") {
             continue;
         }
 
@@ -184,4 +184,73 @@ fn serialize_headers(
     }
 
     map
+}
+
+#[cfg(test)]
+mod tests {
+    use super::serialize_headers;
+    use axum::http::{HeaderMap, HeaderValue};
+    use serde_json::{json, Value};
+
+    #[test]
+    fn strips_encore_internal_meta_headers() {
+        let mut headers = HeaderMap::new();
+        headers.insert("content-type", HeaderValue::from_static("application/json"));
+        headers.insert("authorization", HeaderValue::from_static("Bearer tok"));
+        headers.insert("x-encore-meta-userid", HeaderValue::from_static("admin"));
+        headers.insert(
+            "x-encore-meta-authdata",
+            HeaderValue::from_static(r#"{"role":"admin"}"#),
+        );
+        headers.insert("x-encore-meta-svc-auth", HeaderValue::from_static("sig"));
+        headers.insert(
+            "x-encore-meta-caller",
+            HeaderValue::from_static("api:svc.ep"),
+        );
+
+        let out = serialize_headers(&headers);
+
+        // No internal identity/auth meta header may reach user code.
+        assert!(
+            out.keys().all(|k| !k.starts_with("x-encore-meta")),
+            "internal meta header leaked into user-visible headers: {out:?}"
+        );
+
+        // Non-internal headers are preserved untouched.
+        assert_eq!(
+            out.get("content-type"),
+            Some(&Value::String("application/json".into()))
+        );
+        assert_eq!(
+            out.get("authorization"),
+            Some(&Value::String("Bearer tok".into()))
+        );
+    }
+
+    #[test]
+    fn filters_on_header_name_not_value() {
+        // Regression test for the value-vs-key bug: the filter must key off the
+        // header NAME. A normal header whose *value* happens to start with
+        // "x-encore-meta" must still be passed through to user code.
+        let mut headers = HeaderMap::new();
+        headers.insert("x-custom", HeaderValue::from_static("x-encore-meta-userid"));
+
+        let out = serialize_headers(&headers);
+
+        assert_eq!(
+            out.get("x-custom"),
+            Some(&Value::String("x-encore-meta-userid".into()))
+        );
+    }
+
+    #[test]
+    fn repeated_headers_become_an_array() {
+        let mut headers = HeaderMap::new();
+        headers.append("set-cookie", HeaderValue::from_static("a=1"));
+        headers.append("set-cookie", HeaderValue::from_static("b=2"));
+
+        let out = serialize_headers(&headers);
+
+        assert_eq!(out.get("set-cookie"), Some(&json!(["a=1", "b=2"])));
+    }
 }
