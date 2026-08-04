@@ -40,7 +40,10 @@ func (fs *filestore) CreateBucket(bucket string) error {
 }
 
 func (fs *filestore) GetBucketMeta(baseUrl HttpBaseUrl, bucket string) (*storage.Bucket, error) {
-	f := fs.filename(bucket, "")
+	f, err := fs.filename(bucket, "")
+	if err != nil {
+		return nil, err
+	}
 	fInfo, err := os.Stat(f)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -63,7 +66,10 @@ func (fs *filestore) Get(baseUrl HttpBaseUrl, bucket string, filename string) (*
 		return nil, nil, nil
 	}
 
-	f := fs.filename(bucket, filename)
+	f, err := fs.filename(bucket, filename)
+	if err != nil {
+		return nil, nil, err
+	}
 	contents, err := os.ReadFile(f)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading  %s: %w", f, err)
@@ -72,7 +78,10 @@ func (fs *filestore) Get(baseUrl HttpBaseUrl, bucket string, filename string) (*
 }
 
 func (fs *filestore) GetMeta(baseUrl HttpBaseUrl, bucket string, filename string) (*storage.Object, error) {
-	f := fs.filename(bucket, filename)
+	f, err := fs.filename(bucket, filename)
+	if err != nil {
+		return nil, err
+	}
 	fInfo, err := os.Stat(f)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -85,7 +94,10 @@ func (fs *filestore) GetMeta(baseUrl HttpBaseUrl, bucket string, filename string
 }
 
 func (fs *filestore) Add(bucket string, filename string, contents []byte, meta *storage.Object) error {
-	f := fs.filename(bucket, filename)
+	f, err := fs.filename(bucket, filename)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(f), 0777); err != nil {
 		return fmt.Errorf("could not create dirs for:  %s: %w", f, err)
 	}
@@ -119,7 +131,11 @@ func (fs *filestore) UpdateMeta(bucket string, filename string, meta *storage.Ob
 	InitScrubbedMeta(meta, filename)
 	meta.Metageneration = metagen
 
-	fMeta := metaFilename(fs.filename(bucket, filename))
+	f, err := fs.filename(bucket, filename)
+	if err != nil {
+		return err
+	}
+	fMeta := metaFilename(f)
 	if err := os.WriteFile(fMeta, mustJson(meta), 0666); err != nil {
 		return fmt.Errorf("could not write metadata file: %s: %w", fMeta, err)
 	}
@@ -139,7 +155,10 @@ func (fs *filestore) Copy(srcBucket string, srcFile string, dstBucket string, ds
 	}
 
 	// Copy with metadata
-	f1 := fs.filename(srcBucket, srcFile)
+	f1, err := fs.filename(srcBucket, srcFile)
+	if err != nil {
+		return false, err
+	}
 	contents, err := os.ReadFile(f1)
 	if err != nil {
 		return false, err
@@ -154,9 +173,16 @@ func (fs *filestore) Copy(srcBucket string, srcFile string, dstBucket string, ds
 }
 
 func (fs *filestore) Delete(bucket string, filename string) error {
-	f := fs.filename(bucket, filename)
+	f, err := fs.filename(bucket, filename)
+	if err != nil {
+		return err
+	}
+	bucketDir, err := fs.filename(bucket, "")
+	if err != nil {
+		return err
+	}
 
-	err := func() error {
+	err = func() error {
 		// Check if the bucket exists
 		if _, err := os.Stat(f); os.IsNotExist(err) {
 			return os.ErrNotExist
@@ -186,7 +212,7 @@ func (fs *filestore) Delete(bucket string, filename string) error {
 	}
 
 	// Try to delete empty directories
-	for fp := filepath.Dir(f); len(fp) > len(fs.filename(bucket, "")); fp = filepath.Dir(fp) {
+	for fp := filepath.Dir(f); len(fp) > len(bucketDir); fp = filepath.Dir(fp) {
 		files, err := os.ReadDir(fp)
 		if err != nil || len(files) > 0 {
 			// Quit trying to delete the directory
@@ -205,7 +231,10 @@ func (fs *filestore) ReadMeta(baseUrl HttpBaseUrl, bucket string, filename strin
 		return nil, nil
 	}
 
-	f := fs.filename(bucket, filename)
+	f, err := fs.filename(bucket, filename)
+	if err != nil {
+		return nil, err
+	}
 	obj := &storage.Object{}
 	fMeta := metaFilename(f)
 	buf, err := os.ReadFile(fMeta)
@@ -227,11 +256,22 @@ func (fs *filestore) ReadMeta(baseUrl HttpBaseUrl, bucket string, filename strin
 	return obj, nil
 }
 
-func (fs *filestore) filename(bucket string, filename string) string {
-	if filename == "" {
-		return filepath.Join(fs.gcsDir, bucket)
+// filename resolves the on-disk path for an object. Both bucket and filename
+// originate from untrusted request paths, so we reject any component that would
+// escape gcsDir via path traversal (e.g. a percent-encoded "../" that decodes
+// after HTTP routing). filepath.IsLocal rejects absolute paths, "..", and other
+// names that don't stay within the directory they're evaluated in.
+func (fs *filestore) filename(bucket string, filename string) (string, error) {
+	if !filepath.IsLocal(bucket) {
+		return "", fmt.Errorf("invalid bucket name %q", bucket)
 	}
-	return filepath.Join(fs.gcsDir, bucket, filename)
+	if filename == "" {
+		return filepath.Join(fs.gcsDir, bucket), nil
+	}
+	if !filepath.IsLocal(filename) {
+		return "", fmt.Errorf("invalid object name %q", filename)
+	}
+	return filepath.Join(fs.gcsDir, bucket, filename), nil
 }
 
 func metaFilename(filename string) string {

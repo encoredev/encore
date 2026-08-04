@@ -286,7 +286,7 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 
 	if correlationID, found := req.ReadMeta(transport.CorrelationIDKey); found {
 		// Don't allow arbitrary correlation IDs to be passed through
-		if len(meta.CorrelationID) > 64 {
+		if len(correlationID) > 64 {
 			meta.CorrelationID = correlationID[:64]
 		} else {
 			meta.CorrelationID = correlationID

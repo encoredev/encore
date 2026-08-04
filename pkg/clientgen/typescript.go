@@ -248,7 +248,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		ts.WriteString("/**\n")
 		for scanner.Scan() {
 			ts.WriteString(" * ")
-			ts.WriteString(scanner.Text())
+			ts.WriteString(escapeDocComment(scanner.Text()))
 			ts.WriteByte('\n')
 		}
 		ts.WriteString(" */\n")
@@ -319,7 +319,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			for scanner.Scan() {
 				indent()
 				ts.WriteString(" * ")
-				ts.WriteString(scanner.Text())
+				ts.WriteString(escapeDocComment(scanner.Text()))
 				ts.WriteByte('\n')
 			}
 			indent()
@@ -804,17 +804,17 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			if headerField.Type.GetList() != nil {
 				inner.WriteStringf("%s = resp.headers.getSetCookie()\n", ts.Dot("rtn", headerField.SrcName))
 			} else {
-				fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.getSetCookie()[0])", headerField.WireFormat)
+				fieldValue := fmt.Sprintf("mustBeSet(%s, resp.headers.getSetCookie()[0])", ts.Quote("Header `"+headerField.WireFormat+"`"))
 				inner.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 			}
 			w.WriteString("}\n")
 		} else if headerField.Type.GetList() != nil {
 			// The Fetch API joins multiple header values with ", " so we get a single string.
 			// Wrap it in an array to match the list type.
-			fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
+			fieldValue := fmt.Sprintf("mustBeSet(%s, resp.headers.get(%s))", ts.Quote("Header `"+headerField.WireFormat+"`"), ts.Quote(headerField.WireFormat))
 			w.WriteStringf("%s = [%s]\n", ts.Dot("rtn", headerField.SrcName), fieldValue)
 		} else {
-			fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
+			fieldValue := fmt.Sprintf("mustBeSet(%s, resp.headers.get(%s))", ts.Quote("Header `"+headerField.WireFormat+"`"), ts.Quote(headerField.WireFormat))
 			w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
 		}
 	}
@@ -871,7 +871,7 @@ func (ts *typescript) writeDeclDef(ns string, decl *schema.Decl) {
 		ts.WriteString("    /**\n")
 		for scanner.Scan() {
 			ts.WriteString("     * ")
-			ts.WriteString(scanner.Text())
+			ts.WriteString(escapeDocComment(scanner.Text()))
 			ts.WriteByte('\n')
 		}
 		ts.WriteString("     */\n")
@@ -1887,7 +1887,7 @@ func (ts *typescript) renderTyp(buf *bytes.Buffer, ns string, tt *schema.Type, n
 				for scanner.Scan() {
 					indent()
 					buf.WriteString(" * ")
-					buf.WriteString(scanner.Text())
+					buf.WriteString(escapeDocComment(scanner.Text()))
 					buf.WriteByte('\n')
 				}
 				indent()
@@ -1999,7 +1999,7 @@ func (ts *typescript) newIdentWriter(indent int) *indentWriter {
 }
 
 func (ts *typescript) Quote(s string) string {
-	return fmt.Sprintf("\"%s\"", strings.Replace(s, "\"", "\\\"", -1))
+	return quoteJSString(s)
 }
 
 func (ts *typescript) QuoteIfRequired(s string) string {

@@ -51,6 +51,7 @@ import (
 	"encr.dev/internal/conf"
 	"encr.dev/internal/env"
 	"encr.dev/pkg/eerror"
+	"encr.dev/pkg/httpx"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/watcher"
 	"encr.dev/pkg/xos"
@@ -263,7 +264,8 @@ func (d *Daemon) serveRuntime() {
 	log.Info().Stringer("addr", d.Runtime.Addr()).Msg("serving runtime")
 	rec := trace2.NewRecorder(d.Trace)
 	srv := engine.NewServer(d.RunMgr, rec)
-	d.exit <- http.Serve(d.Runtime, srv)
+	// Only the app runtime posts here (no Origin header); reject browser requests.
+	d.exit <- http.Serve(d.Runtime, httpx.CheckOrigin(httpx.IsNonBrowser, srv))
 }
 
 func (d *Daemon) serveDBProxy() {
@@ -284,7 +286,7 @@ func (d *Daemon) serveObjects() {
 func (d *Daemon) serveDash() {
 	log.Info().Stringer("addr", d.Dash.Addr()).Msg("serving dash")
 	srv := dash.NewServer(d.Apps, d.RunMgr, d.NS, d.Trace, d.Dash.Port())
-	d.exit <- http.Serve(d.Dash, srv)
+	d.exit <- http.Serve(d.Dash, httpx.CheckOrigin(httpx.IsLocalOrigin, srv))
 }
 
 func (d *Daemon) serveDebug() {
@@ -296,7 +298,9 @@ func (d *Daemon) serveDebug() {
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	d.exit <- http.Serve(d.Debug, mux)
+	// pprof is only consumed by tooling like `go tool pprof` (no Origin header);
+	// reject browser requests so a website can't trigger profiles or DoS.
+	d.exit <- http.Serve(d.Debug, httpx.CheckOrigin(httpx.IsNonBrowser, mux))
 }
 
 // listenTCPRetry listens for TCP connections on the given port, retrying

@@ -457,6 +457,12 @@ impl ProxyHttp for Gateway {
                 call_meta.parent_span_id = Some(model::SpanId::generate());
             }
 
+            // Only verified internal callers may carry inbound Encore metadata;
+            // for everyone else it's re-derived below.
+            if authenticated_internal_caller.is_none() {
+                strip_inbound_meta(upstream_request);
+            }
+
             // If the request comes from an authenticated internal service,
             // use that as the caller directly so that private endpoint access
             // is granted. Otherwise, use the gateway as the caller.
@@ -615,6 +621,21 @@ impl ProxyHttp for Gateway {
     }
 }
 
+/// Remove all inbound `x-encore-meta-*` headers from a request. The gateway
+/// re-derives this metadata itself, so inbound values are only kept for verified
+/// internal callers.
+fn strip_inbound_meta(req: &mut RequestHeader) {
+    let names: Vec<String> = req
+        .headers
+        .keys()
+        .map(|name| name.as_str().to_string())
+        .filter(|name| name.starts_with("x-encore-meta-"))
+        .collect();
+    for name in &names {
+        req.remove_header(name.as_str());
+    }
+}
+
 fn as_api_error(err: &pingora::Error) -> Option<&api::Error> {
     err.root_cause().downcast_ref::<api::Error>()
 }
@@ -700,5 +721,50 @@ mod tests {
             .get("x-encore-trace-id")
             .expect("header missing");
         assert_eq!(val.to_str().unwrap(), "existing");
+    }
+
+    #[test]
+    fn gateway_inbound_meta_not_propagated() {
+        use crate::api::reqauth::svcauth::{EncoreAuth, EncoreAuthKey, ServiceAuthMethod};
+        use crate::secrets::Secret;
+        use std::collections::HashMap;
+        use std::sync::Arc;
+
+        let auths: Vec<Arc<dyn ServiceAuthMethod>> = vec![Arc::new(EncoreAuth::new(
+            "app".to_string(),
+            "env".to_string(),
+            vec![EncoreAuthKey {
+                key_id: 1,
+                data: Secret::new_for_test("secret"),
+            }],
+        ))];
+
+        // An external request that carries inbound Encore metadata.
+        let mut req = RequestHeader::build("GET", b"/whoami", None).unwrap();
+        req.insert_header("x-encore-meta-userid", "admin").unwrap();
+
+        // The request is not from a verified internal caller, so the gateway
+        // drops inbound metadata before signing and forwarding it.
+        strip_inbound_meta(&mut req);
+
+        let caller = Caller::Gateway {
+            gateway: EncoreName::from("api-gateway"),
+        };
+        let desc: CallDesc<serde_json::Value> = CallDesc {
+            caller: &caller,
+            trace_id: Some(model::TraceId::generate()),
+            parent_span: None,
+            parent_event_id: None,
+            ext_correlation_id: None,
+            traced: false,
+            auth_user_id: None,
+            auth_data: None,
+            svc_auth_method: auths[0].as_ref(),
+        };
+        desc.add_meta(&mut req).unwrap();
+
+        let meta = CallMeta::parse_with_caller(&auths, &req.headers, &HashMap::new()).unwrap();
+        let auth_uid = meta.internal.and_then(|i| i.auth_uid);
+        assert_eq!(auth_uid, None);
     }
 }

@@ -15,6 +15,7 @@ import (
 	"google.golang.org/api/storage/v1"
 
 	"encr.dev/pkg/emulators/storage/gcsemu"
+	"encr.dev/pkg/httpx"
 )
 
 // Fallback is a function that returns a store for a given namespace.
@@ -46,7 +47,7 @@ type PublicBucketServer struct {
 }
 
 func (s *PublicBucketServer) Serve(ln net.Listener) error {
-	return http.Serve(ln, s)
+	return http.Serve(ln, httpx.CheckOrigin(httpx.IsLocalOrigin, s))
 }
 
 func (s *PublicBucketServer) Register(namespace string, store gcsemu.Store) {

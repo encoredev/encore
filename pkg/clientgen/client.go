@@ -34,6 +34,52 @@ type generator interface {
 // ErrUnknownLang is reported by Generate when the language is not known.
 var ErrUnknownLang = errors.New("unknown language")
 
+// quoteJSString renders s as a double-quoted JavaScript/TypeScript string
+// literal, escaping every character that could otherwise break out of the
+// literal and inject code into the generated client. Both attacker-influenced
+// values (e.g. header/query wire names) and ordinary identifiers flow through
+// here, so it must produce valid JS for arbitrary input.
+func quoteJSString(s string) string {
+	var b strings.Builder
+	b.Grow(len(s) + 2)
+	b.WriteByte('"')
+	for _, r := range s {
+		switch r {
+		case '\\':
+			b.WriteString(`\\`)
+		case '"':
+			b.WriteString(`\"`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case '\t':
+			b.WriteString(`\t`)
+		case '\u2028':
+			// Line separator: valid in JS string literals only since ES2019.
+			b.WriteString(`\u2028`)
+		case '\u2029':
+			// Paragraph separator: valid in JS string literals only since ES2019.
+			b.WriteString(`\u2029`)
+		default:
+			if r < 0x20 {
+				fmt.Fprintf(&b, `\u%04x`, r)
+			} else {
+				b.WriteRune(r)
+			}
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
+}
+
+// escapeDocComment neutralizes any "*/" sequence in a line destined for a
+// generated /* ... */ block comment so it cannot terminate the comment early
+// and turn the following text into executable code.
+func escapeDocComment(line string) string {
+	return strings.ReplaceAll(line, "*/", "*\\/")
+}
+
 // Detect attempts to detect the language from the given filename.
 func Detect(path string) (lang Lang, ok bool) {
 	suffix := strings.ToLower(filepath.Ext(path))
