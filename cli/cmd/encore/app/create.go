@@ -170,6 +170,14 @@ func createApp(ctx context.Context, name, template string, lang cmdutil.Language
 	cyan := color.New(color.FgCyan)
 	green := color.New(color.FgGreen)
 
+	// The current directory already has Encore code but no encore.app, so steer
+	// to the in-place commands instead of scaffolding a new app in a subdirectory.
+	if cwd, err := os.Getwd(); err == nil {
+		if _, _, rootErr := cmdutil.MaybeAppRoot(); errors.Is(rootErr, cmdutil.ErrNoEncoreApp) && cmdutil.LooksLikeUninitializedEncoreApp(cwd) {
+			return errors.New("this directory already contains Encore code but isn't initialized as an app.\n\nRun 'encore app init' to initialize it in place, or 'encore app link <app-id>' to link an existing app.")
+		}
+	}
+
 	promptAccountCreation()
 
 	if name == "" || template == "" || llmRules == "" {
@@ -236,6 +244,9 @@ func createApp(ctx context.Context, name, template string, lang cmdutil.Language
 
 	_, err = conf.CurrentUser()
 	loggedIn := err == nil
+	if !loggedIn && createAppOnPlatform {
+		warnNotLoggedIn()
+	}
 
 	exCfg, err := parseExampleConfig(name)
 	if err != nil {
@@ -547,6 +558,34 @@ func initGitRepo(path string, app *platform.App) (err error) {
 	}
 
 	return nil
+}
+
+// ensureEncoreGitRemote makes sure dir is a git repository with an "encore"
+// remote pointing at the given app, so `git push encore` works. Unlike
+// initGitRepo it does not create a commit, to avoid rewriting the history of an
+// existing repo being adopted via `encore app init`.
+func ensureEncoreGitRemote(dir, appSlug string) {
+	if _, err := os.Stat(filepath.Join(dir, ".git")); errors.Is(err, fs.ErrNotExist) {
+		cmd := exec.Command("git", "init")
+		cmd.Dir = dir
+		_ = cmd.Run()
+	}
+	// Only add the remote if an "encore" remote isn't already configured.
+	check := exec.Command("git", "remote", "get-url", defaultGitRemoteName)
+	check.Dir = dir
+	if err := check.Run(); err != nil {
+		add := exec.Command("git", "remote", "add", defaultGitRemoteName, defaultGitRemoteURL+appSlug)
+		add.Dir = dir
+		_ = add.Run()
+	}
+}
+
+// warnNotLoggedIn prints an informational note when an app is created without
+// being logged in, so the (often non-interactive) caller knows the app exists
+// only locally and how to link it to Encore Cloud when it wants to deploy there.
+func warnNotLoggedIn() {
+	_, _ = fmt.Fprintln(os.Stderr, "Note: this app is not linked to Encore Cloud. To deploy there, run 'encore auth login' and then 'encore app link' to link it.")
+	_, _ = fmt.Fprintln(os.Stderr, "Without a browser: encore auth login --auth-key <key>, or set ENCORE_AUTH_KEY.")
 }
 
 func addEncoreRemote(root, appID string) {

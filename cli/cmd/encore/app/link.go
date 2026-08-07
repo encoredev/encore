@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
+	"golang.org/x/term"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/internal/platform"
@@ -91,6 +92,9 @@ func linkApp(appID string, force bool) {
 	}
 
 	if appID == "" {
+		if !term.IsTerminal(int(os.Stdin.Fd())) {
+			cmdutil.Fatal("no app id given.\n\nPass it directly: encore app link <app-id>\nCreate the app and find its id in the Encore Cloud dashboard at https://app.encore.dev")
+		}
 		// The app is not linked. Prompt the user for an app ID.
 		fmt.Println("Make sure the app is created on app.encore.dev, and then enter its ID to link it.")
 		fmt.Print("App ID: ")
