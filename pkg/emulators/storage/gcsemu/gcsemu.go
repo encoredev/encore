@@ -220,32 +220,31 @@ func (g *GcsEmu) handleGcsCompose(ctx context.Context, baseUrl HttpBaseUrl, w ht
 }
 
 func (g *GcsEmu) handleGcsListBucket(ctx context.Context, baseUrl HttpBaseUrl, w http.ResponseWriter, params url.Values, bucket string) {
-	delimiter := params.Get("delimiter")
-	prefix := params.Get("prefix")
-	pageToken := params.Get("pageToken")
+	opts := ListOptions{
+		Delimiter: params.Get("delimiter"),
+		Prefix:    params.Get("prefix"),
+		MatchGlob: params.Get("matchGlob"),
+	}
 
-	var cursor string
-	if pageToken != "" {
+	if pageToken := params.Get("pageToken"); pageToken != "" {
 		lastFilename, err := gcsutil.DecodePageToken(pageToken)
 		if err != nil {
 			g.gapiError(w, http.StatusBadRequest, fmt.Sprintf("invalid pageToken parameter (failed to decode) %s: %s", pageToken, err))
 			return
 		}
-		cursor = lastFilename
+		opts.Cursor = lastFilename
 	}
 
-	maxResults := 1000
-	maxResultsStr := params.Get("maxResults")
-	if maxResultsStr != "" {
-		var err error
-		maxResults, err = strconv.Atoi(maxResultsStr)
+	if maxResultsStr := params.Get("maxResults"); maxResultsStr != "" {
+		maxResults, err := strconv.Atoi(maxResultsStr)
 		if err != nil || maxResults < 1 {
 			g.gapiError(w, http.StatusBadRequest, fmt.Sprintf("invalid maxResults parameter: %s", maxResultsStr))
 			return
 		}
+		opts.MaxResults = maxResults
 	}
 
-	g.makeBucketListResults(ctx, baseUrl, w, delimiter, cursor, prefix, bucket, maxResults)
+	g.makeBucketListResults(ctx, baseUrl, w, opts, bucket)
 }
 
 func (g *GcsEmu) handleGcsDelete(ctx context.Context, w http.ResponseWriter, bucket string, filename string, conds cloudstorage.Conditions) {
