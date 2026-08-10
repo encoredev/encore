@@ -417,6 +417,15 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			}
 		}
 
+		// Add optional CallParameters to non-raw, non-stream endpoints so callers
+		// can pass an AbortSignal or other fetch options per request.
+		if !isRaw && !isStream && !ts.sharedTypes {
+			if rpc.RequestSchema != nil || nParams > 0 {
+				ts.WriteString(", ")
+			}
+			ts.WriteString("options?: CallParameters")
+		}
+
 		var direction streamDirection
 
 		if rpc.StreamingRequest && rpc.StreamingResponse {
@@ -726,12 +735,31 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		callAPI += fmt.Sprintf("\"%s\", ", rpcEncoding.DefaultMethod)
 	}
 	callAPI += fmt.Sprintf("`%s`", rpcPath)
-	if body != "" || headers != "" || query != "" || ts.sharedTypes {
+
+	if !ts.sharedTypes {
+		// Always pass body and options so callers can provide an AbortSignal
+		// or other CallParameters per request.
 		if body == "" {
 			body = "undefined"
 		}
-		if !ts.sharedTypes {
-			callAPI += ", " + body
+		callAPI += ", " + body
+
+		if headers != "" || query != "" {
+			callAPI += ", {...options, " + headers
+			if headers != "" && query != "" {
+				callAPI += ", "
+			}
+			if query != "" {
+				callAPI += query
+			}
+			callAPI += "}"
+		} else {
+			callAPI += ", options"
+		}
+	} else {
+		// sharedTypes: always pass the params object since it embeds method and body.
+		if body == "" {
+			body = "undefined"
 		}
 
 		if headers != "" || query != "" || ts.sharedTypes {
