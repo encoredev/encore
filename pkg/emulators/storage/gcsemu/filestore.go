@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,6 +18,16 @@ import (
 
 const (
 	metaExtention = ".emumeta"
+
+	// folderMarker is the file a folder placeholder object is stored as.
+	//
+	// Cloud Storage represents an empty folder as a zero-byte object whose name ends
+	// in "/", but a filename cannot end in a path separator. The object "a/" is
+	// therefore held as the file "a/<folderMarker>", which Walk reports back under the
+	// object's real name, so that the rest of the emulator can treat it as the plain
+	// object it is in Cloud Storage. An object genuinely named "a/<folderMarker>" is
+	// indistinguishable from the placeholder, the same collision metaExtention has.
+	folderMarker = ".emufolder"
 )
 
 type filestore struct {
@@ -35,7 +47,10 @@ type composeObj struct {
 }
 
 func (fs *filestore) CreateBucket(bucket string) error {
-	bucketDir := filepath.Join(fs.gcsDir, bucket)
+	bucketDir, err := fs.filename(bucket, "")
+	if err != nil {
+		return err
+	}
 	return os.MkdirAll(bucketDir, 0777)
 }
 
@@ -271,6 +286,11 @@ func (fs *filestore) filename(bucket string, filename string) (string, error) {
 	if !filepath.IsLocal(filename) {
 		return "", fmt.Errorf("invalid object name %q", filename)
 	}
+	if strings.HasSuffix(filename, "/") {
+		// A folder placeholder. Join drops the trailing separator, which would
+		// resolve the object onto the directory it names.
+		return filepath.Join(fs.gcsDir, bucket, filename, folderMarker), nil
+	}
 	return filepath.Join(fs.gcsDir, bucket, filename), nil
 }
 
@@ -278,26 +298,124 @@ func metaFilename(filename string) string {
 	return filename + metaExtention
 }
 
+// Walk invokes cb for every object in the bucket in object-name order, along with the
+// directories passed on the way (which are not objects, and carry no trailing "/").
+//
+// The ordering is load-bearing: ListObjects pages by remembering the last name it
+// returned and skipping everything <= it on the next request, so a name that arrives
+// out of order is dropped from the listing altogether. filepath.Walk can't provide it,
+// because it orders siblings by filename while the caller compares object names, and
+// the two disagree — the directory "a" holds the objects "a/…", which sort after the
+// sibling file "a.txt" since '.' < '/', yet filepath.Walk visits the directory first.
 func (fs *filestore) Walk(ctx context.Context, bucket string, cb func(ctx context.Context, filename string, fInfo os.FileInfo) error) error {
-	root := filepath.Join(fs.gcsDir, bucket)
-	return filepath.Walk(root, func(path string, fInfo os.FileInfo, err error) error {
-		if strings.HasSuffix(path, metaExtention) {
-			// Ignore metadata files
+	root, err := fs.filename(bucket, "")
+	if err != nil {
+		return err
+	}
+
+	fInfo, err := os.Lstat(root)
+	if err != nil {
+		// A bucket that has never been written to has no directory of its own. Callers
+		// recognize that with os.IsNotExist, so hand the error back unwrapped.
+		return err
+	}
+
+	err = fs.walkDir(ctx, root, "", fInfo, cb)
+	if errors.Is(err, filepath.SkipDir) || errors.Is(err, filepath.SkipAll) {
+		return nil
+	}
+	return err
+}
+
+// walkEntry is a directory entry paired with the object name it is reported under.
+type walkEntry struct {
+	// sortKey orders the entry among its siblings by object name instead of by
+	// filename. See walkDir for why the two differ.
+	sortKey string
+
+	// objName is the name cb sees, which is the entry's own name for a file, the
+	// folder it stands for for a marker, and the path so far for a directory.
+	objName string
+
+	de os.DirEntry
+}
+
+// walkDir invokes cb for dir itself and then, in object-name order, for everything
+// below it. objName is the name dir is reported under, "" for the bucket root.
+func (fs *filestore) walkDir(ctx context.Context, dir, objName string, fInfo os.FileInfo, cb func(ctx context.Context, filename string, fInfo os.FileInfo) error) error {
+	if err := cb(ctx, objName, fInfo); err != nil {
+		if errors.Is(err, filepath.SkipDir) {
 			return nil
 		}
+		return err
+	}
 
-		filename := strings.TrimPrefix(path, root)
-		filename = strings.TrimPrefix(filename, string(os.PathSeparator))
+	dirEntries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("walk error at %s: %w", objName, err)
+	}
+
+	// Object names are "/"-separated on every platform, matching the keys they came from.
+	prefix := objName
+	if prefix != "" {
+		prefix += "/"
+	}
+
+	entries := make([]walkEntry, 0, len(dirEntries))
+	for _, de := range dirEntries {
+		name := de.Name()
+		if !de.IsDir() && strings.HasSuffix(name, metaExtention) {
+			// Ignore metadata files.
+			continue
+		}
+
+		entry := walkEntry{sortKey: name, objName: prefix + name, de: de}
+		switch {
+		case de.IsDir():
+			// Every object below "a" is named "a/…", so that is where "a" sorts.
+			entry.sortKey = name + "/"
+		case name == folderMarker:
+			if prefix == "" {
+				// Directly in the bucket root, so it names no folder. Not reachable
+				// through Add, which rejects the key "/", but don't emit "" if it is.
+				continue
+			}
+			// Report the marker under the name of the object it stands for, so callers
+			// see the "a/" object Cloud Storage would have. That name is a prefix of
+			// every other name in the directory, so it always sorts first.
+			entry.objName = prefix
+			entry.sortKey = ""
+		}
+		entries = append(entries, entry)
+	}
+	slices.SortFunc(entries, func(a, b walkEntry) int {
+		return strings.Compare(a.sortKey, b.sortKey)
+	})
+
+	for _, entry := range entries {
+		info, err := entry.de.Info()
 		if err != nil {
 			if os.IsNotExist(err) {
 				return err
 			}
-			return fmt.Errorf("walk error at %s: %w", filename, err)
+			return fmt.Errorf("walk error at %s: %w", entry.objName, err)
 		}
 
-		if err := cb(ctx, filename, fInfo); err != nil {
+		if entry.de.IsDir() {
+			if err := fs.walkDir(ctx, filepath.Join(dir, entry.de.Name()), entry.objName, info, cb); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if err := cb(ctx, entry.objName, info); err != nil {
+			// filepath.Walk's convention: SkipDir from a file skips the rest of the
+			// directory holding it.
+			if errors.Is(err, filepath.SkipDir) {
+				return nil
+			}
 			return err
 		}
-		return nil
-	})
+	}
+	return nil
 }
