@@ -1,0 +1,13 @@
+-- foo/foo.ts --
+import { Bucket } from "encore.dev/storage/objects";
+
+export const ok = new Bucket("profile-pictures", {});
+
+-- package.json --
+{
+  "name": "foo",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}
