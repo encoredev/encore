@@ -653,7 +653,16 @@ mod tests {
         // Notably includes the names that would let a bucket escape its directory
         // in the local storage emulator.
         for name in [
-            "", "../escape", "a/b", "a\\b", ".", "..", "Bucket", "my_bucket", "1bucket", "bucket-",
+            "",
+            "../escape",
+            "a/b",
+            "a\\b",
+            ".",
+            "..",
+            "Bucket",
+            "my_bucket",
+            "1bucket",
+            "bucket-",
             &"a".repeat(64),
         ] {
             assert!(
