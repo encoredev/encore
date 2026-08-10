@@ -9,7 +9,6 @@ import (
 	pathspkg "path"
 	"runtime"
 	"slices"
-	"time"
 
 	"github.com/rs/zerolog"
 
@@ -49,9 +48,6 @@ type BuildInfo struct {
 	KeepOutput         bool
 	Revision           string
 	UncommittedChanges bool
-
-	// BuildTime is the time the build was created.
-	BuildTime time.Time
 
 	// MainPkg is the path to the existing main package to use, if any.
 	MainPkg option.Option[paths.Pkg]

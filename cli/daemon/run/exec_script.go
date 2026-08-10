@@ -90,7 +90,6 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		KeepOutput:         false,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
-		BuildTime:          time.Now(),
 		MainPkg:            option.Some(p.MainPkg),
 
 		// Use the local JS runtime if this is a development build.
