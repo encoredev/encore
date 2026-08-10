@@ -49,6 +49,7 @@ func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, nsMgr *namespace.Mana
 		dashPort: dashPort,
 		traceCh:  make(chan trace2.NewSpanEvent, 10),
 		clients:  make(map[chan<- *notification]struct{}),
+		objects:  &bucketBrowser{apps: appsMgr, run: runMgr, ns: nsMgr},
 	}
 
 	runMgr.AddListener(s)
@@ -67,6 +68,7 @@ type Server struct {
 	tr       trace2.Store
 	dashPort int
 	traceCh  chan trace2.NewSpanEvent
+	objects  *bucketBrowser
 
 	mu      sync.Mutex
 	clients map[chan<- *notification]struct{}
@@ -78,6 +80,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		s.WebSocket(w, req)
 	case "/__graphql":
 		s.apiProxy.ServeHTTP(w, req)
+	case "/__encore/objects/content":
+		s.objects.ServeContent(w, req)
 	default:
 		s.proxy.ServeHTTP(w, req)
 	}
@@ -95,7 +99,7 @@ func (s *Server) WebSocket(w http.ResponseWriter, req *http.Request) {
 
 	stream := &wsStream{c: c}
 	conn := jsonrpc2.NewConn(stream)
-	handler := &handler{rpc: conn, apps: s.apps, run: s.run, ns: s.ns, tr: s.tr}
+	handler := &handler{rpc: conn, apps: s.apps, run: s.run, ns: s.ns, tr: s.tr, objects: s.objects}
 	conn.Go(req.Context(), handler.Handle)
 
 	ch := make(chan *notification, 20)

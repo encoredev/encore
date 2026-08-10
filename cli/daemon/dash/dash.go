@@ -33,48 +33,56 @@ import (
 )
 
 type handler struct {
-	rpc  jsonrpc2.Conn
-	apps *apps.Manager
-	run  *run.Manager
-	ns   *namespace.Manager
-	tr   trace2.Store
+	rpc     jsonrpc2.Conn
+	apps    *apps.Manager
+	run     *run.Manager
+	ns      *namespace.Manager
+	tr      trace2.Store
+	objects *bucketBrowser
 }
 
 func (h *handler) GetMeta(appID string) (*meta.Data, error) {
-	runInstance := h.run.FindRunByAppID(appID)
-	var md *meta.Data
+	return resolveAppMeta(h.run, h.apps, appID)
+}
+
+func (h *handler) GetNamespace(ctx context.Context, appID string) (*namespace.Namespace, error) {
+	return resolveNamespace(ctx, h.run, h.apps, h.ns, appID)
+}
+
+// resolveAppMeta returns the metadata for the given app, preferring the metadata of a
+// currently running instance and falling back to the most recent cached parse.
+func resolveAppMeta(runMgr *run.Manager, appsMgr *apps.Manager, appID string) (*meta.Data, error) {
+	runInstance := runMgr.FindRunByAppID(appID)
 	if runInstance != nil && runInstance.ProcGroup() != nil {
-		md = runInstance.ProcGroup().Meta
-	} else {
-		app, err := h.apps.FindLatestByPlatformOrLocalID(appID)
-		if err != nil {
-			return nil, err
-		}
-		md, err = app.CachedMetadata()
-		if err != nil {
-			return nil, err
-		} else if md == nil {
-			return nil, err
-		}
+		return runInstance.ProcGroup().Meta, nil
+	}
+
+	app, err := appsMgr.FindLatestByPlatformOrLocalID(appID)
+	if err != nil {
+		return nil, err
+	}
+	md, err := app.CachedMetadata()
+	if err != nil {
+		return nil, err
+	} else if md == nil {
+		return nil, fmt.Errorf("no metadata available for app %s; run the app once to generate it", appID)
 	}
 	return md, nil
 }
 
-func (h *handler) GetNamespace(ctx context.Context, appID string) (*namespace.Namespace, error) {
-	runInstance := h.run.FindRunByAppID(appID)
+// resolveNamespace returns the namespace the given app is using: the one the running
+// instance was started with, or otherwise the app's active namespace.
+func resolveNamespace(ctx context.Context, runMgr *run.Manager, appsMgr *apps.Manager, nsMgr *namespace.Manager, appID string) (*namespace.Namespace, error) {
+	runInstance := runMgr.FindRunByAppID(appID)
 	if runInstance != nil && runInstance.ProcGroup() != nil {
 		return runInstance.NS, nil
-	} else {
-		app, err := h.apps.FindLatestByPlatformOrLocalID(appID)
-		if err != nil {
-			return nil, err
-		}
-		ns, err := h.ns.GetActive(ctx, app)
-		if err != nil {
-			return nil, err
-		}
-		return ns, nil
 	}
+
+	app, err := appsMgr.FindLatestByPlatformOrLocalID(appID)
+	if err != nil {
+		return nil, err
+	}
+	return nsMgr.GetActive(ctx, app)
 }
 
 func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
@@ -101,6 +109,41 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, err)
 		}
 		res, err := h.Transaction(ctx, p)
+		return reply(ctx, res, err)
+	case "objects/list":
+		var p bucketListRequest
+		if err := unmarshal(&p); err != nil {
+			return reply(ctx, nil, err)
+		}
+		res, err := h.objects.List(ctx, p)
+		return reply(ctx, res, err)
+	case "objects/search":
+		var p bucketSearchRequest
+		if err := unmarshal(&p); err != nil {
+			return reply(ctx, nil, err)
+		}
+		res, err := h.objects.Search(ctx, p)
+		return reply(ctx, res, err)
+	case "objects/delete":
+		var p bucketDeleteRequest
+		if err := unmarshal(&p); err != nil {
+			return reply(ctx, nil, err)
+		}
+		res, err := h.objects.Delete(ctx, p)
+		return reply(ctx, res, err)
+	case "objects/create-folder":
+		var p bucketCreateFolderRequest
+		if err := unmarshal(&p); err != nil {
+			return reply(ctx, nil, err)
+		}
+		res, err := h.objects.CreateFolder(ctx, p)
+		return reply(ctx, res, err)
+	case "objects/download-url":
+		var p bucketDownloadURLRequest
+		if err := unmarshal(&p); err != nil {
+			return reply(ctx, nil, err)
+		}
+		res, err := h.objects.DownloadURL(ctx, p)
 		return reply(ctx, res, err)
 	case "onboarding/get":
 		state, err := onboarding.Load()
@@ -427,11 +470,6 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 	}
 
 	return jsonrpc2.MethodNotFound(ctx, reply, r)
-}
-
-type sourceContextResponse struct {
-	Lines []string `json:"lines"`
-	Start int      `json:"start"`
 }
 
 func (h *handler) listenNotify(ctx context.Context, ch <-chan *notification) {

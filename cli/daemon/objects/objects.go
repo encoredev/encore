@@ -103,6 +103,18 @@ func (s *Server) PublicBaseURL() string {
 	return fmt.Sprintf("%s/%s", s.public.BaseAddr(), s.id)
 }
 
+// Store returns the underlying object store, for reading and writing objects
+// without going through the emulator's HTTP API.
+func (s *Server) Store() gcsemu.Store {
+	return s.store
+}
+
+// Emu returns the emulator serving this store, for the operations that need Cloud
+// Storage semantics rather than a bare store.
+func (s *Server) Emu() *gcsemu.GcsEmu {
+	return s.emu
+}
+
 // IsUsed reports whether the application uses object storage at all.
 func IsUsed(md *meta.Data) bool {
 	return len(md.Buckets) > 0
