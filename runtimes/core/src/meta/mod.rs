@@ -152,6 +152,19 @@ impl From<&meta::Data> for BuildMeta {
     }
 }
 
+/// Returns the value to serve as the `ETag` for static assets, or `None` to
+/// serve no entity tag at all — which costs bandwidth but is never stale.
+///
+/// The VCS revision stands in for the content of the assets built from it. That
+/// holds only for a clean tree: uncommitted changes don't move the revision, so
+/// two dirty builds would claim identical content while differing.
+pub fn static_asset_etag(md: &meta::Data) -> Option<String> {
+    if md.uncommitted_changes || md.app_revision.is_empty() {
+        return None;
+    }
+    Some(md.app_revision.clone())
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct HostedService {
     // The name of the service

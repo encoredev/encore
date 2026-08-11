@@ -43,6 +43,7 @@ pub struct Server {
 }
 
 impl Server {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         endpoints: Arc<EndpointMap>,
         hosted_endpoints: Vec<EndpointName>,
@@ -51,6 +52,7 @@ impl Server {
         tracer: trace::Tracer,
         auth_data_schemas: HashMap<String, Option<JSONSchema>>,
         metrics_registry: Arc<crate::metrics::Registry>,
+        static_asset_etag: Option<String>,
     ) -> anyhow::Result<Self> {
         // Register the routes, and track the handlers in a map so we can easily
         // set the request handler when registered.
@@ -95,7 +97,8 @@ impl Server {
                         if let Some(assets) = &ep.static_assets {
                             // For static asset routes, configure the static asset handler directly.
                             // There's no need to defer it for dynamic runtime registration.
-                            let static_handler = StaticAssetsHandler::new(assets);
+                            let static_handler =
+                                StaticAssetsHandler::new(assets, static_asset_etag.as_deref());
                             let requests_total = crate::metrics::requests_total_counter(
                                 &metrics_registry,
                                 ep.name.service(),

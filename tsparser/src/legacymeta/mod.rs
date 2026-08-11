@@ -54,8 +54,9 @@ struct MetaBuilder<'a> {
 
 impl MetaBuilder<'_> {
     pub fn build(mut self) -> PResult<v1::Data> {
-        // self.data.app_revision = parse_app_revision(&self.app_root)?;
         self.data.app_revision = std::env::var("ENCORE_APP_REVISION").unwrap_or_default();
+        self.data.uncommitted_changes =
+            std::env::var("ENCORE_APP_UNCOMMITTED_CHANGES").is_ok_and(|v| v == "true");
 
         let mut svc_index = HashMap::new();
         let mut svc_to_pkg_index = HashMap::new();

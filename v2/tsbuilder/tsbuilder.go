@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -105,6 +106,7 @@ func (i *BuilderImpl) Prepare(ctx context.Context, p builder.PrepareParams) (*bu
 	cmd.Env = append(cmd.Env,
 		"ENCORE_JS_RUNTIME_PATH="+jsRuntimePath.ToIO(),
 		"ENCORE_APP_REVISION="+p.Build.Revision,
+		"ENCORE_APP_UNCOMMITTED_CHANGES="+strconv.FormatBool(p.Build.UncommittedChanges),
 	)
 
 	// If we have an encore-bin directory, add it to the path.

@@ -209,6 +209,7 @@ impl ManagerConfig<'_> {
                 self.tracer.clone(),
                 auth_data_schemas,
                 Arc::clone(self.metrics.registry()),
+                crate::meta::static_asset_etag(self.meta),
             )
             .context("unable to create API server")?;
             Some(server)
