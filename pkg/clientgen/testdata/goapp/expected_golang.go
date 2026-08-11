@@ -291,6 +291,13 @@ type SvcResponseWithSingleSetCookie struct {
 	SetCookie string `header:"set-cookie"` // single set-cookie header value
 }
 
+// StatusResponse tests that unexported types in exported struct fields
+// are resolved inline rather than leaked as named schema components.
+type SvcStatusResponse struct {
+	Status  int
+	Message string
+}
+
 // Tuple is a generic type which allows us to
 // return two values of two different types
 type SvcTuple[A any, B any] struct {
@@ -320,6 +327,7 @@ type SvcClient interface {
 	FallbackPath(ctx context.Context, a string, b []string) error
 	Get(ctx context.Context, params SvcGetRequest) error
 	GetRequestWithAllInputTypes(ctx context.Context, params SvcAllInputTypes[int]) (SvcHeaderOnlyStruct, error)
+	GetStatus(ctx context.Context) (SvcStatusResponse, error)
 	HeaderOnlyRequest(ctx context.Context, params SvcHeaderOnlyStruct) error
 	Nested(ctx context.Context, params SvcWithNested) (SvcWithNested, error)
 	RESTPath(ctx context.Context, a string, b int) error
@@ -446,6 +454,16 @@ func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcA
 
 	if respDecoder.LastError != nil {
 		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
+		return
+	}
+
+	return
+}
+
+func (c *svcClient) GetStatus(ctx context.Context) (resp SvcStatusResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "GET", "/svc.GetStatus", nil, nil, &resp)
+	if err != nil {
 		return
 	}
 
