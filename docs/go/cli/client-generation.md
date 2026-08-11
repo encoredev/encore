@@ -45,6 +45,87 @@ encore gen client hello-a8bc --output=./client.go --env=local
 encore gen client hello-a8bc --lang=openapi --output=./openapi.json
 ```
 
+### OpenAPI schema metadata
+
+Encore's OpenAPI generator reads normal Encore API metadata and can also decorate generated schemas from Go struct tags. Use the optional `openapi` tag when you need language-agnostic OpenAPI details that are not expressed by the Go type alone, such as examples, enum values, formats, or numeric/string constraints.
+
+```go
+//encore:enum
+type Currency string
+
+const (
+    EUR Currency = "EUR"
+    USD Currency = "USD"
+    GBP Currency = "GBP"
+)
+
+type CreateOrderParams struct {
+    CustomerEmail string   `json:"customer_email" openapi:"format=email;example=customer@example.com"`
+    PostalCode    string   `json:"postal_code" openapi:"example=\"75001\";pattern=^[0-9]{5}$"`
+    Quantity      int      `json:"quantity" openapi:"minimum=1;maximum=100;default=1;example=2"`
+    Currency      Currency `json:"currency" openapi:"example=EUR"` // enum comes from the Currency schema
+    Status        string   `json:"status" openapi:"enum=pending|paid|cancelled;example=pending"`
+    Note          string   `json:"note" openapi:"deprecated=true;maxLength=280;example=Leave at reception"`
+}
+```
+
+The tag value is semicolon-separated (`key=value;key=value`). During OpenAPI generation, Encore applies these settings to the generated schema for that field. In the example above, OpenAPI consumers will see a real email example, a postal-code regexp, quantity bounds/default, a `Currency` schema based on the Go type, inline allowed `Status` values, and a deprecated note field.
+
+#### `openapi` struct tag
+
+Supported keys:
+
+| Key | What it does |
+| --- | --- |
+| `example` | Sets the OpenAPI `example` value shown by docs, API explorers, and generated sample payloads. Encore also stores this value in app metadata for local tooling that wants to prefill sample requests. |
+| `default` | Sets the OpenAPI `default` value. This documents the default; it does not apply the value at runtime. Encore also stores this value in app metadata for local tooling. |
+| `format` | Sets the OpenAPI `format`, such as `email`, `uri`, `uuid`, or `date-time`. |
+| `deprecated` | Marks the field as deprecated. Use `deprecated=true`; `deprecated=false` leaves it active. |
+| `enum` | Sets allowed values inline. Use `a|b|c` for simple values or a JSON array like `["a","b"]`. If the field's schema already has enum values from its type, prefer that typed enum and omit `enum` from the tag; add only `example` if needed. |
+| `minimum`, `min` | Sets the minimum numeric value. |
+| `maximum`, `max` | Sets the maximum numeric value. |
+| `minLength` | Sets the minimum string length. |
+| `maxLength` | Sets the maximum string length. |
+| `pattern` | Sets a regular expression pattern the string should match. |
+
+Values are parsed as JSON when possible, otherwise they are emitted as strings. For string examples that look like numbers, quote the value as JSON (`example=\"75001\"`) so OpenAPI receives a string instead of a number.
+
+#### Typed enums
+
+Mark a named type with `//encore:enum` to have Encore collect its package-level constants and emit them as OpenAPI enum values:
+
+```go
+//encore:enum
+type Status string
+
+const (
+    Pending Status = "pending"
+    Paid    Status = "paid"
+)
+
+type Payment struct {
+    Status Status `json:"status" openapi:"example=pending"`
+}
+```
+
+Fields using that type reference the typed enum schema, so both requests and responses are constrained to its values. In tools that support OpenAPI enums, this commonly renders as a select/dropdown.
+
+`//encore:enum` supports package-level constants with string, bool, int/uint, float, and simple `iota` values. If the generated schema does not include `enum`, add `openapi:"enum=..."` on the field.
+
+#### Validation metadata
+
+Encore validation rules are also reflected in OpenAPI where they map directly: length/value bounds, regexp patterns, `startsWith`/`endsWith`, email, and URL validation.
+
+#### Local tooling metadata
+
+Encore stores `openapi.example` and `openapi.default` as JSON-encoded field metadata. This lets local tooling, such as request example builders, prefer user-provided values over type fallbacks:
+
+1. `openapi.example`
+2. `openapi.default`
+3. generated fallback for the Go type
+
+The hosted local dashboard UI may need a corresponding frontend update before it uses these metadata fields for its API Explorer defaults.
+
 ### Environment Selection
 
 By default, `encore gen client` generates the client based on the version of your application currently running in your local environment.

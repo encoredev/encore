@@ -21,6 +21,33 @@ Encore currently supports generating the following clients:
 If there's a language you think should be added, please submit a pull request or create a feature
 request on [GitHub](https://github.com/encoredev/encore/issues/new), or [reach out on Discord](/discord).
 
+### OpenAPI metadata
+
+Encore's OpenAPI generator reads normal Encore API metadata and can also decorate generated schemas from TypeScript field comments. Use `@openapi` in a field JSDoc/comment when you need details that are not expressed by the TypeScript type alone, such as examples, enum values, formats, or numeric/string constraints.
+
+```ts
+interface CreateOrderParams {
+  /** @openapi format=email;example=customer@example.com */
+  customerEmail: string;
+
+  /** @openapi example="75001";pattern=^[0-9]{5}$ */
+  postalCode: string;
+
+  /** @openapi minimum=1;maximum=100;default=1;example=2 */
+  quantity: number;
+
+  /** @openapi enum=pending|paid|cancelled;example=pending */
+  status: string;
+
+  /** @openapi deprecated=true;maxLength=280;example=Leave at reception */
+  note: string;
+}
+```
+
+The value is semicolon-separated (`key=value;key=value`). Supported keys are `example`, `default`, `format`, `deprecated`, `enum`, `minimum`/`min`, `maximum`/`max`, `minLength`, `maxLength`, and `pattern`. Values are parsed as JSON when possible, otherwise they are emitted as strings.
+
+For typed enums, prefer TypeScript literal unions (`"pending" | "paid"`) where possible; use `@openapi enum=...` only when the field type cannot express the allowed values.
+
 <Callout type="important">
 
 If you ship the generated client to end customers, keep in mind that old clients will continue to be used after you make changes. To prevent issues with the generated clients, avoid making breaking changes in APIs that your clients access.
