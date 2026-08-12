@@ -547,6 +547,28 @@ pub fn resolve_interface(tc: &TypeChecker, typ: &Sp<Type>) -> Option<Interface> 
 ///
 /// Returns `Ok(())` if valid, or an error string if invalid.
 pub fn validate_snake_case_name(name: &str, reserved_prefix: Option<&str>) -> Result<(), String> {
+    validate_resource_name(name, '_', "underscores", reserved_prefix)
+}
+
+/// Validates that a resource name follows kebab-case naming conventions.
+///
+/// Identical to [`validate_snake_case_name`] except that dashes take the place of
+/// underscores. This mirrors `parseutil.KebabName` in the Go parser.
+///
+/// Returns `Ok(())` if valid, or an error string if invalid.
+pub fn validate_kebab_case_name(name: &str, reserved_prefix: Option<&str>) -> Result<(), String> {
+    validate_resource_name(name, '-', "dashes", reserved_prefix)
+}
+
+/// Validates a resource name against `^[a-z]([<sep>a-z0-9]*[a-z0-9])?$` and a maximum
+/// length, where `sep` is the separator the naming convention allows in the middle of a
+/// name and `sep_desc` names it in error messages.
+fn validate_resource_name(
+    name: &str,
+    sep: char,
+    sep_desc: &str,
+    reserved_prefix: Option<&str>,
+) -> Result<(), String> {
     const MAX_LENGTH: usize = 63;
 
     // Check length
@@ -558,7 +580,6 @@ pub fn validate_snake_case_name(name: &str, reserved_prefix: Option<&str>) -> Re
         ));
     }
 
-    // Check snake_case format: ^[a-z]([_a-z0-9]*[a-z0-9])?$
     let mut chars = name.chars();
 
     // First character must be a lowercase letter
@@ -593,12 +614,12 @@ pub fn validate_snake_case_name(name: &str, reserved_prefix: Option<&str>) -> Re
         ));
     }
 
-    // Middle characters must be lowercase letters, digits, or underscores
+    // Middle characters must be lowercase letters, digits, or the separator
     for (i, c) in name.chars().enumerate() {
-        if !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '_' {
+        if !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != sep {
             return Err(format!(
-                "name must only contain lowercase letters, numbers, and underscores (got '{}' at position {})",
-                c, i
+                "name must only contain lowercase letters, numbers, and {} (got '{}' at position {})",
+                sep_desc, c, i
             ));
         }
     }
@@ -614,4 +635,61 @@ pub fn validate_snake_case_name(name: &str, reserved_prefix: Option<&str>) -> Re
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{validate_kebab_case_name, validate_snake_case_name};
+
+    #[test]
+    fn kebab_case_names() {
+        for name in ["a", "profile-pictures", "bucket2", "a-b-c-1"] {
+            assert!(
+                validate_kebab_case_name(name, None).is_ok(),
+                "expected {name:?} to be valid"
+            );
+        }
+
+        // Notably includes the names that would let a bucket escape its directory
+        // in the local storage emulator.
+        for name in [
+            "",
+            "../escape",
+            "a/b",
+            "a\\b",
+            ".",
+            "..",
+            "Bucket",
+            "my_bucket",
+            "1bucket",
+            "bucket-",
+            &"a".repeat(64),
+        ] {
+            assert!(
+                validate_kebab_case_name(name, None).is_err(),
+                "expected {name:?} to be invalid"
+            );
+        }
+
+        assert!(validate_kebab_case_name("e-count", Some("e-")).is_err());
+    }
+
+    #[test]
+    fn snake_case_names() {
+        for name in ["a", "request_count", "metric2"] {
+            assert!(
+                validate_snake_case_name(name, None).is_ok(),
+                "expected {name:?} to be valid"
+            );
+        }
+
+        for name in ["", "my-metric", "My_metric", "_count", "count_"] {
+            assert!(
+                validate_snake_case_name(name, None).is_err(),
+                "expected {name:?} to be invalid"
+            );
+        }
+
+        assert!(validate_snake_case_name("e_count", Some("e_")).is_err());
+    }
 }

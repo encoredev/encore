@@ -11,7 +11,7 @@ use crate::parser::resourceparser::bind::{BindData, BindKind};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{
-    iter_references, resolve_object_for_bind_name, TrackedNames,
+    iter_references, resolve_object_for_bind_name, validate_kebab_case_name, TrackedNames,
 };
 use crate::parser::resources::parseutil::{NamedClassResourceOptionalConfig, NamedStaticMethod};
 use crate::parser::resources::Resource;
@@ -48,6 +48,15 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
             type Res = NamedClassResourceOptionalConfig<DecodedBucketConfig>;
             for r in iter_references::<Res>(&module, &names) {
                 let r = report_and_continue!(r);
+
+                if let Err(err_msg) = validate_kebab_case_name(&r.resource_name, None) {
+                    r.range.err(&format!(
+                        "invalid bucket name '{}': {}.",
+                        r.resource_name, err_msg
+                    ));
+                    continue;
+                }
+
                 let cfg = r.config.unwrap_or_default();
 
                 let object = resolve_object_for_bind_name(
