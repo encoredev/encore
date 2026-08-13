@@ -2,6 +2,7 @@ package dash
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -197,16 +198,14 @@ func TestListPagination(t *testing.T) {
 
 // TestListPaginationWithPrefixRollup covers a page that fills up entirely with
 // rolled-up sub-paths: it still has to hand back a token, or the dashboard stops
-// early and silently hides the remaining folders.
-//
-// A prefix may be reported on more than one page, which the dashboard deduplicates,
-// so this only checks that every folder is eventually seen.
+// early and silently hides the remaining folders. Each folder is reported once, on
+// one page, so the dashboard can append pages as they arrive.
 func TestListPaginationWithPrefixRollup(t *testing.T) {
 	ctx := context.Background()
 	target := newTestTarget(t, &meta.Bucket{Name: testBucket})
 	seed(t, target, "a/1.txt", "b/1.txt", "c/1.txt", "d/1.txt")
 
-	seen := make(map[string]bool)
+	var got []string
 	pageToken := ""
 	for i := 0; ; i++ {
 		if i > 10 {
@@ -216,18 +215,44 @@ func TestListPaginationWithPrefixRollup(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, prefix := range res.Prefixes {
-			seen[prefix] = true
-		}
+		got = append(got, res.Prefixes...)
 		if res.NextPageToken == "" {
 			break
 		}
 		pageToken = res.NextPageToken
 	}
 
-	want := map[string]bool{"a/": true, "b/": true, "c/": true, "d/": true}
-	if !reflect.DeepEqual(seen, want) {
-		t.Errorf("prefixes seen = %v, want %v", seen, want)
+	if want := []string{"a/", "b/", "c/", "d/"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("paging through the folders gave %v, want %v", got, want)
+	}
+}
+
+// TestListLargeFolder pins that how big a folder is doesn't affect how many pages it
+// takes to browse the folder it sits in: it is one row in the dashboard however many
+// objects are below it, so it costs one result of the page reporting it.
+func TestListLargeFolder(t *testing.T) {
+	ctx := context.Background()
+	target := newTestTarget(t, &meta.Bucket{Name: testBucket})
+
+	keys := make([]string, 0, 201)
+	for i := range 200 {
+		keys = append(keys, fmt.Sprintf("holiday/%03d.jpg", i))
+	}
+	keys = append(keys, "readme.txt")
+	seed(t, target, keys...)
+
+	res, err := target.List(ctx, bucketListRequest{Delimiter: "/", PageSize: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"holiday/"}; !reflect.DeepEqual(res.Prefixes, want) {
+		t.Errorf("prefixes = %v, want %v", res.Prefixes, want)
+	}
+	if want := []string{"readme.txt"}; !reflect.DeepEqual(keysOf(res.Objects), want) {
+		t.Errorf("objects = %v, want %v", keysOf(res.Objects), want)
+	}
+	if res.NextPageToken != "" {
+		t.Error("got a page token, want the whole folder view on one page")
 	}
 }
 
@@ -245,9 +270,10 @@ func TestSearch(t *testing.T) {
 	seed(t, target, "report.pdf", "reports/q1.pdf", "2024/annual-report.pdf", "notes.txt")
 
 	tests := []struct {
-		name string
-		req  bucketSearchRequest
-		want []string
+		name         string
+		req          bucketSearchRequest
+		want         []string
+		wantPrefixes []string
 	}{
 		{
 			name: "prefix search is anchored at the start of the key",
@@ -255,9 +281,11 @@ func TestSearch(t *testing.T) {
 			want: []string{"report.pdf", "reports/q1.pdf"},
 		},
 		{
-			name: "non-recursive prefix search does not descend",
-			req:  bucketSearchRequest{Query: "report"},
-			want: []string{"report.pdf"},
+			// As Cloud Storage does with a delimiter set.
+			name:         "non-recursive prefix search rolls matches below a sub-path up",
+			req:          bucketSearchRequest{Query: "report"},
+			want:         []string{"report.pdf"},
+			wantPrefixes: []string{"reports/"},
 		},
 		{
 			name: "glob search matches anywhere in the key",
@@ -291,7 +319,50 @@ func TestSearch(t *testing.T) {
 			if !reflect.DeepEqual(got, test.want) {
 				t.Errorf("objects = %v, want %v", got, test.want)
 			}
+			wantPrefixes := test.wantPrefixes
+			if wantPrefixes == nil {
+				wantPrefixes = []string{}
+			}
+			if !reflect.DeepEqual(res.Prefixes, wantPrefixes) {
+				t.Errorf("prefixes = %v, want %v", res.Prefixes, wantPrefixes)
+			}
 		})
+	}
+}
+
+// TestSearchPaginationWithPrefixRollup pins that a non-recursive search spends its pages
+// the way a delimited listing does, rather than charging the page for objects a sub-path
+// stands for and then not reporting them.
+func TestSearchPaginationWithPrefixRollup(t *testing.T) {
+	ctx := context.Background()
+	target := newTestTarget(t, &meta.Bucket{Name: testBucket})
+	seed(t, target, "report-2024/q1.pdf", "report-2024/q2.pdf", "report-2024/q3.pdf",
+		"report-2025/q1.pdf", "report.pdf", "notes.txt")
+
+	res, err := target.Search(ctx, bucketSearchRequest{Query: "report", PageSize: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"report-2024/", "report-2025/"}; !reflect.DeepEqual(res.Prefixes, want) {
+		t.Errorf("prefixes = %v, want %v", res.Prefixes, want)
+	}
+	if want := []string{"report.pdf"}; !reflect.DeepEqual(keysOf(res.Objects), want) {
+		t.Errorf("objects = %v, want %v", keysOf(res.Objects), want)
+	}
+	if res.NextPageToken != "" {
+		t.Error("got a page token, want every match on one page")
+	}
+
+	// A glob search rolls nothing up, so it reports the objects themselves.
+	res, err = target.Search(ctx, bucketSearchRequest{Query: "report**", Mode: string(searchModeGlob)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Prefixes) != 0 {
+		t.Errorf("prefixes = %v, want none for a glob search", res.Prefixes)
+	}
+	if got := len(res.Objects); got != 5 {
+		t.Errorf("objects = %v, want all 5 matches", keysOf(res.Objects))
 	}
 }
 

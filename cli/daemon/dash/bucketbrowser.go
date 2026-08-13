@@ -119,6 +119,9 @@ type bucketSearchRequest struct {
 }
 
 type bucketSearchResponse struct {
+	// Prefixes holds the sub-paths a non-recursive search matched below, the way Cloud
+	// Storage reports them. A recursive or glob search rolls nothing up, so it's empty.
+	Prefixes      []string       `json:"prefixes"`
 	Objects       []bucketObject `json:"objects"`
 	NextPageToken string         `json:"next_page_token"`
 }
@@ -214,14 +217,8 @@ func (t *bucketTarget) List(ctx context.Context, req bucketListRequest) (*bucket
 		return nil, err
 	}
 
-	// The dashboard distinguishes "no sub-paths" from "field absent", so never return null.
-	prefixes := objs.Prefixes
-	if prefixes == nil {
-		prefixes = []string{}
-	}
-
 	return &bucketListResponse{
-		Prefixes:      prefixes,
+		Prefixes:      bucketPrefixes(objs),
 		Objects:       t.objects(objs),
 		NextPageToken: objs.NextPageToken,
 	}, nil
@@ -266,6 +263,7 @@ func (t *bucketTarget) Search(ctx context.Context, req bucketSearchRequest) (*bu
 	}
 
 	return &bucketSearchResponse{
+		Prefixes:      bucketPrefixes(objs),
 		Objects:       t.objects(objs),
 		NextPageToken: objs.NextPageToken,
 	}, nil
@@ -570,6 +568,15 @@ func (t *bucketTarget) list(ctx context.Context, opts gcsemu.ListOptions, pageTo
 		return nil, errors.Wrap(err, "list objects")
 	}
 	return objs, nil
+}
+
+// bucketPrefixes returns the rolled-up sub-paths of a listing, never null: the
+// dashboard distinguishes "no sub-paths" from "field absent".
+func bucketPrefixes(objs *storage.Objects) []string {
+	if objs.Prefixes == nil {
+		return []string{}
+	}
+	return objs.Prefixes
 }
 
 // objects converts emulator objects to their dashboard representation.
