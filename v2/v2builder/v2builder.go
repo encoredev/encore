@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -387,6 +388,7 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 		}
 	}
 
+	cueGen := cuegen.NewGenerator(desc)
 	configs := make(map[string]string, len(desc.Services))
 	for _, svc := range desc.Services {
 		resourceNode, ok := serviceUsesConfig[svc.Name]
@@ -401,6 +403,22 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 		}
 		// Convert the path since io/fs operates on forward slashes.
 		rel = filepath.ToSlash(rel)
+
+		// Take the service's CUE definitions from the parse result rather than
+		// the encore.gen.cue on disk, which is written for editors and may be
+		// absent or stale, mirroring how generated Go reaches the compiler.
+		genCue, err := cueGen.UserFacing(svc)
+		if err != nil {
+			errs.AddStdNode(err, resourceNode)
+			continue
+		}
+		if len(genCue) > 0 {
+			if _, err := files.AddFile(path.Join(rel, "encore.gen.cue"), genCue, time.Now()); err != nil {
+				errs.AddStdNode(err, resourceNode)
+				continue
+			}
+		}
+
 		cfg, err := cueutil.LoadFromFS(files, rel, cueMeta)
 		if err != nil {
 			errs.AddStdNode(err, resourceNode)
@@ -417,7 +435,7 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 	return configResult{configs, files}
 }
 
-func pickupConfigFiles(errs *perr.List, mainModule *pkginfo.Module) fs.FS {
+func pickupConfigFiles(errs *perr.List, mainModule *pkginfo.Module) *vfs.VFS {
 	inCueModFolder := func(path string, info fs.DirEntry) bool {
 		// If it's not a directory, get the parent directory
 		if !info.IsDir() {
