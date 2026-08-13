@@ -37,7 +37,8 @@ type ListOptions struct {
 	// matches the given glob pattern. See compileGlob for the supported syntax.
 	MatchGlob string
 
-	// MaxResults caps the number of objects and rolled-up prefixes returned.
+	// MaxResults caps the combined number of objects and rolled-up prefixes returned,
+	// counting each prefix once however many objects it stands for.
 	// If <= 0 or above MaxResults, MaxResults is used.
 	MaxResults int
 }
@@ -84,11 +85,19 @@ func (g *GcsEmu) ListObjects(ctx context.Context, baseUrl HttpBaseUrl, bucket st
 		}
 	}
 
-	// lastMatch is the name of the last object accepted by the filters, whether it was
-	// returned as an object or rolled up into a prefix. It seeds the next page token.
+	// lastMatch is the name of the last object this page reported, either in its own
+	// right or as the first object seen below a prefix. It seeds the next page token.
 	var lastMatch string
 	moreResults := false
 	count := 0
+
+	// A prefix is reported the first time an object below it is seen, so a cursor that
+	// rolls up names an object below a sub-path an earlier page of this listing already
+	// reported: everything else below it is a duplicate, and can be skipped in one step
+	// rather than walked (and, on a filesystem, stat'ed) object by object on every page.
+	// Like Cloud Storage, a page token belongs to the listing it came from; carrying one
+	// over to a different delimiter or prefix is undefined.
+	cursorPrefix := rollupPrefix(opts.Cursor, opts.Prefix, opts.Delimiter)
 	err := g.store.Walk(ctx, bucket, func(ctx context.Context, filename string, fInfo os.FileInfo) error {
 		dbgWalk("walk: %s", filename)
 
@@ -113,6 +122,11 @@ func (g *GcsEmu) ListObjects(ctx context.Context, baseUrl HttpBaseUrl, bucket st
 				dbgWalk("%q < prefix=%q skip dir", filename, opts.Prefix)
 				return filepath.SkipDir
 			}
+			// Everything below this directory was reported as a prefix already.
+			if cursorPrefix != "" && strings.HasPrefix(filename+"/", cursorPrefix) {
+				dbgWalk("%q below reported prefix=%q skip dir", filename, cursorPrefix)
+				return filepath.SkipDir
+			}
 			// Directories are not objects, so they are never reported. A folder that
 			// was explicitly created has a placeholder object inside it, which the
 			// store reports under the folder's own name.
@@ -128,11 +142,35 @@ func (g *GcsEmu) ListObjects(ctx context.Context, baseUrl HttpBaseUrl, bucket st
 			dbgWalk("%q < prefix=%q skipping", filename, opts.Prefix)
 			return nil
 		}
+		if cursorPrefix != "" && strings.HasPrefix(filename, cursorPrefix) {
+			dbgWalk("%q below reported prefix=%q skipping", filename, cursorPrefix)
+			return nil
+		}
 
 		// Non-matching objects don't consume the page budget, so that a sparse
 		// glob still fills a page instead of returning mostly-empty ones.
 		if glob != nil && !glob.MatchString(filename) {
 			dbgWalk("%q does not match glob=%q skipping", filename, opts.MatchGlob)
+			return nil
+		}
+
+		// An object below a sub-path is reported as that sub-path, and only the first
+		// one is: the rest are already covered by the prefix it produced. Those don't
+		// consume the page budget either, or a folder holding a thousand objects would
+		// fill a page of a thousand with one repeated sub-path.
+		if itemPrefix := rollupPrefix(filename, opts.Prefix, opts.Delimiter); itemPrefix != "" {
+			if seenPrefixes[itemPrefix] {
+				dbgWalk("%q already covered by prefix=%q skipping", filename, itemPrefix)
+				return nil
+			}
+			if count >= maxResults {
+				moreResults = true
+				return errAbort
+			}
+			count++
+			lastMatch = filename
+			seenPrefixes[itemPrefix] = true
+			prefixes = append(prefixes, itemPrefix)
 			return nil
 		}
 
@@ -142,22 +180,6 @@ func (g *GcsEmu) ListObjects(ctx context.Context, baseUrl HttpBaseUrl, bucket st
 		}
 		count++
 		lastMatch = filename
-
-		if opts.Delimiter != "" {
-			// See if the filename (beyond the prefix) contains delimiter, if it does, don't record the item,
-			// instead record the prefix (including the delimiter).
-			withoutPrefix := strings.TrimPrefix(filename, opts.Prefix)
-			delimiterPos := strings.Index(withoutPrefix, opts.Delimiter)
-			if delimiterPos >= 0 {
-				// Got a hit, reconstruct the item's prefix, including the trailing delimiter
-				itemPrefix := filename[:len(opts.Prefix)+delimiterPos+len(opts.Delimiter)]
-				if !seenPrefixes[itemPrefix] {
-					seenPrefixes[itemPrefix] = true
-					prefixes = append(prefixes, itemPrefix)
-				}
-				return nil
-			}
-		}
 
 		found = append(found, item{
 			filename: filename,
@@ -194,6 +216,19 @@ func (g *GcsEmu) ListObjects(ctx context.Context, baseUrl HttpBaseUrl, bucket st
 		Items:         items,
 		Prefixes:      prefixes,
 	}, nil
+}
+
+// rollupPrefix returns the sub-path name is reported as when listing below prefix with
+// the given delimiter, including the trailing delimiter, or "" if name doesn't roll up.
+func rollupPrefix(name string, prefix string, delimiter string) string {
+	if delimiter == "" || !strings.HasPrefix(name, prefix) {
+		return ""
+	}
+	delimiterPos := strings.Index(name[len(prefix):], delimiter)
+	if delimiterPos < 0 {
+		return ""
+	}
+	return name[:len(prefix)+delimiterPos+len(delimiter)]
 }
 
 // Iterate over the file system to serve a GCS list-bucket request.

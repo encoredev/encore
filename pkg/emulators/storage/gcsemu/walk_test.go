@@ -300,6 +300,147 @@ func TestListObjectsPagesEveryObject(t *testing.T) {
 	}
 }
 
+// TestListObjectsPagesEveryPrefixOnce pins how a delimited listing spends a page: on
+// results the caller hasn't seen. A sub-path counts once however many objects it stands
+// for — Cloud Storage's maxResults is the "maximum combined number of entries in items[]
+// and prefixes[]" — so a folder holding more objects than fit in a page is still one
+// prefix on one page, rather than a run of pages repeating the same sub-path.
+func TestListObjectsPagesEveryPrefixOnce(t *testing.T) {
+	ctx := context.Background()
+	store := NewFileStore(t.TempDir())
+	emu := NewGcsEmu(Options{Store: store})
+
+	var wantPrefixes []string
+	for folder := range 5 {
+		wantPrefixes = append(wantPrefixes, fmt.Sprintf("f%d/", folder))
+		for i := range 50 {
+			key := fmt.Sprintf("f%d/%03d.txt", folder, i)
+			if err := store.Add("bkt", key, []byte("x"), &storage.Object{}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	wantItems := []string{"g.txt", "h.txt"} // objects of the root's own, sorting last
+	for _, key := range wantItems {
+		if err := store.Add("bkt", key, []byte("x"), &storage.Object{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, maxResults := range []int{1, 2, 3, 7, 100} {
+		var gotPrefixes, gotItems []string
+		pages := 0
+		opts := ListOptions{Delimiter: "/", MaxResults: maxResults}
+		for {
+			if pages > 20 {
+				t.Fatalf("maxResults=%d: pagination did not terminate", maxResults)
+			}
+			objs, err := emu.ListObjects(ctx, "", "bkt", opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pages++
+			if got := len(objs.Items) + len(objs.Prefixes); got > maxResults {
+				t.Errorf("maxResults=%d: page held %d results", maxResults, got)
+			} else if got == 0 {
+				t.Errorf("maxResults=%d: page %d held no results at all", maxResults, pages)
+			}
+			gotPrefixes = append(gotPrefixes, objs.Prefixes...)
+			gotItems = append(gotItems, names(objs)...)
+			if objs.NextPageToken == "" {
+				break
+			}
+			cursor, err := gcsutil.DecodePageToken(objs.NextPageToken)
+			if err != nil {
+				t.Fatal(err)
+			}
+			opts.Cursor = cursor
+		}
+
+		// Every sub-path exactly once, in order, however small the pages are.
+		if !reflect.DeepEqual(gotPrefixes, wantPrefixes) {
+			t.Errorf("maxResults=%d: paged through prefixes %v, want %v", maxResults, gotPrefixes, wantPrefixes)
+		}
+		if !reflect.DeepEqual(gotItems, wantItems) {
+			t.Errorf("maxResults=%d: paged through items %v, want %v", maxResults, gotItems, wantItems)
+		}
+		// ceil(results/n) pages exactly: nothing but a result was ever charged for.
+		if want := (len(wantPrefixes) + len(wantItems) + maxResults - 1) / maxResults; pages != want {
+			t.Errorf("maxResults=%d: took %d pages, want %d", maxResults, pages, want)
+		}
+	}
+}
+
+// TestListObjectsSkipsReportedPrefix pins that paging past a reported sub-path doesn't
+// walk what's below it again. Those objects can only roll up into the same prefix and be
+// dropped, so revisiting them costs a stat apiece for nothing — which is what made paging
+// a large folder take time quadratic in its size.
+func TestListObjectsSkipsReportedPrefix(t *testing.T) {
+	ctx := context.Background()
+	store := NewFileStore(t.TempDir())
+	counting := &countingStore{Store: store}
+	emu := NewGcsEmu(Options{Store: counting})
+
+	for i := range 200 {
+		if err := store.Add("bkt", fmt.Sprintf("big/%03d.txt", i), []byte("x"), &storage.Object{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, key := range []string{"y.txt", "z.txt"} {
+		if err := store.Add("bkt", key, []byte("x"), &storage.Object{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// The first page reports "big/" off its first object; the pages after it must
+	// not look at the other 199.
+	opts := ListOptions{Delimiter: "/", MaxResults: 1}
+	var visited []int
+	for pages := 0; ; pages++ {
+		if pages > 5 {
+			t.Fatal("pagination did not terminate")
+		}
+		counting.walked = 0
+		objs, err := emu.ListObjects(ctx, "", "bkt", opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		visited = append(visited, counting.walked)
+		if objs.NextPageToken == "" {
+			break
+		}
+		cursor, err := gcsutil.DecodePageToken(objs.NextPageToken)
+		if err != nil {
+			t.Fatal(err)
+		}
+		opts.Cursor = cursor
+	}
+
+	if len(visited) != 3 {
+		t.Fatalf("took %d pages, want 3 (big/, y.txt, z.txt)", len(visited))
+	}
+	for _, walked := range visited[1:] {
+		// A handful covers the root and what the page reports; the point is that it
+		// isn't the 200 objects below "big/".
+		if walked > 10 {
+			t.Errorf("pages walked %v names, want the pages after the first to skip the folder", visited)
+		}
+	}
+}
+
+// countingStore counts the names a listing walks past.
+type countingStore struct {
+	Store
+	walked int
+}
+
+func (s *countingStore) Walk(ctx context.Context, bucket string, cb func(ctx context.Context, filename string, fInfo os.FileInfo) error) error {
+	return s.Store.Walk(ctx, bucket, func(ctx context.Context, filename string, fInfo os.FileInfo) error {
+		s.walked++
+		return cb(ctx, filename, fInfo)
+	})
+}
+
 // TestListObjectsClampsMaxResults pins that a caller can't ask for a bigger page than
 // Cloud Storage would give: "The service will use this parameter or 1,000 items,
 // whichever is smaller." An over-large request is capped, not rejected.
