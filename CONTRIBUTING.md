@@ -4,7 +4,7 @@ We're so excited that you are interested in contributing to Encore!
 All contributions are welcome, and there are several valuable ways to contribute.
 
 Below is a technical walkthrough of developing the `encore` command for contributing code
-to the Encore project. Head over to the community section for [more ways to contribute](https://encore.dev/docs/community/contribute)!
+to the Encore project. Head over to the community section for [more ways to contribute](https://encore.dev/docs/ts/community/contribute)!
 
 ## GitHub Codespaces / VS Code Remote Containers
 The easiest way to get started with developing Encore is using
