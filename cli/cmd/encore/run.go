@@ -30,9 +30,9 @@ var (
 		Desc:        "Compile for debugging (disables some optimizations)",
 		TypeDesc:    "string",
 	}
-	watch    bool
-	listen   string
-	logLevel = cmdutil.Oneof{
+	autoreload bool
+	listen     string
+	logLevel   = cmdutil.Oneof{
 		Value:     "",
 		Allowed:   []string{"trace", "debug", "info", "warn", "error"},
 		Flag:      "level",
@@ -55,15 +55,16 @@ var (
 
 func init() {
 	runCmd := &cobra.Command{
-		Use:   "run [--debug] [--watch=true] [--level=TRACE] [--port=4000] [--listen=<listen-addr>]",
+		Use:   "run [--debug] [--autoreload=true] [--level=TRACE] [--port=4000] [--listen=<listen-addr>]",
 		Short: "Runs your application",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			appRoot, wd := determineAppRoot()
-			// If the user didn't explicitly set --watch and we're in debug mode, disable watching
-			// as we typically don't want to swap the process when the user is debugging.
-			if !cmd.Flag("watch").Changed && debug.Value != "" {
-				watch = false
+			// If the user didn't explicitly set --autoreload and we're in debug mode,
+			// disable reloading as we typically don't want to swap the process when
+			// the user is debugging.
+			if !cmd.Flag("autoreload").Changed && !cmd.Flag("watch").Changed && debug.Value != "" {
+				autoreload = false
 			}
 			runApp(appRoot, wd)
 		},
@@ -72,7 +73,12 @@ func init() {
 	isTerm := term.IsTerminal(int(os.Stdout.Fd()))
 
 	rootCmd.AddCommand(runCmd)
-	runCmd.Flags().BoolVarP(&watch, "watch", "w", true, "Watch for changes and live-reload")
+	runCmd.Flags().BoolVar(&autoreload, "autoreload", true, "Automatically reload the app on file changes")
+	// Deprecated alias for --autoreload: the app's files are watched for the
+	// duration of the run regardless (to keep generated code fresh), so the
+	// old name suggested a broader effect than the flag ever had.
+	runCmd.Flags().BoolVarP(&autoreload, "watch", "w", true, "Automatically reload the app on file changes")
+	_ = runCmd.Flags().MarkDeprecated("watch", "use --autoreload instead")
 	runCmd.Flags().StringVar(&listen, "listen", "", "Address to listen on (for example \"0.0.0.0:4000\")")
 	runCmd.Flags().UintVarP(&port, "port", "p", 4000, "Port to listen on")
 	runCmd.Flags().BoolVar(&jsonLogs, "json", false, "Display logs in JSON format")
@@ -128,7 +134,7 @@ func runApp(appRoot, wd string) {
 	stream, err := daemon.Run(ctx, &daemonpb.RunRequest{
 		AppRoot:            appRoot,
 		DebugMode:          debugMode,
-		Watch:              watch,
+		Watch:              autoreload,
 		WorkingDir:         wd,
 		ListenAddr:         listenAddr,
 		Environ:            os.Environ(),
