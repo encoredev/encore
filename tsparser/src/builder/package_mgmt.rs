@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -133,6 +134,22 @@ pub(super) fn resolve_package_manager(
     }
 }
 
+/// Resolves the given executable name to the path of the binary to spawn.
+///
+/// On Windows the package managers are typically installed as `npm.cmd` shims,
+/// and Rust's [`std::process::Command`] only appends `.exe` when searching PATH
+/// (it ignores `PATHEXT`), so spawning "npm" directly fails with
+/// "program not found". Resolving the name up front finds the shim.
+///
+/// If the executable can't be found we return the name unchanged, so the spawn
+/// error reports the missing program rather than a lookup failure.
+fn resolve_executable(name: &str) -> OsString {
+    match which::which(name) {
+        Ok(path) => path.into_os_string(),
+        Err(_) => name.into(),
+    }
+}
+
 pub(super) trait PackageManager {
     fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError>;
 
@@ -160,7 +177,7 @@ impl PackageManager for NpmPackageManager {
 
         // If we modified anything or don't have a node_modules directory, run 'npm install'.
         if modified || !self.dir.join("node_modules").exists() {
-            cmd!("npm", "install")
+            cmd!(resolve_executable("npm"), "install")
                 .dir(&self.dir)
                 .stdout_to_stderr()
                 .run()
@@ -210,13 +227,13 @@ impl PackageManager for BunPackageManager {
         if modified || !self.dir.join("node_modules").exists() {
             let backend = std::env::var("BUN_INSTALL_BACKEND").unwrap_or_default();
             if backend.is_empty() {
-                cmd!("bun", "install")
+                cmd!(resolve_executable("bun"), "install")
                     .dir(&self.dir)
                     .stdout_to_stderr()
                     .run()
                     .map_err(|e| PrepareError::InstallNodeModules(e, "bun install".into()))?;
             } else {
-                cmd!("bun", "install", "--backend", &backend)
+                cmd!(resolve_executable("bun"), "install", "--backend", &backend)
                     .dir(&self.dir)
                     .stdout_to_stderr()
                     .run()
@@ -272,7 +289,7 @@ impl PackageManager for YarnPackageManager {
 
         // If we modified anything or don't have a node_modules directory, run 'npm install'.
         if modified || !self.dir.join("node_modules").exists() {
-            cmd!("yarn", "install")
+            cmd!(resolve_executable("yarn"), "install")
                 .dir(&self.dir)
                 .stdout_to_stderr()
                 .run()
@@ -345,7 +362,7 @@ impl PackageManager for PnpmPackageManager {
 
         // If we modified anything or don't have a node_modules directory, run 'npm install'.
         if modified || !self.dir.join("node_modules").exists() {
-            cmd!("pnpm", "install")
+            cmd!(resolve_executable("pnpm"), "install")
                 .dir(&self.dir)
                 .stdout_to_stderr()
                 .run()
