@@ -294,6 +294,20 @@ func (fs *filestore) filename(bucket string, filename string) (string, error) {
 	return filepath.Join(fs.gcsDir, bucket, filename), nil
 }
 
+// LocalPath implements LocalStore.
+func (fs *filestore) LocalPath(bucket string, filename string) (string, error) {
+	f, err := fs.filename(bucket, filename)
+	if err != nil {
+		return "", err
+	}
+	if strings.HasSuffix(filename, "/") {
+		// A folder placeholder, which fs.filename resolves to the folderMarker file
+		// inside the folder ("a/" -> "a/.emufolder").
+		return filepath.Dir(f), nil
+	}
+	return f, nil
+}
+
 func metaFilename(filename string) string {
 	return filename + metaExtention
 }

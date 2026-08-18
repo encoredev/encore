@@ -7,6 +7,14 @@ import (
 	"google.golang.org/api/storage/v1"
 )
 
+// LocalStore is implemented by stores that keep objects on the local filesystem. A
+// store that doesn't implement it has no paths to give.
+type LocalStore interface {
+	// LocalPath returns the path holding the given object, or the bucket's own
+	// directory when filename is empty.
+	LocalPath(bucket string, filename string) (string, error)
+}
+
 // Store is an interface to either on-disk or in-mem storage
 type Store interface {
 	// CreateBucket creates a bucket; no error if the bucket already exists.
