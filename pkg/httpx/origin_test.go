@@ -6,18 +6,26 @@ import (
 	"testing"
 )
 
-func newReq(origin string) *http.Request {
-	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/x", nil)
-	if origin != "" {
-		req.Header.Set("Origin", origin)
+func withSecFetchSite(secFetchSite string) func(*http.Request) {
+	return func(req *http.Request) {
+		if secFetchSite != "" {
+			req.Header.Set("Sec-Fetch-Site", secFetchSite)
+		}
 	}
-	return req
 }
 
-func newReqWithFetchSite(origin, fetchSite string) *http.Request {
-	req := newReq(origin)
-	if fetchSite != "" {
-		req.Header.Set("Sec-Fetch-Site", fetchSite)
+func withOrigin(origin string) func(*http.Request) {
+	return func(req *http.Request) {
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+	}
+}
+
+func newReq(opts ...func(*http.Request)) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/x", nil)
+	for _, apply := range opts {
+		apply(req)
 	}
 	return req
 }
@@ -36,13 +44,38 @@ func TestIsLocalOrigin(t *testing.T) {
 		{"://bad", false},
 	}
 	for _, tt := range tests {
-		if got := IsLocalOrigin(newReq(tt.origin)); got != tt.want {
+		if got := IsLocalOrigin(newReq(withOrigin(tt.origin))); got != tt.want {
 			t.Errorf("IsLocalOrigin(%q) = %v, want %v", tt.origin, got, tt.want)
 		}
 	}
 }
 
-func TestIsLocalOriginFetchMetadata(t *testing.T) {
+func TestIsNonBrowser(t *testing.T) {
+	tests := []struct {
+		origin       string
+		secFetchSite string
+		want         bool
+	}{
+		{"", "", true}, // only a missing Origin + Sec-Fetch-Site are allowed
+		// Origin or Sec-Fetch-Site headers are not allowd
+		{"http://localhost:5173", "", false},
+		{"http://localhost:5173", "", false},
+		{"http://127.0.0.1:3000", "", false},
+		{"https://example.com", "", false},
+		{"", "same-site", false},
+		{"", "same-origin", false},
+		{"", "cross-site", false},
+		{"", "none", false},
+		{"http://localhost:3000", "same-site", false},
+	}
+	for _, tt := range tests {
+		if got := IsNonBrowser(newReq(withOrigin(tt.origin), withSecFetchSite(tt.secFetchSite))); got != tt.want {
+			t.Errorf("IsNonBrowser(%q) = %v, want %v", tt.origin, got, tt.want)
+		}
+	}
+}
+
+func TestIsNonExternalWebsite(t *testing.T) {
 	tests := []struct {
 		name      string
 		origin    string
@@ -50,7 +83,7 @@ func TestIsLocalOriginFetchMetadata(t *testing.T) {
 		want      bool
 	}{
 		// A cross-site GET sub-resource load (e.g. <img>) sends no Origin but
-		// still carries Sec-Fetch-Site: cross-site. It must be rejected.
+		// still carries Sec-Fetch-Site: cross-site.
 		{"cross-site no origin", "", "cross-site", false},
 		{"cross-site with origin", "https://example.com", "cross-site", false},
 		// Same-origin/same-site requests from the local dashboard and localhost
@@ -61,47 +94,8 @@ func TestIsLocalOriginFetchMetadata(t *testing.T) {
 		{"user navigation", "", "none", true},
 	}
 	for _, tt := range tests {
-		if got := IsLocalOrigin(newReqWithFetchSite(tt.origin, tt.fetchSite)); got != tt.want {
+		if got := IsNotExternalWebsite(newReq(withOrigin(tt.origin), withSecFetchSite(tt.fetchSite))); got != tt.want {
 			t.Errorf("%s: IsLocalOrigin(origin=%q, sec-fetch-site=%q) = %v, want %v", tt.name, tt.origin, tt.fetchSite, got, tt.want)
-		}
-	}
-}
-
-func TestIsNonBrowser(t *testing.T) {
-	tests := []struct {
-		origin string
-		want   bool
-	}{
-		{"", true}, // only a missing Origin is allowed
-		{"http://localhost:5173", false},
-		{"http://127.0.0.1:3000", false},
-		{"https://example.com", false},
-	}
-	for _, tt := range tests {
-		if got := IsNonBrowser(newReq(tt.origin)); got != tt.want {
-			t.Errorf("IsNonBrowser(%q) = %v, want %v", tt.origin, got, tt.want)
-		}
-	}
-}
-
-func TestIsNonBrowserFetchMetadata(t *testing.T) {
-	tests := []struct {
-		name      string
-		origin    string
-		fetchSite string
-		want      bool
-	}{
-		// go tool pprof / CLIs / the app runtime send neither header.
-		{"non-browser tool", "", "", true},
-		// A browser GET drive-by (e.g. <img src=".../debug/pprof/profile">)
-		// sends no Origin but does send Sec-Fetch-Site. It must be rejected.
-		{"cross-site drive-by", "", "cross-site", false},
-		{"same-origin browser", "", "same-origin", false},
-		{"user navigation", "", "none", false},
-	}
-	for _, tt := range tests {
-		if got := IsNonBrowser(newReqWithFetchSite(tt.origin, tt.fetchSite)); got != tt.want {
-			t.Errorf("%s: IsNonBrowser(origin=%q, sec-fetch-site=%q) = %v, want %v", tt.name, tt.origin, tt.fetchSite, got, tt.want)
 		}
 	}
 }
@@ -112,13 +106,13 @@ func TestCheckOrigin(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, newReq(""))
+	handler.ServeHTTP(rec, newReq())
 	if rec.Code != http.StatusOK {
 		t.Errorf("no-origin request: got %d, want 200", rec.Code)
 	}
 
 	rec = httptest.NewRecorder()
-	handler.ServeHTTP(rec, newReq("https://example.com"))
+	handler.ServeHTTP(rec, newReq(withOrigin("https://example.com")))
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("browser request: got %d, want 403", rec.Code)
 	}

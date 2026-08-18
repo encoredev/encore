@@ -286,7 +286,7 @@ func (d *Daemon) serveObjects() {
 func (d *Daemon) serveDash() {
 	log.Info().Stringer("addr", d.Dash.Addr()).Msg("serving dash")
 	srv := dash.NewServer(d.Apps, d.RunMgr, d.NS, d.Trace, d.Dash.Port())
-	d.exit <- http.Serve(d.Dash, httpx.CheckOrigin(httpx.IsLocalOrigin, srv))
+	d.exit <- http.Serve(d.Dash, httpx.CheckOrigin(httpx.IsNotExternalWebsite, srv))
 }
 
 func (d *Daemon) serveDebug() {

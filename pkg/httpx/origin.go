@@ -7,6 +7,18 @@ import (
 	"net/url"
 )
 
+// isNonCrossSite gates browser requests coming from another site that don't
+// get the CORS check-ed. For example, GET sub-resource loads (<img>, <script>, etc.).
+func isNonCrossSite(req *http.Request) bool {
+	return req.Header.Get("Sec-Fetch-Site") != "cross-site"
+}
+
+// IsNotExternalWebsite makes sure request did not come from a browser page that is
+// not a localhost.
+func IsNotExternalWebsite(req *http.Request) bool {
+	return IsLocalOrigin(req) && isNonCrossSite(req)
+}
+
 // IsLocalOrigin gates localhost-bound dev servers so a malicious website can't
 // drive-by request them, while still serving the local dashboard and frontend
 // dev servers (which run on localhost).
@@ -14,13 +26,8 @@ import (
 // Browser requests are allowed only when the Origin's host is loopback or
 // "localhost"; other origins are rejected. Requests without an Origin are
 // allowed, since non-browser clients (the app runtime, CLI tools) don't send
-// one. Browsers also omit Origin on GET sub-resource loads (<img>, <script>),
-// so we additionally reject Sec-Fetch-Site: cross-site to catch those.
+// one.
 func IsLocalOrigin(req *http.Request) bool {
-	if req.Header.Get("Sec-Fetch-Site") == "cross-site" {
-		return false
-	}
-
 	origin := req.Header.Get("Origin")
 	if origin == "" {
 		return true
