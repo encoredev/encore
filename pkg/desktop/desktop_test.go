@@ -7,42 +7,66 @@ import (
 	"testing"
 )
 
-// TestOpenRejectsBadPaths covers the checks that run before anything is handed to
-// the operating system. The success path can't be tested: it opens a window.
-func TestOpenRejectsBadPaths(t *testing.T) {
+// badPaths are paths no machine should act on, whether or not it has a desktop.
+func badPaths(t *testing.T) map[string]string {
+	t.Helper()
+	return map[string]string{
+		"empty":    "",
+		"relative": filepath.Join("photos", "photo.png"),
+		"missing":  filepath.Join(t.TempDir(), "gone.png"),
+	}
+}
+
+// TestCheckPath covers path validation on its own, so it runs the same on a
+// developer's machine and on a headless CI machine, where Open and Reveal turn
+// every path away with ErrNoDesktop before looking at it.
+func TestCheckPath(t *testing.T) {
+	for name, path := range badPaths(t) {
+		if err := checkPath(path); err == nil {
+			t.Errorf("checkPath(%q) [%s] = nil, want an error", path, name)
+		}
+	}
+
 	existing := filepath.Join(t.TempDir(), "photo.png")
 	if err := os.WriteFile(existing, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-
-	tests := []struct {
-		name string
-		path string
-	}{
-		{"empty", ""},
-		{"relative", filepath.Join("photos", "photo.png")},
-		{"missing", filepath.Join(t.TempDir(), "gone.png")},
+	if err := checkPath(existing); err != nil {
+		t.Errorf("checkPath(%q) = %v, want nil", existing, err)
 	}
+	// A directory is as valid a target as a file.
+	if err := checkPath(filepath.Dir(existing)); err != nil {
+		t.Errorf("checkPath(%q) = %v, want nil", filepath.Dir(existing), err)
+	}
+}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			for name, op := range map[string]func(string) error{"Open": Open, "Reveal": Reveal} {
-				if err := op(test.path); err == nil {
-					t.Errorf("%s(%q) = nil, want an error", name, test.path)
-				} else if errors.Is(err, ErrNoDesktop) {
-					// The path checks run first precisely so that they are what
-					// gets reported, on a build machine as much as a developer's.
-					t.Errorf("%s(%q) = %v, want a path error", name, test.path, err)
-				}
+// TestOpenAndRevealRejectBadPaths pins that neither ever launches anything for a
+// path that can't be acted on. It asserts only that an error comes back, since
+// which one depends on whether the machine running the test has a desktop.
+func TestOpenAndRevealRejectBadPaths(t *testing.T) {
+	for name, path := range badPaths(t) {
+		for op, fn := range map[string]func(string) error{"Open": Open, "Reveal": Reveal} {
+			if err := fn(path); err == nil {
+				t.Errorf("%s(%q) [%s] = nil, want an error", op, path, name)
 			}
-		})
+		}
+	}
+}
+
+// TestUnsupportedMachine covers a machine with no desktop, which is what CI is:
+// a path that is perfectly good still can't be opened, and says why.
+func TestUnsupportedMachine(t *testing.T) {
+	if Supported() {
+		t.Skip("this machine has a desktop, so Open would launch a program")
 	}
 
-	// A path that is fine but a machine that has nowhere to open it: reported as
-	// ErrNoDesktop so a caller can tell "impossible here" from "bad input".
-	if !Supported() {
-		if err := Open(existing); !errors.Is(err, ErrNoDesktop) {
-			t.Errorf("Open(%q) = %v, want ErrNoDesktop", existing, err)
+	existing := filepath.Join(t.TempDir(), "photo.png")
+	if err := os.WriteFile(existing, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for op, fn := range map[string]func(string) error{"Open": Open, "Reveal": Reveal} {
+		if err := fn(existing); !errors.Is(err, ErrNoDesktop) {
+			t.Errorf("%s(%q) = %v, want ErrNoDesktop", op, existing, err)
 		}
 	}
 }

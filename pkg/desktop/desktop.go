@@ -41,16 +41,23 @@ func Reveal(path string) error {
 	return reveal(path)
 }
 
-// check rejects a path that no platform could act on.
+// check rejects a request this machine can't carry out.
 func check(path string) error {
 	if !supported() {
 		return ErrNoDesktop
 	}
+	return checkPath(path)
+}
 
+// checkPath rejects a path no platform could act on.
+func checkPath(path string) error {
 	if !filepath.IsAbs(path) {
 		return errors.Newf("path must be absolute, got %q", path)
 	}
 
+	// Stat so that a path which has since been deleted is reported as such: opening
+	// one silently does nothing on some platforms, and opens an unrelated window on
+	// others. The Windows reveal also relies on this having run.
 	if _, err := os.Stat(path); err != nil {
 		return err
 	}
