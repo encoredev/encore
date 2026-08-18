@@ -15,6 +15,7 @@ native = [
     "dep:pg_query",
     "dep:walkdir",
     "dep:duct",
+    "dep:which",
     "dep:symlink",
     "dep:junction",
     "dep:env_logger",
@@ -52,6 +53,7 @@ url = "2.4.1"
 convert_case = "0.6.0"
 itertools = "0.13.0"
 duct = { version = "0.13.6", optional = true }
+which = { version = "8.0.0", optional = true }
 indexmap = { version = "2.1.0", features = ["serde"] }
 serde_yaml = "0.9.32"
 symlink = { version = "0.1.0", optional = true }
