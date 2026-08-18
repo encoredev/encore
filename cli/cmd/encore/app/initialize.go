@@ -100,6 +100,8 @@ func initializeApp(name string) error {
 			return fmt.Errorf("creating app on encore.dev: %v", err)
 		}
 		appSlug = app.Slug
+	} else {
+		warnNotLoggedIn()
 	}
 
 	// Create the encore.app file
@@ -138,6 +140,11 @@ func initializeApp(name string) error {
 			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		}
 		s.Stop()
+	}
+
+	// Set up a git repo and the "encore" remote so the app can be pushed after init.
+	if appSlug != "" {
+		ensureEncoreGitRemote(".", appSlug)
 	}
 
 	green := color.New(color.FgGreen)

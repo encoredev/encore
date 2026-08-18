@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 
 	"github.com/fatih/color"
@@ -66,9 +67,45 @@ func FindAppRootFromDir(dir string) (appRoot, relPath string, err error) {
 func AppRoot() (appRoot, relPath string) {
 	appRoot, relPath, err := MaybeAppRoot()
 	if err != nil {
+		if errors.Is(err, ErrNoEncoreApp) {
+			if dir, gwErr := os.Getwd(); gwErr == nil && LooksLikeUninitializedEncoreApp(dir) {
+				Fatal("this directory has Encore code but isn't initialized as an app.\n\nRun 'encore app init' to initialize it, or 'encore app link <app-id>' to link an existing app.")
+			}
+		}
 		Fatal(err)
 	}
 	return appRoot, relPath
+}
+
+// encoreGoRequire matches an encore.dev require line in a go.mod, i.e. the
+// module path followed by a version. This avoids matching stray "encore.dev"
+// strings (e.g. a docs URL) that don't indicate a dependency.
+var encoreGoRequire = regexp.MustCompile(`(?m)(^|\s)encore\.dev\s+v`)
+
+// LooksLikeUninitializedEncoreApp reports whether dir contains Encore code
+// (an encore.dev dependency in go.mod or package.json) without having been
+// initialized as an app. It only inspects dependency manifests to stay cheap.
+func LooksLikeUninitializedEncoreApp(dir string) bool {
+	if data, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil {
+		if encoreGoRequire.Match(data) {
+			return true
+		}
+	}
+	if data, err := os.ReadFile(filepath.Join(dir, "package.json")); err == nil {
+		var pkg struct {
+			Dependencies    map[string]json.RawMessage `json:"dependencies"`
+			DevDependencies map[string]json.RawMessage `json:"devDependencies"`
+		}
+		if json.Unmarshal(data, &pkg) == nil {
+			if _, ok := pkg.Dependencies["encore.dev"]; ok {
+				return true
+			}
+			if _, ok := pkg.DevDependencies["encore.dev"]; ok {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // WorkspaceRoot determines the workspace root by looking for the .git folder in app root or parents to it.

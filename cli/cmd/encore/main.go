@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/tools/go/packages"
 
+	"encr.dev/cli/cmd/encore/auth"
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
 
@@ -24,6 +25,7 @@ var rootCmd = root.Cmd
 
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	auth.LoginWithEnvKeyIfNeeded()
 	if err := root.Cmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

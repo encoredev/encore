@@ -121,15 +121,39 @@ func DoLogout() {
 }
 
 func DoLoginWithAuthKey() error {
-	cfg, err := login.WithAuthKey(authKey)
+	if err := LoginWithAuthKey(authKey); err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stdout, "Successfully logged in!")
+	return nil
+}
+
+// LoginWithAuthKey exchanges the given auth key for credentials and persists them.
+func LoginWithAuthKey(key string) error {
+	cfg, err := login.WithAuthKey(key)
 	if err != nil {
 		return err
 	}
 	if err := conf.Write(cfg); err != nil {
 		return fmt.Errorf("write credentials: %v", err)
 	}
-	fmt.Fprintln(os.Stdout, "Successfully logged in!")
 	return nil
+}
+
+// LoginWithEnvKeyIfNeeded logs in using the ENCORE_AUTH_KEY environment variable
+// when it is set and no user is currently logged in. This gives agents and CI a
+// non-interactive way to authenticate, avoiding the browser-based login flow.
+func LoginWithEnvKeyIfNeeded() {
+	key := os.Getenv("ENCORE_AUTH_KEY")
+	if key == "" {
+		return
+	}
+	if _, err := conf.CurrentUser(); err == nil {
+		return // already logged in
+	}
+	if err := LoginWithAuthKey(key); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: ENCORE_AUTH_KEY login failed: %v\n", err)
+	}
 }
 
 func Whoami() {
