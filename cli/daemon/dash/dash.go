@@ -145,6 +145,28 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 		res, err := h.objects.DownloadURL(ctx, p)
 		return reply(ctx, res, err)
+	case "objects/open":
+		telemetry.Send("objects.open")
+		var p bucketPathRequest
+		if err := unmarshal(&p); err != nil {
+			return reply(ctx, nil, err)
+		}
+		res, err := h.objects.Open(ctx, p)
+		if err != nil {
+			log.Err(err).Msg("dash: could not open object")
+		}
+		return reply(ctx, res, err)
+	case "objects/reveal":
+		telemetry.Send("objects.reveal")
+		var p bucketPathRequest
+		if err := unmarshal(&p); err != nil {
+			return reply(ctx, nil, err)
+		}
+		res, err := h.objects.Reveal(ctx, p)
+		if err != nil {
+			log.Err(err).Msg("dash: could not reveal object in file manager")
+		}
+		return reply(ctx, res, err)
 	case "onboarding/get":
 		state, err := onboarding.Load()
 		if err != nil {

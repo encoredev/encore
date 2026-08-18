@@ -28,7 +28,7 @@ func Commands() [][]string {
 	case "windows":
 		cmds = append(cmds, []string{"cmd", "/c", "start"})
 	default:
-		if os.Getenv("DISPLAY") != "" {
+		if os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != "" {
 			// xdg-open is only for use in a desktop environment.
 			cmds = append(cmds, []string{"xdg-open"})
 		}

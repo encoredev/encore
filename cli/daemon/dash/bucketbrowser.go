@@ -24,6 +24,7 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run"
+	"encr.dev/pkg/desktop"
 	"encr.dev/pkg/emulators/storage/gcsemu"
 	"encr.dev/pkg/emulators/storage/gcsutil"
 	"encr.dev/pkg/fns"
@@ -138,6 +139,15 @@ type bucketCreateFolderRequest struct {
 	Prefix string `json:"prefix"`
 }
 
+// bucketPathRequest names a single thing in a bucket to act on locally.
+type bucketPathRequest struct {
+	AppID  string `json:"app_id"`
+	Bucket string `json:"bucket"`
+
+	// Key names an object or a folder.
+	Key string `json:"key"`
+}
+
 type bucketDownloadURLRequest struct {
 	AppID      string `json:"app_id"`
 	Bucket     string `json:"bucket"`
@@ -204,6 +214,22 @@ func (b *bucketBrowser) DownloadURL(ctx context.Context, req bucketDownloadURLRe
 		return nil, err
 	}
 	return target.DownloadURL(req, time.Now())
+}
+
+func (b *bucketBrowser) Open(ctx context.Context, req bucketPathRequest) (*bucketOKResponse, error) {
+	target, err := b.target(ctx, req.AppID, req.Bucket)
+	if err != nil {
+		return nil, err
+	}
+	return target.Open(req)
+}
+
+func (b *bucketBrowser) Reveal(ctx context.Context, req bucketPathRequest) (*bucketOKResponse, error) {
+	target, err := b.target(ctx, req.AppID, req.Bucket)
+	if err != nil {
+		return nil, err
+	}
+	return target.Reveal(req)
 }
 
 // List lists the objects and sub-paths directly below the requested prefix.
@@ -344,6 +370,47 @@ func (t *bucketTarget) DownloadURL(req bucketDownloadURLRequest, now time.Time) 
 		Method:    "GET",
 		ExpiresAt: now.Add(ttl),
 	}, nil
+}
+
+// Open launches an object, folder, or the bucket itself with the program the
+// developer's operating system has registered for it.
+func (t *bucketTarget) Open(req bucketPathRequest) (*bucketOKResponse, error) {
+	path, err := t.localPath(req)
+	if err != nil {
+		return nil, err
+	}
+	if err := desktop.Open(path); err != nil {
+		return nil, err
+	}
+	return &bucketOKResponse{OK: true}, nil
+}
+
+// Reveal opens the developer's file manager on the directory holding an object,
+// folder, or the bucket, with it selected.
+func (t *bucketTarget) Reveal(req bucketPathRequest) (*bucketOKResponse, error) {
+	path, err := t.localPath(req)
+	if err != nil {
+		return nil, err
+	}
+	if err := desktop.Reveal(path); err != nil {
+		return nil, err
+	}
+	return &bucketOKResponse{OK: true}, nil
+}
+
+// localPath resolves which path on disk a request names.
+func (t *bucketTarget) localPath(req bucketPathRequest) (string, error) {
+	if req.Key != "" {
+		if err := validateObjectKey(req.Key); err != nil {
+			return "", err
+		}
+	}
+
+	local, ok := t.store.(gcsemu.LocalStore)
+	if !ok {
+		return "", errors.New("this app's objects are not stored on disk")
+	}
+	return local.LocalPath(t.bucket.Name, req.Key)
 }
 
 // ServeContent serves the raw bytes of an object, and accepts uploads.

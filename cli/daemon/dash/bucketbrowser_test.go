@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -777,5 +779,94 @@ func TestListPaginationOrdering(t *testing.T) {
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("PageSize=%d paged through %v, want %v", pageSize, got, want)
 		}
+	}
+}
+
+func TestLocalPath(t *testing.T) {
+	target := newTestTarget(t, &meta.Bucket{Name: testBucket})
+	seed(t, target, "a.txt", "nested/b.txt")
+	if _, err := target.CreateFolder(bucketCreateFolderRequest{Prefix: "empty/"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// The bucket's own directory, which every other path sits under.
+	root, err := target.localPath(bucketPathRequest{})
+	if err != nil {
+		t.Fatalf("resolving the bucket root: %v", err)
+	}
+	if filepath.Base(root) != testBucket {
+		t.Errorf("bucket root = %q, want a directory named %q", root, testBucket)
+	}
+
+	tests := []struct {
+		name string
+		req  bucketPathRequest
+		want string
+	}{
+		{"object", bucketPathRequest{Key: "a.txt"}, filepath.Join(root, "a.txt")},
+		{"nested object", bucketPathRequest{Key: "nested/b.txt"}, filepath.Join(root, "nested", "b.txt")},
+		// A folder resolves to the directory itself, not to the placeholder
+		// object's marker file inside it.
+		{"empty folder", bucketPathRequest{Key: "empty/"}, filepath.Join(root, "empty")},
+		{"folder with contents", bucketPathRequest{Key: "nested/"}, filepath.Join(root, "nested")},
+		// A folder is a directory on disk either way, so a caller that leaves the
+		// trailing slash off still lands on it.
+		{"folder without trailing slash", bucketPathRequest{Key: "nested"}, filepath.Join(root, "nested")},
+		{"empty folder without trailing slash", bucketPathRequest{Key: "empty"}, filepath.Join(root, "empty")},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := target.localPath(test.req)
+			if err != nil {
+				t.Fatalf("localPath(%+v) = %v", test.req, err)
+			}
+			if got != test.want {
+				t.Errorf("localPath(%+v) = %q, want %q", test.req, got, test.want)
+			}
+			// Every path the daemon will hand to the OS must exist and stay
+			// inside the bucket.
+			if _, err := os.Stat(got); err != nil {
+				t.Errorf("localPath(%+v) = %q, which does not exist: %v", test.req, got, err)
+			}
+			if !strings.HasPrefix(got, root+string(filepath.Separator)) {
+				t.Errorf("localPath(%+v) = %q, which escapes the bucket dir %q", test.req, got, root)
+			}
+		})
+	}
+}
+
+func TestLocalPathRejects(t *testing.T) {
+	target := newTestTarget(t, &meta.Bucket{Name: testBucket})
+
+	tests := []struct {
+		name string
+		req  bucketPathRequest
+	}{
+		{"traversal in key", bucketPathRequest{Key: "../../secrets"}},
+		{"traversal in folder key", bucketPathRequest{Key: "../../"}},
+		{"absolute key", bucketPathRequest{Key: "/etc/passwd"}},
+		{"root key", bucketPathRequest{Key: "/"}},
+		{"backslash in key", bucketPathRequest{Key: `..\..\secrets`}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got, err := target.localPath(test.req); err == nil {
+				t.Errorf("localPath(%+v) = %q, want an error", test.req, got)
+			}
+		})
+	}
+}
+
+// TestLocalPathWithoutDisk covers the in-memory store `encore test` uses, which
+// has no paths to give out at all.
+func TestLocalPathWithoutDisk(t *testing.T) {
+	store := gcsemu.NewMemStore()
+	target := &bucketTarget{
+		store:  store,
+		emu:    gcsemu.NewGcsEmu(gcsemu.Options{Store: store}),
+		bucket: &meta.Bucket{Name: testBucket},
+	}
+	if got, err := target.localPath(bucketPathRequest{Key: "a.txt"}); err == nil {
+		t.Errorf("localPath on an in-memory store = %q, want an error", got)
 	}
 }
