@@ -24,7 +24,7 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: httpx.IsLocalOrigin,
+	CheckOrigin: httpx.IsNotExternalWebsite,
 }
 
 // NewServer starts a new server and returns it.

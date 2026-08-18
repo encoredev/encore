@@ -4,12 +4,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"encr.dev/pkg/httpx"
 )
 
 // TestOriginCheck verifies the MCP listener only serves code agents (no Origin
 // header) and rejects any browser request (which always carries an Origin).
 func TestOriginCheck(t *testing.T) {
-	handler := originCheck(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := httpx.CheckOrigin(httpx.IsNonBrowser, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
