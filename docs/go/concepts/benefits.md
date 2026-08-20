@@ -28,3 +28,9 @@ This approach dramatically reduces the level of DevOps expertise required to use
 ## Simplicity without giving up flexibility
 
 Encore.go provides integrations for common infrastructure primitives, but also allows for flexibility. You can always use any cloud infrastructure, even if it's not built into Encore.go. If you use Encore's [Cloud Platform](/docs/platform), it [automates infrastructure](/docs/platform/infrastructure/infra) using your own cloud account, so you always have full access to your services from the cloud provider's console.
+
+## Fewer stylistic decisions to make
+
+Building a backend means dozens of decisions about codebase structure, API schemas and which infrastructure to use, and many of them come down to preference rather than technical rationale. Every stack ends up shaped differently, which is why general-purpose tooling is the only kind that fits.
+
+Adopting Encore settles most of those decisions, and the parser checks that the application keeps to them, leaving your attention on the business logic.
