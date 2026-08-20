@@ -1,51 +1,131 @@
 ---
-seotitle: Encore.ts Primitives — Infrastructure resources for TypeScript
-seodesc: An overview of the cloud infrastructure primitives Encore.ts gives you, including SQL databases, Pub/Sub, object storage, caches, cron jobs, and secrets.
+seotitle: "Encore Primitives: infrastructure resources you declare in code"
+seodesc: An overview of the cloud infrastructure primitives Encore gives you, including SQL databases, Pub/Sub, object storage, caches, cron jobs, and secrets.
 title: Primitives
-subtitle: The infrastructure resources you can declare in your Encore.ts application
+subtitle: The infrastructure resources you can declare in your application
 lang: ts
 ---
 
-Encore.ts gives you the core set of infrastructure primitives that backend applications reach for 99% of the time: SQL databases, Pub/Sub, object storage, caches, cron jobs, and secrets. You declare them directly in your TypeScript code as typed objects and use them through their methods.
+Encore gives you six infrastructure primitives, declared as typed objects in the same files as the code that uses them:
 
-When you run your application locally, `encore run` starts a matching local implementation of each primitive (real Postgres, a local Pub/Sub broker, local object storage, and so on).
+<CodeTabs>
+<CodeTab label="SQL Database">
+```ts
+import { SQLDatabase } from "encore.dev/storage/sqldb";
 
-For cloud environments you have two options:
-- With [Encore Cloud](/docs/platform), the same declarations used to run locally are used to provision the equivalent managed services (RDS, SNS+SQS, S3, etc.) in your own AWS or GCP account.
-- Or if you prefer to manage infrastructure yourself, you can provision the infrastructure using Terraform, or any other tool, and point Encore at it through an [infrastructure config file](/docs/ts/self-host/configure-infra).
+const db = new SQLDatabase("orders", { migrations: "./migrations" });
+```
+</CodeTab>
+<CodeTab label="Pub/Sub">
+```ts
+import { Topic } from "encore.dev/pubsub";
 
-## A standard toolbox for developers and AI agents
+export const orderEvents = new Topic<OrderEvent>("order-events", {
+  deliveryGuarantee: "at-least-once",
+});
+```
+</CodeTab>
+<CodeTab label="Object Storage">
+```ts
+import { Bucket } from "encore.dev/storage/objects";
 
-Encrore's set of infrastructure primitives are intended to create an efficient development workflow, especially using AI coding agents. Almost any backend problem can be solved by composing this small, well-understood set of building blocks, so humans and agents don't need to evaluate dozens of competing libraries or assemble bespoke infrastructure for each task. Instead, you pick from a stable, typed vocabulary that maps directly to production cloud resources. The infrastructure building blocks capture the semantics of the infrastructure resources used, which means you can reason about the full stack from a single source of truth.
+export const invoices = new Bucket("invoices");
+```
+</CodeTab>
+<CodeTab label="Caching">
+```ts
+import { CacheCluster } from "encore.dev/storage/cache";
 
-## Application building blocks
+const cluster = new CacheCluster("orders-cache", {
+  evictionPolicy: "allkeys-lru",
+});
+```
+</CodeTab>
+<CodeTab label="Cron Jobs">
+```ts
+import { CronJob } from "encore.dev/cron";
 
-These are the structural primitives that organize your code.
+const _ = new CronJob("send-invoices", {
+  title: "Send pending invoices",
+  every: "2h",
+  endpoint: sendInvoices,
+});
+```
+</CodeTab>
+<CodeTab label="Secrets">
+```ts
+import { secret } from "encore.dev/config";
 
-- **[App Structure](/docs/ts/primitives/app-structure)** — How an Encore application is laid out, and how services fit together in a monorepo.
-- **[Services](/docs/ts/primitives/services)** — Group related APIs and infrastructure into independently deployable services.
-- **[Defining APIs](/docs/ts/primitives/defining-apis)** — Expose typed endpoints from a service. Encore handles request validation, routing, and client generation.
-- **[API Calls](/docs/ts/primitives/api-calls)** — Call another service's API as a regular typed function. Encore wires it up in-process locally and over the network in production.
+const stripeKey = secret("StripeAPIKey");
+```
+</CodeTab>
+</CodeTabs>
 
-For more advanced API styles, see [Raw Endpoints](/docs/ts/primitives/raw-endpoints), [Streaming APIs](/docs/ts/primitives/streaming-apis), [GraphQL](/docs/ts/primitives/graphql), and [Static Assets](/docs/ts/primitives/static-assets).
+Services and APIs are declared in code the same way, usually in the same files, and are covered in [Services and APIs](#services-and-apis) further down.
 
-## Data and storage
+A declaration says what the application needs and nothing about how the cloud should supply it. Encore reads these declarations into the [application model](/docs/ts/concepts/application-model), and that model is what drives provisioning, IAM and code generation.
 
-- **[SQL Databases](/docs/ts/primitives/databases)** — Declare a PostgreSQL database, manage migrations, and run queries. Provisioned as RDS or Cloud SQL in production.
-- **[Object Storage](/docs/ts/primitives/object-storage)** — Store and serve files. Backed by a local filesystem in development and S3 or GCS in production.
-- **[Caching](/docs/ts/primitives/caching)** — Typed Redis-backed caches with structured key and value types.
+Because nothing in a declaration is environment-specific, the same code runs against a local database, a preview environment's database and production's, and never has to check which one it is talking to. That loop, from `encore run` through a per-PR preview environment to production, is covered in the [development workflow](/docs/platform/workflow).
 
-## Asynchronous work
+## What each primitive becomes
 
-- **[Pub/Sub](/docs/ts/primitives/pubsub)** — Publish typed events and subscribe to them from other services. Backed by SNS+SQS on AWS and Pub/Sub on GCP.
-- **[Cron Jobs](/docs/ts/primitives/cron-jobs)** — Run an API endpoint on a recurring schedule.
+`encore run` starts a local implementation of each one, and in cloud environments [Encore Cloud](/docs/platform) provisions the managed equivalent in your own AWS or GCP account. You can also provision the infrastructure yourself and point Encore at it with an [infra config file](/docs/ts/self-host/configure-infra).
 
-## Configuration
+| Primitive | Locally | AWS | GCP |
+|---|---|---|---|
+| [SQL Database](/docs/ts/primitives/databases) | Postgres in Docker | RDS | Cloud SQL |
+| [Pub/Sub](/docs/ts/primitives/pubsub) | in-memory | SNS + SQS | Cloud Pub/Sub |
+| [Object Storage](/docs/ts/primitives/object-storage) | local filesystem | S3 | Cloud Storage |
+| [Caching](/docs/ts/primitives/caching) | in-memory Redis | ElastiCache | Memorystore |
+| [Cron Jobs](/docs/ts/primitives/cron-jobs) | not triggered | CloudWatch Events | Cloud Scheduler |
+| [Secrets](/docs/ts/primitives/secrets) | set per environment | Secrets Manager | Secret Manager |
 
-- **[Secrets](/docs/ts/primitives/secrets)** — Reference secret values by name in code; Encore stores them in your cloud's secret manager and injects them at runtime.
+Cron jobs are the exception, and are not triggered in local or preview environments to avoid surprises, so you invoke the endpoint directly from the [development dashboard](/docs/ts/observability/dev-dash) instead.
 
-## How primitives map to your cloud
+## Services and APIs
 
-Encore reads your primitive declarations to build an infrastructure model of your application. That model is what drives both local development and cloud provisioning, so the resources you use in production are the ones your code asked for, nothing more, nothing less.
+These are not cloud resources, but the compiler reads them into the same model and checks them the same way.
 
-To see the cloud resources Encore creates from these primitives, see [Infrastructure on AWS and GCP](/docs/platform/infrastructure/infra).
+- **[App Structure](/docs/ts/primitives/app-structure)**: how an application is laid out, and how services fit together in a monorepo.
+- **[Services](/docs/ts/primitives/services)**: group related APIs and infrastructure into independently deployable services.
+- **[Defining APIs](/docs/ts/primitives/defining-apis)**: expose typed endpoints from a service. Encore handles request validation, routing and client generation.
+- **[API Calls](/docs/ts/primitives/api-calls)**: call another service's API as a regular typed function, wired up in-process locally and over the network in production.
+
+### Request and response data
+
+- **[Types](/docs/ts/primitives/types)**: how types map onto headers, query parameters and path parameters.
+- **[Validation](/docs/ts/primitives/validation)**: incoming requests are checked against the declared schema before your handler runs.
+- **[Errors](/docs/ts/primitives/errors)**: return structured errors with codes that map to HTTP statuses.
+- **[Cookies](/docs/ts/primitives/cookies)**: typed cookie handling.
+
+### Other API styles
+
+- **[Raw Endpoints](/docs/ts/primitives/raw-endpoints)**: drop to the underlying request and response objects.
+- **[Streaming APIs](/docs/ts/primitives/streaming-apis)**: streams in either direction over WebSockets.
+- **[GraphQL](/docs/ts/primitives/graphql)**: serve a GraphQL schema from a service.
+- **[Static Assets](/docs/ts/primitives/static-assets)**: serve files from a directory.
+
+## Primitives and AI agents
+
+Infrastructure is where agents go wrong most often, because a wrong property value usually applies without failing and a diff does not reveal it. Declaring a database as configuration means producing an instance class, a storage type, a subnet group, a security group, a parameter group and an IAM policy, any of which can be wrong in a way nothing catches.
+
+The same database as a primitive is a name and a directory:
+
+```ts
+const db = new SQLDatabase("orders", { migrations: "./migrations" });
+```
+
+Everything the configuration version needed is either absent from the code or checked when you build:
+
+- Instance sizing, networking and backups are [environment settings](/docs/platform/infrastructure/configuration), so they are not in the code an agent edits and cannot be hallucinated into it.
+- Resource names have to be string literals and declarations have to sit at module scope, so a name assembled from a variable fails the build instead of half-working. The [application model](/docs/ts/concepts/application-model) page has the full set of requirements.
+- IAM policies are derived from which services actually use which resources, so an agent cannot grant itself broader access than the code it wrote uses.
+- Request schemas come from your types, so a wrong handler signature is a compile error rather than a bad response.
+
+For the editor rules and MCP server that give agents the service graph, schemas and traces, see [AI integration](/docs/ts/ai-integration). If you are coming from Terraform, [Coming from Terraform](/docs/platform/migration/from-terraform) maps the concepts across and covers running both alongside each other.
+
+## Anything the primitives don't cover
+
+A search cluster, a data warehouse, a queue with semantics none of these have: provision it however you like and reach it from your code the way you would any external dependency, with its connection details in a [secret](/docs/ts/primitives/secrets).
+
+To see exactly what Encore creates in your cloud, see [Infrastructure on AWS and GCP](/docs/platform/infrastructure/infra).
