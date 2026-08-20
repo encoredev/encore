@@ -1484,6 +1484,11 @@
 				file: "platform/migration/migrate-to-encore"
 			}, {
 				kind: "basic"
+				text: "Coming from Terraform"
+				path: "/platform/migration/from-terraform"
+				file: "platform/migration/from-terraform"
+			}, {
+				kind: "basic"
 				text: "Migrate away from Encore"
 				path: "/platform/migration/migrate-away"
 				file: "platform/migration/migrate-away"
