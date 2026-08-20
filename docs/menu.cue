@@ -105,6 +105,11 @@
 {
 	items: [
 		{
+			kind: "basic"
+			text: "What is Encore?"
+			path: "/overview"
+			file: "overview"
+		}, {
 			kind:    "nav"
 			text:    "Encore.go"
 			path:    "/go"
