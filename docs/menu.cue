@@ -1484,9 +1484,75 @@
 				file: "platform/migration/migrate-to-encore"
 			}, {
 				kind: "basic"
-				text: "Coming from Terraform"
-				path: "/platform/migration/from-terraform"
-				file: "platform/migration/from-terraform"
+				text: "Coming from an IaC tool"
+				path: "/platform/migration/from-iac"
+				file: "platform/migration/from-iac"
+				inline_menu: [{
+					kind: "basic"
+					text: "Terraform"
+					path: "/platform/migration/from-terraform"
+					file: "platform/migration/from-terraform"
+				}, {
+					kind:   "basic"
+					text:   "Pulumi"
+					path:   "/platform/migration/from-pulumi"
+					file:   "platform/migration/from-pulumi"
+					hidden: true
+				}, {
+					kind:   "basic"
+					text:   "OpenTofu"
+					path:   "/platform/migration/from-opentofu"
+					file:   "platform/migration/from-opentofu"
+					hidden: true
+				}, {
+					kind:   "basic"
+					text:   "AWS CDK"
+					path:   "/platform/migration/from-cdk"
+					file:   "platform/migration/from-cdk"
+					hidden: true
+				}]
+			}, {
+				kind: "basic"
+				text: "Coming from a PaaS"
+				path: "/platform/migration/from-paas"
+				file: "platform/migration/from-paas"
+				inline_menu: [{
+					kind:   "basic"
+					text:   "Supabase"
+					path:   "/platform/migration/from-supabase"
+					file:   "platform/migration/from-supabase"
+					hidden: true
+				}, {
+					kind:   "basic"
+					text:   "Firebase"
+					path:   "/platform/migration/from-firebase"
+					file:   "platform/migration/from-firebase"
+					hidden: true
+				}, {
+					kind:   "basic"
+					text:   "Railway"
+					path:   "/platform/migration/from-railway"
+					file:   "platform/migration/from-railway"
+					hidden: true
+				}, {
+					kind:   "basic"
+					text:   "Heroku"
+					path:   "/platform/migration/from-heroku"
+					file:   "platform/migration/from-heroku"
+					hidden: true
+				}, {
+					kind:   "basic"
+					text:   "Vercel"
+					path:   "/platform/migration/from-vercel"
+					file:   "platform/migration/from-vercel"
+					hidden: true
+				}, {
+					kind:   "basic"
+					text:   "Fly.io"
+					path:   "/platform/migration/from-flyio"
+					file:   "platform/migration/from-flyio"
+					hidden: true
+				}]
 			}, {
 				kind: "basic"
 				text: "Migrate away from Encore"
