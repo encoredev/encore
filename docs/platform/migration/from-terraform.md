@@ -42,9 +42,9 @@ const SiteDB = new SQLDatabase("site", {
 });
 ```
 
-Everything in the Terraform block is needed to create the instance. Encore's
-declaration carries only the two properties the application depends on: the
-database it connects to, and where its schema comes from.
+The Terraform block has to spell out every property before it can create the
+instance. Encore's declaration carries only the two the application depends on:
+the database it connects to, and where its schema comes from.
 
 ## Where each setting is configured
 
@@ -116,8 +116,8 @@ export const SiteAdded = new Topic<Site>("site-added", {
 new Subscription(SiteAdded, "check-site", { handler: doCheck });
 ```
 
-The queue, the subscription wiring, and the IAM policy are derived. See
-[Pub/Sub](/docs/ts/primitives/pubsub).
+Encore derives the queue, the subscription wiring and the IAM policy from those
+two declarations. See [Pub/Sub](/docs/ts/primitives/pubsub).
 
 ### Object storage
 
