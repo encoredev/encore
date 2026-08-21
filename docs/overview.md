@@ -29,11 +29,11 @@ var db = sqldb.NewDatabase("orders", sqldb.DatabaseConfig{
 </CodeTab>
 </CodeTabs>
 
-Encore's compiler reads that declaration and provisions a real Postgres database: a container on your laptop, RDS or Cloud SQL in production. The declaration says nothing about instance size, engine or which cloud it runs in, because those are [per-environment settings](/docs/platform/infrastructure/configuration) you set in the dashboard, or in a config file if you run Encore yourself.
+Encore's compiler reads that declaration into an [application model](/docs/ts/concepts/application-model) and provisions a Postgres database, running as a container on your laptop and as RDS or Cloud SQL in production. Instance size, engine and which cloud it runs in are [per-environment settings](/docs/platform/infrastructure/configuration), set in the dashboard or in a config file if you run Encore yourself.
 
 `encore run` starts the whole application locally: the database, a Pub/Sub broker, your services calling each other, and a [dashboard](/docs/ts/observability/dev-dash) with tracing, logs and a database explorer. There is no local setup of your own to maintain.
 
-Encore also records which operations your code performs on that database, and calls the result the application model. Each service's IAM policy, the typed clients for your APIs and the service catalog are derived from that usage rather than written by you. Tools for writing infrastructure in a real language cannot do that last part.
+The model also records which operations your code performs on that database. Each service's IAM policy, the typed clients for your APIs and the service catalog are derived from that usage rather than written by you. Infrastructure-as-code tools describe resources; they cannot derive any of that from how the code uses them.
 
 ## What Encore is made of
 
