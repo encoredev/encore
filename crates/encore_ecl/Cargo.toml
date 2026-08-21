@@ -1,0 +1,15 @@
+[package]
+name = "encore-ecl"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "encore_ecl"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror = "1.0.64"
+prost = "0.13"
+
+[build-dependencies]
+prost-build = "0.13"

@@ -32,6 +32,10 @@ protoc -I . --go_out=. --go_opt=$GO_OPT \
 protoc -I . --go_out=. --go_opt=$GO_OPT \
 ./encore/runtime/v1/secretdata.proto
 
+# ECL (Encore Configuration Language) evaluation output
+protoc -I . --go_out=. --go_opt=$GO_OPT \
+  ./encore/ecl/v1/ecl.proto
+
 # Prometheus protos for metrics exporter
 protoc -I . --go_out=../runtimes/go/appruntime/infrasdk/metrics/prometheus --go_opt=$GO_OPT \
 ./prompb/types.proto
