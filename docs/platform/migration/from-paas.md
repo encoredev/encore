@@ -8,7 +8,7 @@ lang: platform
 
 A managed platform gives you a database, a queue and a deploy pipeline without you configuring any of it, which is why teams reach for one and why they stay. What eventually pushes people off is rarely the developer experience. It is running out of room: a region you can't have, a compliance requirement you can't meet, a cost curve that stops making sense at your size, or a limit you can't raise.
 
-Encore keeps the shape of that experience and changes where the resources live. You still declare a database and use it, without writing provisioning code. The resources are created in your own AWS or GCP account, so the ceiling is the cloud provider's rather than the platform's.
+Encore keeps the shape of that experience and changes where the resources live. You still declare a database and use it, without writing provisioning code. Encore creates the resources in your own AWS or GCP account, so the ceiling is the cloud provider's rather than the platform's.
 
 ## What carries over, and what doesn't
 
