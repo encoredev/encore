@@ -31,7 +31,7 @@ From that line the parser records three things: the application uses a SQL datab
 
 That same declaration produces a Postgres database in a local container when you run `encore run`, and a managed Postgres instance in your own cloud account when you deploy, with the migrations applied in each case. Which managed service backs it is [an environment setting](/docs/platform/infrastructure/infra) rather than something in the code, so a change that works on your machine behaves the same way in production. The [development workflow](/docs/platform/workflow) covers how one declaration carries from your laptop through per-PR preview environments to production.
 
-The model is rebuilt from source on every `encore run` and every build, so it cannot drift from the code it describes. Because the parser and the framework are designed together, a declaration the parser cannot resolve fails the build instead of failing at runtime. The framework, parser and compiler that produce the model are all [Open Source](https://github.com/encoredev/encore).
+The model is rebuilt from source on every `encore run` and every build, so it cannot drift from the code it describes. Because the parser and the SDK are designed together, a declaration the parser cannot resolve fails the build instead of failing at runtime. The SDK, parser and compiler that produce the model are all [Open Source](https://github.com/encoredev/encore).
 
 Encore renders the model as an architecture diagram, without you drawing anything. Each box is a service, with a count of its public, authenticated and private endpoints and the databases it uses. Hovering a service shows which services call it and how many RPCs each caller makes, because the model records those call sites too:
 
@@ -64,7 +64,7 @@ Missing Resource Configurations:
 
 ## What the model makes possible
 
-Because the model records usage and not only declaration, Encore can derive things you would otherwise write and maintain by hand. IAM is the clearest case. Say an `uploads` bucket is declared once and used by two services:
+Because the model records usage and not only declaration, Encore can derive things you would otherwise write and maintain by hand, and IAM is the clearest case. Say two services share one `uploads` bucket:
 
 ```ts
 // in the ingest service
@@ -74,7 +74,7 @@ await uploads.upload("q3.csv", csvBytes);
 const csv = await uploads.download("q3.csv");
 ```
 
-The parser sees a download in one and an upload in the other, so `reports` is granted read access to that bucket and `ingest` is granted write, and neither gets more than it uses. Bucket usage alone distinguishes nine operations, from reading object contents to generating signed upload URLs. The same holds for which service publishes to which topic and which service calls which endpoint.
+The parser sees a download in one and an upload in the other, so Encore grants `reports` read access to that bucket and `ingest` write, and neither service gets more than it uses. Bucket usage alone distinguishes nine operations, from reading object contents to generating signed upload URLs. The same holds for which service publishes to which topic and which service calls which endpoint.
 
 The model drives provisioning, [request validation](/docs/ts/primitives/validation) against the declared schemas, [generated clients](/docs/ts/cli/client-generation) and [API documentation](/docs/ts/develop/api-docs), and [distributed tracing](/docs/ts/observability/tracing) across service boundaries. None of these can disagree with each other, because there is only one description for them to disagree with.
 
@@ -116,7 +116,7 @@ API endpoints have to be exported rather than merely bound, and service definiti
 
 ## Infrastructure outside the model
 
-The model covers a fixed set of resource kinds, so a search cluster, a third-party API, or a set of queues whose number depends on runtime data all sit outside it. Those are provisioned however you like and reached from your code the way any external dependency is, with connection details held in a [secret](/docs/ts/primitives/secrets):
+The model covers a fixed set of resource kinds, so a search cluster, a third-party API, or a set of queues whose number depends on runtime data all sit outside it. You provision those however you like and reach them from your code the way you would any external dependency, with connection details held in a [secret](/docs/ts/primitives/secrets):
 
 ```ts
 import { secret } from "encore.dev/config";
