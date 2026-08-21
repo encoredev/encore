@@ -29,7 +29,7 @@ var db = sqldb.NewDatabase("orders", sqldb.DatabaseConfig{
 </CodeTab>
 </CodeTabs>
 
-Encore's compiler reads that declaration into an [application model](/docs/ts/concepts/application-model) and provisions a Postgres database, running as a container on your laptop and as RDS or Cloud SQL in production. Instance size, engine and which cloud it runs in are [per-environment settings](/docs/platform/infrastructure/configuration), set in the dashboard or in a config file if you run Encore yourself.
+Encore's compiler reads that declaration into an [application model](/docs/ts/concepts/application-model) and provisions a Postgres database, running as a container on your laptop and as RDS or Cloud SQL in production. Instance size, engine and which cloud it runs in are [per-environment settings](/docs/platform/infrastructure/configuration), set in the dashboard or in a config file if you run Encore yourself. The other [primitives](/docs/ts/primitives) work the same way: Pub/Sub topics, object storage, caches, cron jobs and secrets.
 
 `encore run` starts the whole application locally: the database, a Pub/Sub broker, your services calling each other, and a [dashboard](/docs/ts/observability/dev-dash) with tracing, logs and a database explorer. There is no local setup of your own to maintain.
 
