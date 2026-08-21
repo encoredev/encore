@@ -66,3 +66,9 @@ Encore.ts provides integrations for common infrastructure primitives, but also a
 For example, you can always use any cloud infrastructure, even if it's not built into the Encore.ts framework. You can use any database, message broker, or other service that your application needs, just set up the infrastructure and then reference it in your code as you would do traditionally.
 
 If you use [Encore Cloud](https://encore.dev/use-cases/devops-automation), it will [automate infrastructure](/docs/platform/infrastructure/infra) using your own cloud account, so you always have full access to your services from the cloud provider's console.
+
+## Fewer stylistic decisions to make
+
+Building a backend means dozens of decisions about codebase structure, API schemas and which infrastructure to use, and many of them come down to preference rather than technical rationale. Every stack ends up shaped differently, which is why general-purpose tooling is the only kind that fits.
+
+Adopting Encore settles most of those decisions, and the parser checks that the application keeps to them, leaving your attention on the business logic.
