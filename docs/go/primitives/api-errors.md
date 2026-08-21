@@ -1,5 +1,5 @@
 ---
-seotitle: API Errors - Types, Wrappers, and Codes
+seotitle: API Errors 鈥?Types, Wrappers, and Codes
 seodesc: See how to return structured error information from your APIs using Encore's errs package, and how to build precise error messages for complex business logic.
 title: API Errors
 subtitle: Returning structured error information from your APIs
@@ -26,7 +26,8 @@ type Error struct {
 	Message string `json:"message"`
 	// Details are user-defined additional details.
 	Details ErrDetails `json:"details"`
-	// Meta are arbitrary key-value pairs for use within the Encore application. They are not exposed to external clients.
+	// Meta are arbitrary key-value pairs for use within
+	// the Encore application. They are not exposed to external clients.
 	Meta Metadata `json:"-"`
 }
 ```
@@ -134,7 +135,6 @@ if errors.As(err, &dbErr) {
 ```
 
 Use `sqldb.ErrCode(err)` when only the general database error code is needed. It returns `sqlerr.Other` for errors that are not database errors.
-
 ## Error Building
 
 In cases where you have complex business logic, or multiple error returns,
