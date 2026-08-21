@@ -16,7 +16,7 @@ Because Encore's model runs anywhere, a change can be run, tested and observed e
 
 With Encore you declare infrastructure (SQL databases, Pub/Sub, object storage, caches, cron jobs, secrets) as objects in your application code using the open source Encore [TypeScript](/docs/ts) or [Go](/docs/go) SDK.
 
-`encore run` starts the whole system: Postgres in a Docker container, a local Pub/Sub broker, object storage on your filesystem, your services with type-safe API calls between them, plus a [local dashboard](/docs/ts/observability/dev-dash) with distributed tracing, logs, and a database explorer. Encore derives that setup from your declarations, so your repo carries no Compose file or emulator config that has to be kept in sync with what production runs.
+`encore run` starts the whole system: Postgres in a Docker container, a local Pub/Sub broker, object storage on your filesystem, your services with type-safe API calls between them, plus a [local dashboard](/docs/ts/observability/dev-dash) with distributed tracing, logs, and a database explorer. That setup comes from your declarations, so your repo carries no Compose file or emulator config to keep in sync with what production runs.
 
 <video autoPlay playsInline loop muted className="w-full h-auto">
   <source src="/assets/docs/localdevdash.mp4" type="video/mp4"/>
@@ -32,7 +32,7 @@ For agents running in parallel (one agent per task, one agent per branch), [infr
 
 `encore test` provisions the infrastructure in test mode and then hands off to your test runner: Vitest or Jest for TypeScript, `go test` for Go. Each run gets its own databases, tuned for speed over durability by skipping `fsync` and using in-memory filesystems, and object storage runs in memory as well.
 
-Encore removes most of the boilerplate, so what is left to test is mostly business logic over databases and calls between services, which is what integration tests verify. Encore applications typically lean on them for that reason, and the test-mode setup described in [Automated testing](/docs/ts/develop/testing) makes them nearly as fast as unit tests.
+Encore removes most of the boilerplate, so what is left to test is mostly business logic over databases and calls between services, which is what integration tests verify. Applications on Encore typically lean on them for that reason, and the test-mode setup described in [Automated testing](/docs/ts/develop/testing) makes them nearly as fast as unit tests.
 
 ## What a preview environment runs
 
@@ -42,9 +42,9 @@ You can [branch the database from a seed environment](/docs/platform/infrastruct
 
 ## Production in your own cloud account
 
-When a change is merged, the same model that ran locally and in the preview environment provisions production resources in your AWS or GCP account. New infrastructure, like another database or Pub/Sub topic, is introduced by writing it in code, and the matching cloud resource is created on deploy without a separate Terraform PR.
+When a change is merged, the same model that ran locally and in the preview environment provisions production resources in your AWS or GCP account. You introduce new infrastructure, like another database or Pub/Sub topic, by writing it in code, and Encore creates the matching cloud resource on deploy without a separate Terraform PR.
 
-Those same per-environment settings are managed from one control plane, while you keep full access through your cloud console and changes stay synced in both directions. [Least-privilege IAM and firewall rules](/docs/platform/deploy/security) are derived from how your code actually uses each resource, rather than hand-written.
+You manage those same per-environment settings from one control plane, while keeping full access through your cloud console, and changes stay synced in both directions. Encore derives [least-privilege IAM and firewall rules](/docs/platform/deploy/security) from how your code actually uses each resource, rather than you hand-writing them.
 
 ## How your code uses each resource
 
@@ -57,7 +57,7 @@ for (const order of await db.queryAll`SELECT id FROM orders WHERE status = 'open
 }
 ```
 
-Service discovery, connection strings, and other glue are generated deterministically from those usages, so misusing a resource is a build error rather than a runtime surprise. Those same usages are what the [application model](/docs/ts/concepts/application-model) records, and where the IAM policies above come from.
+Encore generates service discovery, connection strings and other glue deterministically from those usages, so misusing a resource becomes a build error rather than a runtime surprise. Those same usages are what the [application model](/docs/ts/concepts/application-model) records, and where the IAM policies above come from.
 
 ## The workflow and AI agents
 
@@ -69,7 +69,7 @@ Each stage of this loop gives an agent a way to check its own work.
 4. **Per-PR preview environments**, so end-to-end validation against real cloud services happens before a human reviews.
 5. **Provisioning from code**, so the artifact the agent produces is the same thing that goes to production.
 
-[AI Integration](/docs/ts/ai-integration) covers the editor rules and MCP server that give an agent your service graph, schemas and traces. [AI infrastructure provisioning](/docs/platform/ai-integration) covers the guardrails on what an agent can create in your cloud account.
+[AI Integration](/docs/ts/ai-integration) covers the editor rules and MCP server that hand an agent your service graph, schemas and traces, while [AI infrastructure provisioning](/docs/platform/ai-integration) covers the guardrails on what it can create in your cloud account.
 
 ## Where to go next
 
