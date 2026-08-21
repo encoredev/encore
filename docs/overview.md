@@ -8,7 +8,7 @@ lang: platform
 
 Encore is a platform for building backend applications and running them on AWS or GCP. It provisions the infrastructure your services declare, the resources you would otherwise write Terraform for, and runs the same setup on your laptop as in your own cloud account.
 
-You add Encore to your [services](/docs/ts/primitives/app-structure) as an SDK rather than rewriting them into it, whether your application is a single service or many. A service holds its APIs and the infrastructure it owns, declared in the code that uses it.
+You add Encore to your [services](/docs/ts/primitives/app-structure) as an SDK rather than rewriting them into it, whether your application has one service or many. A service holds its APIs and the infrastructure it owns, declared in the code that uses it.
 
 <CodeTabs>
 <CodeTab label="TypeScript">
