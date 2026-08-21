@@ -6,53 +6,74 @@ subtitle: A tight iteration loop from your laptop to AWS or GCP, designed for fa
 lang: platform
 ---
 
-AI coding agents are most effective when they can validate their own changes and iterate quickly. The harder it is to actually run a change end-to-end, the more an agent (or a human) has to guess instead of verify.
+An Encore application runs in three places: on your laptop, in a preview environment for every pull request, and in production in your own AWS or GCP account. The same infrastructure model drives all three, because that model comes from your application code rather than from a separate configuration codebase. Nothing cloud-specific appears in that code: instance sizes, database engines and compute hardware are per-environment [infrastructure settings](/docs/platform/infrastructure/configuration) you choose in the Encore dashboard, so staging can run a small shared database while production runs a large managed one.
 
-Traditional Terraform-based workflows are production-centric. The infrastructure model lives in a separate codebase, applies only against cloud accounts, and is awkward or impossible to run on a laptop. Teams compensate by building bespoke local approximations (Docker Compose files, hand-rolled mocks, staging-only testing), but those approximations drift from production. The result is often a slow loop where most changes can only really be validated after a deploy.
+When infrastructure is defined outside the application it only applies against cloud accounts, so teams approximate the local half with Docker Compose files, hand-rolled mocks and staging-only testing, and those approximations drift from what production actually does. For a fuller comparison of the two approaches, see [Coming from Terraform](/docs/platform/migration/from-terraform).
 
-Encore is built around a different assumption: the **same infrastructure model** should drive local development, per-PR preview environments, and production. If that model is defined by your application code, it can run anywhere, which makes the whole iteration loop faster for everyone, and dramatically more effective for AI agents.
+Because Encore's model runs anywhere, a change can be run, tested and observed end-to-end before it is merged, and most questions about whether it works get answered before a deploy instead of after one. Humans benefit from that, and AI coding agents depend on it, since an agent is only as useful as its ability to check its own work.
 
-## Develop locally as if the infrastructure is already set up
+## What `encore run` starts
 
 With Encore you declare infrastructure (SQL databases, Pub/Sub, object storage, caches, cron jobs, secrets) as objects in your application code using the open source Encore [TypeScript](/docs/ts) or [Go](/docs/go) SDK.
 
-`encore run` starts the whole system: real Postgres, a local Pub/Sub broker, local object storage, your services with type-safe API calls between them, plus a [local dashboard](/docs/ts/observability/dev-dash) with distributed tracing, logs, and a database explorer. No configuration, no Docker Compose to maintain, no local emulators to run for Pub/Sub.
+`encore run` starts the whole system: Postgres in a Docker container, a local Pub/Sub broker, object storage on your filesystem, your services with type-safe API calls between them, plus a [local dashboard](/docs/ts/observability/dev-dash) with distributed tracing, logs, and a database explorer. That setup comes from your declarations, so your repo carries no Compose file or emulator config to keep in sync with what production runs.
+
+<video autoPlay playsInline loop muted className="w-full h-auto">
+  <source src="/assets/docs/localdevdash.mp4" type="video/mp4"/>
+</video>
+
+The model is identical across environments; the implementations underneath it are not. In production that local Postgres container is RDS or Cloud SQL, or the local Pub/Sub broker becomes SNS and SQS or Cloud Pub/Sub, for example. Everything you write stays the same: the same declarations, the same generated clients, the same API surface, with nothing in your code that has to ask which environment it is running in. [Infrastructure on AWS and GCP](/docs/platform/infrastructure/infra) lists what each primitive becomes in each environment.
+
+Cron jobs are the one deliberate exception, and do not fire locally or in preview environments so that a schedule cannot surprise you while you are working; you invoke the endpoint from the dashboard instead.
 
 For agents running in parallel (one agent per task, one agent per branch), [infrastructure namespaces](/docs/ts/cli/infra-namespaces) give each branch or task its own isolated local state. `encore namespace switch --create pr:123` creates a fresh namespace with its own database; switching back later restores the previous state.
 
-## Standardize how infrastructure is integrated
+## What `encore test` sets up
 
-Encore's compiler validates how your code uses each declared resource. There is one governed way to integrate a database, publish to a topic, expose an API, or read a secret. Service discovery, connection strings, and other glue are generated deterministically.
+`encore test` provisions the infrastructure in test mode and then hands off to your test runner: Vitest or Jest for TypeScript, `go test` for Go. Each run gets its own databases, tuned for speed over durability by skipping `fsync` and using in-memory filesystems, and object storage runs in memory as well.
 
-For AI agents this matters twice over: the surface area an agent has to learn is small and consistent, and the compiler catches mistakes the moment the agent makes them, rather than after a deploy.
+Encore removes most of the boilerplate, so what is left to test is mostly business logic over databases and calls between services, which is what integration tests verify. Applications on Encore typically lean on them for that reason, and the test-mode setup described in [Automated testing](/docs/ts/develop/testing) makes them nearly as fast as unit tests.
 
-## Validate changes end-to-end in per-PR preview environments
+## What a preview environment runs
 
-When you open a pull request, Encore Cloud automatically spins up a [preview environment](/docs/platform/deploy/preview-environments) in your own VPC. It comes up in minutes and runs the same infrastructure model as production, in real cloud services.
+When you open a pull request, Encore automatically spins up a [preview environment](/docs/platform/deploy/preview-environments) in your own VPC. It comes up in minutes and runs the same infrastructure model as production, in real cloud services.
 
-You can [branch the database from a seed environment](/docs/platform/infrastructure/neon) so each PR starts with realistic data. Agents (and reviewers) can hit a real URL, run real requests, and observe real traces before any change is merged.
+You can [branch the database from a seed environment](/docs/platform/infrastructure/neon) so each PR starts with realistic data. Reviewers and agents get a real URL, can send real requests, and can read the resulting traces before anything is merged.
 
-This is the iteration loop that's structurally missing from Terraform-style workflows: a way to verify "does this change actually work, end-to-end, against real infrastructure" without touching production.
+## Production in your own cloud account
 
-## Self-serve cloud infrastructure on AWS or GCP
+When a change is merged, the same model that ran locally and in the preview environment provisions production resources in your AWS or GCP account. You introduce new infrastructure, like another database or Pub/Sub topic, by writing it in code, and Encore creates the matching cloud resource on deploy without a separate Terraform PR.
 
-When a change is merged, the same model that ran locally and in the preview environment provisions production resources in your AWS or GCP account. Developers (and agents) can introduce new infrastructure, like a new database or Pub/Sub topic, by writing it in code; Encore Cloud creates the matching cloud resource on deploy. No separate Terraform PR required.
+You manage those same per-environment settings from one control plane, while keeping full access through your cloud console, and changes stay synced in both directions. Encore derives [least-privilege IAM and firewall rules](/docs/platform/deploy/security) from how your code actually uses each resource, rather than you hand-writing them.
 
-[Encore Cloud](/docs/platform) manages scaling, resource settings, and infrastructure configuration from one control plane, while keeping full access through your cloud console. Changes stay synced in both directions. [Least-privilege IAM and firewall rules](/docs/platform/deploy/security) are derived from how your code actually uses each resource, not hand-written policies.
+## How your code uses each resource
 
-## Making AI agents more effective
+Encore's compiler validates how your code uses each declared resource. There is one governed way to query a database or publish to a topic, the same in every environment:
 
-These properties come together to make AI agents highly effective, as each stage gives the agent a way to verify and iterate toward a working implementation.
+```ts
+// orderEvents is a Topic, declared the same way as the database above
+for (const order of await db.queryAll`SELECT id FROM orders WHERE status = 'open'`) {
+  await orderEvents.publish({ orderID: order.id });
+}
+```
 
-1. **Local infrastructure that mirrors production**, so an agent can run and observe its change immediately.
-2. **A small, compiler-validated surface area**, so an agent picks from a stable vocabulary and gets fast feedback on mistakes.
-3. **Per-PR preview environments**, so an agent can validate end-to-end against real cloud services before asking a human to review.
-4. **Self-serve cloud provisioning from code**, so the agent's working artifact (code) is the same thing that goes to production.
+Encore generates service discovery, connection strings and other glue deterministically from those usages, so misusing a resource becomes a build error rather than a runtime surprise. Those same usages are what the [application model](/docs/ts/concepts/application-model) records, and where the IAM policies above come from.
 
+## The workflow and AI agents
+
+Each stage of this loop gives an agent a way to check its own work.
+
+1. **Local infrastructure that matches the production model**, so an agent can run and observe a change immediately.
+2. **A test command that provisions its own infrastructure**, so a change can be proven to work without a deploy.
+3. **A small, compiler-validated surface area**, so mistakes surface as build errors in seconds.
+4. **Per-PR preview environments**, so end-to-end validation against real cloud services happens before a human reviews.
+5. **Provisioning from code**, so the artifact the agent produces is the same thing that goes to production.
+
+[AI Integration](/docs/ts/ai-integration) covers the editor rules and MCP server that hand an agent your service graph, schemas and traces, while [AI infrastructure provisioning](/docs/platform/ai-integration) covers the guardrails on what it can create in your cloud account.
 
 ## Where to go next
 
 - Start with the [Quick Start for TypeScript](/docs/ts/quick-start) or [Go](/docs/go/quick-start).
 - See [Local Development Dashboard](/docs/ts/observability/dev-dash) and [Infrastructure Namespaces](/docs/ts/cli/infra-namespaces) for the local loop.
+- See [Automated testing](/docs/ts/develop/testing) for running tests against real infrastructure.
 - See [Preview Environments](/docs/platform/deploy/preview-environments) and [Deploying & CI/CD](/docs/platform/deploy/deploying) for the cloud loop.
-- See [AI Integration](/docs/platform/ai-integration) for the AI-specific tooling (instructions, MCP server, Cloud MCP).
