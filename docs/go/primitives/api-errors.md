@@ -121,14 +121,15 @@ import (
 	"encore.dev/storage/sqldb/sqlerr"
 )
 
-err := db.Exec(ctx, "INSERT INTO user (email) VALUES ($1)", email)
+_, err := db.Exec(ctx, "INSERT INTO user (email) VALUES ($1)", email)
 var dbErr *sqldb.Error
 if errors.As(err, &dbErr) {
 	if dbErr.Code == sqlerr.UniqueViolation {
-		return nil, errs.B().Code(errs.AlreadyExists).Msg("email already exists").Err()
+		return errs.B().Code(errs.AlreadyExists).Msg("email already exists").Err()
 	}
 	// DatabaseCode contains the PostgreSQL SQLSTATE, such as "23505".
-	log.Error("database query failed", "sqlstate", dbErr.DatabaseCode)
+	sqlstate := dbErr.DatabaseCode
+	_ = sqlstate
 }
 ```
 
