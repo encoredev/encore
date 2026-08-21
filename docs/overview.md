@@ -6,9 +6,9 @@ subtitle: A platform for building backend applications and running them in your 
 lang: platform
 ---
 
-Encore provisions the infrastructure your services declare, the resources you would otherwise write Terraform for, and runs the same setup on your laptop as in your own cloud account. You add it to your [services](/docs/ts/primitives/app-structure) as an SDK rather than rewriting them into it, whether your application has one service or many.
+Encore provisions the infrastructure your services declare and runs it in your own AWS or GCP account. You add it to a service as an SDK, so an existing service keeps its structure.
 
-A service holds its APIs and the infrastructure it owns, declared in the code that uses it. For example, a SQL database:
+An application contains one or more [services](/docs/ts/primitives/app-structure), and a service holds its APIs alongside the infrastructure it needs. For example, a SQL database:
 
 <CodeTabs>
 <CodeTab label="TypeScript">
@@ -29,51 +29,51 @@ var db = sqldb.NewDatabase("orders", sqldb.DatabaseConfig{
 </CodeTab>
 </CodeTabs>
 
-Encore's compiler reads that declaration into an [application model](/docs/ts/concepts/application-model) and provisions a Postgres database, running as a container on your laptop and as RDS or Cloud SQL in production. The other [primitives](/docs/ts/primitives) work the same way: Pub/Sub topics, object storage, caches, cron jobs and secrets. Instance size, engine and which cloud each one runs in are [per-environment settings](/docs/platform/infrastructure/configuration), set in the dashboard or in a config file if you run Encore yourself.
+Encore's compiler reads that declaration into an [application model](/docs/ts/concepts/application-model): a description of every service, resource and API in your application. From that model Encore creates the database, as a Postgres container on your laptop and as RDS or Cloud SQL in your cloud account. You choose the instance size, engine and cloud [per environment](/docs/platform/infrastructure/configuration), in the dashboard. The other [primitives](/docs/ts/primitives) work the same way: Pub/Sub topics, object storage, caches, cron jobs and secrets.
 
-`encore run` starts the whole application locally: the database, a Pub/Sub broker, your services calling each other, and a [dashboard](/docs/ts/observability/dev-dash) with tracing, logs and a database explorer. Encore builds that environment from the same declarations, so it changes when your code does. The [development workflow](/docs/platform/workflow) covers the loop from here through per-PR preview environments to production.
+`encore run` starts every service in your application, along with the infrastructure they declare and a [dashboard](/docs/ts/observability/dev-dash) with tracing, logs and a database explorer. Because that environment comes from the same model, it changes when your code does. The [development workflow](/docs/platform/workflow) covers the loop from here through per-PR preview environments to production.
 
-The application model also records which operations your code performs on each resource. Each service's IAM policy, the typed clients for your APIs and the service catalog are derived from that usage rather than written by you. Infrastructure-as-code tools describe resources; they cannot derive any of that from how the code uses them.
+The model also records which operations each service performs on each resource, and Encore derives each service's IAM policy, the typed clients for your APIs and the service catalog from those records.
 
 ## What Encore is made of
 
-- The Infra SDK is what you write against, in [TypeScript](/docs/ts) or [Go](/docs/go). It covers six infrastructure [primitives](/docs/ts/primitives), and it is open source along with the parser, compiler, CLI and runtimes.
-- The [application model](/docs/ts/concepts/application-model) is what the compiler produces from your code. It records which services exist, which resources each one owns, and which operations each one performs.
-- Local development runs the whole system on your laptop. `encore run` starts a local implementation of every resource you declared, with a [development dashboard](/docs/ts/observability/dev-dash) for tracing, logs and a database explorer.
-- [Cloud infrastructure](/docs/platform/infrastructure/infra) is provisioned in your own AWS or GCP account, with [per-environment settings](/docs/platform/infrastructure/configuration) and [least-privilege IAM and firewall rules](/docs/platform/deploy/security) derived from how your code actually uses each resource.
-- [Deploys and environments](/docs/platform/deploy/deploying) cover production and a [preview environment](/docs/platform/deploy/preview-environments) for every pull request, running the same infrastructure model as production.
-- [Observability](/docs/ts/observability/tracing) gives you distributed tracing and a [service catalog](/docs/ts/observability/service-catalog) built from the model, so neither can drift from the code it describes.
+- You write against the Infra SDK, in [TypeScript](/docs/ts) or [Go](/docs/go). It covers six infrastructure [primitives](/docs/ts/primitives), and it is open source along with the parser, compiler, CLI and runtimes.
+- The compiler produces the [application model](/docs/ts/concepts/application-model) from your code, recording which services exist, which resources each one owns, and which operations each one performs.
+- `encore run` starts your whole application on your laptop, with a local implementation of every resource it declares and a [development dashboard](/docs/ts/observability/dev-dash) for tracing, logs and a database explorer.
+- Encore provisions [cloud infrastructure](/docs/platform/infrastructure/infra) in your own AWS or GCP account, applies your [per-environment settings](/docs/platform/infrastructure/configuration), and derives [least-privilege IAM and firewall rules](/docs/platform/deploy/security) from how your code uses each resource.
+- Encore [deploys](/docs/platform/deploy/deploying) to production and to a [preview environment](/docs/platform/deploy/preview-environments) for every pull request, each running the same infrastructure model.
+- [Distributed tracing](/docs/ts/observability/tracing) and the [service catalog](/docs/ts/observability/service-catalog) come from the model, so neither drifts from the code it describes.
 
 You can also run an Encore application without the platform. `encore build docker` produces a standard image, and an [infra config file](/docs/ts/self-host/configure-infra) tells the runtime how to reach infrastructure you provisioned yourself.
 
 ## Working with AI agents
 
-The properties that make the model useful to a compiler make it useful to an agent as well. The settings that can be misconfigured are not in the code an agent edits, resource names and scope are checked when you build, and permissions follow actual usage, so an agent cannot grant itself access the code it wrote does not use.
+The properties that make the model useful to a compiler serve an agent as well. An agent never edits the settings that can be misconfigured, the compiler checks resource names and scope at build time, and permissions follow actual usage, so an agent cannot grant itself access the code it wrote does not use.
 
-[Infrastructure namespaces](/docs/ts/cli/infra-namespaces) give each agent or branch its own isolated local state, which matters once several are running at once. [AI integration](/docs/ts/ai-integration) covers the editor rules and MCP server that give an agent your service graph, schemas and traces, and [AI infrastructure provisioning](/docs/platform/ai-integration) covers the guardrails on what an agent is allowed to create in your cloud account.
+[Infrastructure namespaces](/docs/ts/cli/infra-namespaces) give each agent or branch its own isolated local state, which matters once several run at once. [AI integration](/docs/ts/ai-integration) covers the editor rules and MCP server that hand an agent your service graph, schemas and traces, and [AI infrastructure provisioning](/docs/platform/ai-integration) covers the guardrails on what it can create in your cloud account.
 
 ## Where each setting lives
 
-Three separate places, and knowing which is which answers most questions about what you can still control.
+Encore splits configuration across three places, and knowing which is which answers most questions about what you can still control.
 
 | Where | What it decides |
 |---|---|
 | Your code | Which services exist, which resources they own, and which operations they perform on them |
-| [The Encore dashboard](/docs/platform/infrastructure/configuration) | Cloud provider, compute platform, database engine, instance sizes and process allocation, set per environment |
+| [The Encore dashboard](/docs/platform/infrastructure/configuration) | Cloud provider, compute platform, database engine, instance sizes and process allocation, per environment |
 | [An infra config file](/docs/ts/self-host/configure-infra) | Which infrastructure you provisioned yourself each logical resource maps to, when running without the platform |
 
-Nothing environment-specific belongs in the first row, which is what lets the same code run in every environment. The loop that carries it from `encore run` through a preview environment to production is covered in the [development workflow](/docs/platform/workflow).
+Nothing environment-specific belongs in the first row, so the same code runs in every environment.
 
 ## Start here
 
 - Build something: the Quick Start for [TypeScript](/docs/ts/quick-start) or [Go](/docs/go/quick-start).
 - Understand the mechanism: the [application model](/docs/ts/concepts/application-model) explains how code becomes infrastructure, and [Primitives](/docs/ts/primitives) covers each resource you can declare.
 - Coming from another tool: [Coming from an IaC tool](/docs/platform/migration/from-iac) or [Coming from a PaaS](/docs/platform/migration/from-paas).
-- Running it alongside what you already have: existing resources can be imported rather than recreated, including [RDS](/docs/platform/infrastructure/aws/import-rds), [Cloud SQL](/docs/platform/infrastructure/gcp/import-cloud-sql), [S3](/docs/platform/infrastructure/aws/import-s3-bucket) and a [Kubernetes cluster](/docs/platform/infrastructure/import-kubernetes-cluster), and the [Terraform Provider](/docs/platform/integrations/terraform) reads Encore-provisioned resources back into your own configuration.
+- Running it alongside what you already have: Encore can import existing [RDS](/docs/platform/infrastructure/aws/import-rds), [Cloud SQL](/docs/platform/infrastructure/gcp/import-cloud-sql), [S3](/docs/platform/infrastructure/aws/import-s3-bucket) and [Kubernetes](/docs/platform/infrastructure/import-kubernetes-cluster) resources instead of recreating them, and the [Terraform Provider](/docs/platform/integrations/terraform) reads Encore-provisioned resources back into your own configuration.
 - Evaluating what the platform runs: [Platform](/docs/platform) covers provisioning, environments and operations in more depth.
 
 ## What Encore doesn't do
 
-A search cluster, a data warehouse or a queue with semantics none of the six primitives have is something you provision however you like, and reach from your code as an external dependency with its connection details in a [secret](/docs/ts/primitives/secrets).
+For anything outside the six primitives, such as a search cluster or a data warehouse, you provision it yourself and reach it from your code as an external dependency, with its connection details in a [secret](/docs/ts/primitives/secrets).
 
-Infrastructure whose shape depends on runtime data also sits outside the model, because the model is built by reading your code rather than by running it. A resource created inside a conditional or from a computed name is not part of it.
+Infrastructure whose shape depends on runtime data also sits outside the model, because Encore builds the model by reading your code rather than running it. A resource created inside a conditional, or from a computed name, never reaches the model at all.
