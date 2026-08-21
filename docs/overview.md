@@ -6,7 +6,9 @@ subtitle: A platform for building backend applications and running them in your 
 lang: platform
 ---
 
-Encore provisions the infrastructure your services declare and runs it in your own AWS or GCP account. You add it to a service as an SDK, so an existing service keeps its structure.
+Encore automates infrastructure across the whole path from development to production. Your services declare the infrastructure they need, and Encore runs it on your laptop, in a preview environment for every pull request, and in your own AWS or GCP account on deploy. Developers and agents both work this way, with no separate infrastructure change to wait on.
+
+You add Encore to a service as an SDK, so an existing service keeps its structure, and you can start with one service and expand from there.
 
 An application contains one or more [services](/docs/ts/primitives/app-structure), and a service holds its APIs alongside the infrastructure it needs. For example, a SQL database:
 
@@ -40,7 +42,7 @@ The model also records which operations each service performs on each resource, 
 - You write against the Infra SDK, in [TypeScript](/docs/ts) or [Go](/docs/go). It covers six infrastructure [primitives](/docs/ts/primitives), and it is open source along with the parser, compiler, CLI and runtimes.
 - The compiler produces the [application model](/docs/ts/concepts/application-model) from your code, recording which services exist, which resources each one owns, and which operations each one performs.
 - `encore run` starts your whole application on your laptop, with a local implementation of every resource it declares and a [development dashboard](/docs/ts/observability/dev-dash) for tracing, logs and a database explorer.
-- Encore provisions [cloud infrastructure](/docs/platform/infrastructure/infra) in your own AWS or GCP account, applies your [per-environment settings](/docs/platform/infrastructure/configuration), and derives [least-privilege IAM and firewall rules](/docs/platform/deploy/security) from how your code uses each resource.
+- Encore provisions [cloud infrastructure](/docs/platform/infrastructure/infra) in your own AWS or GCP account, inside your VPC and your compliance boundary. It applies your [per-environment settings](/docs/platform/infrastructure/configuration) and derives [least-privilege IAM and firewall rules](/docs/platform/deploy/security) from how your code uses each resource.
 - Encore [deploys](/docs/platform/deploy/deploying) to production and to a [preview environment](/docs/platform/deploy/preview-environments) for every pull request, each running the same infrastructure model.
 - [Distributed tracing](/docs/ts/observability/tracing) and the [service catalog](/docs/ts/observability/service-catalog) come from the model, so neither drifts from the code it describes.
 
@@ -54,7 +56,7 @@ The properties that make the model useful to a compiler serve an agent as well. 
 
 ## Where each setting lives
 
-Encore splits configuration across three places, and knowing which is which answers most questions about what you can still control.
+Encore keeps environment-specific configuration out of the development loop, so developers and agents can add infrastructure without a platform review for every change, while sizing, engines and compute stay centrally controlled across three places.
 
 | Where | What it decides |
 |---|---|
@@ -62,7 +64,7 @@ Encore splits configuration across three places, and knowing which is which answ
 | [The Encore dashboard](/docs/platform/infrastructure/configuration) | Cloud provider, compute platform, database engine, instance sizes and process allocation, per environment |
 | [An infra config file](/docs/ts/self-host/configure-infra) | Which infrastructure you provisioned yourself each logical resource maps to, when running without the platform |
 
-Nothing environment-specific belongs in the first row, so the same code runs in every environment.
+Nothing environment-specific belongs in the first row, so the same code runs in every environment. Encore audits and role-controls changes to the second, which is what makes self-service safe to hand to a developer or an agent.
 
 ## Start here
 
