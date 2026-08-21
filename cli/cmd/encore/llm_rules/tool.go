@@ -26,18 +26,18 @@ type Tool string
 
 // NOTE: changes to these values should also be reflected in userconfig
 const (
-	LLMRulesToolNone      Tool = ""
-	LLMRulesToolCursor    Tool = "cursor"
-	LLMRulesToolClaudCode Tool = "claudecode"
-	LLMRulesToolVSCode    Tool = "vscode"
-	LLMRulesToolAgentsMD  Tool = "agentsmd"
-	LLMRulesToolZed       Tool = "zed"
+	LLMRulesToolNone       Tool = ""
+	LLMRulesToolCursor     Tool = "cursor"
+	LLMRulesToolClaudeCode Tool = "claudecode"
+	LLMRulesToolVSCode     Tool = "vscode"
+	LLMRulesToolAgentsMD   Tool = "agentsmd"
+	LLMRulesToolZed        Tool = "zed"
 )
 
 // all available options exept for None
 var AllLLMRules = []Tool{
 	LLMRulesToolCursor,
-	LLMRulesToolClaudCode,
+	LLMRulesToolClaudeCode,
 	LLMRulesToolVSCode,
 	LLMRulesToolAgentsMD,
 	LLMRulesToolZed,
@@ -55,7 +55,7 @@ func (e Tool) Display() string {
 	switch e {
 	case LLMRulesToolCursor:
 		return "Cursor"
-	case LLMRulesToolClaudCode:
+	case LLMRulesToolClaudeCode:
 		return "Claude Code"
 	case LLMRulesToolVSCode:
 		return "VS Code"
@@ -123,7 +123,7 @@ func SetupLLMRules(llmRules Tool, lang cmdutil.Language, appRootRelpath string, 
 		if err != nil {
 			return err
 		}
-	case LLMRulesToolClaudCode:
+	case LLMRulesToolClaudeCode:
 		if appSlug != "" {
 			// https://code.claude.com/docs/en/mcp#project-scope
 			mcpPath := filepath.Join(appRootRelpath, ".mcp.json")
@@ -227,7 +227,7 @@ func PrintLLMRulesInfo(tool Tool) {
 	cyanf := cyan.SprintfFunc()
 
 	switch tool {
-	case LLMRulesToolCursor, LLMRulesToolClaudCode, LLMRulesToolVSCode, LLMRulesToolZed:
+	case LLMRulesToolCursor, LLMRulesToolClaudeCode, LLMRulesToolVSCode, LLMRulesToolZed:
 		fmt.Printf("MCP:      %s\n", cyanf("Configured in %s", tool.Display()))
 		fmt.Println()
 	}
