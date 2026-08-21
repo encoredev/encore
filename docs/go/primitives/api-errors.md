@@ -1,5 +1,5 @@
 ---
-seotitle: API Errors – Types, Wrappers, and Codes
+seotitle: API Errors - Types, Wrappers, and Codes
 seodesc: See how to return structured error information from your APIs using Encore's errs package, and how to build precise error messages for complex business logic.
 title: API Errors
 subtitle: Returning structured error information from your APIs
@@ -26,8 +26,7 @@ type Error struct {
 	Message string `json:"message"`
 	// Details are user-defined additional details.
 	Details ErrDetails `json:"details"`
-	// Meta are arbitrary key-value pairs for use within
-	// the Encore application. They are not exposed to external clients.
+	// Meta are arbitrary key-value pairs for use within the Encore application. They are not exposed to external clients.
 	Meta Metadata `json:"-"`
 }
 ```
@@ -109,6 +108,31 @@ You can find additional documentation about when to use them in the
 | `Unavailable`        | `"unavailable"`         | 503 Unavailable           |
 | `DataLoss`           | `"data_loss"`           | 500 Internal Server Error |
 | `Unauthenticated`    | `"unauthenticated"`     | 401 Unauthorized          |
+
+## Database Errors
+
+Database operations can return `*sqldb.Error` when PostgreSQL reports an error. Use `errors.As` to inspect the error's general Encore code and PostgreSQL-specific `DatabaseCode`:
+
+```go
+import (
+	"errors"
+
+	"encore.dev/storage/sqldb"
+	"encore.dev/storage/sqldb/sqlerr"
+)
+
+err := db.Exec(ctx, "INSERT INTO user (email) VALUES ($1)", email)
+var dbErr *sqldb.Error
+if errors.As(err, &dbErr) {
+	if dbErr.Code == sqlerr.UniqueViolation {
+		return nil, errs.B().Code(errs.AlreadyExists).Msg("email already exists").Err()
+	}
+	// DatabaseCode contains the PostgreSQL SQLSTATE, such as "23505".
+	log.Error("database query failed", "sqlstate", dbErr.DatabaseCode)
+}
+```
+
+Use `sqldb.ErrCode(err)` when only the general database error code is needed. It returns `sqlerr.Other` for errors that are not database errors.
 
 ## Error Building
 
