@@ -112,12 +112,13 @@ You can find additional documentation about when to use them in the
 
 ## Database Errors
 
-Database operations can return `*sqldb.Error` when PostgreSQL reports an error. Use `errors.As` to inspect the error's general Encore code and PostgreSQL-specific `DatabaseCode`:
+Database operations may return errors that wrap `*sqldb.Error` when PostgreSQL reports an error. Use `errors.As` to inspect the database error class (`sqlerr.Code`) and the PostgreSQL SQLSTATE (`DatabaseCode`):
 
 ```go
 import (
 	"errors"
 
+	"encore.dev/beta/errs"
 	"encore.dev/storage/sqldb"
 	"encore.dev/storage/sqldb/sqlerr"
 )
