@@ -61,11 +61,11 @@ const stripeKey = secret("StripeAPIKey");
 </CodeTab>
 </CodeTabs>
 
-Services and APIs are declared in code the same way, usually in the same files, and are covered in [Services and APIs](#services-and-apis) further down.
+You declare services and APIs in code the same way, usually in the same files, and they have their own section [further down](#services-and-apis).
 
 A declaration says what the application needs and nothing about how the cloud should supply it. Encore reads these declarations into the [application model](/docs/ts/concepts/application-model), and that model is what drives provisioning, IAM and code generation.
 
-Because nothing in a declaration is environment-specific, the same code runs against a local database, a preview environment's database and production's, and never has to check which one it is talking to. That loop, from `encore run` through a per-PR preview environment to production, is covered in the [development workflow](/docs/platform/workflow).
+Because nothing in a declaration is environment-specific, the same code runs against a local database, a preview environment's database and production's, and never has to check which one it is talking to. The [development workflow](/docs/platform/workflow) covers that loop, from `encore run` through a per-PR preview environment to production.
 
 ## What each primitive becomes
 
