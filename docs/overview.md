@@ -6,9 +6,9 @@ subtitle: A platform for building backend applications and running them in your 
 lang: platform
 ---
 
-Encore is a platform for building backend applications and running them on AWS or GCP. It provisions the infrastructure your services declare, the resources you would otherwise write Terraform for, and runs the same setup on your laptop as in your own cloud account. You add it as an SDK rather than rewriting your services into it, and you keep control of how every resource is configured.
+Encore is a platform for building backend applications and running them on AWS or GCP. It provisions the infrastructure your services declare, the resources you would otherwise write Terraform for, and runs the same setup on your laptop as in your own cloud account.
 
-An Encore application is one or more [services](/docs/ts/primitives/app-structure), and it is not opinionated about monoliths or microservices. A service holds its APIs and the infrastructure it owns, declared in the code that uses it.
+You add Encore to your services as an SDK rather than rewriting them into it. An Encore application is one or more [services](/docs/ts/primitives/app-structure), and it is not opinionated about monoliths or microservices. A service holds its APIs and the infrastructure it owns, declared in the code that uses it.
 
 <CodeTabs>
 <CodeTab label="TypeScript">
