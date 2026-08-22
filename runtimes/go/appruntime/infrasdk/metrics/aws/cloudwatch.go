@@ -81,12 +81,24 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMetric) []types.MetricDatum {
 	data := make([]types.MetricDatum, 0, len(collected))
 
+	// svcLabels is set per-metric in the loop below and captured by doAdd.
+	var svcLabels map[string][]metrics.KeyValue
+
 	doAdd := func(val float64, metricName string, baseDims []types.Dimension, svcIdx uint16) {
+		svcName := x.svcs[svcIdx]
 		dims := make([]types.Dimension, len(baseDims)+1)
 		copy(dims, baseDims)
 		dims[len(baseDims)] = types.Dimension{
 			Name:  aws.String("service"),
-			Value: aws.String(x.svcs[svcIdx]),
+			Value: aws.String(svcName),
+		}
+		if extra, ok := svcLabels[svcName]; ok {
+			for _, kv := range extra {
+				dims = append(dims, types.Dimension{
+					Name:  aws.String(kv.Key),
+					Value: aws.String(kv.Value),
+				})
+			}
 		}
 		data = append(data, types.MetricDatum{
 			MetricName: aws.String(metricName),
@@ -97,6 +109,7 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	for _, m := range collected {
+		svcLabels = m.ServiceLabels
 		dims := make([]types.Dimension, len(x.containerMetadataDims), len(x.containerMetadataDims)+len(m.Labels))
 		copy(dims, x.containerMetadataDims)
 		for _, label := range m.Labels {
