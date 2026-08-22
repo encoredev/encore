@@ -2,6 +2,7 @@ package namealloc
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -27,12 +28,7 @@ func TestAlloc(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reserved := func(s string) bool {
-				for _, r := range tt.reserved {
-					if r == s {
-						return true
-					}
-				}
-				return false
+				return slices.Contains(tt.reserved, s)
 			}
 			a := &Allocator{Reserved: reserved}
 
