@@ -135,6 +135,16 @@ pub struct Row {
     row: tokio_postgres::Row,
 }
 
+/// Metadata about a column in a query result.
+pub struct ColumnInfo {
+    pub name: String,
+    pub type_oid: u32,
+    pub type_name: String,
+    /// The OID of the table the column belongs to, if any.
+    /// This is useful for disambiguating columns with the same name from different tables in JOIN results.
+    pub table_oid: Option<u32>,
+}
+
 impl Row {
     pub fn values(&self) -> anyhow::Result<HashMap<String, RowValue>> {
         let cols = self.row.columns();
@@ -148,6 +158,19 @@ impl Row {
             map.insert(name, value);
         }
         Ok(map)
+    }
+
+    /// Returns metadata about the columns in this row.
+    pub fn columns(&self) -> Vec<ColumnInfo> {
+        self.row.columns()
+            .iter()
+            .map(|col| ColumnInfo {
+                name: col.name().to_string(),
+                type_oid: col.type_().oid(),
+                type_name: col.type_().name().to_string(),
+                table_oid: col.table_oid(),
+            })
+            .collect()
     }
 }
 
