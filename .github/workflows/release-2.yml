@@ -30,31 +30,31 @@ jobs:
           go run ./pkg/encorebuild/cmd/make-release/ -dst "${{ github.workspace	}}/build" -v "${{ github.event.inputs.version }}" -publish-npm=true
 
       - name: Publish artifact (darwin_amd64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: encore-${{ github.event.inputs.version }}-darwin_amd64
           path: ${{ github.workspace }}/build/artifacts/encore-${{ github.event.inputs.version }}-darwin_amd64.tar.gz
 
       - name: Publish artifact (darwin_arm64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: encore-${{ github.event.inputs.version }}-darwin_arm64
           path: ${{ github.workspace }}/build/artifacts/encore-${{ github.event.inputs.version }}-darwin_arm64.tar.gz
 
       - name: Publish artifact (linux_amd64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: encore-${{ github.event.inputs.version }}-linux_amd64
           path: ${{ github.workspace }}/build/artifacts/encore-${{ github.event.inputs.version }}-linux_amd64.tar.gz
 
       - name: Publish artifact (linux_arm64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: encore-${{ github.event.inputs.version }}-linux_arm64
           path: ${{ github.workspace }}/build/artifacts/encore-${{ github.event.inputs.version }}-linux_arm64.tar.gz
 
       - name: Publish artifact (windows_amd64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: encore-${{ github.event.inputs.version }}-windows_amd64
           path: ${{ github.workspace }}/build/artifacts/encore-${{ github.event.inputs.version }}-windows_amd64.tar.gz
