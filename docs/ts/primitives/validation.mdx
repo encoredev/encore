@@ -203,7 +203,7 @@ It uses TypeScript's type system and allows you to define validation rules direc
 Import validation rules from the `encore.dev/validate` package:
 
 ```ts
-import { Min, Max, MinLen, MaxLen, IsEmail, IsURL } from "encore.dev/validate";
+import { IsEmail, IsURL, MatchesRegexp, Max, MaxLen, Min, MinLen } from "encore.dev/validate";
 
 interface Schema {
   // Number between 3 and 1000 (inclusive)
@@ -217,6 +217,9 @@ interface Schema {
 
   // Array of up to 10 email addresses
   recipients: Array<string & IsEmail> & MaxLen<10>;
+
+  // String in date format YYYY-MM-DD, note the double backslash
+  date: string & MatchesRegexp<"^\\d{4}\\-(0[1-9]|1[012])\\-(0[1-9]|[12][0-9]|3[01])$">;
 }
 ```
 
