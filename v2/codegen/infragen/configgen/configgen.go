@@ -486,7 +486,7 @@ func (cb *configUnmarshalersBuilder) typeParamUnmarshalerName(param schema.DeclT
 	return fmt.Sprintf("_%s_unmarshaler", param.Name)
 }
 
-// generateConcreteUnmarshaler generates a function that unmarshals a concrete type, taking into account any
+// generateConcreteUnmarshalers generates a function that unmarshals a concrete type, taking into account any
 // type arguments passed to the given type
 func (cb *configUnmarshalersBuilder) generateConcreteUnmarshalers(typ schema.Type) {
 	funcBody, _ := cb.typeUnmarshalerFunc(typ)
