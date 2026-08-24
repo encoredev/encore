@@ -13,14 +13,14 @@ lang: go
 Runs your application.
 
 ```shell
-$ encore run [--debug] [--watch=true] [--port=<number>] [--listen=<addr>] [flags]
+$ encore run [--debug] [--autoreload=true] [--port=<number>] [--listen=<addr>] [flags]
 ```
 
 **Flags**
 
 | Flag | Description | Default |
 | --- | --- | --- |
-| `-w, --watch` | Watch for changes and live-reload | `true` |
+| `--autoreload` | Automatically reload the app on file changes | `true` |
 | `--listen` | Address to listen on (e.g. `0.0.0.0:4000`) | |
 | `-p, --port` | Port to listen on | `4000` |
 | `--json` | Display logs in JSON format | `false` |
