@@ -24,7 +24,11 @@ type ListResponse struct {
 }
 
 func List(ctx context.Context) ([]*Bit, error) {
-	resp, err := http.Get("https://automativity.encore.dev/bits")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://automativity.encore.dev/bits", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +48,11 @@ func List(ctx context.Context) ([]*Bit, error) {
 var errBitNotFound = errors.New("bit not found")
 
 func Get(ctx context.Context, slug string) (*Bit, error) {
-	resp, err := http.Get("https://automativity.encore.dev/bits/" + url.PathEscape(slug))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://automativity.encore.dev/bits/"+url.PathEscape(slug), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
