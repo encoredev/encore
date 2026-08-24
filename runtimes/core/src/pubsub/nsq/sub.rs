@@ -123,7 +123,7 @@ impl Subscription for NsqSubscription {
 }
 
 async fn process_message(mut msg: NSQMessage, handler: Arc<SubHandler>) {
-    let body: Vec<u8> = msg.body.drain(..).collect();
+    let body: Vec<u8> = std::mem::take(&mut msg.body);
     let timestamp = msg.timestamp;
     let attempt = msg.attempt;
 
