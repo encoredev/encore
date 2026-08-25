@@ -54,7 +54,9 @@ fn cmd_hset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
     }
 
     let pairs: Vec<(String, Vec<u8>)> = args[1..]
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|c| (String::from_utf8_lossy(&c[0]).into_owned(), c[1].clone()))
         .collect();
 
@@ -109,7 +111,9 @@ fn cmd_hmset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> F
     }
 
     let pairs: Vec<(String, Vec<u8>)> = args[1..]
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|c| (String::from_utf8_lossy(&c[0]).into_owned(), c[1].clone()))
         .collect();
 

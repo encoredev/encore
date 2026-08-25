@@ -376,7 +376,7 @@ fn cmd_mset(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> Fr
     let now = inner.effective_now();
     let db = inner.db_mut(ctx.selected_db);
 
-    for pair in args.chunks_exact(2) {
+    for pair in args.as_chunks::<2>().0 {
         let key = String::from_utf8_lossy(&pair[0]).into_owned();
         let value = pair[1].clone();
         db.del(&key);
@@ -397,7 +397,7 @@ fn cmd_msetnx(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
     let db = inner.db_mut(ctx.selected_db);
 
     // Check if ANY key already exists
-    for pair in args.chunks_exact(2) {
+    for pair in args.as_chunks::<2>().0 {
         let key = String::from_utf8_lossy(&pair[0]);
         if db.keys.contains_key(key.as_ref()) {
             return Frame::Integer(0);
@@ -405,7 +405,7 @@ fn cmd_msetnx(state: &Arc<SharedState>, ctx: &mut ConnCtx, args: &[Vec<u8>]) -> 
     }
 
     // Set all
-    for pair in args.chunks_exact(2) {
+    for pair in args.as_chunks::<2>().0 {
         let key = String::from_utf8_lossy(&pair[0]).into_owned();
         let value = pair[1].clone();
         db.string_set(&key, value, now);

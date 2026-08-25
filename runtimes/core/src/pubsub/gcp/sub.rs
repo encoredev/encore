@@ -140,7 +140,7 @@ async fn handle_message(
         .as_ref()
         .and_then(|ts| chrono::DateTime::from_timestamp(ts.seconds, ts.nanos as u32));
 
-    let raw_body = message.message.data.drain(..).collect();
+    let raw_body = std::mem::take(&mut message.message.data);
 
     let msg = pubsub::Message {
         id: message.message.message_id.clone() as MessageId,
