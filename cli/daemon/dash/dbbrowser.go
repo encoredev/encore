@@ -5,6 +5,7 @@ import (
 
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/pgrows"
 	"github.com/cockroachdb/errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -29,7 +30,7 @@ type TransactionRequest struct {
 	AppID string `json:"appId"`
 }
 
-func (h *handler) Query(ctx context.Context, req QueryRequest) ([]any, error) {
+func (h *handler) Query(ctx context.Context, req QueryRequest) (any, error) {
 
 	pgConn, err := h.browserConn(ctx, req.AppID, req.DbID)
 	if err != nil {
@@ -45,38 +46,7 @@ func (h *handler) Query(ctx context.Context, req QueryRequest) ([]any, error) {
 	}
 	defer rows.Close()
 
-	results := []any{}
-	if req.ArrayMode {
-		// Return results as arrays
-		for rows.Next() {
-			values, err := rows.Values()
-			if err != nil {
-				return nil, err
-			}
-			results = append(results, values)
-		}
-	} else {
-		// Return results as objects
-		fieldDescriptions := rows.FieldDescriptions()
-		for rows.Next() {
-			values, err := rows.Values()
-			if err != nil {
-				return nil, err
-			}
-
-			row := make(map[string]any)
-			for i, value := range values {
-				row[fieldDescriptions[i].Name] = value
-			}
-			results = append(results, row)
-		}
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return results, nil
+	return pgrows.Collect(rows, req.ArrayMode)
 }
 
 // handleTransaction handles the /transaction endpoint
@@ -101,24 +71,9 @@ func (h *handler) Transaction(ctx context.Context, req TransactionRequest) ([]an
 			return nil, err
 		}
 
-		var queryResults []map[string]any
-		fieldDescriptions := rows.FieldDescriptions()
-		for rows.Next() {
-			values, err := rows.Values()
-			if err != nil {
-				rows.Close()
-				return nil, err
-			}
-
-			row := make(map[string]any)
-			for i, value := range values {
-				row[fieldDescriptions[i].Name] = value
-			}
-			queryResults = append(queryResults, row)
-		}
+		queryResults, err := pgrows.Collect(rows, false)
 		rows.Close()
-
-		if err := rows.Err(); err != nil {
+		if err != nil {
 			return nil, err
 		}
 
