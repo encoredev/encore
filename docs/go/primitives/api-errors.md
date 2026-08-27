@@ -110,6 +110,32 @@ You can find additional documentation about when to use them in the
 | `DataLoss`           | `"data_loss"`           | 500 Internal Server Error |
 | `Unauthenticated`    | `"unauthenticated"`     | 401 Unauthorized          |
 
+## Database Errors
+
+Database operations may return errors that wrap `*sqldb.Error` when PostgreSQL reports an error. Use `errors.As` to inspect the database error class (`sqlerr.Code`) and the PostgreSQL SQLSTATE (`DatabaseCode`):
+
+```go
+import (
+	"errors"
+
+	"encore.dev/beta/errs"
+	"encore.dev/storage/sqldb"
+	"encore.dev/storage/sqldb/sqlerr"
+)
+
+_, err := db.Exec(ctx, "INSERT INTO user (email) VALUES ($1)", email)
+var dbErr *sqldb.Error
+if errors.As(err, &dbErr) {
+	if dbErr.Code == sqlerr.UniqueViolation {
+		return errs.B().Code(errs.AlreadyExists).Msg("email already exists").Err()
+	}
+	// DatabaseCode contains the PostgreSQL SQLSTATE, such as "23505".
+	sqlstate := dbErr.DatabaseCode
+	_ = sqlstate
+}
+```
+
+Use `sqldb.ErrCode(err)` when only the general database error code is needed. It returns `sqlerr.Other` for errors that are not database errors.
 ## Error Building
 
 In cases where you have complex business logic, or multiple error returns,
