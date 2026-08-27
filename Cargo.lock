@@ -1963,6 +1963,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "encore-ecl"
+version = "0.1.0"
+dependencies = [
+ "prost 0.13.5",
+ "prost-build 0.13.5",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "encore-js-runtime"
 version = "0.1.0"
 dependencies = [
