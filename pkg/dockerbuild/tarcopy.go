@@ -208,6 +208,25 @@ func nodeModulesPath(relPath HostPath) (within, isRoot bool) {
 	return false, false
 }
 
+// volatilePnpmMetadata are pnpm bookkeeping files written directly inside a
+// node_modules directory. pnpm records timestamps in them, so their contents
+// change on every install even when the dependencies are identical, giving the
+// dependency layer a new digest on every build. They aren't read at runtime.
+// See https://github.com/pnpm/pnpm/issues/9474.
+var volatilePnpmMetadata = map[string]bool{
+	".modules.yaml":                 true,
+	".pnpm-workspace-state.json":    true, // older pnpm
+	".pnpm-workspace-state-v1.json": true,
+}
+
+// isVolatilePnpmMetadata reports whether relPath is a volatilePnpmMetadata file
+// directly inside a node_modules directory, so a coincidentally-named file
+// shipped deep inside a package isn't skipped.
+func isVolatilePnpmMetadata(relPath HostPath) bool {
+	s := string(relPath)
+	return volatilePnpmMetadata[filepath.Base(s)] && filepath.Base(filepath.Dir(s)) == "node_modules"
+}
+
 // shouldInclude returns true if the path should be included in the tar.
 func shouldInclude(desc *dirCopyDesc, path HostPath) bool {
 	for _, include := range desc.IncludeSrcPaths {
@@ -256,6 +275,12 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 		if err != nil {
 			return errors.WithStack(err)
 		}
+
+		// Skip volatile pnpm bookkeeping files; see volatilePnpmMetadata.
+		if !d.IsDir() && isVolatilePnpmMetadata(relPath) {
+			return nil
+		}
+
 		dstPath := desc.DstPath.Join(string(relPath.ToImage()))
 
 		// Route node_modules trees to the dependency layer's copier, if configured.

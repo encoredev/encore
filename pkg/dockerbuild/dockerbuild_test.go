@@ -24,6 +24,10 @@ func testImageConfig(c *qt.C) (DescribeConfig, HostPath) {
 		"entrypoint":       "echo hello",
 		"package.json":     `{"name": "package/name"}`,
 		"node_modules/foo": "foo",
+		// Volatile pnpm bookkeeping files; must not end up in any layer.
+		"node_modules/.modules.yaml":                 "prunedAt: Mon, 01 Jan 2024 00:00:00 GMT\n",
+		"node_modules/.pnpm-workspace-state.json":    `{"lastValidatedTimestamp":1}`,
+		"node_modules/.pnpm-workspace-state-v1.json": `{"lastValidatedTimestamp":1}`,
 	})
 	runtimes := paths.FS(c.TempDir())
 	writeFiles(c, runtimes, map[string]string{
