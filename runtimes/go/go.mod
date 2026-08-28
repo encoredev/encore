@@ -39,7 +39,6 @@ require (
 	github.com/rs/xid v1.5.0
 	github.com/rs/zerolog v1.31.0
 	go.encore.dev/platform-sdk v1.1.0
-	go.uber.org/automaxprocs v1.5.3
 	golang.org/x/crypto v0.49.0
 	golang.org/x/net v0.52.0
 	golang.org/x/sync v0.20.0
