@@ -2,6 +2,7 @@ import { api, HttpStatus } from "encore.dev/api";
 import { IsEmail, MaxLen, MinLen } from "encore.dev/validate";
 import log from "encore.dev/log";
 import { APIError } from "encore.dev/api";
+import { APICallMeta, currentRequest } from "encore.dev";
 
 interface GreetingRequest {
   name: string;
@@ -29,6 +30,26 @@ export const greet = api(
     return {
       greeting,
       timestamp: new Date()
+    };
+  }
+);
+
+// Returns information about the caller of this endpoint.
+export const whoCalled = api(
+  { expose: true, method: "GET", path: "/who-called" },
+  async (): Promise<{
+    callerType: string;
+    callerService?: string;
+    callerEndpoint?: string;
+  }> => {
+    const req = currentRequest() as APICallMeta;
+    const caller = req.caller;
+    return {
+      callerType: caller?.type ?? "none",
+      callerService:
+        caller?.type === "api-endpoint" ? caller.service : undefined,
+      callerEndpoint:
+        caller?.type === "api-endpoint" ? caller.endpoint : undefined
     };
   }
 );

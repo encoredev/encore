@@ -1,7 +1,10 @@
 use chrono::{DateTime, SecondsFormat, Utc};
 use napi_derive::napi;
 
-use encore_runtime_core::{api::reqauth::meta::HeaderValueExt, model};
+use encore_runtime_core::{
+    api::reqauth::{caller::Caller, meta::HeaderValueExt},
+    model,
+};
 
 use crate::pvalue::PVals;
 
@@ -33,6 +36,7 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
                     .map(serde_json::to_value)
                     .transpose()?,
                 headers: serialize_headers(&rpc.req_headers),
+                caller: req.internal_caller.as_ref().map(CallerData::from),
             };
             (Some(api), None)
         }
@@ -60,6 +64,7 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
                     .map(serde_json::to_value)
                     .transpose()?,
                 headers: Default::default(),
+                caller: req.internal_caller.as_ref().map(CallerData::from),
             };
             (Some(api), None)
         }
@@ -111,6 +116,62 @@ pub struct APICallData {
     pub path_params: Option<serde_json::Value>,
     pub parsed_payload: Option<serde_json::Value>,
     pub headers: serde_json::Map<String, serde_json::Value>,
+    pub caller: Option<CallerData>,
+}
+
+/// Flattened representation of the core `Caller` enum.
+/// The `kind` field indicates which of the optional fields are set.
+#[napi(object)]
+#[derive(Debug, Clone, Default)]
+pub struct CallerData {
+    pub kind: String,
+    pub service: Option<String>,
+    pub endpoint: Option<String>,
+    pub topic: Option<String>,
+    pub subscription: Option<String>,
+    pub message_id: Option<String>,
+    pub deploy_id: Option<String>,
+    pub gateway: Option<String>,
+    pub principal: Option<String>,
+}
+
+impl From<&Caller> for CallerData {
+    fn from(caller: &Caller) -> Self {
+        match caller {
+            Caller::APIEndpoint(name) => CallerData {
+                kind: "api-endpoint".to_string(),
+                service: Some(name.service().to_string()),
+                endpoint: Some(name.endpoint().to_string()),
+                ..Default::default()
+            },
+            Caller::PubSubMessage {
+                topic,
+                subscription,
+                message_id,
+            } => CallerData {
+                kind: "pubsub-message".to_string(),
+                topic: Some(topic.to_string()),
+                subscription: Some(subscription.to_string()),
+                message_id: Some(message_id.clone()),
+                ..Default::default()
+            },
+            Caller::App { deploy_id } => CallerData {
+                kind: "app".to_string(),
+                deploy_id: Some(deploy_id.clone()),
+                ..Default::default()
+            },
+            Caller::Gateway { gateway } => CallerData {
+                kind: "gateway".to_string(),
+                gateway: Some(gateway.to_string()),
+                ..Default::default()
+            },
+            Caller::EncorePrincipal(name) => CallerData {
+                kind: "encore-principal".to_string(),
+                principal: Some(name.clone()),
+                ..Default::default()
+            },
+        }
+    }
 }
 
 #[napi(object)]
@@ -188,9 +249,46 @@ fn serialize_headers(
 
 #[cfg(test)]
 mod tests {
-    use super::serialize_headers;
+    use super::{serialize_headers, CallerData};
     use axum::http::{HeaderMap, HeaderValue};
+    use encore_runtime_core::api::reqauth::caller::Caller;
+    use encore_runtime_core::EndpointName;
     use serde_json::{json, Value};
+
+    #[test]
+    fn caller_data_maps_all_variants() {
+        let c = CallerData::from(&Caller::APIEndpoint(EndpointName::new("svc", "ep")));
+        assert_eq!(c.kind, "api-endpoint");
+        assert_eq!(c.service.as_deref(), Some("svc"));
+        assert_eq!(c.endpoint.as_deref(), Some("ep"));
+        assert!(c.topic.is_none() && c.deploy_id.is_none());
+
+        let c = CallerData::from(&Caller::PubSubMessage {
+            topic: "topic".into(),
+            subscription: "sub".into(),
+            message_id: "msg-1".into(),
+        });
+        assert_eq!(c.kind, "pubsub-message");
+        assert_eq!(c.topic.as_deref(), Some("topic"));
+        assert_eq!(c.subscription.as_deref(), Some("sub"));
+        assert_eq!(c.message_id.as_deref(), Some("msg-1"));
+
+        let c = CallerData::from(&Caller::App {
+            deploy_id: "deploy-1".into(),
+        });
+        assert_eq!(c.kind, "app");
+        assert_eq!(c.deploy_id.as_deref(), Some("deploy-1"));
+
+        let c = CallerData::from(&Caller::Gateway {
+            gateway: "api-gateway".into(),
+        });
+        assert_eq!(c.kind, "gateway");
+        assert_eq!(c.gateway.as_deref(), Some("api-gateway"));
+
+        let c = CallerData::from(&Caller::EncorePrincipal("platform".into()));
+        assert_eq!(c.kind, "encore-principal");
+        assert_eq!(c.principal.as_deref(), Some("platform"));
+    }
 
     #[test]
     fn strips_encore_internal_meta_headers() {

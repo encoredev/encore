@@ -13,8 +13,14 @@ export { currentRequest } from "./req_meta";
 export type {
   APICallMeta,
   APIDesc,
+  APIEndpointCaller,
+  AppCaller,
   BaseRequestMeta,
+  CallerMeta,
+  EncorePrincipalCaller,
+  GatewayCaller,
   Method,
+  PubSubCaller,
   PubSubMessageMeta,
   RequestMeta,
   TraceData
