@@ -62,6 +62,8 @@ env:
   CARGO_ZIGBUILD_VERSION: 0.23.3
   WASM_PACK_VERSION: 0.15.0
   NODE_VERSION: 22
+  # libclang for bindgen on Windows; see the "Install LLVM" step.
+  LLVM_VERSION: 22.1.8
 
 jobs:
   build:
@@ -152,21 +154,21 @@ jobs:
         if: runner.os == 'Windows'
         uses: step-security/msvc-dev-cmd@22c98154b708dbd743e6f27a933cf6ceba3305c4 # v1.13.1
 
-      # pg_query's build script runs bindgen, which needs libclang.dll. Point
-      # it at the copy bundled with Visual Studio's Clang component.
-      - name: Locate libclang
+      # pg_query's build script runs bindgen, which needs libclang.dll.
+      # Blacksmith's Windows image has neither a standalone LLVM nor Visual
+      # Studio's Clang component (Build Tools only), so install LLVM from the
+      # official release.
+      - name: Install LLVM
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $dll = & $vswhere -latest -products * -find 'VC\Tools\Llvm\x64\bin\libclang.dll' | Select-Object -First 1
-          if (-not $dll) {
-            Write-Host "Visual Studio installations:"
-            & $vswhere -products * -property installationPath
-            throw "libclang.dll not found in any Visual Studio installation"
-          }
-          "LIBCLANG_PATH=$(Split-Path $dll)" >> $env:GITHUB_ENV
-          Write-Host "Using $dll"
+          $ProgressPreference = 'SilentlyContinue'
+          $installer = "$env:RUNNER_TEMP\LLVM-$env:LLVM_VERSION-win64.exe"
+          Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/LLVM-$env:LLVM_VERSION-win64.exe" -OutFile $installer
+          Start-Process -FilePath $installer -ArgumentList '/S' -Wait
+          $bin = 'C:\Program Files\LLVM\bin'
+          if (-not (Test-Path "$bin\libclang.dll")) { throw "libclang.dll not found in $bin" }
+          "LIBCLANG_PATH=$bin" >> $env:GITHUB_ENV
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
