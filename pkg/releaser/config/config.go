@@ -21,6 +21,14 @@ import (
 // from them, and the encore-go toolchain releases under "encore-go/".
 const ReleasesBucket = "encore-releases2"
 
+// Builds of main live under LatestPrefix/<commit sha>, and LatestCommitObject
+// holds the sha (one line) of the newest of them whose distribution
+// tarballs are complete; cmd/update-latest maintains it.
+const (
+	LatestPrefix       = "latest"
+	LatestCommitObject = LatestPrefix + "/COMMIT"
+)
+
 // Common holds the settings every releaser command needs.
 type Common struct {
 	// Version is the release version being built, e.g. "v1.2.3-nightly.20231231".
