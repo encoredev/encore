@@ -114,7 +114,6 @@ func DoLogin(flow Flow) (err error) {
 func DoLogout() {
 	if err := telemetry.RotateAnonymousID(); err != nil {
 		fmt.Fprintln(os.Stderr, "could not logout:", err)
-		os.Exit(1)
 	}
 
 	if err := conf.Logout(); err != nil {
