@@ -1,5 +1,11 @@
 name: CI
 
+# Every job runs on a Blacksmith runner (like the Latest Release workflow):
+# 8 vCPUs everywhere except the TS runtime docs check, which gets 4. The
+# cache steps stay as they are: on Blacksmith runners actions/cache, and the
+# caching built into actions/setup-go/-node, transparently use Blacksmith's
+# colocated cache.
+
 on:
   push:
     branches:
@@ -13,7 +19,7 @@ on:
 jobs:
   build:
     name: "Build"
-    runs-on: ubuntu-24.04
+    runs-on: blacksmith-8vcpu-ubuntu-2404
 
     steps:
       - uses: actions/checkout@v4
@@ -40,7 +46,7 @@ jobs:
 
   test:
     name: "Test"
-    runs-on: ubuntu-24.04
+    runs-on: blacksmith-8vcpu-ubuntu-2404
 
     steps:
       - uses: actions/checkout@v4
@@ -125,7 +131,7 @@ jobs:
 
   test-e2e:
     name: "Test e2e"
-    runs-on: ubuntu-24.04
+    runs-on: blacksmith-8vcpu-ubuntu-2404
 
     steps:
       - uses: actions/checkout@v4
@@ -209,7 +215,7 @@ jobs:
   # Run static analysis on the PR
   static-analysis:
     name: "Static Analysis"
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-8vcpu-ubuntu-2404
 
     # Skip any PR created by dependabot to avoid permission issues:
     if: (github.actor != 'dependabot[bot]')
@@ -244,7 +250,7 @@ jobs:
 
   rust_core:
     name: "Test core runtime"
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     steps:
       - name: Checkout codebase
         uses: actions/checkout@v4
@@ -280,7 +286,7 @@ jobs:
 
   ts_runtime_docs:
     name: "Verify TS runtime docs in sync"
-    runs-on: ubuntu-24.04
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - name: Set up Node
@@ -300,7 +306,7 @@ jobs:
 
   wasm_build:
     name: "Build tsparser WASM"
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     steps:
       - name: Checkout codebase
         uses: actions/checkout@v4
