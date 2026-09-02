@@ -152,7 +152,13 @@ func compilerSettings(cfg *CompileInput) (cc, cxx string, envs, ldFlags []string
 			return "", "", nil, nil, errors.Newf("unsupported architecture for windows: %q", cfg.Target.Arch)
 		}
 
-		ldFlags = []string{"-H=windowsgui"}
+		// pg_query compiles its C code with -fstack-protector, so the objects
+		// reference __stack_chk_fail/__stack_chk_guard. mingw-w64 has no libssp;
+		// zig supplies its own, but only when the *link* invocation has stack
+		// protection enabled — and Go's external link passes just "-O2 -g",
+		// which zig treats as ReleaseFast and links without it. Enabling it for
+		// the link step makes zig include its ssp runtime.
+		ldFlags = []string{"-H=windowsgui", "-extldflags=-fstack-protector"}
 
 	default:
 		panic("unreachable")
