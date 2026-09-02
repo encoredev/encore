@@ -10,6 +10,7 @@ import (
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
 	"encr.dev/cli/internal/login"
+	"encr.dev/cli/internal/telemetry"
 	"encr.dev/internal/conf"
 )
 
@@ -111,6 +112,11 @@ func DoLogin(flow Flow) (err error) {
 }
 
 func DoLogout() {
+	if err := telemetry.RotateAnonymousID(); err != nil {
+		fmt.Fprintln(os.Stderr, "could not logout:", err)
+		os.Exit(1)
+	}
+
 	if err := conf.Logout(); err != nil {
 		fmt.Fprintln(os.Stderr, "could not logout:", err)
 		os.Exit(1)
