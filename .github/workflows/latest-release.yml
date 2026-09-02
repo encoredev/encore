@@ -1,0 +1,210 @@
+name: Latest Release
+
+# Builds a complete Encore release from every push to main and stores it in
+# the encore-releases2 bucket under latest/<commit sha>/ — nothing is
+# published (no npm, Docker Hub, Homebrew, Nix, GitHub release or encore.dev
+# update), and proper releases' encore/ prefix is never touched.
+#
+# Every os/arch is built in its own job on a Blacksmith runner of that OS,
+# with the toolchain installed by the workflow:
+#   - Go and Rust binaries on Linux link with zig cc / cargo-zigbuild against
+#     glibc 2.31 (musl for the supervisor), so they run on older
+#     distributions than the build host.
+#   - macOS builds use the Xcode toolchain. Blacksmith only has Apple
+#     Silicon Macs, so darwin/amd64 is a cross-arch build on the same runner.
+#   - Windows Go binaries link with zig cc (mingw-w64); the Rust ones with MSVC.
+#
+# Pushes to main build version v0.0.0-develop+<commit>; a manual dispatch may
+# name any release version instead.
+#
+# Auth is keyless: every job that touches the bucket runs under the `latest`
+# GitHub environment and exchanges its OIDC token for GCP access through
+# Workload Identity Federation (google-github-actions/auth with the org's
+# GCP_WIF_PROVIDER variable, no service account). Access is granted to the
+# principal for runs of encoredev/encore in the `latest` environment; the
+# environment's deployment branch policy (main only) is what limits which
+# branches can obtain it.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        required: false
+        description: 'Release version ("v1.2.3", "v1.2.3-beta.1", "v1.2.3-nightly.20231231" or "v0.0.0-develop+<commit>"). Defaults to v0.0.0-develop+<commit> for the dispatched commit.'
+      encore_go_version:
+        type: string
+        required: false
+        description: 'encore-go version to bundle ("1.25.4", as under encore-go/ in encore-releases2). Defaults to the version named by encore-go/latest.'
+
+run-name: Latest Release ${{ inputs.version || github.sha }}
+
+permissions:
+  contents: read
+
+# One build at a time; a newer pending run replaces an older pending one, so
+# a burst of pushes ends with the most recent commit built.
+concurrency:
+  group: latest-release
+  cancel-in-progress: false
+
+env:
+  R_ENCORE_REPO: ${{ github.workspace }}
+  R_RELEASE_PREFIX: latest/${{ github.sha }}
+  # Pinned toolchain. zig 0.11.0 is the version the release builds have
+  # always linked with; cargo-zigbuild supports it (it requires zig >= 0.9).
+  ZIG_VERSION: 0.11.0
+  CARGO_ZIGBUILD_VERSION: 0.23.3
+  WASM_PACK_VERSION: 0.15.0
+  NODE_VERSION: 22
+
+jobs:
+  version:
+    name: Determine version
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Determine version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          version="${INPUT_VERSION:-v0.0.0-develop+${GITHUB_SHA}}"
+          echo "version=$version" | tee -a "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    environment: latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # linux/amd64 also produces the platform-independent artifacts:
+          # the encore.dev npm package (its napi type definitions come from
+          # this native module build), the Go runtime tarball, and the
+          # tsparser wasm package.
+          - target: linux/amd64
+            runner: blacksmith-8vcpu-ubuntu-2404
+            build: linux/amd64:all,gort,npmpkg,tsparserwasm
+            rust_targets: x86_64-unknown-linux-gnu,x86_64-unknown-linux-musl,wasm32-unknown-unknown
+          - target: linux/arm64
+            runner: blacksmith-8vcpu-ubuntu-2404-arm
+            build: linux/arm64:all
+            rust_targets: aarch64-unknown-linux-gnu,aarch64-unknown-linux-musl
+          - target: darwin/arm64
+            runner: blacksmith-6vcpu-macos-15
+            build: darwin/arm64:all
+            rust_targets: aarch64-apple-darwin
+          - target: darwin/amd64
+            runner: blacksmith-6vcpu-macos-15 # Apple Silicon; cross-arch build with the same SDK
+            build: darwin/amd64:all
+            rust_targets: x86_64-apple-darwin
+          # The Windows supervisor is not distributed.
+          - target: windows/amd64
+            runner: blacksmith-8vcpu-windows-2025
+            build: windows/amd64:all,-supervisor
+            rust_targets: x86_64-pc-windows-msvc
+    env:
+      R_VERSION: ${{ needs.version.outputs.version }}
+      R_BUILD: ${{ matrix.build }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # zig is the C toolchain for the Go builds on Linux and Windows, and
+      # (through cargo-zigbuild) the linker for the Rust builds on Linux.
+      - name: Install zig
+        if: runner.os != 'macOS'
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Install cargo-zigbuild and wasm-pack
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild@${{ env.CARGO_ZIGBUILD_VERSION }},wasm-pack@${{ env.WASM_PACK_VERSION }}
+
+      - name: Set up Node
+        if: contains(matrix.build, 'npmpkg')
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up MSVC environment
+        if: runner.os == 'Windows'
+        uses: step-security/msvc-dev-cmd@22c98154b708dbd743e6f27a933cf6ceba3305c4 # v1.13.1
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+
+      - name: Allow long paths in git
+        if: runner.os == 'Windows'
+        run: git config --system core.longpaths true
+
+      - name: Build
+        run: go run ./pkg/releaser/cmd/build
+
+  finalize:
+    name: Assemble distribution tarballs
+    needs: [version, build]
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    environment: latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation
+    env:
+      R_VERSION: ${{ needs.version.outputs.version }}
+      R_ENCORE_GO_VERSION: ${{ inputs.encore_go_version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+
+      - name: Finalize release
+        run: go run ./pkg/releaser/cmd/finalize-release
+
+      - name: Summary
+        run: |
+          {
+            echo "### Stored \`${R_VERSION}\` in \`gs://encore-releases2/${R_RELEASE_PREFIX}/\`"
+            echo
+            echo "Distribution tarballs: \`encore-<os>_<arch>.tar.gz\` (+ \`.sha256\`) for"
+            echo "linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 and windows/amd64."
+          } >> "$GITHUB_STEP_SUMMARY"
