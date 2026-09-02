@@ -54,6 +54,7 @@ concurrency:
 
 env:
   R_ENCORE_REPO: ${{ github.workspace }}
+  R_VERSION: ${{ inputs.version || format('v0.0.0-develop+{0}', github.sha) }}
   R_RELEASE_PREFIX: latest/${{ github.sha }}
   # Pinned toolchain. zig 0.11.0 is the version the release builds have
   # always linked with; cargo-zigbuild supports it (it requires zig >= 0.9).
@@ -63,24 +64,8 @@ env:
   NODE_VERSION: 22
 
 jobs:
-  version:
-    name: Determine version
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - name: Determine version
-        id: version
-        env:
-          INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
-          version="${INPUT_VERSION:-v0.0.0-develop+${GITHUB_SHA}}"
-          echo "version=$version" | tee -a "$GITHUB_OUTPUT"
-
   build:
     name: Build ${{ matrix.target }}
-    needs: version
     runs-on: ${{ matrix.runner }}
     environment: latest
     timeout-minutes: 120
@@ -117,7 +102,6 @@ jobs:
             build: windows/amd64:all,-supervisor
             rust_targets: x86_64-pc-windows-msvc
     env:
-      R_VERSION: ${{ needs.version.outputs.version }}
       R_BUILD: ${{ matrix.build }}
     steps:
       - uses: actions/checkout@v4
@@ -168,6 +152,22 @@ jobs:
         if: runner.os == 'Windows'
         uses: step-security/msvc-dev-cmd@22c98154b708dbd743e6f27a933cf6ceba3305c4 # v1.13.1
 
+      # pg_query's build script runs bindgen, which needs libclang.dll. Point
+      # it at the copy bundled with Visual Studio's Clang component.
+      - name: Locate libclang
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $dll = & $vswhere -latest -products * -find 'VC\Tools\Llvm\x64\bin\libclang.dll' | Select-Object -First 1
+          if (-not $dll) {
+            Write-Host "Visual Studio installations:"
+            & $vswhere -products * -property installationPath
+            throw "libclang.dll not found in any Visual Studio installation"
+          }
+          "LIBCLANG_PATH=$(Split-Path $dll)" >> $env:GITHUB_ENV
+          Write-Host "Using $dll"
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
@@ -182,7 +182,7 @@ jobs:
 
   finalize:
     name: Assemble distribution tarballs
-    needs: [version, build]
+    needs: build
     runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: latest
     timeout-minutes: 60
@@ -190,7 +190,6 @@ jobs:
       contents: read
       id-token: write # Workload Identity Federation
     env:
-      R_VERSION: ${{ needs.version.outputs.version }}
       R_ENCORE_GO_VERSION: ${{ inputs.encore_go_version }}
     steps:
       - uses: actions/checkout@v4
