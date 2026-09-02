@@ -3,7 +3,9 @@ name: Latest Release
 # Builds a complete Encore release from every push to main and stores it in
 # the encore-releases2 bucket under latest/<commit sha>/ — nothing is
 # published (no npm, Docker Hub, Homebrew, Nix, GitHub release or encore.dev
-# update), and proper releases' encore/ prefix is never touched.
+# update), and proper releases' encore/ prefix is never touched. Once the
+# distribution tarballs are in place, latest/COMMIT is pointed at the commit,
+# so tooling can resolve the newest build of main without knowing its sha.
 #
 # Every os/arch is built in its own job on a Blacksmith runner of that OS,
 # with the toolchain installed by the workflow:
@@ -128,6 +130,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust_targets }}
+
+      # Caches the registry and the dependency artifacts under target/ (the
+      # releaser builds with --target-dir target/<os>-<arch>), pruning the
+      # workspace crates' own output before saving so the cache doesn't grow
+      # with every build. On Blacksmith runners this, like setup-go's module
+      # cache above, transparently uses Blacksmith's colocated cache.
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
@@ -200,6 +208,11 @@ jobs:
       - name: Finalize release
         run: go run ./pkg/releaser/cmd/finalize-release
 
+      - name: Point latest/COMMIT at this build
+        env:
+          R_COMMIT: ${{ github.sha }}
+        run: go run ./pkg/releaser/cmd/update-latest
+
       - name: Summary
         run: |
           {
@@ -207,4 +220,6 @@ jobs:
             echo
             echo "Distribution tarballs: \`encore-<os>_<arch>.tar.gz\` (+ \`.sha256\`) for"
             echo "linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 and windows/amd64."
+            echo
+            echo "\`gs://encore-releases2/latest/COMMIT\` now points at \`${GITHUB_SHA}\`."
           } >> "$GITHUB_STEP_SUMMARY"

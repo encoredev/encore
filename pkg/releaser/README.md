@@ -37,6 +37,10 @@ Two commands, run in sequence by the workflow:
   Each tarball contains `bin/`, `runtimes/go`, `runtimes/js` and `encore-go/`, the same layout the
   install script and the Docker image expect.
 
+- `cmd/update-latest` then points `gs://encore-releases2/latest/COMMIT` (one line, the sha) at the
+  commit, so tooling can resolve the newest build of `main` without knowing its sha. It refuses to
+  run for any prefix other than `latest/<that commit>`, so a proper release can't end up behind it.
+
 ## Toolchain
 
 Each platform is built on a runner of its own OS, so the only cross-compiling is darwin/amd64 on an
