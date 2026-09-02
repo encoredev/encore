@@ -21,9 +21,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
@@ -156,10 +159,7 @@ type ReleaseSpec struct {
 // bin/, encore-runtime.node, the npm package and the Go runtime; the
 // supervisor and the checksums are for on-demand download by the CLI.
 func (spec ReleaseSpec) Entries() gcsupload.Entries {
-	exe := ""
-	if spec.Target.OS == Windows {
-		exe = ".exe"
-	}
+	exe := spec.Target.ExeSuffix()
 
 	var bin, version gcsupload.Entries
 	if path, ok := spec.Tsparser.Get(); ok {
@@ -379,7 +379,9 @@ func (p PlatformSpec) Build() (*ReleaseSpec, error) {
 	if p.EncoreCLI {
 		g.Go(func() error {
 			log.Info().Msgf("compiling encore-cli")
-			outExePath := p.Workdir.Join("encorecli")
+			// Windows won't execute a file without the .exe extension, and
+			// the smoke test below runs the binary.
+			outExePath := p.Workdir.Join("encorecli" + p.Target.ExeSuffix())
 			err := gobuild.Exe(errGroupCtx, gobuild.ExeInput{
 				Host:            host,
 				Target:          p.Target,
@@ -390,6 +392,9 @@ func (p PlatformSpec) Build() (*ReleaseSpec, error) {
 				OutExePath:      outExePath,
 			})
 			if err != nil {
+				return err
+			}
+			if err := smokeTestCLI(errGroupCtx, outExePath, p.Target); err != nil {
 				return err
 			}
 			spec.EncoreCLI = opt.Some(outExePath)
@@ -557,4 +562,37 @@ func (p PlatformSpec) Build() (*ReleaseSpec, error) {
 	}
 
 	return spec, nil
+}
+
+// smokeTestCLI runs the freshly built CLI's `encore version` and checks that
+// it reports the version being built: a start-up check that catches the
+// link and runtime-initialization problems a successful compile can't (the
+// CLI is a large cgo binary). Only binaries the build host can execute are
+// run: same OS, and the same architecture unless the host is an Apple
+// Silicon Mac, which runs the darwin/amd64 build through Rosetta (the
+// workflow installs it).
+func smokeTestCLI(ctx context.Context, exe FSPath, target Platform) error {
+	sameOS := target.OS == OS(runtime.GOOS)
+	sameArch := target.Arch == Arch(runtime.GOARCH)
+	rosetta := target.OS == Darwin && runtime.GOARCH == "arm64" && target.Arch == Amd64
+	if !sameOS || !(sameArch || rosetta) {
+		log.Warn().Msgf("skipping `encore version` smoke test: this host can't run %s binaries", target)
+		return nil
+	}
+
+	// `encore version` also asks encore.dev whether an update is available,
+	// with a 10s timeout of its own.
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	log.Info().Msgf("running `encore version` on the %s build", target)
+	out, err := exec.CommandContext(ctx, exe.ToIO(), "version").CombinedOutput()
+	if err != nil {
+		return errors.Wrapf(err, "`encore version` failed for %s:\n%s", target, out)
+	}
+	want := "encore version " + cfg.Version
+	if !strings.Contains(string(out), want) {
+		return errors.Newf("unexpected `encore version` output for %s: %q (want %q)", target, out, want)
+	}
+	log.Info().Msgf("%s", strings.TrimSpace(string(out)))
+	return nil
 }

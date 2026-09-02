@@ -41,6 +41,15 @@ func (p Platform) String() string {
 	return p.OS.String() + "/" + p.Arch.String()
 }
 
+// ExeSuffix is the executable file extension on the platform: ".exe" on
+// Windows, "" elsewhere.
+func (p Platform) ExeSuffix() string {
+	if p.OS == Windows {
+		return ".exe"
+	}
+	return ""
+}
+
 func (os OS) String() string {
 	return string(os)
 }
