@@ -154,6 +154,12 @@ jobs:
         if: runner.os == 'Windows'
         uses: step-security/msvc-dev-cmd@22c98154b708dbd743e6f27a933cf6ceba3305c4 # v1.13.1
 
+      # darwin/amd64 is built on Apple Silicon; Rosetta lets the build's
+      # `encore version` smoke test run it.
+      - name: Install Rosetta
+        if: matrix.target == 'darwin/amd64'
+        run: sudo softwareupdate --install-rosetta --agree-to-license
+
       # pg_query's build script runs bindgen, which needs libclang.dll.
       # Blacksmith's Windows image has neither a standalone LLVM nor Visual
       # Studio's Clang component (Build Tools only), so install LLVM from the
