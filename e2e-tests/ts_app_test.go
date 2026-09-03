@@ -108,6 +108,38 @@ func TestTSEndToEndWithApp(t *testing.T) {
 		c.Assert(response["greeting"], qt.Equals, "Hey Charlie! How's it going?")
 	})
 
+	c.Run("caller metadata - service-to-service call", func(c *qt.C) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/get-caller", nil)
+		run.ServeHTTP(w, req)
+
+		c.Assert(w.Code, qt.Equals, 200)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		c.Assert(err, qt.IsNil)
+
+		c.Assert(response["callerType"], qt.Equals, "api-endpoint")
+		c.Assert(response["callerService"], qt.Equals, "service1")
+		c.Assert(response["callerEndpoint"], qt.Equals, "getCallerViaService2")
+	})
+
+	c.Run("caller metadata - gateway call", func(c *qt.C) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/who-called", nil)
+		run.ServeHTTP(w, req)
+
+		c.Assert(w.Code, qt.Equals, 200)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		c.Assert(err, qt.IsNil)
+
+		c.Assert(response["callerType"], qt.Equals, "gateway")
+		c.Assert(response["callerService"], qt.IsNil)
+		c.Assert(response["callerEndpoint"], qt.IsNil)
+	})
+
 	c.Run("service2 input validation - valid", func(c *qt.C) {
 		requestBody := `{"message": "Hello world", "recipient": "test@example.com"}`
 		w := httptest.NewRecorder()

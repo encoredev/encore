@@ -1,4 +1,5 @@
 import { getCurrentRequest } from "./internal/reqtrack/mod";
+import * as runtime from "./internal/runtime/mod";
 
 /** Describes an API endpoint. */
 export interface APIDesc {
@@ -28,6 +29,86 @@ export type Method =
   | "OPTIONS"
   | "CONNECT"
   | "TRACE";
+
+/**
+ * Set on service-to-service calls, such as when another service
+ * calls this endpoint via `~encore/clients`.
+ */
+export interface APIEndpointCaller {
+  /** Specifies that the caller is another API endpoint. */
+  type: "api-endpoint";
+
+  /** The name of the calling service. */
+  service: string;
+
+  /** The name of the calling endpoint. */
+  endpoint: string;
+}
+
+/**
+ * Set when the call was made from within a Pub/Sub subscription
+ * handler while processing a message.
+ */
+export interface PubSubCaller {
+  /** Specifies that the caller is a Pub/Sub subscription processing a message. */
+  type: "pubsub-message";
+
+  /** The name of the Pub/Sub topic. */
+  topic: string;
+
+  /** The name of the Pub/Sub subscription. */
+  subscription: string;
+
+  /** The unique id of the Pub/Sub message. */
+  messageId: string;
+}
+
+/**
+ * Set when the request comes from outside the application,
+ * such as from a browser or mobile app calling a public API.
+ */
+export interface GatewayCaller {
+  /** Specifies that the caller is an API gateway. */
+  type: "gateway";
+
+  /** The name of the gateway. */
+  name: string;
+}
+
+/**
+ * Set when the call was made without an active request,
+ * such as from service initialization code, tests, or background tasks.
+ */
+export interface AppCaller {
+  /** Specifies that the caller is application code outside a request context. */
+  type: "app";
+
+  /** The deploy id of the running application. */
+  deployId: string;
+}
+
+/**
+ * Set when the call was made by Encore's central systems,
+ * such as from the Encore Cloud dashboard's API explorer.
+ */
+export interface EncorePrincipalCaller {
+  /** Specifies that the caller is the Encore platform. */
+  type: "encore-principal";
+
+  /** The name of the Encore principal. */
+  name: string;
+}
+
+/**
+ * Identifies the caller of the current request, based on
+ * authenticated internal call metadata.
+ */
+export type CallerMeta =
+  | APIEndpointCaller
+  | PubSubCaller
+  | GatewayCaller
+  | AppCaller
+  | EncorePrincipalCaller;
 
 /** Describes an API call being processed. */
 export interface APICallMeta {
@@ -81,6 +162,12 @@ export interface APICallMeta {
    * Contains values set in middlewares via `MiddlewareRequest.data`.
    */
   middlewareData?: Record<string, any>;
+
+  /**
+   * Identifies the caller of the request, based on authenticated
+   * internal call metadata. Not set when the caller is unknown.
+   */
+  caller?: CallerMeta;
 }
 
 /** Describes a Pub/Sub message being processed. */
@@ -184,7 +271,8 @@ export function currentRequest(): RequestMeta | undefined {
       pathParams: meta.apiCall.pathParams ?? {},
       parsedPayload: meta.apiCall.parsedPayload,
       headers: meta.apiCall.headers,
-      middlewareData: (req as any).middlewareData
+      middlewareData: (req as any).middlewareData,
+      caller: toCallerMeta(meta.apiCall.caller)
     };
     return { ...base, ...api };
   } else if (meta.pubsubMessage) {
@@ -200,5 +288,36 @@ export function currentRequest(): RequestMeta | undefined {
     return { ...base, ...msg };
   } else {
     return undefined;
+  }
+}
+
+function toCallerMeta(
+  caller: runtime.CallerData | undefined | null
+): CallerMeta | undefined {
+  if (!caller) {
+    return undefined;
+  }
+  switch (caller.kind) {
+    case "api-endpoint":
+      return {
+        type: "api-endpoint",
+        service: caller.service!,
+        endpoint: caller.endpoint!
+      };
+    case "pubsub-message":
+      return {
+        type: "pubsub-message",
+        topic: caller.topic!,
+        subscription: caller.subscription!,
+        messageId: caller.messageId!
+      };
+    case "gateway":
+      return { type: "gateway", name: caller.gateway! };
+    case "app":
+      return { type: "app", deployId: caller.deployId! };
+    case "encore-principal":
+      return { type: "encore-principal", name: caller.principal! };
+    default:
+      return undefined;
   }
 }
