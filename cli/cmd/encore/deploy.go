@@ -94,7 +94,7 @@ var deployAppCmd = &cobra.Command{
 func init() {
 	alphaCmd.AddCommand(deployAppCmd)
 	deployAppCmd.Flags().StringVar(&appSlug, "app", "", "app slug to deploy to (default current app)")
-	deployAppCmd.Flags().StringVarP(&envName, "env", "e", "", "environment to deploy to (default primary env)")
+	deployAppCmd.Flags().StringVarP(&envName, "env", "e", "", "environment to deploy to")
 	deployAppCmd.Flags().StringVar(&commit, "commit", "", "commit to deploy")
 	deployAppCmd.Flags().StringVar(&branch, "branch", "", "branch to deploy")
 	format.AddFlag(deployAppCmd)
