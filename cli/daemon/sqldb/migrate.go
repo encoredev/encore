@@ -119,16 +119,29 @@ func (src *MetadataSource) ReadUp(version uint) (r io.ReadCloser, identifier str
 	if err != nil {
 		return nil, "", err
 	}
-	// This is used to make sure that a migration is marked successful in the
-	// same statement as it's run. Otherwise we may end up with a finished migration
-	// which is marked dirty because the SetVersion is run as a separate statement.
-	statement := fmt.Sprintf(
-		";\ninsert into schema_migrations (version, dirty) values (%d, false) ON CONFLICT (version) DO UPDATE SET dirty = false;",
-		version)
-	return MultiReadCloser(
-		r,
-		strings.NewReader(statement),
-	), m.Description, nil
+
+	// Read the migration content to check if it contains multiple statements.
+	data, err := io.ReadAll(r)
+	_ = r.Close()
+	if err != nil {
+		return nil, "", err
+	}
+
+	// If the migration contains more than one statement, append an insert into
+	// schema_migrations so that it's marked successful in the same transaction.
+	// Otherwise we may end up with a finished migration which is marked dirty
+	// because the SetVersion is run as a separate statement.
+	if numStatements(data) > 1 {
+		statement := fmt.Sprintf(
+			";\ninsert into schema_migrations (version, dirty) values (%d, false) ON CONFLICT (version) DO UPDATE SET dirty = false;",
+			version)
+		return MultiReadCloser(
+			io.NopCloser(bytes.NewReader(data)),
+			strings.NewReader(statement),
+		), m.Description, nil
+	}
+
+	return io.NopCloser(bytes.NewReader(data)), m.Description, nil
 }
 
 func (src *MetadataSource) Open(url string) (source.Driver, error) {
@@ -344,4 +357,9 @@ func (src *nonSequentialSource) Next(version uint) (nextVersion uint, err error)
 	}
 	// Otherwise, return this version
 	return uint(m.Number), nil
+}
+
+// numStatements returns the number of semicolon-terminated SQL statements in data.
+func numStatements(data []byte) int {
+	return bytes.Count(data, []byte(";"))
 }
