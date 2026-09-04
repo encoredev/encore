@@ -91,9 +91,9 @@ export namespace svc {
             this.dummy = this.dummy.bind(this)
         }
 
-        public async dummy(): Promise<Response> {
+        public async dummy(options?: CallParameters): Promise<Response> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/dummy`)
+            const resp = await this.baseClient.callTypedAPI("GET", `/dummy`, undefined, options)
             return await resp.json() as Response
         }
     }
