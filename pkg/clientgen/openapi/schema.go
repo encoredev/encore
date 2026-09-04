@@ -25,6 +25,7 @@ func (g *Generator) bodyContent(params []*encoding.ParameterEncoding) openapi3.C
 		if vv := val.Value; vv != nil {
 			vv.Title, vv.Description = splitDoc(p.Doc)
 		}
+		val = applyOpenAPIRawTag(val, p.RawTag)
 		props[p.WireFormat] = val
 		if !p.Optional {
 			required = append(required, p.WireFormat)
@@ -46,6 +47,16 @@ func (g *Generator) bodyContent(params []*encoding.ParameterEncoding) openapi3.C
 }
 
 func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
+	ref := g.schemaTypeNoValidation(typ)
+	if typ.GetValidation() != nil {
+		ref = decorateSchemaRef(ref, func(s *openapi3.Schema) {
+			applyValidationExpr(s, typ.GetValidation())
+		})
+	}
+	return ref
+}
+
+func (g *Generator) schemaTypeNoValidation(typ *schema.Type) *openapi3.SchemaRef {
 	switch t := typ.Typ.(type) {
 	// A type switch for all the different schema types we support
 	case *schema.Type_Named:
@@ -85,6 +96,7 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 					},
 				}
 			}
+			val = applyOpenAPITags(val, f.Tags)
 			props[jsonName] = val
 		}
 
@@ -107,10 +119,10 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 		return arr.NewRef()
 
 	case *schema.Type_Pointer:
-		return g.schemaType(t.Pointer.Base)
+		return decorateSchemaRef(g.schemaType(t.Pointer.Base), func(s *openapi3.Schema) { s.Nullable = true })
 
 	case *schema.Type_Option:
-		return g.schemaType(t.Option.Value)
+		return decorateSchemaRef(g.schemaType(t.Option.Value), func(s *openapi3.Schema) { s.Nullable = true })
 
 	case *schema.Type_Literal:
 		switch tt := t.Literal.Value.(type) {
@@ -292,9 +304,14 @@ func (g *Generator) namedSchemaType(typ *schema.Named) *openapi3.SchemaRef {
 
 			// Generate the schema and add the declaration's documentation
 			schemaRef := g.schemaType(concrete)
-			if schemaRef.Value != nil {
-				// Get the declaration to access its documentation
-				if decl := g.md.Decls[typ.Id]; decl != nil && decl.Doc != "" {
+			if decl := g.md.Decls[typ.Id]; decl != nil {
+				if len(decl.EnumValues) > 0 {
+					schemaRef = decorateSchemaRef(schemaRef, func(s *openapi3.Schema) {
+						s.Enum = literalValues(decl.EnumValues)
+					})
+				}
+				if schemaRef.Value != nil && decl.Doc != "" {
+					// Get the declaration to access its documentation
 					title, description := splitDoc(decl.Doc)
 					if schemaRef.Value.Title == "" {
 						schemaRef.Value.Title = title
