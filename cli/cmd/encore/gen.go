@@ -32,13 +32,14 @@ func init() {
 		endpointTags                   []string
 		excludedEndpointTags           []string
 		openAPIExcludePrivateEndpoints bool
+		openAPIEmitTags                bool
 		tsSharedTypes                  bool
 		target                         string
 		tsDefaultClient                string
 	)
 
 	genClientCmd := &cobra.Command{
-		Use:   "client [<app-id>] [--env=<name>] [--services=foo,bar] [--excluded-services=baz,qux] [--tags=cache,mobile] [--excluded-tags=internal] [--openapi-exclude-private-endpoints]",
+		Use:   "client [<app-id>] [--env=<name>] [--services=foo,bar] [--excluded-services=baz,qux] [--tags=cache,mobile] [--excluded-tags=internal] [--openapi-exclude-private-endpoints] [--openapi-emit-tags]",
 		Short: "Generates an API client for your app",
 		Long: `Generates an API client for your app.
 
@@ -133,6 +134,7 @@ To further narrow down the services to generate, use the '--services' flag.
 				EndpointTags:                   endpointTags,
 				ExcludedEndpointTags:           excludedEndpointTags,
 				OpenapiExcludePrivateEndpoints: &openAPIExcludePrivateEndpoints,
+				OpenapiEmitTags:                &openAPIEmitTags,
 				TsSharedTypes:                  &tsSharedTypes,
 				TsClientTarget:                 &tsDefaultClient,
 				AppRoot:                        appRoot,
@@ -203,6 +205,8 @@ which may require the user-facing wrapper code to be manually generated.`,
 		StringSliceVar(&excludedEndpointTags, "excluded-tags", nil, "The names of endpoint tags to exclude in the output")
 	genClientCmd.Flags().
 		BoolVar(&openAPIExcludePrivateEndpoints, "openapi-exclude-private-endpoints", false, "Exclude private endpoints from the OpenAPI spec")
+	genClientCmd.Flags().
+		BoolVar(&openAPIEmitTags, "openapi-emit-tags", false, "Emit endpoint tags on each operation in the OpenAPI spec")
 	genClientCmd.Flags().
 		BoolVar(&tsSharedTypes, "ts:shared-types", false, "Import types from ~backend instead of re-generating them")
 	genClientCmd.Flags().StringVar(&target, "target", "", "An optional target for the client (\"leap\")")

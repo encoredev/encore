@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/doc/comment"
+	"sort"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -31,7 +32,9 @@ type Generator struct {
 	ver       GenVersion
 	spec      *openapi3.T
 	md        *meta.Data
+	opts      clientgentypes.Options
 	seenDecls map[string]uint32
+	usedTags  map[string]bool
 }
 
 func New(version GenVersion) *Generator {
@@ -57,13 +60,26 @@ func (g *Generator) Generate(p clientgentypes.GenerateParams) (err error) {
 	}()
 
 	g.md = p.Meta
+	g.opts = p.Options
 	g.spec = newSpec(p.AppSlug)
+	g.usedTags = make(map[string]bool)
 
 	for _, svc := range p.Meta.Svcs {
 		if p.Services.Has(svc.Name) {
 			if err := g.addService(svc, p.Tags, p.Options); err != nil {
 				return err
 			}
+		}
+	}
+
+	if g.opts.OpenAPIEmitTags && len(g.usedTags) > 0 {
+		names := make([]string, 0, len(g.usedTags))
+		for name := range g.usedTags {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			g.spec.Tags = append(g.spec.Tags, &openapi3.Tag{Name: name})
 		}
 	}
 
@@ -122,6 +138,18 @@ func (g *Generator) addRPC(rpc *meta.RPC) error {
 	return nil
 }
 
+func (g *Generator) rpcTags(rpc *meta.RPC) []string {
+	var tags []string
+	for _, sel := range rpc.Tags {
+		if sel.Type != meta.Selector_TAG {
+			continue
+		}
+		tags = append(tags, sel.Value)
+		g.usedTags[sel.Value] = true
+	}
+	return tags
+}
+
 func (g *Generator) getOrCreatePath(rpc *meta.RPC) *openapi3.PathItem {
 	path := rpcPath(rpc)
 	if existing, ok := g.spec.Paths[path]; ok {
@@ -142,6 +170,10 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 		Description: desc,
 		OperationID: method + ":" + rpc.ServiceName + "." + rpc.Name,
 		Responses:   make(openapi3.Responses),
+	}
+
+	if g.opts.OpenAPIEmitTags {
+		op.Tags = g.rpcTags(rpc)
 	}
 
 	// Add path parameters
