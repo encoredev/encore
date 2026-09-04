@@ -1,17 +1,15 @@
 use crate::api::Request;
 use crate::pvalue::{parse_pvalue, pvalue_to_js};
 use encore_runtime_core::sqldb;
-use mappable_rc::Marc;
 use napi::{Env, JsUnknown};
 use napi_derive::napi;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 #[napi]
 pub struct SQLDatabase {
     db: Arc<dyn sqldb::Database>,
-    pool: OnceLock<Marc<napi::Result<sqldb::Pool>>>,
 }
 
 #[napi]
@@ -49,10 +47,7 @@ fn convert_row_values(params: Vec<JsUnknown>) -> napi::Result<Vec<sqldb::RowValu
 #[napi]
 impl SQLDatabase {
     pub(crate) fn new(db: Arc<dyn sqldb::Database>) -> Self {
-        Self {
-            db,
-            pool: OnceLock::new(),
-        }
+        Self { db }
     }
 
     /// Reports the connection string to connect to this database.
@@ -117,21 +112,13 @@ impl SQLDatabase {
         Ok(row.map(|row| Row { row }))
     }
 
+    /// The pool is owned by the underlying database and shared across every
+    /// `SQLDatabase` handle resolving to the same name, so constructing this
+    /// object repeatedly costs nothing in connections.
     fn pool(&self) -> napi::Result<&sqldb::Pool> {
-        match self.pool_marc().as_ref() {
-            Ok(pool) => Ok(pool),
-            Err(e) => Err(e.clone()),
-        }
-    }
-
-    fn pool_marc(&self) -> &Marc<napi::Result<sqldb::Pool>> {
-        self.pool.get_or_init(|| {
-            let pool = self
-                .db
-                .new_pool()
-                .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e));
-            Marc::new(pool)
-        })
+        self.db
+            .pool()
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("{e:#}")))
     }
 }
 
