@@ -10,8 +10,11 @@ import (
 // Options for the client generator.
 type Options struct {
 	OpenAPIExcludePrivateEndpoints bool
-	TSSharedTypes                  bool
-	TSClientTarget                 string
+	// OpenAPIEmitTags emits each endpoint's tags on its OpenAPI operations
+	// and adds a document-level tags list.
+	OpenAPIEmitTags bool
+	TSSharedTypes   bool
+	TSClientTarget  string
 }
 
 type GenerateParams struct {

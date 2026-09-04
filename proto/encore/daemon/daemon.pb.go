@@ -2436,9 +2436,14 @@ type GenClientRequest struct {
 	TsClientTarget *string `protobuf:"bytes,11,opt,name=ts_client_target,json=tsClientTarget,proto3,oneof" json:"ts_client_target,omitempty"`
 	// The root directory of the app to generate a client for.
 	// Included to be able to handle multi clone scenarios.
-	AppRoot       string `protobuf:"bytes,12,opt,name=app_root,json=appRoot,proto3" json:"app_root,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AppRoot string `protobuf:"bytes,12,opt,name=app_root,json=appRoot,proto3" json:"app_root,omitempty"`
+	// The OpenAPI spec generator by default does not include endpoint tags
+	// in the generated spec. If this is set to `true`, each operation is
+	// emitted with its endpoint tags, and a document-level 'tags' list
+	// of all tags in use is included.
+	OpenapiEmitTags *bool `protobuf:"varint,13,opt,name=openapi_emit_tags,json=openapiEmitTags,proto3,oneof" json:"openapi_emit_tags,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GenClientRequest) Reset() {
@@ -2553,6 +2558,13 @@ func (x *GenClientRequest) GetAppRoot() string {
 		return x.AppRoot
 	}
 	return ""
+}
+
+func (x *GenClientRequest) GetOpenapiEmitTags() bool {
+	if x != nil && x.OpenapiEmitTags != nil {
+		return *x.OpenapiEmitTags
+	}
+	return false
 }
 
 type GenClientResponse struct {
@@ -4700,7 +4712,7 @@ const file_encore_daemon_daemon_proto_rawDesc = "" +
 	"\fcluster_type\x18\x03 \x01(\x0e2\x1c.encore.daemon.DBClusterTypeR\vclusterType\x12!\n" +
 	"\tnamespace\x18\x04 \x01(\tH\x00R\tnamespace\x88\x01\x01B\f\n" +
 	"\n" +
-	"_namespace\"\xae\x04\n" +
+	"_namespace\"\xf5\x04\n" +
 	"\x10GenClientRequest\x12\x15\n" +
 	"\x06app_id\x18\x01 \x01(\tR\x05appId\x12\x19\n" +
 	"\benv_name\x18\x02 \x01(\tR\aenvName\x12\x12\n" +
@@ -4714,10 +4726,12 @@ const file_encore_daemon_daemon_proto_rawDesc = "" +
 	"\x0fts_shared_types\x18\n" +
 	" \x01(\bH\x01R\rtsSharedTypes\x88\x01\x01\x12-\n" +
 	"\x10ts_client_target\x18\v \x01(\tH\x02R\x0etsClientTarget\x88\x01\x01\x12\x19\n" +
-	"\bapp_root\x18\f \x01(\tR\aappRootB$\n" +
+	"\bapp_root\x18\f \x01(\tR\aappRoot\x12/\n" +
+	"\x11openapi_emit_tags\x18\r \x01(\bH\x03R\x0fopenapiEmitTags\x88\x01\x01B$\n" +
 	"\"_openapi_exclude_private_endpointsB\x12\n" +
 	"\x10_ts_shared_typesB\x13\n" +
-	"\x11_ts_client_target\"'\n" +
+	"\x11_ts_client_targetB\x14\n" +
+	"\x12_openapi_emit_tags\"'\n" +
 	"\x11GenClientResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\fR\x04code\"/\n" +
 	"\x12GenWrappersRequest\x12\x19\n" +

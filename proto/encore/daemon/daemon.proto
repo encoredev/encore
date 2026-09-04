@@ -461,6 +461,12 @@ message GenClientRequest {
   // The root directory of the app to generate a client for.
   // Included to be able to handle multi clone scenarios.
   string app_root = 12;
+
+  // The OpenAPI spec generator by default does not include endpoint tags
+  // in the generated spec. If this is set to `true`, each operation is
+  // emitted with its endpoint tags, and a document-level 'tags' list
+  // of all tags in use is included.
+  optional bool openapi_emit_tags = 13;
 }
 
 message GenClientResponse {
