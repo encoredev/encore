@@ -8,6 +8,16 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::sync::{Arc, OnceLock};
 
+#[napi(object)]
+pub struct ColumnInfo {
+    pub name: String,
+    pub type_oid: u32,
+    pub type_name: String,
+    /// The OID of the table the column belongs to, if any.
+    /// Useful for disambiguating columns with the same name from different tables in JOIN results.
+    pub table_oid: Option<u32>,
+}
+
 #[napi]
 pub struct SQLDatabase {
     db: Arc<dyn sqldb::Database>,
@@ -220,6 +230,19 @@ impl Row {
             map.insert(key, val);
         }
         Ok(map)
+    }
+
+    #[napi]
+    pub fn columns(&self) -> Vec<ColumnInfo> {
+        self.row.columns()
+            .into_iter()
+            .map(|c| ColumnInfo {
+                name: c.name,
+                type_oid: c.type_oid,
+                type_name: c.type_name,
+                table_oid: c.table_oid,
+            })
+            .collect()
     }
 }
 
