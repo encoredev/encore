@@ -127,13 +127,17 @@ type Daemon struct {
 }
 
 func (d *Daemon) init(ctx context.Context) {
+	ports, err := daemonconfig.DefaultPorts()
+	if err != nil {
+		fatal(err)
+	}
 	d.Daemon = d.listenDaemonSocket()
-	d.Dash = d.listenTCPRetry("dashboard", env.EncoreDevDashListenAddr(), 9400)
-	d.DBProxy = d.listenTCPRetry("dbproxy", option.None[string](), 9500)
-	d.Runtime = d.listenTCPRetry("runtime", option.None[string](), 9600)
-	d.Debug = d.listenTCPRetry("debug", option.None[string](), 9700)
-	d.ObjectStorage = d.listenTCPRetry("objectstorage", env.EncoreObjectStorageListAddr(), 9800)
-	d.MCP = d.listenTCPRetry("mcp", env.EncoreMCPSSEListenAddr(), 9900)
+	d.Dash = d.listenTCPRetry("dashboard", env.EncoreDevDashListenAddr(), ports.Dashboard)
+	d.DBProxy = d.listenTCPRetry("dbproxy", option.None[string](), ports.DatabaseProxy)
+	d.Runtime = d.listenTCPRetry("runtime", option.None[string](), ports.Runtime)
+	d.Debug = d.listenTCPRetry("debug", option.None[string](), ports.Debug)
+	d.ObjectStorage = d.listenTCPRetry("objectstorage", env.EncoreObjectStorageListAddr(), ports.ObjectStorage)
+	d.MCP = d.listenTCPRetry("mcp", env.EncoreMCPSSEListenAddr(), ports.MCP)
 	d.EncoreDB = d.openDB()
 
 	d.Apps = apps.NewManager(d.EncoreDB)

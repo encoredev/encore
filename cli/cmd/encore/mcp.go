@@ -20,6 +20,7 @@ import (
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
 	"encr.dev/cli/internal/jsonrpc2"
+	"encr.dev/internal/daemonconfig"
 )
 
 var mcpCmd = &cobra.Command{
@@ -29,7 +30,6 @@ var mcpCmd = &cobra.Command{
 
 var (
 	appID   string
-	mcpPort int = 9900
 )
 
 var startCmd = &cobra.Command{
@@ -41,10 +41,14 @@ var startCmd = &cobra.Command{
 			appID = cmdutil.AppSlugOrLocalID()
 		}
 		setupDaemon(ctx)
+		ports, err := daemonconfig.DefaultPorts()
+		if err != nil {
+			fatal(err)
+		}
 
 		_, _ = fmt.Fprintf(os.Stderr, "  MCP Service is running!\n\n")
 		_, _ = fmt.Fprintf(os.Stderr, "  MCP SSE URL:        %s\n", aurora.Cyan(fmt.Sprintf(
-			"http://localhost:%d/sse?app=%s", mcpPort, appID)))
+			"http://localhost:%d/sse?app=%s", ports.MCP, appID)))
 		_, _ = fmt.Fprintf(os.Stderr, "  MCP stdio Command:  %s\n", aurora.Cyan(fmt.Sprintf(
 			"encore mcp run --app=%s", appID)))
 	},
@@ -135,12 +139,17 @@ func (c *sseConnection) connect(ctx context.Context) error {
 		c.client = &http.Client{}
 	}
 
+	ports, err := daemonconfig.DefaultPorts()
+	if err != nil {
+		return err
+	}
+
 	// Initialize the request IDs map
 	c.mu.Lock()
 	c.requestIDs = make(map[jsonrpc2.ID]struct{})
 	c.mu.Unlock()
 
-	resp, err := c.client.Get(fmt.Sprintf("http://localhost:%d/sse?app=%s", mcpPort, c.appID))
+	resp, err := c.client.Get(fmt.Sprintf("http://localhost:%d/sse?app=%s", ports.MCP, c.appID))
 	if err != nil {
 		return err
 	}
@@ -184,7 +193,12 @@ func (c *sseConnection) SendMessage(data []byte) error {
 		}
 	}
 
-	resp, err := c.client.Post(fmt.Sprintf("http://localhost:%d%s", mcpPort, c.path), "application/json", bytes.NewReader(data))
+	ports, err := daemonconfig.DefaultPorts()
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.client.Post(fmt.Sprintf("http://localhost:%d%s", ports.MCP, c.path), "application/json", bytes.NewReader(data))
 	if err != nil {
 		return err
 	}
