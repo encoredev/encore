@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -15,13 +14,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"encr.dev/internal/daemonconfig"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
 func IsDaemonRunning(ctx context.Context) bool {
-	socketPath, err := daemonSockPath()
+	socketPath, err := daemonconfig.SocketPath()
 	if err != nil {
 		return false
 	}
@@ -41,7 +41,7 @@ func IsDaemonRunning(ctx context.Context) bool {
 // ConnectDaemon returns a client connection to the Encore daemon.
 // By default, it will start the daemon if it is not already running.
 func ConnectDaemon(ctx context.Context) daemonpb.DaemonClient {
-	socketPath, err := daemonSockPath()
+	socketPath, err := daemonconfig.SocketPath()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "fatal: ", err)
 		os.Exit(1)
@@ -95,7 +95,7 @@ func ConnectDaemon(ctx context.Context) daemonpb.DaemonClient {
 }
 
 func StopDaemon() {
-	socketPath, err := daemonSockPath()
+	socketPath, err := daemonconfig.SocketPath()
 	if err != nil {
 		Fatal("stopping daemon: ", err)
 	}
@@ -104,18 +104,9 @@ func StopDaemon() {
 	}
 }
 
-// daemonSockPath reports the path to the Encore daemon unix socket.
-func daemonSockPath() (string, error) {
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return "", fmt.Errorf("could not determine cache dir: %v", err)
-	}
-	return filepath.Join(cacheDir, "encore", "encored.sock"), nil
-}
-
 // StartDaemonInBackground starts the Encore daemon in the background.
 func StartDaemonInBackground(ctx context.Context) error {
-	socketPath, err := daemonSockPath()
+	socketPath, err := daemonconfig.SocketPath()
 	if err != nil {
 		return err
 	}

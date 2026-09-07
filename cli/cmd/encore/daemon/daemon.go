@@ -49,6 +49,7 @@ import (
 	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/cli/daemon/sqldb/external"
 	"encr.dev/internal/conf"
+	"encr.dev/internal/daemonconfig"
 	"encr.dev/internal/env"
 	"encr.dev/pkg/eerror"
 	"encr.dev/pkg/httpx"
@@ -200,11 +201,10 @@ func (d *Daemon) serve() {
 // listenDaemonSocket listens on the encored.sock UNIX socket
 // and arranges to exit when the socket is closed.
 func (d *Daemon) listenDaemonSocket() *net.UnixListener {
-	userCacheDir, err := os.UserCacheDir()
+	socketPath, err := daemonconfig.SocketPath()
 	if err != nil {
 		fatal(err)
 	}
-	socketPath := filepath.Join(userCacheDir, "encore", "encored.sock")
 	if err := os.MkdirAll(filepath.Dir(socketPath), 0755); err != nil {
 		fatal(err)
 	}
