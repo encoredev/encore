@@ -273,6 +273,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 			RequestHeaders:       headersWithHost(c.req),
 			FromEncorePlatform:   platformauth.IsEncorePlatformRequest(c.req.Context()),
 			ServiceToServiceCall: c.callMeta.IsServiceToService(),
+			CallerService:        c.callMeta.CallerServiceName(),
 		},
 
 		ExtRequestID:            clampTo64Chars(c.req.Header.Get("X-Request-ID")),
@@ -675,6 +676,7 @@ func (d *Desc[Req, Resp]) runCall(c CallContext, req Req, mocked bool, executor 
 				FromEncorePlatform:   false,
 				RequestHeaders:       nil, // not set right now for internal requests
 				ServiceToServiceCall: true,
+				CallerService:        meta.CallerServiceName(),
 				Mocked:               mocked,
 			},
 		})
