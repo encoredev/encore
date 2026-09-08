@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -19,9 +20,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 )
 
@@ -55,10 +57,32 @@ type ImageBuildConfig struct {
 
 	// A URL to a http proxy used to fetch images
 	DockerOptions []remote.Option
+
+	// CompressionLevel is the gzip level (1-9). Zero uses level 5.
+	CompressionLevel int
+	// CompressionConcurrency bounds concurrent layer compression per image.
+	// Zero uses at most two workers, limited by GOMAXPROCS.
+	CompressionConcurrency int
+	// TempDir is the parent directory for compressed blobs; empty uses os.TempDir.
+	TempDir string
 }
 
-// BuildImage builds a docker image from the given spec.
-func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.Image, error) {
+// BuildImage builds a docker image from the given spec. The caller must Close
+// the returned image after all exports, uploads and layer readers have finished.
+func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (*Image, error) {
+	if cfg.CompressionLevel == 0 {
+		cfg.CompressionLevel = 5
+	}
+	if cfg.CompressionLevel < 1 || cfg.CompressionLevel > 9 {
+		return nil, errors.New("compression level must be between 1 and 9")
+	}
+	if cfg.CompressionConcurrency == 0 {
+		cfg.CompressionConcurrency = min(2, runtime.GOMAXPROCS(0))
+	}
+	if cfg.CompressionConcurrency < 1 {
+		return nil, errors.New("compression concurrency must be positive")
+	}
+
 	options := append(cfg.DockerOptions,
 		remote.WithPlatform(v1.Platform{
 			OS:           spec.OS,
@@ -75,23 +99,42 @@ func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.
 		return nil, errors.Wrap(err, "build image fs")
 	}
 
-	adds := make([]mutate.Addendum, 0, len(layers))
-	for _, l := range layers {
-		layer, err := tarball.LayerFromOpener(l.opener,
-			tarball.WithCompressionLevel(5), // balance speed and compression
-		)
-		if err != nil {
-			return nil, errors.Wrapf(err, "create %s layer", l.kind)
+	dir, err := os.MkdirTemp(cfg.TempDir, "encore-image-")
+	if err != nil {
+		return nil, errors.Wrap(err, "create image blob directory")
+	}
+	built := &Image{dir: dir}
+	success := false
+	defer func() {
+		if !success {
+			fns.CloseIgnore(built)
 		}
-		adds = append(adds, mutate.Addendum{
-			Layer: layer,
-			History: v1.History{
-				Author:    "encore-app",
-				Created:   v1.Time{Time: cfg.BuildTime},
-				CreatedBy: "encore.dev",
-				Comment:   fmt.Sprintf("%s layer, built with encore.dev", l.kind),
-			},
+	}()
+
+	// Each worker writes its own blob and result slot. Keep the original layer
+	// order regardless of completion order, so parallelism cannot change digests.
+	adds := make([]mutate.Addendum, len(layers))
+	g, compressCtx := errgroup.WithContext(ctx)
+	g.SetLimit(cfg.CompressionConcurrency)
+	for idx, l := range layers {
+		g.Go(func() error {
+			layer, err := compressLayer(compressCtx, built, l.opener, cfg.CompressionLevel)
+			if err != nil {
+				return errors.Wrapf(err, "create %s layer", l.kind)
+			}
+			adds[idx] = mutate.Addendum{
+				Layer: layer,
+				History: v1.History{
+					Author: "encore-app", Created: v1.Time{Time: cfg.BuildTime},
+					CreatedBy: "encore.dev",
+					Comment:   fmt.Sprintf("%s layer, built with encore.dev", l.kind),
+				},
+			}
+			return nil
 		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
 	log.Info().Int("layers", len(adds)).Msg("adding layers to base image")
@@ -129,7 +172,9 @@ func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.
 	if err != nil {
 		return nil, errors.Wrap(err, "add config")
 	}
-	return img, nil
+	built.Image = img
+	success = true
+	return built, nil
 }
 
 // ResolveRemoteImage resolves the base image with the given reference.

@@ -83,6 +83,8 @@ func TestBuildImage(t *testing.T) {
 	})
 	c.Assert(err, qt.IsNil)
 
+	t.Cleanup(func() { c.Check(img.Close(), qt.IsNil) })
+
 	_, err = img.Digest()
 	c.Assert(err, qt.IsNil)
 
@@ -132,6 +134,7 @@ func TestBuildImage_ReproducibleLayers(t *testing.T) {
 			SupervisorPath: option.Some(supervisorPath),
 		})
 		c.Assert(err, qt.IsNil)
+		t.Cleanup(func() { c.Check(img.Close(), qt.IsNil) })
 		layers, err := img.Layers()
 		c.Assert(err, qt.IsNil)
 		return layers

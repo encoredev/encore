@@ -257,6 +257,8 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		return false, errors.Wrap(err, "build docker image")
 	}
 
+	defer fns.CloseIgnore(img)
+
 	if params.LocalDaemonTag != "" {
 		tag, err := name.NewTag(params.LocalDaemonTag, name.WeakValidation)
 		if err != nil {
