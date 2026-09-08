@@ -1,9 +1,5 @@
 import { apiCall, streamIn, streamOut, streamInOut } from "encore.dev/internal/codegen/api";
 
-const TEST_ENDPOINTS = typeof ENCORE_DROP_TESTS === "undefined" && process.env.NODE_ENV === "test"
-    ? await import("./endpoints_testing.js")
-    : null;
-
 {{#each endpoints}}
 {{#if has_params}}
 export async function {{name}}(params, opts) {
@@ -12,7 +8,10 @@ export async function {{name}}(opts) {
     const params = undefined;
 {{/if}}
     if (typeof ENCORE_DROP_TESTS === "undefined" && process.env.NODE_ENV === "test") {
-        return TEST_ENDPOINTS.{{name}}(params, opts);
+        // Load this service's test handlers and middleware only when called.
+        // Leave caching to the module loader so test module resets still work.
+        const endpoints = await import("./endpoints_testing.js");
+        return endpoints.{{name}}(params, opts);
     }
 
     {{#if (or streaming_request streaming_response)}}
