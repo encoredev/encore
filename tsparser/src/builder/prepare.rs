@@ -1,5 +1,6 @@
 use std::{io, path::PathBuf};
 
+use serde::Deserialize;
 use thiserror::Error;
 
 use super::Builder;
@@ -8,6 +9,19 @@ use super::Builder;
 pub struct PrepareParams {
     pub encore_dev_version: PackageVersion,
     pub app_root: PathBuf,
+    pub install_mode: InstallMode,
+}
+
+/// Which dependencies a prepare installs.
+#[derive(Deserialize, Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum InstallMode {
+    /// Every dependency.
+    #[default]
+    All,
+    /// Omits development dependencies, using each package manager's
+    /// equivalent of npm's `--omit=dev`.
+    Production,
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +72,10 @@ pub enum PrepareError {
 
 impl Builder<'_> {
     pub fn prepare(&self, params: &PrepareParams) -> Result<(), PrepareError> {
-        self.setup_deps(&params.app_root, &params.encore_dev_version)
+        self.setup_deps(
+            &params.app_root,
+            &params.encore_dev_version,
+            params.install_mode,
+        )
     }
 }

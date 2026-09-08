@@ -14,9 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"encore.dev/appruntime/exported/experiments"
 	"github.com/cockroachdb/errors"
 	"google.golang.org/protobuf/proto"
+
+	"encore.dev/appruntime/exported/experiments"
 
 	"encr.dev/internal/env"
 	"encr.dev/internal/lookpath"
@@ -151,6 +152,7 @@ func (i *BuilderImpl) Prepare(ctx context.Context, p builder.PrepareParams) (*bu
 		AppRoot:        paths.FS(p.App.Root()),
 		JSRuntimeRoot:  jsRuntimePath,
 		RuntimeVersion: version.Version,
+		InstallMode:    p.InstallMode,
 	}
 	if p.Build.UseLocalJSRuntime {
 		input.LocalRuntimeOverride = jsRuntimePath.ToIO()
@@ -373,10 +375,11 @@ const (
 )
 
 type prepareInput struct {
-	JSRuntimeRoot        paths.FS `json:"js_runtime_root"`
-	AppRoot              paths.FS `json:"app_root"`
-	RuntimeVersion       string   `json:"runtime_version"`
-	LocalRuntimeOverride string   `json:"local_runtime_override,omitempty"`
+	JSRuntimeRoot        paths.FS            `json:"js_runtime_root"`
+	AppRoot              paths.FS            `json:"app_root"`
+	RuntimeVersion       string              `json:"runtime_version"`
+	LocalRuntimeOverride string              `json:"local_runtime_override,omitempty"`
+	InstallMode          builder.InstallMode `json:"install_mode,omitempty"`
 }
 
 func readResp(reader io.Reader) (isSuccess bool, data []byte, err error) {

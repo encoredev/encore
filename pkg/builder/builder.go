@@ -38,6 +38,17 @@ const (
 	DebugModeBreak    DebugMode = "break"
 )
 
+// InstallMode selects which dependencies to install for TypeScript apps.
+type InstallMode string
+
+const (
+	// InstallAll installs every dependency. It is the default.
+	InstallAll InstallMode = "all"
+	// InstallProduction omits development dependencies, using each
+	// package manager's equivalent of npm's --omit=dev.
+	InstallProduction InstallMode = "production"
+)
+
 type BuildInfo struct {
 	BuildTags          []string
 	CgoEnabled         bool
@@ -97,6 +108,10 @@ type PrepareParams struct {
 	App        *apps.Instance
 	WorkingDir string
 	Stderr     option.Option[io.Writer]
+
+	// InstallMode selects which dependencies to install for TypeScript apps.
+	// The zero value means InstallAll. Ignored by the Go builder.
+	InstallMode InstallMode
 }
 
 type PrepareResult struct {

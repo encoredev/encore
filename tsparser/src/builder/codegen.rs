@@ -17,7 +17,7 @@ use crate::parser::resources::apis::api::Methods;
 use crate::parser::resources::Resource;
 use crate::parser::{FilePath, Range};
 
-use super::prepare::{PackageVersion, PrepareError};
+use super::prepare::{InstallMode, PackageVersion, PrepareError};
 use super::{App, Builder};
 
 #[derive(Debug)]
@@ -38,9 +38,10 @@ impl Builder<'_> {
         &self,
         app_root: &Path,
         encore_dev_version: &PackageVersion,
+        install_mode: InstallMode,
     ) -> Result<(), PrepareError> {
         let pkg_mgr = resolve_package_manager(app_root)?;
-        pkg_mgr.setup_deps(encore_dev_version)
+        pkg_mgr.setup_deps(encore_dev_version, install_mode)
     }
 
     pub fn generate_code(&self, params: &CodegenParams) -> Result<CodegenResult, PrepareError> {
