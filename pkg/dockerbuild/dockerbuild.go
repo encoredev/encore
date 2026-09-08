@@ -63,6 +63,18 @@ type ImageBuildConfig struct {
 	// CompressionConcurrency bounds concurrent layer compression per image.
 	// Zero uses at most two workers, limited by GOMAXPROCS.
 	CompressionConcurrency int
+	// PreparationConcurrency bounds metadata/header preparation workers per image.
+	// Zero uses at most two workers, limited by GOMAXPROCS. All images also
+	// share a process-wide metadata budget of min(4, startup GOMAXPROCS).
+	PreparationConcurrency int
+	// ReadAheadBytes limits prefetched file contents per active layer.
+	// Zero uses 256 KiB; -1 disables read-ahead for sequential comparisons.
+	// Tiny (<=64 KiB) and memory-only layers skip read-ahead.
+	ReadAheadBytes int
+	// ReadAheadConcurrency bounds distinct source files being prefetched per
+	// active layer. Zero uses four workers sharing ReadAheadBytes. The number
+	// of source files and a small byte budget can further reduce worker count.
+	ReadAheadConcurrency int
 	// TempDir is the parent directory for compressed blobs; empty uses os.TempDir.
 	TempDir string
 }
@@ -205,7 +217,30 @@ func resolveBaseImage(ctx context.Context, baseImgTag string, overrideBaseImage 
 }
 
 func buildImageFilesystem(ctx context.Context, spec *ImageSpec, cfg *ImageBuildConfig) ([]imageLayer, error) {
-	lc := newLayeredTarCopier(setFileTimes(layerEpoch))
+	workers := cfg.PreparationConcurrency
+	if workers == 0 {
+		workers = min(2, runtime.GOMAXPROCS(0))
+	}
+	if workers < 1 {
+		return nil, errors.New("preparation concurrency must be positive")
+	}
+	ahead := cfg.ReadAheadBytes
+	if ahead == 0 {
+		ahead = 256 << 10
+	}
+	if ahead < -1 {
+		return nil, errors.New("read-ahead bytes must be positive or -1 to disable")
+	}
+	readers := cfg.ReadAheadConcurrency
+	if readers == 0 {
+		readers = 4
+	}
+	if readers < 1 {
+		return nil, errors.New("read-ahead concurrency must be positive")
+	}
+	lc := newLayeredTarCopier(setFileTimes(layerEpoch), func(tc *tarCopier) {
+		tc.ctx, tc.preparationWorkers, tc.readAheadBytes, tc.readAheadWorkers = ctx, workers, ahead, readers
+	})
 
 	// Bundle the source code, if requested.
 	if bundle, ok := spec.BundleSource.Get(); ok {

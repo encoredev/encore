@@ -119,6 +119,7 @@ func BenchmarkImagePackaging(b *testing.B) {
 // The former compression algorithm: serial source tar construction, eager digest and
 // diffID calculation, followed by lazy re-compression during serialization.
 func legacyPackagingImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.Image, error) {
+	cfg.PreparationConcurrency, cfg.ReadAheadBytes = 1, -1
 	layers, err := buildImageFilesystem(ctx, spec, &cfg)
 	if err != nil {
 		return nil, err
