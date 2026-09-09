@@ -77,6 +77,22 @@ export interface ClientOptions {
 
     /** Default RequestInit to be used for the client */
     requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+    /**
+     * Overrides or disables the built-in date reviver for all API calls.
+     * Pass a custom function to use instead, or false to disable date parsing entirely.
+     */
+    dateReviver?: ((key: string, value: any) => any) | false
+}
+
+/**
+ * CallOptions allows you to override per-call behaviour within the generated Encore client.
+ */
+export interface CallOptions {
+    /**
+     * Overrides the date reviver for this specific call.
+     * Pass a custom function to transform date strings, or false to disable date parsing.
+     */
+    dateReviver?: ((key: string, value: any) => any) | false
 }
 
 /**
@@ -113,7 +129,7 @@ export namespace svc {
         /**
          * InOut stream type variants
          */
-        public async inOutWithHandshake(params: RequestType<typeof api_svc_svc_inOutWithHandshake>): Promise<StreamInOut<StreamRequest<typeof api_svc_svc_inOutWithHandshake>, StreamResponse<typeof api_svc_svc_inOutWithHandshake>>> {
+        public async inOutWithHandshake(params: RequestType<typeof api_svc_svc_inOutWithHandshake>, callOptions?: CallOptions): Promise<StreamInOut<StreamRequest<typeof api_svc_svc_inOutWithHandshake>, StreamResponse<typeof api_svc_svc_inOutWithHandshake>>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -123,17 +139,17 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createStreamInOut(`/inout/${encodeURIComponent(params.pathParam)}`, {headers, query})
+            return await this.baseClient.createStreamInOut(`/inout/${encodeURIComponent(params.pathParam)}`, {headers, query}, callOptions?.dateReviver)
         }
 
-        public async inOutWithoutHandshake(): Promise<StreamInOut<StreamRequest<typeof api_svc_svc_inOutWithoutHandshake>, StreamResponse<typeof api_svc_svc_inOutWithoutHandshake>>> {
-            return await this.baseClient.createStreamInOut(`/inout/noHandshake`)
+        public async inOutWithoutHandshake(callOptions?: CallOptions): Promise<StreamInOut<StreamRequest<typeof api_svc_svc_inOutWithoutHandshake>, StreamResponse<typeof api_svc_svc_inOutWithoutHandshake>>> {
+            return await this.baseClient.createStreamInOut(`/inout/noHandshake`, undefined, callOptions?.dateReviver)
         }
 
         /**
          * In stream type variants
          */
-        public async inWithHandshake(params: RequestType<typeof api_svc_svc_inWithHandshake>): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithHandshake>, void>> {
+        public async inWithHandshake(params: RequestType<typeof api_svc_svc_inWithHandshake>, callOptions?: CallOptions): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithHandshake>, void>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -143,14 +159,14 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createStreamOut(`/in/${encodeURIComponent(params.pathParam)}`, {headers, query})
+            return await this.baseClient.createStreamOut(`/in/${encodeURIComponent(params.pathParam)}`, {headers, query}, callOptions?.dateReviver)
         }
 
-        public async inWithResponse(): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithResponse>, StreamResponse<typeof api_svc_svc_inWithResponse>>> {
-            return await this.baseClient.createStreamOut(`/in/withResponse`)
+        public async inWithResponse(callOptions?: CallOptions): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithResponse>, StreamResponse<typeof api_svc_svc_inWithResponse>>> {
+            return await this.baseClient.createStreamOut(`/in/withResponse`, undefined, callOptions?.dateReviver)
         }
 
-        public async inWithResponseAndHandshake(params: RequestType<typeof api_svc_svc_inWithResponseAndHandshake>): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithResponseAndHandshake>, StreamResponse<typeof api_svc_svc_inWithResponseAndHandshake>>> {
+        public async inWithResponseAndHandshake(params: RequestType<typeof api_svc_svc_inWithResponseAndHandshake>, callOptions?: CallOptions): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithResponseAndHandshake>, StreamResponse<typeof api_svc_svc_inWithResponseAndHandshake>>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -161,17 +177,17 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createStreamOut(`/in/withResponseAndHandshake`, {headers, query})
+            return await this.baseClient.createStreamOut(`/in/withResponseAndHandshake`, {headers, query}, callOptions?.dateReviver)
         }
 
-        public async inWithoutHandshake(): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithoutHandshake>, void>> {
-            return await this.baseClient.createStreamOut(`/in/noHandshake`)
+        public async inWithoutHandshake(callOptions?: CallOptions): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithoutHandshake>, void>> {
+            return await this.baseClient.createStreamOut(`/in/noHandshake`, undefined, callOptions?.dateReviver)
         }
 
         /**
          * Out stream type variants
          */
-        public async outWithHandshake(params: RequestType<typeof api_svc_svc_outWithHandshake>): Promise<StreamIn<StreamResponse<typeof api_svc_svc_outWithHandshake>>> {
+        public async outWithHandshake(params: RequestType<typeof api_svc_svc_outWithHandshake>, callOptions?: CallOptions): Promise<StreamIn<StreamResponse<typeof api_svc_svc_outWithHandshake>>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -181,11 +197,11 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createStreamIn(`/out/${encodeURIComponent(params.pathParam)}`, {headers, query})
+            return await this.baseClient.createStreamIn(`/out/${encodeURIComponent(params.pathParam)}`, {headers, query}, callOptions?.dateReviver)
         }
 
-        public async outWithoutHandshake(): Promise<StreamIn<StreamResponse<typeof api_svc_svc_outWithoutHandshake>>> {
-            return await this.baseClient.createStreamIn(`/out/noHandshake`)
+        public async outWithoutHandshake(callOptions?: CallOptions): Promise<StreamIn<StreamResponse<typeof api_svc_svc_outWithoutHandshake>>> {
+            return await this.baseClient.createStreamIn(`/out/noHandshake`, undefined, callOptions?.dateReviver)
         }
     }
 }
@@ -329,10 +345,10 @@ export class StreamInOut<Request, Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(url: string, headers?: Record<string, string>, reviver?: (key: string, value: any) => any) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data, dateReviver));
+            this.buffer.push(JSON.parse(event.data, reviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -373,10 +389,10 @@ export class StreamIn<Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(url: string, headers?: Record<string, string>, reviver?: (key: string, value: any) => any) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data, dateReviver));
+            this.buffer.push(JSON.parse(event.data, reviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -406,13 +422,13 @@ export class StreamOut<Request, Response> {
     public socket: WebSocketConnection;
     private responseValue: Promise<Response>;
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(url: string, headers?: Record<string, string>, reviver?: (key: string, value: any) => any) {
         let responseResolver: (_: any) => void;
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
 
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            responseResolver(JSON.parse(event.data, dateReviver))
+            responseResolver(JSON.parse(event.data, reviver))
         });
     }
 
@@ -455,6 +471,7 @@ class BaseClient {
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
     readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+    readonly reviver: ((key: string, value: any) => any) | undefined
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
@@ -474,6 +491,7 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
+        this.reviver = options.dateReviver === false ? undefined : (options.dateReviver ?? dateReviver)
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
@@ -481,7 +499,7 @@ class BaseClient {
     }
 
     // createStreamInOut sets up a stream to a streaming API endpoint.
-    async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
+    async createStreamInOut<Request, Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -498,11 +516,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamInOut(this.baseURL + path + queryString, headers);
+        return new StreamInOut(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // createStreamIn sets up a stream to a streaming API endpoint.
-    async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
+    async createStreamIn<Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamIn<Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -519,11 +537,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamIn(this.baseURL + path + queryString, headers);
+        return new StreamIn(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // createStreamOut sets up a stream to a streaming API endpoint.
-    async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
+    async createStreamOut<Request, Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -540,7 +558,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamOut(this.baseURL + path + queryString, headers);
+        return new StreamOut(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"
