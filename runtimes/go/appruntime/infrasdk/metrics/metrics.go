@@ -100,6 +100,17 @@ func (mgr *Manager) collectNow(ctx context.Context) {
 	}
 
 	m := mgr.reg.Collect()
+
+	// Attach service labels to collected metrics so exporters can enrich
+	// per-service time series with additional labels (e.g., team, cost_center).
+	// The same snapshot is shared across all metrics — this is safe because
+	// exporters only read from it and collection+export is sequential.
+	if svcLabels := mgr.reg.ServiceLabels(); svcLabels != nil {
+		for i := range m {
+			m[i].ServiceLabels = svcLabels
+		}
+	}
+
 	if err := mgr.exp.Export(ctx, m); err != nil {
 		mgr.rootLogger.Error().Err(err).Msg("unable to emit metrics")
 	} else {
