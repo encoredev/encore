@@ -19,6 +19,15 @@ Describes an API call being processed.
 
 Describes the API Endpoint being called.
 
+##### callerService?
+
+`optional callerService?: string`
+
+The name of the service that made the API call, for
+service-to-service calls. Not set when the request comes from
+outside the application (e.g. through an API gateway) or when
+the caller is unknown.
+
 ##### headers
 
 `headers: Record<string, string | string[]>`
@@ -172,7 +181,7 @@ Information about the environment the app is running in.
 <!-- symbol-end -->
 
 <!-- symbol-start: BaseRequestMeta -->
-### BaseRequestMeta <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L145" />
+### BaseRequestMeta <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L153" />
 
 Common fields shared by all request meta types.
 
@@ -282,7 +291,7 @@ The name of the service
 <!-- symbol-end -->
 
 <!-- symbol-start: PubSubMessageMeta -->
-### PubSubMessageMeta <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L87" />
+### PubSubMessageMeta <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L95" />
 
 Describes a Pub/Sub message being processed.
 
@@ -338,7 +347,7 @@ Specifies that the request is a Pub/Sub message.
 <!-- symbol-end -->
 
 <!-- symbol-start: TraceData -->
-### TraceData <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L120" />
+### TraceData <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L128" />
 
 Provides information about the active trace.
 
@@ -423,7 +432,7 @@ type Method =
 <!-- symbol-end -->
 
 <!-- symbol-start: RequestMeta -->
-### RequestMeta <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L151" />
+### RequestMeta <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L159" />
 
 `type RequestMeta = APICallMeta | PubSubMessageMeta & BaseRequestMeta`
 
@@ -452,7 +461,7 @@ and therefore must not be modified by the caller.
 <!-- symbol-end -->
 
 <!-- symbol-start: currentRequest() -->
-### currentRequest() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L160" />
+### currentRequest() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/req_meta.ts#L168" />
 
 `function currentRequest(): RequestMeta | undefined`
 
