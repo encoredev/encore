@@ -45,9 +45,12 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	bld := builderimpl.Resolve(params.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
 
-	spec, err := mgr.testSpec(ctx, bld, expSet, params.TestSpecParams)
+	spec, rm, err := mgr.testSpec(ctx, bld, expSet, params.TestSpecParams)
 	if err != nil {
 		return err
+	}
+	if rm != nil {
+		defer rm.StopAll()
 	}
 
 	workingDir := paths.RootedFSPath(params.App.Root(), params.WorkingDir)
@@ -104,7 +107,7 @@ func (mgr *Manager) TestSpec(ctx context.Context, params TestSpecParams) (*TestS
 	bld := builderimpl.Resolve(params.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
 
-	spec, err := mgr.testSpec(ctx, bld, expSet, &params)
+	spec, _, err := mgr.testSpec(ctx, bld, expSet, &params)
 	if err != nil {
 		return nil, err
 	}
@@ -116,12 +119,12 @@ func (mgr *Manager) TestSpec(ctx context.Context, params TestSpecParams) (*TestS
 }
 
 // testSpec returns how to run the tests.
-func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *experiments.Set, params *TestSpecParams) (*builder.TestSpecResult, error) {
+func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *experiments.Set, params *TestSpecParams) (*builder.TestSpecResult, *infra.ResourceManager, error) {
 	var secrets map[string]string
 	if params.Secrets != nil {
 		secretData, err := params.Secrets.Get(ctx, expSet)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		secrets = secretData.Values
 		// remove db override secrets for tests
@@ -155,7 +158,7 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		WorkingDir: params.WorkingDir,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
@@ -166,10 +169,10 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		Prepare:     prepareResult,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := params.App.CacheMetadata(parse.Meta); err != nil {
-		return nil, errors.Wrap(err, "cache metadata")
+		return nil, nil, errors.Wrap(err, "cache metadata")
 	}
 
 	rm := infra.NewResourceManager(params.App, mgr.ClusterMgr, mgr.ObjectsMgr, mgr.PublicBuckets, params.NS, nil, mgr.DBProxyPort, true)
@@ -179,7 +182,8 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 
 	// Note: jobs.Wait must be called before generateConfig.
 	if err := jobs.Wait(); err != nil {
-		return nil, err
+		rm.StopAll()
+		return nil, nil, err
 	}
 
 	gateways := make(map[string]GatewayConfig)
@@ -201,7 +205,8 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		},
 	})
 	if err != nil {
-		return nil, err
+		rm.StopAll()
+		return nil, nil, err
 	}
 
 	var runtimeConfigPath option.Option[string]
@@ -241,11 +246,12 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 
 	env, err := configGen.ForTests(bld.UseNewRuntimeConfig())
 	if err != nil {
-		return nil, err
+		rm.StopAll()
+		return nil, nil, err
 	}
 	env = append(env, encodeServiceConfigs(cfg.Configs)...)
 
-	return bld.TestSpec(ctx, builder.TestSpecParams{
+	spec, err := bld.TestSpec(ctx, builder.TestSpecParams{
 		Compile: builder.CompileParams{
 			Build:       buildInfo,
 			App:         params.App,
@@ -257,4 +263,9 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		Env:  append(params.Environ, env...),
 		Args: params.Args,
 	})
+	if err != nil {
+		rm.StopAll()
+		return nil, nil, err
+	}
+	return spec, rm, nil
 }
