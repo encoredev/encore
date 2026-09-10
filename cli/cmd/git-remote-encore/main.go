@@ -102,6 +102,7 @@ func connect(args []string, svc string) error {
 		return err
 	}
 	cfgPath := cfg.Name()
+	_ = cfg.Close()
 	defer func() { _ = os.Remove(cfgPath) }()
 
 	// Communicate to Git that the connection is established.
