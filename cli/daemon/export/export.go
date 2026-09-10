@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 	"time"
@@ -68,6 +69,11 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		Build:      buildInfo,
 		App:        app,
 		WorkingDir: ".",
+		// The builder subprocess writes npm's own output to its stderr. With no
+		// Stderr set it lands on the background daemon's stderr, which the CLI
+		// starts with output discarded - so install failures log nothing. Send
+		// it to the client's log stream instead, like the pre/post-build hooks.
+		Stderr: option.Some[io.Writer](streamLog.Stderr(false)),
 	})
 	if err != nil {
 		return false, err
