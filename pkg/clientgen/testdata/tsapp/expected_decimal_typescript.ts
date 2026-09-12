@@ -96,7 +96,7 @@ export namespace svc {
             this.dummy = this.dummy.bind(this)
         }
 
-        public async dummy(params: Request): Promise<Response> {
+        public async dummy(params: Request, options?: CallParameters): Promise<Response> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 message: params.message,
@@ -104,7 +104,7 @@ export namespace svc {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/dummy`, undefined, {query})
+            const resp = await this.baseClient.callTypedAPI("GET", `/dummy`, undefined, {...options, query})
             return await resp.json() as Response
         }
     }
