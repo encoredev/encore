@@ -2,7 +2,10 @@ package schema
 
 import (
 	"go/ast"
+	"go/token"
 	"slices"
+	"strconv"
+	"strings"
 
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
@@ -48,6 +51,9 @@ type TypeDecl struct {
 	Name string               // name of the type declaration
 	Type Type                 // the declaration's underlying type
 
+	// EnumValues are the constant values for declarations marked with //encore:enum.
+	EnumValues []EnumValue
+
 	// TypeParams are any type parameters on this declaration.
 	// (note: instantiated types used within this declaration would not be captured here)
 	TypeParams []DeclTypeParam
@@ -60,12 +66,19 @@ func (d *TypeDecl) Clone() *TypeDecl {
 		File:       d.File,
 		Name:       d.Name,
 		Type:       d.Type,
+		EnumValues: slices.Clone(d.EnumValues),
 		TypeParams: slices.Clone(d.TypeParams),
 	}
 }
 
-// DeclTypeParam represents a type parameter on a declaration.
-// For example A in "type Foo[A any] struct { ... }"
+// EnumValue represents one constant value for an enum declaration.
+type EnumValue struct {
+	Str   option.Option[string]
+	Int   option.Option[int64]
+	Float option.Option[float64]
+	Bool  option.Option[bool]
+}
+
 type DeclTypeParam struct {
 	// AST is the AST node that this type param represents.
 	// Note that multiple fields may share the same *ast.Field node,
@@ -169,12 +182,157 @@ func (p *Parser) ParseTypeDecl(d *pkginfo.PkgDeclInfo) *TypeDecl {
 
 	r := p.newTypeResolver(decl, typeParamsInScope)
 	decl.Type = r.parseType(d.File, spec.Type)
+	decl.EnumValues = p.enumValues(decl)
 
 	return decl
 }
 
-// ParseFuncDecl parses the func from a package declaration.
-// It errors if the type is not a func declaration.
+// enumValues returns the const values associated with an enum declaration.
+func (p *Parser) enumValues(decl *TypeDecl) []EnumValue {
+	if !hasEnumDirective(decl) {
+		return nil
+	}
+
+	kind, ok := enumBuiltinKind(decl.Type)
+	if !ok {
+		return nil
+	}
+
+	var values []EnumValue
+	for _, file := range decl.File.Pkg.Files {
+		for _, d := range file.AST().Decls {
+			gd, ok := d.(*ast.GenDecl)
+			if !ok || gd.Tok != token.CONST {
+				continue
+			}
+
+			var lastType string
+			var lastValues []ast.Expr
+			for i, spec := range gd.Specs {
+				vs, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+				currentType := ""
+				if vs.Type != nil {
+					lastType = exprName(vs.Type)
+					currentType = lastType
+				} else if len(vs.Values) == 0 {
+					currentType = lastType
+				}
+				if len(vs.Values) > 0 {
+					lastValues = vs.Values
+				}
+				if currentType != decl.Name {
+					continue
+				}
+				for idx := range vs.Names {
+					expr := exprAt(lastValues, idx)
+					if v, ok := enumValue(expr, kind, i); ok {
+						values = append(values, v)
+					}
+				}
+			}
+		}
+	}
+	return values
+}
+
+func hasEnumDirective(decl *TypeDecl) bool {
+	if strings.Contains(decl.Info.Doc, "encore:enum") {
+		return true
+	}
+	if hasComment(decl.AST.Doc, "encore:enum") {
+		return true
+	}
+	return decl.Info.GenDecl != nil && hasComment(decl.Info.GenDecl.Doc, "encore:enum")
+}
+
+func hasComment(cg *ast.CommentGroup, s string) bool {
+	if cg == nil {
+		return false
+	}
+	for _, c := range cg.List {
+		if strings.Contains(c.Text, s) {
+			return true
+		}
+	}
+	return strings.Contains(cg.Text(), s)
+}
+
+func enumBuiltinKind(t Type) (BuiltinKind, bool) {
+	b, ok := t.(BuiltinType)
+	if !ok {
+		return Invalid, false
+	}
+	switch b.Kind {
+	case String, Bool, Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Float32, Float64:
+		return b.Kind, true
+	default:
+		return Invalid, false
+	}
+}
+
+func exprName(expr ast.Expr) string {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return e.Name
+	case *ast.SelectorExpr:
+		return e.Sel.Name
+	default:
+		return ""
+	}
+}
+
+func exprAt(exprs []ast.Expr, idx int) ast.Expr {
+	if len(exprs) == 0 {
+		return nil
+	}
+	if idx < len(exprs) {
+		return exprs[idx]
+	}
+	return exprs[len(exprs)-1]
+}
+
+func enumValue(expr ast.Expr, kind BuiltinKind, iotaVal int) (EnumValue, bool) {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		switch e.Kind {
+		case token.STRING:
+			v, err := strconv.Unquote(e.Value)
+			return EnumValue{Str: option.Some(v)}, err == nil
+		case token.INT:
+			v, err := strconv.ParseInt(e.Value, 0, 64)
+			if err != nil {
+				return EnumValue{}, false
+			}
+			return numberEnumValue(kind, v), true
+		case token.FLOAT:
+			v, err := strconv.ParseFloat(e.Value, 64)
+			return EnumValue{Float: option.Some(v)}, err == nil
+		}
+	case *ast.Ident:
+		switch e.Name {
+		case "iota":
+			return numberEnumValue(kind, int64(iotaVal)), true
+		case "true":
+			return EnumValue{Bool: option.Some(true)}, true
+		case "false":
+			return EnumValue{Bool: option.Some(false)}, true
+		}
+	}
+	return EnumValue{}, false
+}
+
+func numberEnumValue(kind BuiltinKind, v int64) EnumValue {
+	switch kind {
+	case Float32, Float64:
+		return EnumValue{Float: option.Some(float64(v))}
+	default:
+		return EnumValue{Int: option.Some(v)}
+	}
+}
+
 func (p *Parser) ParseFuncDecl(file *pkginfo.File, fd *ast.FuncDecl) (*FuncDecl, bool) {
 	// Have we already parsed this?
 	key := declKey{pkg: file.Pkg.ImportPath, name: fd.Name.Name}
