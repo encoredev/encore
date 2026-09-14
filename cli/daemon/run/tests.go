@@ -6,7 +6,9 @@ import (
 	"io"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/cockroachdb/errors"
 	"github.com/rs/xid"
@@ -18,6 +20,7 @@ import (
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/internal/optracker"
 	"encr.dev/internal/version"
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
@@ -45,10 +48,26 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	bld := builderimpl.Resolve(params.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
 
-	spec, err := mgr.testSpec(ctx, bld, expSet, params.TestSpecParams)
+	return mgr.testWithResources(ctx, bld, expSet, params, mgr.newTestResources(params.TestSpecParams))
+}
+
+// testWithResources owns the infrastructure for a synchronous test command.
+// Binary-export commands retain their infrastructure for later execution,
+// just like TestSpec; neither currently has an explicit session-release API.
+func (mgr *Manager) testWithResources(ctx context.Context, bld builder.Impl, expSet *experiments.Set, params TestParams, rm *infra.ResourceManager) error {
+	spec, err := mgr.testSpec(ctx, bld, expSet, params.TestSpecParams, rm)
 	if err != nil {
 		return err
 	}
+	// A nonzero command exit does not prove there is no exported binary: with
+	// -o, for example, compilation may succeed before the tests fail.
+	retainResources := params.App.Lang() == appfile.LangGo &&
+		!experiments.TypeScript.Enabled(expSet) && testExportsBinary(params.Args, params.Environ)
+	defer func() {
+		if !retainResources {
+			rm.StopAll()
+		}
+	}()
 
 	workingDir := paths.RootedFSPath(params.App.Root(), params.WorkingDir)
 	return bld.RunTests(ctx, builder.RunTestsParams{
@@ -57,6 +76,54 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		Stdout:     params.Stdout,
 		Stderr:     params.Stderr,
 	})
+}
+
+// testExportsBinary conservatively recognizes flags that can leave a test
+// binary for later use. This is an ownership check, not a replacement for Go's
+// flag parser: ambiguous arguments should retain resources rather than break a
+// later execution. Export-mode completion, including errors after preparation,
+// needs a separate artifact/session lifetime before it can safely be cleaned up.
+func testExportsBinary(args, environ []string) bool {
+	exports := func(args []string) bool {
+		for _, arg := range args {
+			// Do not stop at -args or --: either may be another flag's value
+			// (for example, go test -run -args -c still exports a binary).
+			// Forwarded flags with these names conservatively retain resources.
+			if !strings.HasPrefix(arg, "-") {
+				continue
+			}
+			name, value, hasValue := strings.Cut(strings.TrimPrefix(strings.TrimPrefix(arg, "-"), "-"), "=")
+			switch name {
+			case "c":
+				if !hasValue {
+					return true
+				}
+				if compile, err := strconv.ParseBool(value); err != nil || compile {
+					return true
+				}
+			case "o", "cpuprofile", "memprofile", "blockprofile", "mutexprofile",
+				"test.cpuprofile", "test.memprofile", "test.blockprofile", "test.mutexprofile":
+				// Go keeps the test binary for these profiling flags as well.
+				if !hasValue || value != "" {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if exports(args) {
+		return true
+	}
+	// GOFLAGS also configures go test. Splitting quoted contents conservatively
+	// may retain resources for a flag value, but must not miss a binary export.
+	for i := len(environ) - 1; i >= 0; i-- {
+		if value, ok := strings.CutPrefix(environ[i], "GOFLAGS="); ok {
+			return exports(strings.FieldsFunc(value, func(r rune) bool {
+				return unicode.IsSpace(r) || r == '\'' || r == '"'
+			}))
+		}
+	}
+	return false
 }
 
 // TestSpecParams are the parameters for computing a test spec.
@@ -104,7 +171,10 @@ func (mgr *Manager) TestSpec(ctx context.Context, params TestSpecParams) (*TestS
 	bld := builderimpl.Resolve(params.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
 
-	spec, err := mgr.testSpec(ctx, bld, expSet, &params)
+	// The client executes this spec after the RPC returns. Only unsuccessful
+	// preparation can be cleaned up here; successful specs need a future session
+	// completion protocol before their resources can be released.
+	spec, err := mgr.testSpec(ctx, bld, expSet, &params, mgr.newTestResources(&params))
 	if err != nil {
 		return nil, err
 	}
@@ -115,8 +185,20 @@ func (mgr *Manager) TestSpec(ctx context.Context, params TestSpecParams) (*TestS
 	}, nil
 }
 
-// testSpec returns how to run the tests.
-func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *experiments.Set, params *TestSpecParams) (*builder.TestSpecResult, error) {
+func (mgr *Manager) newTestResources(params *TestSpecParams) *infra.ResourceManager {
+	return infra.NewResourceManager(params.App, mgr.ClusterMgr, mgr.ObjectsMgr, mgr.PublicBuckets, params.NS, nil, mgr.DBProxyPort, true)
+}
+
+// testSpec owns rm until it successfully returns a spec. On success the caller
+// takes ownership; on error or panic preparation releases the infrastructure.
+func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *experiments.Set, params *TestSpecParams, rm *infra.ResourceManager) (*builder.TestSpecResult, error) {
+	prepared := false
+	defer func() {
+		if !prepared {
+			rm.StopAll()
+		}
+	}()
+
 	var secrets map[string]string
 	if params.Secrets != nil {
 		secretData, err := params.Secrets.Get(ctx, expSet)
@@ -172,9 +254,10 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		return nil, errors.Wrap(err, "cache metadata")
 	}
 
-	rm := infra.NewResourceManager(params.App, mgr.ClusterMgr, mgr.ObjectsMgr, mgr.PublicBuckets, params.NS, nil, mgr.DBProxyPort, true)
-
 	jobs := optracker.NewAsyncBuildJobs(ctx, params.App.PlatformOrLocalID(), nil)
+	// A panic must not let rollback race a service that is still starting.
+	// This defer runs before the resource cleanup above.
+	defer jobs.Wait()
 	rm.StartRequiredServices(jobs, parse.Meta)
 
 	// Note: jobs.Wait must be called before generateConfig.
@@ -245,7 +328,7 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 	}
 	env = append(env, encodeServiceConfigs(cfg.Configs)...)
 
-	return bld.TestSpec(ctx, builder.TestSpecParams{
+	spec, err := bld.TestSpec(ctx, builder.TestSpecParams{
 		Compile: builder.CompileParams{
 			Build:       buildInfo,
 			App:         params.App,
@@ -257,4 +340,6 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		Env:  append(params.Environ, env...),
 		Args: params.Args,
 	})
+	prepared = err == nil
+	return spec, err
 }
