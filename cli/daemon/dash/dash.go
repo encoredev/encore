@@ -294,16 +294,34 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			Before int64 `json:"before,omitempty"`
 			// Limit is the page size the caller requests.
 			Limit int `json:"limit,omitempty"`
+
+			// Filters
+			Service      string `json:"service,omitempty"`
+			Endpoint     string `json:"endpoint,omitempty"`
+			Topic        string `json:"topic,omitempty"`
+			Subscription string `json:"subscription,omitempty"`
+			TraceID      string `json:"trace_id,omitempty"`
+			IsError      *bool  `json:"is_error,omitempty"`
+			// Microseconds; the dashboard takes milliseconds and converts. The
+			// duration filter is a lower bound only, so there is no maximum.
+			MinDurMicros uint64 `json:"min_duration,omitempty"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
 		}
 
 		query := &trace2.Query{
-			AppID:      params.AppID,
-			TestFilter: params.TestTraces,
-			MessageID:  params.MessageID,
-			Limit:      min(params.Limit, maxTraceListLimit),
+			AppID:        params.AppID,
+			TestFilter:   params.TestTraces,
+			MessageID:    params.MessageID,
+			Service:      params.Service,
+			Endpoint:     params.Endpoint,
+			Topic:        params.Topic,
+			Subscription: params.Subscription,
+			TraceID:      params.TraceID,
+			IsError:      params.IsError,
+			MinDurNanos:  params.MinDurMicros * 1000,
+			Limit:        min(params.Limit, maxTraceListLimit),
 		}
 		if params.Before > 0 {
 			// Inclusive, not exclusive: several traces can share a start
