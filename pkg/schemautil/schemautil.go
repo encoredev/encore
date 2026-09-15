@@ -32,18 +32,28 @@ type DescribedField struct {
 // StructBits generates JSON representations of a struct's fields separated by location
 // It returns query, headers, cookies, and JSON body as strings
 func StructBits(s *schema.Struct, method string, asResponse bool, asGoStruct bool, queryParamsAsObject bool) (query, headers, cookies, jsonBody string) {
+	return StructBitsWithDecls(nil, s, nil, method, asResponse, asGoStruct, queryParamsAsObject)
+}
+
+// StructBitsWithDecls generates JSON representations of a struct's fields separated by location,
+// resolving named and generic types using decls and typeArgs when available.
+func StructBitsWithDecls(decls map[uint32]*schema.Decl, s *schema.Struct, typeArgs []*schema.Type, method string, asResponse bool, asGoStruct bool, queryParamsAsObject bool) (query, headers, cookies, jsonBody string) {
+	if s == nil {
+		return
+	}
+
 	// Split the fields by location
 	fieldsByLocation := splitFieldsByLocation(s, method, asResponse)
 
 	// Generate query string
 	if len(fieldsByLocation[FieldLocationQuery]) > 0 {
 		if asGoStruct || queryParamsAsObject {
-			query = writeFieldsAsJSON(fieldsByLocation[FieldLocationQuery], asGoStruct)
+			query = writeFieldsAsJSON(decls, typeArgs, fieldsByLocation[FieldLocationQuery], asGoStruct)
 		} else {
 			var queryParams []string
 			for _, field := range fieldsByLocation[FieldLocationQuery] {
 				fieldName := field.Name
-				fieldValue := renderFieldValueAsQueryParam(field.Typ)
+				fieldValue := renderFieldValueAsQueryParam(decls, typeArgs, field.Typ, field.Tags)
 
 				queryParams = append(queryParams, url.QueryEscape(fieldName)+"="+fieldValue)
 
@@ -58,24 +68,24 @@ func StructBits(s *schema.Struct, method string, asResponse bool, asGoStruct boo
 
 	// Generate headers
 	if len(fieldsByLocation[FieldLocationHeader]) > 0 {
-		headers = writeFieldsAsJSON(fieldsByLocation[FieldLocationHeader], asGoStruct)
+		headers = writeFieldsAsJSON(decls, typeArgs, fieldsByLocation[FieldLocationHeader], asGoStruct)
 	}
 
 	// Generate cookies
 	if len(fieldsByLocation[FieldLocationCookie]) > 0 {
-		cookies = writeCookiesAsJSON(fieldsByLocation[FieldLocationCookie], asGoStruct)
+		cookies = writeCookiesAsJSON(decls, typeArgs, fieldsByLocation[FieldLocationCookie], asGoStruct)
 	}
 
 	// Generate JSON body
 	if len(fieldsByLocation[FieldLocationBody]) > 0 {
-		jsonBody = writeFieldsAsJSON(fieldsByLocation[FieldLocationBody], asGoStruct)
+		jsonBody = writeFieldsAsJSON(decls, typeArgs, fieldsByLocation[FieldLocationBody], asGoStruct)
 	}
 
 	return
 }
 
 // writeFieldsAsJSON renders a list of fields as a JSON object
-func writeFieldsAsJSON(fields []DescribedField, asGoStruct bool) string {
+func writeFieldsAsJSON(decls map[uint32]*schema.Decl, typeArgs []*schema.Type, fields []DescribedField, asGoStruct bool) string {
 	var buf bytes.Buffer
 	buf.WriteString("\n")
 
@@ -89,7 +99,11 @@ func writeFieldsAsJSON(fields []DescribedField, asGoStruct bool) string {
 		buf.WriteString(fieldName)
 		buf.WriteString("\": ")
 
-		renderTypeValue(&buf, f.Typ)
+		if ex, ok := openAPIExample(f.Tags); ok {
+			buf.Write(ex)
+		} else {
+			renderTypeValue(&buf, decls, typeArgs, f.Typ)
+		}
 
 		if i < len(fields)-1 {
 			buf.WriteString(",")
@@ -101,7 +115,7 @@ func writeFieldsAsJSON(fields []DescribedField, asGoStruct bool) string {
 }
 
 // writeCookiesAsJSON renders cookie fields as JSON
-func writeCookiesAsJSON(fields []DescribedField, asGoStruct bool) string {
+func writeCookiesAsJSON(decls map[uint32]*schema.Decl, typeArgs []*schema.Type, fields []DescribedField, asGoStruct bool) string {
 	var buf bytes.Buffer
 	buf.WriteString("\n")
 
@@ -116,8 +130,10 @@ func writeCookiesAsJSON(fields []DescribedField, asGoStruct bool) string {
 		buf.WriteString("\": ")
 
 		// If it's a builtin, render it normally, otherwise render as an empty string
-		if f.Typ.GetBuiltin() != schema.Builtin_ANY {
-			renderTypeValue(&buf, f.Typ)
+		if ex, ok := openAPIExample(f.Tags); ok {
+			buf.Write(ex)
+		} else if f.Typ.GetBuiltin() != schema.Builtin_ANY {
+			renderTypeValue(&buf, decls, typeArgs, f.Typ)
 		} else {
 			buf.WriteString("\"\"")
 		}
@@ -132,17 +148,27 @@ func writeCookiesAsJSON(fields []DescribedField, asGoStruct bool) string {
 }
 
 // renderTypeValue renders a type value to the buffer
-func renderTypeValue(buf *bytes.Buffer, typ *schema.Type) {
+func renderTypeValue(buf *bytes.Buffer, decls map[uint32]*schema.Decl, typeArgs []*schema.Type, typ *schema.Type) {
+	renderTypeValueSeen(buf, decls, typeArgs, typ, make(map[uint32]bool))
+}
+
+func renderTypeValueSeen(buf *bytes.Buffer, decls map[uint32]*schema.Decl, typeArgs []*schema.Type, typ *schema.Type, seen map[uint32]bool) {
+	if typ == nil {
+		buf.WriteString("null")
+		return
+	}
+
 	switch {
 	case typ.GetBuiltin() != schema.Builtin_ANY:
 		renderBuiltinValue(buf, typ.GetBuiltin(), false)
 	case typ.GetList() != nil:
 		buf.WriteString("[")
-		renderTypeValue(buf, typ.GetList().Elem)
+		renderTypeValueSeen(buf, decls, typeArgs, typ.GetList().Elem, seen)
 		buf.WriteString("]")
 	case typ.GetStruct() != nil:
 		buf.WriteString("{")
-		for i, f := range typ.GetStruct().Fields {
+		wrote := false
+		for _, f := range typ.GetStruct().Fields {
 			if f.JsonName == "-" {
 				continue
 			}
@@ -152,36 +178,82 @@ func renderTypeValue(buf *bytes.Buffer, typ *schema.Type) {
 				jsonName = f.Name
 			}
 
+			if wrote {
+				buf.WriteString(", ")
+			}
+			wrote = true
 			buf.WriteString("\"")
 			buf.WriteString(jsonName)
 			buf.WriteString("\": ")
 
-			renderTypeValue(buf, f.Typ)
-
-			if i < len(typ.GetStruct().Fields)-1 {
-				buf.WriteString(", ")
+			if ex, ok := openAPIExample(f.Tags); ok {
+				buf.Write(ex)
+			} else {
+				renderTypeValueSeen(buf, decls, typeArgs, f.Typ, seen)
 			}
 		}
 		buf.WriteString("}")
 	case typ.GetMap() != nil:
 		buf.WriteString("{")
-		renderTypeValue(buf, typ.GetMap().Key)
+		renderTypeValueSeen(buf, decls, typeArgs, typ.GetMap().Key, seen)
 		buf.WriteString(": ")
-		renderTypeValue(buf, typ.GetMap().Value)
+		renderTypeValueSeen(buf, decls, typeArgs, typ.GetMap().Value, seen)
 		buf.WriteString("}")
 	case typ.GetNamed() != nil:
-		// Just render as null for simplicity
+		named := typ.GetNamed()
+		if decls != nil {
+			if decl := decls[named.Id]; decl != nil && decl.Type != nil {
+				if seen[named.Id] {
+					buf.WriteString("null")
+					return
+				}
+				seen[named.Id] = true
+				renderTypeValueSeen(buf, decls, named.TypeArguments, decl.Type, seen)
+				delete(seen, named.Id)
+				return
+			}
+		}
 		buf.WriteString("null")
 	case typ.GetPointer() != nil:
-		renderTypeValue(buf, typ.GetPointer().Base)
+		renderTypeValueSeen(buf, decls, typeArgs, typ.GetPointer().Base, seen)
+	case typ.GetOption() != nil:
+		renderTypeValueSeen(buf, decls, typeArgs, typ.GetOption().Value, seen)
 	case typ.GetUnion() != nil && len(typ.GetUnion().Types) > 0:
 		// Just render the first type of the union
-		renderTypeValue(buf, typ.GetUnion().Types[0])
+		renderTypeValueSeen(buf, decls, typeArgs, typ.GetUnion().Types[0], seen)
 	case typ.GetLiteral() != nil:
 		renderLiteralValue(buf, typ.GetLiteral())
+	case typ.GetTypeParameter() != nil:
+		idx := int(typ.GetTypeParameter().ParamIdx)
+		if idx >= 0 && idx < len(typeArgs) {
+			renderTypeValueSeen(buf, decls, typeArgs, typeArgs[idx], seen)
+		} else {
+			buf.WriteString("null")
+		}
 	default:
 		buf.WriteString("<unknown>")
 	}
+}
+
+func openAPIExample(tags []*schema.Tag) ([]byte, bool) {
+	for _, tag := range tags {
+		if tag.GetKey() != "openapi" {
+			continue
+		}
+		for _, part := range append([]string{tag.GetName()}, tag.GetOptions()...) {
+			for _, p := range strings.Split(part, ";") {
+				key, val, ok := strings.Cut(strings.TrimSpace(p), "=")
+				if ok && key == "example" {
+					if json.Valid([]byte(val)) {
+						return []byte(val), true
+					}
+					b, _ := json.Marshal(val)
+					return b, true
+				}
+			}
+		}
+	}
+	return nil, false
 }
 
 // renderBuiltinValue renders a builtin type value
@@ -251,13 +323,21 @@ func renderLiteralValue(buf *bytes.Buffer, lit *schema.Literal) {
 }
 
 // renderFieldValueAsQueryParam returns a URL-encoded string representation of a field's value
-func renderFieldValueAsQueryParam(typ *schema.Type) string {
+func renderFieldValueAsQueryParam(decls map[uint32]*schema.Decl, typeArgs []*schema.Type, typ *schema.Type, tags []*schema.Tag) string {
+	if ex, ok := openAPIExample(tags); ok {
+		var s string
+		if json.Unmarshal(ex, &s) == nil {
+			return url.QueryEscape(s)
+		}
+		return url.QueryEscape(string(ex))
+	}
+
 	var buf bytes.Buffer
 
 	if typ.GetBuiltin() != schema.Builtin_ANY {
 		renderBuiltinValue(&buf, typ.GetBuiltin(), true)
 	} else if typ.GetList() != nil {
-		renderTypeValue(&buf, typ.GetList().Elem)
+		renderTypeValue(&buf, decls, typeArgs, typ.GetList().Elem)
 	} else {
 		buf.WriteString("<value>")
 	}

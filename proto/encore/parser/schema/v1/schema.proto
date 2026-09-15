@@ -105,6 +105,7 @@ message Decl {
   repeated TypeParameter type_params = 6; // Any type parameters on this declaration (note; instantiated types used within this declaration would not be captured here)
   string doc = 4; // The comment block on the type
   Loc loc = 5; // The location of the declaration within the project
+  repeated Literal enum_values = 7; // Values for declarations marked with //encore:enum.
 }
 
 // TypeParameter acts as a place holder for an (as of yet) unknown type in the declaration; the type parameter is
@@ -148,6 +149,8 @@ message Field {
   string raw_tag = 7; // The original Go struct tag; should not be parsed individually
   repeated Tag tags = 8; // Parsed go struct tags. Used for marshalling hints
   optional WireSpec wire = 9; // The explicitly set wire location of the field.
+  string openapi_example_json = 10; // JSON-encoded OpenAPI example value, parsed from the openapi struct tag.
+  string openapi_default_json = 11; // JSON-encoded OpenAPI default value, parsed from the openapi struct tag.
 }
 
 // WireLocation provides information about how a field should be encoded on the wire.

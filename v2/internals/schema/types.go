@@ -87,6 +87,12 @@ type StructField struct {
 	Type Type
 	Doc  string
 	Tag  structtag.Tags
+
+	// OpenAPIExampleJSON and OpenAPIDefaultJSON are JSON-encoded values parsed
+	// from the field's openapi struct tag. They are used by generated OpenAPI
+	// specs and local tooling such as dashboard request examples.
+	OpenAPIExampleJSON string
+	OpenAPIDefaultJSON string
 }
 
 func (f *StructField) IsAnonymous() bool {
