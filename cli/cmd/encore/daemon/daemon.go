@@ -158,7 +158,11 @@ func (d *Daemon) init(ctx context.Context) {
 	d.PublicBuckets = objects.NewPublicBucketServer("http://"+d.ObjectStorage.ClientAddr(), d.ObjectsMgr.PersistentStoreFallback)
 
 	traceStore := sqlite.New(d.EncoreDB)
-	go traceStore.CleanEvery(ctx, 1*time.Minute, 500, 100, 10000)
+	// traceRetention is how many traces per app to keep. The dashboard pages
+	// back through them, so this is a disk budget, not a limit on what is
+	// visible. The unit is traces, so the cost varies with how chatty an app is.
+	const traceRetention = 5000
+	go traceStore.CleanEvery(ctx, 1*time.Minute, traceRetention*5, traceRetention, 10000)
 	d.Trace = traceStore
 
 	d.RunMgr = &run.Manager{

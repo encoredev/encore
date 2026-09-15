@@ -32,6 +32,9 @@ import (
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
+// maxTraceListLimit caps the page size a caller may ask for.
+const maxTraceListLimit = 500
+
 type handler struct {
 	rpc     jsonrpc2.Conn
 	apps    *apps.Manager
@@ -286,6 +289,11 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			AppID      string `json:"app_id"`
 			MessageID  string `json:"message_id"`
 			TestTraces *bool  `json:"test_traces,omitempty"`
+			// Before pages backwards: return traces started at or before this
+			// unix-nanosecond timestamp. Zero means start from the newest.
+			Before int64 `json:"before,omitempty"`
+			// Limit is the page size the caller requests.
+			Limit int `json:"limit,omitempty"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -295,7 +303,14 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			AppID:      params.AppID,
 			TestFilter: params.TestTraces,
 			MessageID:  params.MessageID,
-			Limit:      100,
+			Limit:      min(params.Limit, maxTraceListLimit),
+		}
+		if params.Before > 0 {
+			// Inclusive, not exclusive: several traces can share a start
+			// timestamp, and an exclusive bound would drop the ones after the
+			// first at a page boundary. The caller re-receives the trace it
+			// paged from and is expected to discard duplicates by id.
+			query.EndTime = time.Unix(0, params.Before)
 		}
 		var list []*tracepb2.SpanSummary
 		iter := func(s *tracepb2.SpanSummary) bool {
