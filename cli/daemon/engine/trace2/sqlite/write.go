@@ -47,23 +47,32 @@ func scanRows[T any](rows *sql.Rows) ([]T, error) {
 	return out, nil
 }
 
-func (s *Store) CleanEvery(ctx context.Context, freq time.Duration, triggerAt, eventsToKeep, batchSize int) {
+func (s *Store) CleanEvery(ctx context.Context, freq time.Duration, maxBytesPerApp int64, minTracesKept, batchSize int) {
 	for {
 		timer := time.NewTimer(freq)
 		select {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
-			if err := s.DoClean(ctx, triggerAt, eventsToKeep, batchSize); err != nil {
+			if err := s.DoClean(ctx, maxBytesPerApp, minTracesKept, batchSize); err != nil {
 				log.Error().Err(err).Msg("trace cleanup failed")
 			}
 		}
 	}
 }
 
-func (s *Store) DoClean(ctx context.Context, triggerAt, eventsToKeep, batchSize int) error {
+// DoClean drops each app's oldest traces until its trace data fits within
+// maxBytesPerApp, always keeping the newest minTracesKept whatever their size.
+// The budget is bytes rather than traces because trace sizes vary hugely. Only
+// trace_event is measured; it holds the payloads and dominates. Deleted pages
+// go to SQLite's freelist, so this bounds where the file settles, it does not
+// shrink it.
+func (s *Store) DoClean(ctx context.Context, maxBytesPerApp int64, minTracesKept, batchSize int) error {
 	log.Info().Msg("initiating trace event cleanup sweep")
-	rows, err := s.db.QueryContext(ctx, "SELECT app_id FROM trace_event GROUP BY app_id HAVING COUNT(distinct trace_id) > ?", triggerAt)
+	// octet_length, not length: on TEXT the latter counts characters, not bytes.
+	rows, err := s.db.QueryContext(ctx,
+		"SELECT app_id FROM trace_event GROUP BY app_id HAVING SUM(octet_length(event_data)) > ?",
+		maxBytesPerApp)
 	if err != nil {
 		return errors.Wrap(err, "query app ids")
 	}
@@ -73,23 +82,31 @@ func (s *Store) DoClean(ctx context.Context, triggerAt, eventsToKeep, batchSize 
 	}
 
 	for _, appID := range appIDs {
-		row := s.db.QueryRowContext(ctx, `
-						WITH latest_events AS (
-							SELECT trace_id, min(id) as id FROM trace_event WHERE app_id = ? GROUP BY 1 ORDER BY 2 DESC LIMIT ?
-						) SELECT min(id) FROM latest_events;
-					`, appID, eventsToKeep)
-		var traceID int64
-		err := row.Scan(&traceID)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to get trace id")
-			continue
-		}
-		rows, err := s.db.QueryContext(ctx, "SELECT DISTINCT trace_id FROM trace_event WHERE app_id = ? AND id < ? ORDER BY id DESC LIMIT ?", appID, traceID, batchSize)
+		// Accumulate bytes newest-first and take the traces past the budget.
+		// The rank guard keeps the newest minTracesKept whatever their size.
+		rows, err := s.db.QueryContext(ctx, `
+			WITH sizes AS (
+				SELECT trace_id, MIN(id) AS ord, SUM(octet_length(event_data)) AS bytes
+				FROM trace_event WHERE app_id = ? GROUP BY trace_id
+			), running AS (
+				SELECT trace_id, ord, bytes,
+				       SUM(bytes) OVER (ORDER BY ord DESC) AS cum,
+				       ROW_NUMBER() OVER (ORDER BY ord DESC) AS rank
+				FROM sizes
+			)
+			SELECT trace_id FROM running
+			WHERE cum > ? AND rank > ?
+			ORDER BY ord ASC LIMIT ?
+		`, appID, maxBytesPerApp, minTracesKept, batchSize)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to get old trace ids")
 			continue
 		}
 		traceIDs, err := scanRows[string](rows)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to scan old trace ids")
+			continue
+		}
 		if len(traceIDs) == 0 {
 			continue
 		}
