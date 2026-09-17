@@ -64,7 +64,7 @@ func newTestStore(t *testing.T) *Store {
 
 // writeRootRequest writes a complete root request span to the store, optionally
 // with a parent trace id, and returns the span's own trace id (encoded).
-func writeRootRequest(t *testing.T, s *Store, traceID *tracepb2.TraceID, spanID uint64, service, endpoint string, dur time.Duration, isError bool, parent *tracepb2.TraceID) string {
+func writeRootRequest(t *testing.T, s *Store, traceID *tracepb2.TraceID, spanID uint64, startedAt time.Time, service, endpoint string, dur time.Duration, isError bool, parent *tracepb2.TraceID) string {
 	t.Helper()
 	ctx := context.Background()
 	meta := &trace2.Meta{AppID: "app"}
@@ -72,7 +72,7 @@ func writeRootRequest(t *testing.T, s *Store, traceID *tracepb2.TraceID, spanID 
 	start := &tracepb2.TraceEvent{
 		TraceId:   traceID,
 		SpanId:    spanID,
-		EventTime: timestamppb.New(time.Unix(0, 0)),
+		EventTime: timestamppb.New(startedAt),
 		Event: &tracepb2.TraceEvent_SpanStart{SpanStart: &tracepb2.SpanStart{
 			ParentTraceId: parent,
 			Data: &tracepb2.SpanStart_Request{Request: &tracepb2.RequestSpanStart{
@@ -88,7 +88,7 @@ func writeRootRequest(t *testing.T, s *Store, traceID *tracepb2.TraceID, spanID 
 	end := &tracepb2.TraceEvent{
 		TraceId:   traceID,
 		SpanId:    spanID,
-		EventTime: timestamppb.New(time.Unix(0, int64(dur))),
+		EventTime: timestamppb.New(startedAt.Add(dur)),
 		Event: &tracepb2.TraceEvent_SpanEnd{SpanEnd: &tracepb2.SpanEnd{
 			DurationNanos: uint64(dur),
 			Error:         errPb,
@@ -123,10 +123,10 @@ func TestList_Filters(t *testing.T) {
 	parentID := encodeTraceID(parent)
 
 	// Child trace triggered by `parent`.
-	child := writeRootRequest(t, s, &tracepb2.TraceID{High: 1, Low: 2}, 100,
+	child := writeRootRequest(t, s, &tracepb2.TraceID{High: 1, Low: 2}, 100, time.Unix(0, 0),
 		"billing", "Charge", 50*time.Millisecond, false, parent)
 	// Unrelated slow + errored trace, no parent.
-	other := writeRootRequest(t, s, &tracepb2.TraceID{High: 3, Low: 4}, 200,
+	other := writeRootRequest(t, s, &tracepb2.TraceID{High: 3, Low: 4}, 200, time.Unix(0, 0),
 		"users", "Get", 500*time.Millisecond, true, nil)
 
 	contains := slices.Contains[[]string, string]
@@ -174,10 +174,44 @@ func TestList_Filters(t *testing.T) {
 		}
 	})
 
+	t.Run("trace_id_substring", func(t *testing.T) {
+		// The dashboard's trace-id box searches, so a fragment must match.
+		ids := listIDs(t, s, &trace2.Query{TraceID: child[5:15]})
+		if !contains(ids, child) || contains(ids, other) {
+			t.Fatalf("trace id filter: got %v, want only %v", ids, child)
+		}
+	})
+
 	t.Run("parent_trace_id_no_match", func(t *testing.T) {
 		ids := listIDs(t, s, &trace2.Query{ParentTraceID: encodeTraceID(&tracepb2.TraceID{High: 99, Low: 99})})
 		if len(ids) != 0 {
 			t.Fatalf("parent trace filter (no match): got %v, want none", ids)
 		}
 	})
+}
+
+// TestList_Pagination covers the dashboard's infinite scroll: a page of Limit
+// traces, then the next page keyed off the oldest one's start time. The cursor
+// is inclusive, so that trace comes back on both pages and the dashboard is
+// responsible for dropping the duplicate.
+func TestList_Pagination(t *testing.T) {
+	s := newTestStore(t)
+
+	base := time.Unix(1700000000, 0)
+	var ids []string
+	for i := 0; i < 4; i++ {
+		ids = append(ids, writeRootRequest(t, s, &tracepb2.TraceID{High: 1, Low: uint64(i)}, uint64(i),
+			base.Add(time.Duration(i)*time.Second), "svc", "Ep", time.Millisecond, false, nil))
+	}
+
+	first := listIDs(t, s, &trace2.Query{Limit: 2})
+	if !slices.Equal(first, []string{ids[3], ids[2]}) {
+		t.Fatalf("first page: got %v, want the two newest %v", first, ids[3:])
+	}
+
+	// Page back from the oldest trace on the first page.
+	second := listIDs(t, s, &trace2.Query{Limit: 2, EndTime: base.Add(2 * time.Second)})
+	if !slices.Equal(second, []string{ids[2], ids[1]}) {
+		t.Fatalf("second page: got %v, want the boundary trace repeated then the next", second)
+	}
 }
