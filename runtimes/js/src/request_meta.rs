@@ -1,7 +1,10 @@
 use chrono::{DateTime, SecondsFormat, Utc};
 use napi_derive::napi;
 
-use encore_runtime_core::{api::reqauth::meta::HeaderValueExt, model};
+use encore_runtime_core::{
+    api::reqauth::{caller::Caller, meta::HeaderValueExt},
+    model,
+};
 
 use crate::pvalue::PVals;
 
@@ -33,6 +36,7 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
                     .map(serde_json::to_value)
                     .transpose()?,
                 headers: serialize_headers(&rpc.req_headers),
+                caller_service: caller_service(req.internal_caller.as_ref()),
             };
             (Some(api), None)
         }
@@ -60,6 +64,7 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
                     .map(serde_json::to_value)
                     .transpose()?,
                 headers: Default::default(),
+                caller_service: caller_service(req.internal_caller.as_ref()),
             };
             (Some(api), None)
         }
@@ -111,6 +116,17 @@ pub struct APICallData {
     pub path_params: Option<serde_json::Value>,
     pub parsed_payload: Option<serde_json::Value>,
     pub headers: serde_json::Map<String, serde_json::Value>,
+    pub caller_service: Option<String>,
+}
+
+/// Reports the name of the service that made the call, if the
+/// caller is another API endpoint. Other caller kinds (gateways,
+/// Pub/Sub messages, etc.) have no calling service.
+fn caller_service(caller: Option<&Caller>) -> Option<String> {
+    match caller {
+        Some(Caller::APIEndpoint(name)) => Some(name.service().to_string()),
+        _ => None,
+    }
 }
 
 #[napi(object)]
@@ -188,9 +204,39 @@ fn serialize_headers(
 
 #[cfg(test)]
 mod tests {
-    use super::serialize_headers;
+    use super::{caller_service, serialize_headers};
     use axum::http::{HeaderMap, HeaderValue};
+    use encore_runtime_core::api::reqauth::caller::Caller;
+    use encore_runtime_core::EndpointName;
     use serde_json::{json, Value};
+
+    #[test]
+    fn caller_service_only_set_for_api_endpoint_callers() {
+        let caller = Caller::APIEndpoint(EndpointName::new("svc", "ep"));
+        assert_eq!(caller_service(Some(&caller)).as_deref(), Some("svc"));
+
+        let caller = Caller::PubSubMessage {
+            topic: "topic".into(),
+            subscription: "sub".into(),
+            message_id: "msg-1".into(),
+        };
+        assert_eq!(caller_service(Some(&caller)), None);
+
+        let caller = Caller::Gateway {
+            gateway: "api-gateway".into(),
+        };
+        assert_eq!(caller_service(Some(&caller)), None);
+
+        let caller = Caller::App {
+            deploy_id: "deploy-1".into(),
+        };
+        assert_eq!(caller_service(Some(&caller)), None);
+
+        let caller = Caller::EncorePrincipal("platform".into());
+        assert_eq!(caller_service(Some(&caller)), None);
+
+        assert_eq!(caller_service(None), None);
+    }
 
     #[test]
     fn strips_encore_internal_meta_headers() {

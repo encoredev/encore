@@ -128,6 +128,11 @@ type RPCData struct {
 	// otherwise it is false if the request originates from outside the Encore application.
 	ServiceToServiceCall bool
 
+	// CallerService is the name of the service that made the API call,
+	// for service-to-service calls. It is empty if the request did not
+	// come from another service.
+	CallerService string
+
 	// Mocked is true if the request was handled by a mock.
 	Mocked bool
 }
