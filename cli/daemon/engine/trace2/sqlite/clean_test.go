@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -43,7 +44,7 @@ func TestDoCleanTrimsToByteBudget(t *testing.T) {
 	const budget = 50 * 1024
 
 	for i := 0; i < 10; i++ {
-		if err := s.DoClean(context.Background(), budget, 1, 1000); err != nil {
+		if err := s.DoClean(context.Background(), CleanConfig{MaxBytesPerApp: budget, MinTracesKept: 1, BatchSize: 1000}); err != nil {
 			t.Fatalf("clean: %v", err)
 		}
 	}
@@ -73,7 +74,7 @@ func TestDoCleanKeepsMinimumRegardlessOfSize(t *testing.T) {
 	const budget = 100
 
 	for i := 0; i < 5; i++ {
-		if err := s.DoClean(context.Background(), budget, 3, 1000); err != nil {
+		if err := s.DoClean(context.Background(), CleanConfig{MaxBytesPerApp: budget, MinTracesKept: 3, BatchSize: 1000}); err != nil {
 			t.Fatalf("clean: %v", err)
 		}
 	}
@@ -91,7 +92,7 @@ func TestDoCleanLeavesAppsUnderBudgetAlone(t *testing.T) {
 	const budget = 50 * 1024
 
 	for i := 0; i < 10; i++ {
-		if err := s.DoClean(context.Background(), budget, 1, 1000); err != nil {
+		if err := s.DoClean(context.Background(), CleanConfig{MaxBytesPerApp: budget, MinTracesKept: 1, BatchSize: 1000}); err != nil {
 			t.Fatalf("clean: %v", err)
 		}
 	}
@@ -109,7 +110,7 @@ func TestDoCleanDeletesSpanRowsToo(t *testing.T) {
 	seedTraces(t, s, "app", 200, 1024)
 
 	for i := 0; i < 10; i++ {
-		if err := s.DoClean(context.Background(), 50*1024, 1, 1000); err != nil {
+		if err := s.DoClean(context.Background(), CleanConfig{MaxBytesPerApp: 50 * 1024, MinTracesKept: 1, BatchSize: 1000}); err != nil {
 			t.Fatalf("clean: %v", err)
 		}
 	}
@@ -119,5 +120,65 @@ func TestDoCleanDeletesSpanRowsToo(t *testing.T) {
 	s.db.QueryRow(`SELECT COUNT(DISTINCT trace_id) FROM trace_span_index`).Scan(&spans)
 	if events != spans {
 		t.Errorf("trace_event has %d traces but trace_span_index has %d; they must be deleted together", events, spans)
+	}
+}
+
+func TestDoCleanEvictsLeastRecentAppsOverTotalBudget(t *testing.T) {
+	s := newTestStore(t)
+	// Seeded oldest-first, so "newest" has the highest event ids.
+	seedTraces(t, s, "oldest", 10, 1024)
+	seedTraces(t, s, "middle", 10, 1024)
+	seedTraces(t, s, "newest", 10, 1024)
+
+	// 30 KiB across three apps, with room for two.
+	cfg := CleanConfig{MaxBytesPerApp: 1 << 20, MaxBytesTotal: 25 * 1024, MinTracesKept: 1, BatchSize: 1000}
+	if err := s.DoClean(context.Background(), cfg); err != nil {
+		t.Fatalf("clean: %v", err)
+	}
+	for app, want := range map[string]int{"oldest": 0, "middle": 10, "newest": 10} {
+		if traces, _ := appStats(t, s, app); traces != want {
+			t.Errorf("app %q: got %d traces, want %d", app, traces, want)
+		}
+	}
+
+	// A budget smaller than any single app must still leave the active one.
+	cfg.MaxBytesTotal = 1
+	if err := s.DoClean(context.Background(), cfg); err != nil {
+		t.Fatalf("clean: %v", err)
+	}
+	if traces, _ := appStats(t, s, "newest"); traces == 0 {
+		t.Error("evicted the most recently active app")
+	}
+}
+
+func TestDoCleanDropsUnknownApps(t *testing.T) {
+	s := newTestStore(t)
+	seedTraces(t, s, "known", 5, 1024)
+	seedTraces(t, s, "gone", 5, 1024)
+
+	cfg := CleanConfig{MaxBytesPerApp: 1 << 20, MinTracesKept: 1, BatchSize: 1000,
+		KnownApps: func() ([]string, error) { return []string{"known"}, nil }}
+	if err := s.DoClean(context.Background(), cfg); err != nil {
+		t.Fatalf("clean: %v", err)
+	}
+	if traces, _ := appStats(t, s, "gone"); traces != 0 {
+		t.Errorf("unknown app kept %d traces", traces)
+	}
+	if traces, _ := appStats(t, s, "known"); traces != 5 {
+		t.Errorf("known app lost traces: got %d, want 5", traces)
+	}
+
+	// Neither a failed nor an empty lookup may be read as "no app is known".
+	for _, knownApps := range []func() ([]string, error){
+		func() ([]string, error) { return nil, errors.New("boom") },
+		func() ([]string, error) { return nil, nil },
+	} {
+		cfg.KnownApps = knownApps
+		if err := s.DoClean(context.Background(), cfg); err != nil {
+			t.Fatalf("clean: %v", err)
+		}
+		if traces, _ := appStats(t, s, "known"); traces != 5 {
+			t.Errorf("known app dropped after an unusable lookup: got %d, want 5", traces)
+		}
 	}
 }

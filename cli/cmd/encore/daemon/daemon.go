@@ -158,14 +158,23 @@ func (d *Daemon) init(ctx context.Context) {
 	d.PublicBuckets = objects.NewPublicBucketServer("http://"+d.ObjectStorage.ClientAddr(), d.ObjectsMgr.PersistentStoreFallback)
 
 	traceStore := sqlite.New(d.EncoreDB)
-	// Per-app disk budget for trace data. The dashboard pages back through it,
-	// so it doesn't limit what's visible. The floor keeps the newest traces
-	// whatever their size, so a tight budget can't empty the dashboard.
+	// Disk budget for trace data. The dashboard pages back through it, so it
+	// doesn't limit what's visible. The floor keeps the newest traces whatever
+	// their size, so a tight budget can't empty the dashboard. The total is what
+	// actually bounds the file: the per-app budget alone would grow with the
+	// number of apps on the machine.
 	const (
-		maxTraceBytesPerApp = 50 << 20 // 50 MiB
+		maxTraceBytesPerApp = 50 << 20  // 50 MiB
+		maxTraceBytesTotal  = 250 << 20 // 250 MiB
 		minTracesKept       = 100
 	)
-	go traceStore.CleanEvery(ctx, 1*time.Minute, maxTraceBytesPerApp, minTracesKept, 10000)
+	go traceStore.CleanEvery(ctx, 1*time.Minute, sqlite.CleanConfig{
+		MaxBytesPerApp: maxTraceBytesPerApp,
+		MaxBytesTotal:  maxTraceBytesTotal,
+		MinTracesKept:  minTracesKept,
+		BatchSize:      10000,
+		KnownApps:      d.knownAppIDs,
+	})
 	d.Trace = traceStore
 
 	d.RunMgr = &run.Manager{
@@ -192,6 +201,24 @@ func (d *Daemon) init(ctx context.Context) {
 	d.NS.RegisterDeletionHandler(d.ObjectsMgr)
 
 	d.Server = daemon.New(d.Apps, d.RunMgr, d.ClusterMgr, d.Secret, d.NS, d.MCPMgr)
+}
+
+// knownAppIDs reports the ids the trace store may hold data for, under both the
+// ids an app's traces can be recorded as: a linked app records under its
+// platform id, an unlinked one under its local id.
+func (d *Daemon) knownAppIDs() ([]string, error) {
+	instances, err := d.Apps.List()
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(instances)*2)
+	for _, inst := range instances {
+		ids = append(ids, inst.LocalID())
+		if platformID := inst.PlatformID(); platformID != "" {
+			ids = append(ids, platformID)
+		}
+	}
+	return ids, nil
 }
 
 func (d *Daemon) serve() {

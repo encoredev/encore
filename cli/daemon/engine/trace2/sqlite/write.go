@@ -47,32 +47,63 @@ func scanRows[T any](rows *sql.Rows) ([]T, error) {
 	return out, nil
 }
 
-func (s *Store) CleanEvery(ctx context.Context, freq time.Duration, maxBytesPerApp int64, minTracesKept, batchSize int) {
+// CleanConfig bounds how much trace data the daemon keeps on disk. Sizes are
+// measured over trace_event alone; it holds the payloads and dominates.
+type CleanConfig struct {
+	// MaxBytesPerApp is one app's budget.
+	MaxBytesPerApp int64
+
+	// MaxBytesTotal bounds every app together, so the ceiling does not grow with
+	// the number of apps on the machine. Zero disables it.
+	MaxBytesTotal int64
+
+	// MinTracesKept is how many of an app's newest traces survive whatever their size.
+	MinTracesKept int
+
+	// BatchSize caps how many traces one sweep deletes per app.
+	BatchSize int
+
+	// KnownApps reports the apps the daemon still knows about, under every id
+	// their traces may be recorded as. Traces belonging to any other app are
+	// dropped. Nil, an error, or an empty result skips the prune.
+	KnownApps func() ([]string, error)
+}
+
+func (s *Store) CleanEvery(ctx context.Context, freq time.Duration, cfg CleanConfig) {
 	for {
 		timer := time.NewTimer(freq)
 		select {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
-			if err := s.DoClean(ctx, maxBytesPerApp, minTracesKept, batchSize); err != nil {
+			if err := s.DoClean(ctx, cfg); err != nil {
 				log.Error().Err(err).Msg("trace cleanup failed")
 			}
 		}
 	}
 }
 
-// DoClean drops each app's oldest traces until its trace data fits within
-// maxBytesPerApp, always keeping the newest minTracesKept whatever their size.
-// The budget is bytes rather than traces because trace sizes vary hugely. Only
-// trace_event is measured; it holds the payloads and dominates. Deleted pages
-// go to SQLite's freelist, so this bounds where the file settles, it does not
-// shrink it.
-func (s *Store) DoClean(ctx context.Context, maxBytesPerApp int64, minTracesKept, batchSize int) error {
+// DoClean drops traces the daemon no longer needs: those of apps it has
+// forgotten, then each app's oldest until it fits MaxBytesPerApp, then whole
+// apps oldest-first until everything fits MaxBytesTotal. Deleted pages go to
+// SQLite's freelist, so this bounds where the file settles, it does not shrink it.
+func (s *Store) DoClean(ctx context.Context, cfg CleanConfig) error {
 	log.Info().Msg("initiating trace event cleanup sweep")
+	s.pruneUnknownApps(ctx, cfg.KnownApps)
+	if err := s.trimAppsOverBudget(ctx, cfg); err != nil {
+		return err
+	}
+	return s.enforceTotalBudget(ctx, cfg.MaxBytesTotal)
+}
+
+// trimAppsOverBudget drops each over-budget app's oldest traces until it fits,
+// keeping the newest MinTracesKept whatever their size. The budget is bytes
+// rather than traces because trace sizes vary hugely.
+func (s *Store) trimAppsOverBudget(ctx context.Context, cfg CleanConfig) error {
 	// octet_length, not length: on TEXT the latter counts characters, not bytes.
 	rows, err := s.db.QueryContext(ctx,
 		"SELECT app_id FROM trace_event GROUP BY app_id HAVING SUM(octet_length(event_data)) > ?",
-		maxBytesPerApp)
+		cfg.MaxBytesPerApp)
 	if err != nil {
 		return errors.Wrap(err, "query app ids")
 	}
@@ -83,7 +114,7 @@ func (s *Store) DoClean(ctx context.Context, maxBytesPerApp int64, minTracesKept
 
 	for _, appID := range appIDs {
 		// Accumulate bytes newest-first and take the traces past the budget.
-		// The rank guard keeps the newest minTracesKept whatever their size.
+		// The rank guard keeps the newest MinTracesKept whatever their size.
 		rows, err := s.db.QueryContext(ctx, `
 			WITH sizes AS (
 				SELECT trace_id, MIN(id) AS ord, SUM(octet_length(event_data)) AS bytes
@@ -97,7 +128,7 @@ func (s *Store) DoClean(ctx context.Context, maxBytesPerApp int64, minTracesKept
 			SELECT trace_id FROM running
 			WHERE cum > ? AND rank > ?
 			ORDER BY ord ASC LIMIT ?
-		`, appID, maxBytesPerApp, minTracesKept, batchSize)
+		`, appID, cfg.MaxBytesPerApp, cfg.MinTracesKept, cfg.BatchSize)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to get old trace ids")
 			continue
@@ -135,6 +166,99 @@ func (s *Store) DoClean(ctx context.Context, maxBytesPerApp int64, minTracesKept
 		log.Info().Str("app_id", appID).Int64("deleted", rowCount).Msg("cleaned up old trace spans")
 	}
 
+	return nil
+}
+
+// pruneUnknownApps drops the traces of apps the daemon no longer knows about.
+// Nothing else reclaims them: an app whose directory is gone loses its row in
+// the app table, and with it any way to reach its traces from the dashboard.
+func (s *Store) pruneUnknownApps(ctx context.Context, knownApps func() ([]string, error)) {
+	if knownApps == nil {
+		return
+	}
+	known, err := knownApps()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to list known apps")
+		return
+	}
+	// An empty result means the lookup failed or the daemon is still starting.
+	// Reading it as "no app is known" would delete every trace on the machine.
+	if len(known) == 0 {
+		return
+	}
+	isKnown := make(map[string]bool, len(known))
+	for _, id := range known {
+		isKnown[id] = true
+	}
+
+	rows, err := s.db.QueryContext(ctx, "SELECT DISTINCT app_id FROM trace_event")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to query app ids")
+		return
+	}
+	appIDs, err := scanRows[string](rows)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to scan app ids")
+		return
+	}
+	for _, appID := range appIDs {
+		if isKnown[appID] {
+			continue
+		}
+		if err := s.Clear(ctx, appID); err != nil {
+			log.Error().Err(err).Str("app_id", appID).Msg("failed to drop traces of unknown app")
+			continue
+		}
+		log.Info().Str("app_id", appID).Msg("dropped traces of unknown app")
+	}
+}
+
+// enforceTotalBudget drops whole apps, least recently active first, until the
+// remaining data fits maxBytesTotal. Evicting by app rather than by trace keeps
+// a chatty app from shaving a quiet one, and the most recently active app is
+// never dropped, so the worst case is one app at its per-app budget.
+func (s *Store) enforceTotalBudget(ctx context.Context, maxBytesTotal int64) error {
+	if maxBytesTotal <= 0 {
+		return nil
+	}
+
+	// Newest-first: an app's highest event id is when it last recorded a trace.
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT app_id, SUM(octet_length(event_data)) AS bytes
+		FROM trace_event GROUP BY app_id ORDER BY MAX(id) DESC
+	`)
+	if err != nil {
+		return errors.Wrap(err, "query app sizes")
+	}
+	defer fns.CloseIgnore(rows)
+
+	type appSize struct {
+		id    string
+		bytes int64
+	}
+	var apps []appSize
+	var total int64
+	for rows.Next() {
+		var a appSize
+		if err := rows.Scan(&a.id, &a.bytes); err != nil {
+			return errors.Wrap(err, "scan app size")
+		}
+		apps = append(apps, a)
+		total += a.bytes
+	}
+	if err := rows.Err(); err != nil {
+		return errors.Wrap(err, "iterate app sizes")
+	}
+
+	for i := len(apps) - 1; i > 0 && total > maxBytesTotal; i-- {
+		if err := s.Clear(ctx, apps[i].id); err != nil {
+			log.Error().Err(err).Str("app_id", apps[i].id).Msg("failed to evict app traces")
+			continue
+		}
+		total -= apps[i].bytes
+		log.Info().Str("app_id", apps[i].id).Int64("bytes", apps[i].bytes).
+			Msg("evicted traces of inactive app to stay within the total budget")
+	}
 	return nil
 }
 
