@@ -709,6 +709,7 @@ func fetchTemplates(url string, defaults []templateItem) []templateItem {
 	defer cancel()
 	if req, err := http.NewRequestWithContext(ctx, "GET", url, nil); err == nil {
 		if resp, err := http.DefaultClient.Do(req); err == nil {
+			defer resp.Body.Close()
 			if data, err := io.ReadAll(resp.Body); err == nil {
 				data, err = hujson.Standardize(data)
 				if err == nil {
