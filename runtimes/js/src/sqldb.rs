@@ -29,13 +29,12 @@ impl QueryArgs {
 }
 
 fn convert_row_values(params: Vec<JsUnknown>) -> napi::Result<Vec<sqldb::RowValue>> {
-    use napi::JsBuffer;
+    use napi::bindgen_prelude::{Buffer, FromNapiValue};
     params
         .into_iter()
         .map(|val| -> napi::Result<sqldb::RowValue> {
             if val.is_buffer()? {
-                let buf: JsBuffer = val.try_into()?;
-                let buf = buf.into_value()?;
+                let buf = Buffer::from_unknown(val)?;
                 return Ok(sqldb::RowValue::Bytes(buf.to_vec()));
             }
             let pval = parse_pvalue(val)?;
