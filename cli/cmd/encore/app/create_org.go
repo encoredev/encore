@@ -18,17 +18,16 @@ import (
 	"encr.dev/pkg/option"
 )
 
-// selectAppOrg returns the ID of the org to create the app in,
-// or None for the user's personal account.
-// A present key selects the org by ID or slug; otherwise the user
-// is prompted if they can create apps in any org.
+// selectAppOrg returns the ID of the org to create the app in, or None to let
+// the server default to the user's personal org.
+// A present key selects the org by ID or slug; otherwise the user is prompted
+// if they can create apps in an org besides their personal one.
 func selectAppOrg(ctx context.Context, key option.Option[string]) (option.Option[string], error) {
 	orgs, err := platform.ListOrgs(ctx)
 	if err != nil {
 		if key.Present() {
 			return option.None[string](), err
 		}
-		// Fall back to the personal account.
 		return option.None[string](), nil
 	}
 	orgs = slices.DeleteFunc(orgs, func(o *platform.Org) bool { return !o.CanCreateApp })
@@ -40,10 +39,32 @@ func selectAppOrg(ctx context.Context, key option.Option[string]) (option.Option
 		}
 		return option.Some(id), nil
 	}
-	if len(orgs) == 0 || !term.IsTerminal(int(os.Stdin.Fd())) {
+	if !hasChoice(orgs) || !term.IsTerminal(int(os.Stdin.Fd())) {
 		return option.None[string](), nil
 	}
 	return promptOrg(orgs)
+}
+
+// hasChoice reports whether orgs holds an org besides the personal one.
+func hasChoice(orgs []*platform.Org) bool {
+	return slices.ContainsFunc(orgs, func(o *platform.Org) bool { return !o.Personal })
+}
+
+// orgItems returns the prompt items for orgs: the personal org first, or a
+// "Personal account" item sending no org if orgs has no personal org.
+func orgItems(orgs []*platform.Org) []orgItem {
+	items := make([]orgItem, 0, len(orgs)+1)
+	if i := slices.IndexFunc(orgs, func(o *platform.Org) bool { return o.Personal }); i >= 0 {
+		items = append(items, orgItem{id: orgChoice(orgs[i].ID), name: orgs[i].Name})
+	} else {
+		items = append(items, orgItem{id: "", name: "Personal account"})
+	}
+	for _, o := range orgs {
+		if !o.Personal {
+			items = append(items, orgItem{id: orgChoice(o.ID), name: o.Name})
+		}
+	}
+	return items
 }
 
 // matchOrg returns the ID of the org in orgs whose ID or slug is key.
@@ -117,10 +138,9 @@ func (m orgPromptModel) View() string {
 }
 
 func promptOrg(orgs []*platform.Org) (option.Option[string], error) {
-	items := make([]list.Item, 0, len(orgs)+1)
-	items = append(items, orgItem{id: "", name: "Personal account"})
-	for _, o := range orgs {
-		items = append(items, orgItem{id: orgChoice(o.ID), name: o.Name})
+	var items []list.Item
+	for _, it := range orgItems(orgs) {
+		items = append(items, it)
 	}
 
 	ls := list.NewDefaultItemStyles()
