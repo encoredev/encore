@@ -22,6 +22,7 @@ func gunzip(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer gz.Close()
 	return io.ReadAll(gz)
 }
 
