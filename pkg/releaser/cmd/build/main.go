@@ -33,7 +33,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 
-	"encr.dev/internal/version"
 	opt "encr.dev/pkg/option"
 	. "encr.dev/pkg/releaser/bu"
 	"encr.dev/pkg/releaser/config"
@@ -347,7 +346,6 @@ func parsePlatformSpec(target Platform, val string) (PlatformSpec, error) {
 func (p PlatformSpec) Build() (*ReleaseSpec, error) {
 	log.Info().Str("os", p.Target.OS.String()).Str("arch", p.Target.Arch.String()).Msg("building platform")
 	p.Workdir.MkdirAll()
-	channel := version.ChannelFor(cfg.Version)
 	ctx := context.Background()
 	cargoCacheBase := FSPath(cfg.EncoreRepo).Join("target", p.Target.OS.String()+"-"+p.Target.Arch.String())
 	cargoCacheBase.MkdirAll()
@@ -454,7 +452,7 @@ func (p PlatformSpec) Build() (*ReleaseSpec, error) {
 				Host:            host,
 				Target:          p.Target,
 				CargoTargetDir:  cargoCacheBase,
-				ReleaseBuild:    channel == version.GA,
+				ReleaseBuild:    true,
 				ForDistribution: true,
 				Version:         cfg.Version,
 				CrossMacSDKPath: cfg.MacOSSDK,
@@ -475,7 +473,7 @@ func (p PlatformSpec) Build() (*ReleaseSpec, error) {
 				Host:            host,
 				Target:          p.Target,
 				CargoTargetDir:  cargoCacheBase,
-				ReleaseBuild:    channel == version.GA,
+				ReleaseBuild:    true,
 				ForDistribution: true,
 				Version:         cfg.Version,
 				CrossMacSDKPath: cfg.MacOSSDK,
@@ -496,7 +494,7 @@ func (p PlatformSpec) Build() (*ReleaseSpec, error) {
 				Host:            host,
 				Target:          p.Target,
 				CargoTargetDir:  cargoCacheBase,
-				ReleaseBuild:    channel == version.GA,
+				ReleaseBuild:    true,
 				ForDistribution: true,
 				NapiTypeDefPath: napiTypeDefPath,
 				Version:         cfg.Version,
@@ -551,7 +549,7 @@ func (p PlatformSpec) Build() (*ReleaseSpec, error) {
 		wasmOut, err := tsparserwasm.Compile(ctx, tsparserwasm.CompileInput{
 			Host:           host,
 			CargoTargetDir: cargoCacheBase,
-			ReleaseBuild:   channel == version.GA,
+			ReleaseBuild:   true,
 			Version:        cfg.Version,
 		})
 		if err != nil {
