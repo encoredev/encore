@@ -926,6 +926,39 @@
         }
       }
     },
+    "/svc.GetStatus": {
+      "get": {
+        "operationId": "GET:svc.GetStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "Message": {
+                      "type": "string"
+                    },
+                    "Status": {
+                      "format": "int64",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "Status",
+                    "Message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
     "/svc.HeaderOnlyRequest": {
       "get": {
         "operationId": "GET:svc.HeaderOnlyRequest",
