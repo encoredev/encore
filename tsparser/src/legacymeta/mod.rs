@@ -91,6 +91,7 @@ impl MetaBuilder<'_> {
                 databases: vec![], // filled in later
                 buckets: vec![],   // filled in later
                 metrics: vec![],   // filled in later
+                mongo_databases: vec![],
                 has_config: false, // TODO change when config is supported
 
                 // We no longer care about migrations in a service, so just set
@@ -1097,6 +1098,7 @@ fn new_meta() -> v1::Data {
         metrics: vec![],
         sql_databases: vec![],
         buckets: vec![],
+        mongo_databases: vec![],
         gateways: vec![],
         language: v1::Lang::Typescript as i32,
     }
