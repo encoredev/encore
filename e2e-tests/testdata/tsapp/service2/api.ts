@@ -2,6 +2,7 @@ import { api, HttpStatus } from "encore.dev/api";
 import { IsEmail, MaxLen, MinLen } from "encore.dev/validate";
 import log from "encore.dev/log";
 import { APIError } from "encore.dev/api";
+import { APICallMeta, currentRequest } from "encore.dev";
 
 interface GreetingRequest {
   name: string;
@@ -30,6 +31,15 @@ export const greet = api(
       greeting,
       timestamp: new Date()
     };
+  }
+);
+
+// Returns the name of the service that called this endpoint, if any.
+export const whoCalled = api(
+  { expose: true, method: "GET", path: "/who-called" },
+  async (): Promise<{ callerService?: string }> => {
+    const req = currentRequest() as APICallMeta;
+    return { callerService: req.callerService };
   }
 );
 
