@@ -5,6 +5,7 @@ use std::path::Path;
 use anyhow::Result;
 use itertools::Itertools;
 use litparser::{ParseResult, ToParseErr};
+use serde_json::Value;
 use swc_common::errors::HANDLER;
 
 use crate::encore::parser::schema::v1::r#type as styp;
@@ -394,28 +395,18 @@ impl BuilderCtx<'_, '_> {
                 typ.validation = Some(expr.to_pb());
             }
 
-            let raw_tag = tags
-                .iter()
-                .map(|tag| {
-                    let mut s = tag.key.clone();
-                    s.push(':');
-                    s.push('"');
-                    s.push_str(&tag.name);
-                    for opt in &tag.options {
-                        s.push(',');
-                        s.push_str(opt);
-                    }
-                    s.push('"');
-                    s
-                })
-                .join(" ");
-
             let doc = self
                 .builder
                 .pc
                 .loader
                 .module_containing_pos(f.range.start)
                 .and_then(|module| module.preceding_comments(f.range.start));
+            let doc = doc.unwrap_or_else(|| "".into());
+            let (openapi_tag, openapi_example_json, openapi_default_json) = openapi_from_doc(&doc);
+            if let Some(tag) = openapi_tag {
+                tags.push(tag);
+            }
+            let raw_tag = tags_to_raw_tag(&tags);
             fields.push(schema::Field {
                 typ: Some(typ),
                 name: field_name.clone(),
@@ -425,7 +416,9 @@ impl BuilderCtx<'_, '_> {
                 tags,
                 raw_tag,
                 query_string_name,
-                doc: doc.unwrap_or_else(|| "".into()),
+                doc,
+                openapi_example_json,
+                openapi_default_json,
             });
         }
 
@@ -469,6 +462,7 @@ impl BuilderCtx<'_, '_> {
             type_params: vec![], // TODO
             doc,
             loc: Some(loc),
+            enum_values: vec![],
         };
         self.builder.decls.push(decl);
         self.builder.obj_to_decl.insert(obj.id, id);
@@ -520,6 +514,7 @@ impl BuilderCtx<'_, '_> {
             type_params: vec![], // TODO
             doc,
             loc: Some(loc),
+            enum_values: vec![],
         };
         self.builder.decls.push(decl);
         Ok(schema::Named { id, type_arguments })
@@ -612,6 +607,81 @@ impl BuilderCtx<'_, '_> {
 /// If typ is a union type containing, drop the undefined type and return the modified
 /// union and `true` to indicate the type included "| undefined".
 /// Otherwise, returns the original type and `false`.
+fn tags_to_raw_tag(tags: &[schema::Tag]) -> String {
+    tags.iter()
+        .map(|tag| {
+            let mut s = tag.key.clone();
+            s.push(':');
+            s.push('"');
+            s.push_str(&tag_part(&tag.name));
+            for opt in &tag.options {
+                s.push(',');
+                s.push_str(&tag_part(opt));
+            }
+            s.push('"');
+            s
+        })
+        .join(" ")
+}
+
+fn tag_part(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+fn openapi_from_doc(doc: &str) -> (Option<schema::Tag>, String, String) {
+    let settings = doc
+        .lines()
+        .filter_map(|line| line.split_once("@openapi").map(|(_, rest)| rest))
+        .flat_map(|rest| rest.split(';'))
+        .filter_map(|part| {
+            let part = part.trim().trim_start_matches('*').trim();
+            if part.is_empty() || part == "-" {
+                return None;
+            }
+            let (key, val) = part.split_once('=')?;
+            Some((key.trim().to_string(), val.trim().to_string()))
+        })
+        .collect::<Vec<_>>();
+
+    if settings.is_empty() {
+        return (None, String::new(), String::new());
+    }
+
+    let example = settings
+        .iter()
+        .find(|(key, _)| key == "example")
+        .map(|(_, val)| openapi_json(val))
+        .unwrap_or_default();
+    let default = settings
+        .iter()
+        .find(|(key, _)| key == "default")
+        .map(|(_, val)| openapi_json(val))
+        .unwrap_or_default();
+
+    let mut parts = settings
+        .into_iter()
+        .map(|(key, val)| format!("{key}={val}"));
+    let name = parts.next().unwrap();
+    let tag = schema::Tag {
+        key: "openapi".into(),
+        name,
+        options: parts.collect(),
+    };
+
+    (Some(tag), example, default)
+}
+
+fn openapi_json(s: &str) -> String {
+    if s.is_empty() {
+        return String::new();
+    }
+    if serde_json::from_str::<Value>(s).is_ok() {
+        s.to_string()
+    } else {
+        serde_json::to_string(s).unwrap_or_default()
+    }
+}
+
 fn drop_undefined_union(typ: &Type) -> (Cow<'_, Type>, bool) {
     if let Type::Union(union) = &typ {
         for (i, t) in union.types.iter().enumerate() {
