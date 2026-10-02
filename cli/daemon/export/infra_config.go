@@ -199,6 +199,29 @@ func buildAndValidateInfraConfig(params EmbeddedInfraConfigParams) (*infra.Infra
 		missing["Databases"] = databases
 	}
 
+	// Find all MongoDB databases for our hosted services.
+	mongoDatabases := fns.FlatMap(maps.Values(hostedSvcs), func(svc *meta.Service) []string {
+		return svc.MongoDatabases
+	})
+	slices.Sort(mongoDatabases)
+	mongoDatabases = slices.Compact(mongoDatabases)
+
+	for _, mongoServer := range infraCfg.MongoDBServers {
+		for name := range mongoServer.Databases {
+			mongoDatabases, ok = fns.Delete(mongoDatabases, name)
+			if !ok {
+				delete(mongoServer.Databases, name)
+			}
+		}
+	}
+	infraCfg.MongoDBServers = slices.DeleteFunc(infraCfg.MongoDBServers, func(s *infra.MongoDBServer) bool {
+		return len(s.Databases) == 0
+	})
+
+	if len(mongoDatabases) > 0 {
+		missing["MongoDB Databases"] = mongoDatabases
+	}
+
 	caches := fns.MapAndFilter(md.CacheClusters, func(cache *meta.CacheCluster) (string, bool) {
 		return cache.Name, fns.Any(cache.Keyspaces, func(ks *meta.CacheCluster_Keyspace) bool {
 			return fns.Any(services, func(s string) bool {

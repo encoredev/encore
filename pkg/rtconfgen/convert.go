@@ -228,6 +228,66 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 			}
 		}
 
+		// MongoDB Servers & Databases
+		{
+			for _, cluster := range res.MongoClusters {
+				if len(cluster.Servers) == 0 {
+					c.setErrf("no servers found for MongoDB cluster %q", cluster.Rid)
+					continue
+				}
+
+				hosts := fns.Map(cluster.Servers, func(s *runtimev1.MongoServer) string { return s.Host })
+
+				for _, db := range cluster.Databases {
+					// Find the read-write connection pool.
+					pool, ok := fns.Find(db.ConnPools, func(pool *runtimev1.MongoConnectionPool) bool {
+						return !pool.IsReadonly
+					})
+					if !ok {
+						// Use the first pool if none were read-write
+						pool = db.ConnPools[0]
+					}
+
+					role, ok := findRID(pool.RoleRid, c.in.Infra.Credentials.MongoRoles)
+					if !ok {
+						c.setErrf("unable to find MongoDB role %q", pool.RoleRid)
+						continue
+					}
+
+					clientCert, clientKey := getClientCert(role.ClientCertRid)
+					candidateServer := &config.MongoServer{
+						Hosts:            hosts,
+						ReplicaSet:       cluster.GetReplicaSet(),
+						DirectConnection: cluster.DirectConnection,
+						ClientCert:       clientCert,
+						ClientKey:        clientKey,
+					}
+					if tls := cluster.Servers[0].TlsConfig; tls != nil {
+						candidateServer.ServerCACert = tls.GetServerCaCert()
+					}
+
+					serverIdx := slices.IndexFunc(cfg.MongoServers, func(s *config.MongoServer) bool {
+						return reflect.DeepEqual(s, candidateServer)
+					})
+					if serverIdx == -1 {
+						serverIdx = len(cfg.MongoServers)
+						cfg.MongoServers = append(cfg.MongoServers, candidateServer)
+					}
+
+					cfg.MongoDatabases = append(cfg.MongoDatabases, &config.MongoDatabase{
+						ServerID:       serverIdx,
+						EncoreName:     db.EncoreName,
+						DatabaseName:   db.CloudName,
+						User:           role.Username,
+						Password:       c.secretString(role.Password),
+						AuthSource:     role.GetAuthSource(),
+						MinConnections: int(pool.MinConnections),
+						MaxConnections: int(pool.MaxConnections),
+					})
+				}
+			}
+		}
+
 		// Redis Servers & Databases
 		{
 			for _, cluster := range res.RedisClusters {

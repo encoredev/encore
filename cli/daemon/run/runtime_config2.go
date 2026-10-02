@@ -66,6 +66,7 @@ type RuntimeConfigGenerator struct {
 		PubSubTopicConfig(topic *meta.PubSubTopic) (config.PubsubProvider, config.PubsubTopic, error)
 		PubSubSubscriptionConfig(topic *meta.PubSubTopic, sub *meta.PubSubTopic_Subscription) (config.PubsubSubscription, error)
 		RedisConfig(redis *meta.CacheCluster) (config.RedisServer, config.RedisDatabase, error)
+		MongoConfig(db *meta.MongoDatabase) (config.MongoServer, config.MongoDatabase, error)
 		BucketProviderConfig() (config.BucketProvider, string, error)
 	}
 
@@ -432,6 +433,70 @@ func (g *RuntimeConfigGenerator) initialize() error {
 					KeyPrefix:   ptrOrNil(dbConfig.KeyPrefix),
 					ConnPools:   nil,
 				}).AddConnectionPool(&runtimev1.RedisConnectionPool{
+					IsReadonly:     false,
+					RoleRid:        roleRid,
+					MinConnections: int32(dbConfig.MinConnections),
+					MaxConnections: int32(dbConfig.MaxConnections),
+				})
+			}
+		}
+
+		if len(g.md.MongoDatabases) > 0 {
+			// One cluster holds every MongoDB database, like the SQL cluster.
+			cluster := g.conf.Infra.MongoCluster(&runtimev1.MongoCluster{
+				Rid:     newRid(),
+				Servers: nil,
+			})
+
+			for i, db := range g.md.MongoDatabases {
+				srvConfig, dbConfig, err := g.infraManager.MongoConfig(db)
+				if err != nil {
+					return errors.Wrap(err, "failed to generate MongoDB config")
+				}
+
+				// All databases live on the same server, so add the
+				// servers and cluster settings once.
+				if i == 0 {
+					cluster.Val.ReplicaSet = ptrOrNil(srvConfig.ReplicaSet)
+					cluster.Val.DirectConnection = srvConfig.DirectConnection
+
+					var tlsConfig *runtimev1.TLSConfig
+					if srvConfig.ServerCACert != "" {
+						tlsConfig = &runtimev1.TLSConfig{
+							ServerCaCert: ptrOrNil(srvConfig.ServerCACert),
+						}
+					}
+					for _, host := range srvConfig.Hosts {
+						cluster.MongoServer(&runtimev1.MongoServer{
+							Rid:       newRid(),
+							Host:      host,
+							Kind:      runtimev1.ServerKind_SERVER_KIND_PRIMARY,
+							TlsConfig: tlsConfig,
+						})
+					}
+				}
+
+				// Generate a role rid based on the cluster+username combination.
+				roleRid := fmt.Sprintf("role:%s:%s", cluster.Val.Rid, dbConfig.User)
+				g.conf.Infra.MongoRoleFn(roleRid, func() *runtimev1.MongoRole {
+					r := &runtimev1.MongoRole{
+						Rid:           roleRid,
+						Username:      dbConfig.User,
+						AuthSource:    ptrOrNil(dbConfig.AuthSource),
+						ClientCertRid: nil,
+					}
+					if dbConfig.Password != "" {
+						r.Password = toSecret([]byte(dbConfig.Password))
+					}
+					return r
+				})
+
+				cluster.MongoDatabase(&runtimev1.MongoDatabase{
+					Rid:        newRid(),
+					EncoreName: dbConfig.EncoreName,
+					CloudName:  dbConfig.DatabaseName,
+					ConnPools:  nil,
+				}).AddConnectionPool(&runtimev1.MongoConnectionPool{
 					IsReadonly:     false,
 					RoleRid:        roleRid,
 					MinConnections: int32(dbConfig.MinConnections),

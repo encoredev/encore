@@ -626,6 +626,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         client_certs: Vec::new(),
         sql_roles: Vec::new(),
         redis_roles: Vec::new(),
+        mongo_roles: Vec::new(),
     };
 
     // Map SQL Servers
@@ -1015,6 +1016,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         app_secrets,
         bucket_clusters: buckets.unwrap_or_default(),
         secret_providers: Vec::new(),
+        mongo_clusters: Vec::new(),
     });
 
     let infra_struct = Some(Infrastructure {
