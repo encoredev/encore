@@ -24,6 +24,7 @@ import (
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/crons"
 	"encr.dev/v2/parser/infra/metrics"
+	"encr.dev/v2/parser/infra/mongodb"
 	"encr.dev/v2/parser/infra/objects"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/infra/secrets"
@@ -143,6 +144,25 @@ func (b *builder) Build() *meta.Data {
 			}
 
 		}
+
+		// MongoDB databases this service uses. Unlike SQL, this includes
+		// usages as well as binds: a service can use another service's
+		// database variable directly, and it has no bind of its own then.
+		mongoDBs := make(map[string]bool)
+		for res := range svc.ResourceBinds {
+			if db, ok := res.(*mongodb.Database); ok {
+				mongoDBs[db.Name] = true
+			}
+		}
+		for res := range svc.ResourceUsage {
+			if db, ok := res.(*mongodb.Database); ok {
+				mongoDBs[db.Name] = true
+			}
+		}
+		for name := range mongoDBs {
+			out.MongoDatabases = append(out.MongoDatabases, name)
+		}
+		slices.Sort(out.MongoDatabases)
 	}
 
 	appPackages := b.app.Parse.AppPackages()
@@ -246,6 +266,12 @@ func (b *builder) Build() *meta.Data {
 			} else {
 				b.errs.Addf(r.Decl.AST.Pos(), "auth handler %q must be defined within a service", r.Name)
 			}
+
+		case *mongodb.Database:
+			md.MongoDatabases = append(md.MongoDatabases, &meta.MongoDatabase{
+				Name: r.Name,
+				Doc:  zeroNil(r.Doc),
+			})
 
 		case *sqldb.Database:
 			db := &meta.SQLDatabase{

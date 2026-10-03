@@ -51,6 +51,8 @@ const (
 	BucketListObjectsEnd      EventType = 0x20
 	BucketDeleteObjectsStart  EventType = 0x21
 	BucketDeleteObjectsEnd    EventType = 0x22
+	MongoCallStart            EventType = 0x23
+	MongoCallEnd              EventType = 0x24
 )
 
 func (te EventType) String() string {
@@ -123,6 +125,10 @@ func (te EventType) String() string {
 		return "BucketDeleteObjectsStart"
 	case BucketDeleteObjectsEnd:
 		return "BucketDeleteObjectsEnd"
+	case MongoCallStart:
+		return "MongoCallStart"
+	case MongoCallEnd:
+		return "MongoCallEnd"
 
 	default:
 		return fmt.Sprintf("Unknown(%x)", byte(te))
@@ -1043,6 +1049,59 @@ func (l *Log) BucketDeleteObjectsEnd(p BucketDeleteObjectsEndParams) {
 
 	l.Add(Event{
 		Type:    BucketDeleteObjectsEnd,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type MongoCallStartParams struct {
+	EventParams
+	Database   string // the Encore name of the database
+	Collection string
+	Operation  string // e.g. "insertOne"
+	Query      string // the filter, pipeline or document, as JSON
+	Stack      stack.Stack
+}
+
+func (l *Log) MongoCallStart(p MongoCallStartParams) EventID {
+	tb := l.newEvent(eventData{
+		Common:     p.EventParams,
+		ExtraSpace: 64 + len(p.Query),
+	})
+
+	tb.String(p.Database)
+	tb.String(p.Collection)
+	tb.String(p.Operation)
+	tb.String(p.Query)
+	tb.Stack(p.Stack)
+
+	return l.Add(Event{
+		Type:    MongoCallStart,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type MongoCallEndParams struct {
+	EventParams
+	StartID EventID
+
+	Err error
+}
+
+func (l *Log) MongoCallEnd(p MongoCallEndParams) {
+	tb := l.newEvent(eventData{
+		Common:             p.EventParams,
+		CorrelationEventID: p.StartID,
+		ExtraSpace:         4 + 4 + 8,
+	})
+
+	tb.ErrWithStack(p.Err)
+
+	l.Add(Event{
+		Type:    MongoCallEnd,
 		TraceID: p.TraceID,
 		SpanID:  p.SpanID,
 		Data:    tb,

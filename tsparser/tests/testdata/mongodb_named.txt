@@ -1,0 +1,34 @@
+-- svc/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+export default new Service("svc");
+
+-- svc/db.ts --
+import { MongoDatabase } from "encore.dev/storage/mongodb";
+
+// Define a MongoDB database
+export const db = new MongoDatabase("urls");
+
+-- other/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+export default new Service("other");
+
+-- other/stats.ts --
+import { MongoDatabase } from "encore.dev/storage/mongodb";
+
+// Reference the database from a different service using .named()
+const db = MongoDatabase.named("urls");
+
+export async function count(): Promise<number> {
+  return db.collection("urls").countDocuments({});
+}
+
+-- package.json --
+{
+  "name": "mongodb-named-test",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}

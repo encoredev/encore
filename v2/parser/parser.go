@@ -18,6 +18,7 @@ import (
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/crons"
 	"encr.dev/v2/parser/infra/metrics"
+	"encr.dev/v2/parser/infra/mongodb"
 	"encr.dev/v2/parser/infra/objects"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/infra/secrets"
@@ -143,6 +144,8 @@ var allParsers = []*resourceparser.Parser{
 	config.LoadParser,
 	crons.JobParser,
 	metrics.MetricParser,
+	mongodb.DatabaseParser,
+	mongodb.NamedParser,
 	pubsub.TopicParser,
 	pubsub.SubscriptionParser,
 	secrets.SecretsParser,
@@ -159,6 +162,7 @@ func newUsageResolver() *usage.Resolver {
 	usage.RegisterUsageResolver[*config.Load](r, config.ResolveConfigUsage)
 	usage.RegisterUsageResolver[*pubsub.Topic](r, pubsub.ResolveTopicUsage)
 	usage.RegisterUsageResolver[*sqldb.Database](r, sqldb.ResolveDatabaseUsage)
+	usage.RegisterUsageResolver[*mongodb.Database](r, mongodb.ResolveDatabaseUsage)
 	usage.RegisterUsageResolver[*objects.Bucket](r, objects.ResolveBucketUsage)
 
 	// API Framework

@@ -95,6 +95,7 @@ impl AppValidator<'_> {
         self.validate_apis();
         self.validate_pubsub();
         self.validate_sqldb();
+        self.validate_mongodb();
         self.validate_metrics();
         self.validate_crons();
         self.validate_buckets();
@@ -403,6 +404,25 @@ impl AppValidator<'_> {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(db.span, "SQL Database with this name already defined")
+                            .span_note(prev_range, "previously defined here")
+                            .emit();
+                    })
+                }
+            }
+        }
+    }
+
+    fn validate_mongodb(&self) {
+        let mut seen = HashMap::new();
+        for resource in &self.parse.resources {
+            if let Resource::MongoDatabase(db) = resource {
+                if let Some(prev_range) = seen.insert(db.name.clone(), db.span) {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                db.span,
+                                "MongoDB database with this name already defined",
+                            )
                             .span_note(prev_range, "previously defined here")
                             .emit();
                     })

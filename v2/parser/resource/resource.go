@@ -22,6 +22,7 @@ const (
 	ConfigLoad
 	Secrets
 	Bucket
+	MongoDatabase
 
 	// API Framework Resources
 	APIEndpoint

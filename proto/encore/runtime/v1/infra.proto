@@ -13,6 +13,7 @@ message Infrastructure {
     repeated ClientCert client_certs = 1;
     repeated SQLRole sql_roles = 2;
     repeated RedisRole redis_roles = 3;
+    repeated MongoRole mongo_roles = 4;
   }
 
   message Resources {
@@ -23,6 +24,7 @@ message Infrastructure {
     repeated AppSecret app_secrets = 5;
     repeated BucketCluster bucket_clusters = 6;
     repeated SecretProvider secret_providers = 7;
+    repeated MongoCluster mongo_clusters = 8;
   }
 }
 
@@ -216,6 +218,72 @@ message RedisDatabase {
 
   // Connection pools to use for connecting to the database.
   repeated RedisConnectionPool conn_pools = 5;
+}
+
+message MongoCluster {
+  // The unique resource id for this cluster.
+  string rid = 1;
+
+  repeated MongoServer servers = 2;
+  repeated MongoDatabase databases = 3;
+
+  // The replica set name, if the servers form a replica set.
+  optional string replica_set = 4;
+
+  // If true, connect only to the given server, without discovering
+  // the other members of the replica set.
+  bool direct_connection = 5;
+}
+
+message MongoServer {
+  // The unique resource id for this server.
+  string rid = 1;
+
+  // Host is the host to connect to, as "hostname:port".
+  string host = 2;
+  ServerKind kind = 3;
+
+  // TLS configuration to use when connecting.
+  optional TLSConfig tls_config = 4;
+}
+
+message MongoRole {
+  // The unique resource id for this role.
+  string rid = 1;
+
+  string username = 2;
+  SecretData password = 3;
+
+  // The database that holds the user's credentials, e.g. "admin".
+  optional string auth_source = 4;
+
+  // The client cert to use to authenticate, if any.
+  optional string client_cert_rid = 5;
+}
+
+message MongoDatabase {
+  // The unique resource id for this database.
+  string rid = 1;
+
+  string encore_name = 2;
+
+  // The physical name of the database in the cluster.
+  string cloud_name = 3;
+
+  // Connection pools to use for connecting to the database.
+  repeated MongoConnectionPool conn_pools = 4;
+}
+
+message MongoConnectionPool {
+  // Whether this connection pool is for read-only servers.
+  bool is_readonly = 1;
+
+  // The role to use to authenticate.
+  string role_rid = 2;
+
+  // The minimum and maximum number of connections to use.
+  int32 min_connections = 3;
+  int32 max_connections = 4;
 }
 
 message AppSecret {

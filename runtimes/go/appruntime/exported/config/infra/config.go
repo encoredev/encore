@@ -16,6 +16,7 @@ type InfraConfig struct {
 	ServiceDiscovery map[string]*ServiceDiscovery `json:"service_discovery,omitempty"`
 	Metrics          *Metrics                     `json:"metrics,omitempty"`
 	SQLServers       []*SQLServer                 `json:"sql_servers,omitempty"`
+	MongoDBServers   []*MongoDBServer             `json:"mongodb_servers,omitempty"`
 	Redis            map[string]*Redis            `json:"redis,omitempty"`
 	PubSub           []*PubSub                    `json:"pubsub,omitempty"`
 	Secrets          Secrets                      `json:"secrets,omitempty"`
@@ -210,6 +211,7 @@ func (i *InfraConfig) Validate(v *validator) {
 	ValidateChildList(v, "object_storage", i.ObjectStorage)
 	v.ValidateChild("metrics", i.Metrics)
 	ValidateChildList(v, "sql_servers", i.SQLServers)
+	ValidateChildList(v, "mongodb_servers", i.MongoDBServers)
 	ValidateChildMap(v, "redis", i.Redis)
 	ValidateChildList(v, "pubsub", i.PubSub)
 	v.ValidateChild("secrets", i.Secrets)
@@ -496,6 +498,38 @@ func (s *SQLDatabase) Validate(v *validator) {
 	v.ValidateField("min_connections", GreaterOrEqual(0)(s.MinConnections))
 	v.ValidateEnvString("username", s.Username, "Database Username", NotZero[string])
 	v.ValidateEnvString("password", s.Password, "Database Password", NotZero[string])
+	v.ValidateChild("client_cert", s.ClientCert)
+}
+
+type MongoDBServer struct {
+	Hosts      []string                    `json:"hosts,omitempty"`
+	ReplicaSet string                      `json:"replica_set,omitempty"`
+	TLSConfig  *TLSConfig                  `json:"tls_config,omitempty"`
+	Databases  map[string]*MongoDBDatabase `json:"databases,omitempty"`
+}
+
+func (s *MongoDBServer) Validate(v *validator) {
+	v.ValidateField("hosts", NotZero(len(s.Hosts)))
+	v.ValidateChild("tls_config", s.TLSConfig)
+	ValidateChildMap(v, "databases", s.Databases)
+}
+
+type MongoDBDatabase struct {
+	Name           string      `json:"name,omitempty"`
+	MaxConnections int         `json:"max_connections,omitempty"`
+	MinConnections int         `json:"min_connections,omitempty"`
+	Username       EnvString   `json:"username,omitempty"`
+	Password       EnvString   `json:"password,omitempty"`
+	AuthSource     string      `json:"auth_source,omitempty"`
+	ClientCert     *ClientCert `json:"client_cert,omitempty"`
+}
+
+func (s *MongoDBDatabase) Validate(v *validator) {
+	v.ValidateField("max_connections", GreaterOrEqual(s.MinConnections)(s.MaxConnections))
+	v.ValidateField("min_connections", GreaterOrEqual(0)(s.MinConnections))
+	// MongoDB may run without authentication, so credentials are optional.
+	v.ValidateEnvString("username", s.Username, "Database Username", nil)
+	v.ValidateEnvString("password", s.Password, "Database Password", nil)
 	v.ValidateChild("client_cert", s.ClientCert)
 }
 

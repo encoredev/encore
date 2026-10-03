@@ -12,6 +12,7 @@
     "./pubsub/mod.ts",
     "./service/mod.ts",
     "./storage/cache/mod.ts",
+    "./storage/mongodb/mod.ts",
     "./storage/objects/mod.ts",
     "./storage/sqldb/mod.ts",
     "./types/mod.ts",

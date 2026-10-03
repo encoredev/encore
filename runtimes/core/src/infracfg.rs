@@ -2,10 +2,11 @@ use crate::encore::runtime::v1::infrastructure::{Credentials, Resources};
 use crate::encore::runtime::v1::{
     self as pbruntime, environment, gateway, metrics_provider, pub_sub_cluster,
     pub_sub_subscription, pub_sub_topic, redis_role, secret_data, service_auth, service_discovery,
-    AppSecret, Deployment, Environment, Infrastructure, MetricsProvider, Observability,
-    PubSubCluster, PubSubSubscription, PubSubTopic, RedisCluster, RedisConnectionPool,
-    RedisDatabase, RedisRole, RedisServer, RuntimeConfig, SqlCluster, SqlConnectionPool,
-    SqlDatabase, SqlRole, SqlServer, TlsConfig,
+    AppSecret, Deployment, Environment, Infrastructure, MetricsProvider, MongoCluster,
+    MongoConnectionPool, MongoDatabase, MongoRole, MongoServer, Observability, PubSubCluster,
+    PubSubSubscription, PubSubTopic, RedisCluster, RedisConnectionPool, RedisDatabase, RedisRole,
+    RedisServer, RuntimeConfig, SqlCluster, SqlConnectionPool, SqlDatabase, SqlRole, SqlServer,
+    TlsConfig,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -19,6 +20,7 @@ pub struct InfraConfig {
     pub metrics: Option<Metrics>,
     pub used_metrics: Option<Vec<Metric>>,
     pub sql_servers: Option<Vec<SQLServer>>,
+    pub mongodb_servers: Option<Vec<MongoDBServer>>,
     pub redis: Option<HashMap<String, Redis>>,
     pub pubsub: Option<Vec<PubSub>>,
     pub secrets: Option<Secrets>,
@@ -204,6 +206,25 @@ pub struct SQLDatabase {
     pub username: String,
     pub password: EnvString,
     pub client_cert: Option<ClientCert>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MongoDBServer {
+    pub hosts: Vec<String>,
+    pub replica_set: Option<String>,
+    pub tls_config: Option<TLSConfig>,
+    pub databases: HashMap<String, MongoDBDatabase>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MongoDBDatabase {
+    pub name: Option<String>,
+    pub max_connections: Option<i32>,
+    pub min_connections: Option<i32>,
+    // MongoDB may run without authentication, so credentials are optional.
+    pub username: Option<EnvString>,
+    pub password: Option<EnvString>,
+    pub auth_source: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -626,6 +647,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         client_certs: Vec::new(),
         sql_roles: Vec::new(),
         redis_roles: Vec::new(),
+        mongo_roles: Vec::new(),
     };
 
     // Map SQL Servers
@@ -707,6 +729,73 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         ),
                     }],
                     databases,
+                }
+            })
+            .collect()
+    });
+
+    // Map MongoDB Servers
+    let mongo_clusters = infra.mongodb_servers.map(|servers| {
+        servers
+            .into_iter()
+            .map(|server| {
+                let databases = server
+                    .databases
+                    .into_iter()
+                    .map(|(name, db)| {
+                        let role_rid = get_next_rid();
+                        let role = MongoRole {
+                            rid: role_rid.clone(),
+                            username: db
+                                .username
+                                .as_ref()
+                                .map(resolve_env_string)
+                                .unwrap_or_default(),
+                            password: db.password.as_ref().map(map_env_string_to_secret_data),
+                            auth_source: db.auth_source,
+                            client_cert_rid: None,
+                        };
+                        credentials.mongo_roles.push(role);
+                        MongoDatabase {
+                            rid: get_next_rid(),
+                            encore_name: name.clone(),
+                            cloud_name: db.name.unwrap_or(name),
+                            conn_pools: vec![MongoConnectionPool {
+                                is_readonly: false,
+                                role_rid,
+                                min_connections: db.min_connections.unwrap_or(0),
+                                max_connections: db.max_connections.unwrap_or(0),
+                            }],
+                        }
+                    })
+                    .collect();
+
+                // Unlike SQL, TLS is off unless a tls_config is given,
+                // matching the Go runtime's handling of mongodb_servers.
+                let tls_config = server.tls_config.and_then(|tls| match tls.disabled {
+                    true => None,
+                    false => Some(TlsConfig {
+                        server_ca_cert: tls.ca,
+                        disable_tls_hostname_verification: tls.disable_tls_hostname_verification,
+                        disable_ca_validation: tls.disable_ca_validation,
+                    }),
+                });
+
+                MongoCluster {
+                    rid: get_next_rid(),
+                    servers: server
+                        .hosts
+                        .into_iter()
+                        .map(|host| MongoServer {
+                            rid: get_next_rid(),
+                            host,
+                            kind: pbruntime::ServerKind::Primary as i32,
+                            tls_config: tls_config.clone(),
+                        })
+                        .collect(),
+                    databases,
+                    replica_set: server.replica_set,
+                    direct_connection: false,
                 }
             })
             .collect()
@@ -1015,6 +1104,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         app_secrets,
         bucket_clusters: buckets.unwrap_or_default(),
         secret_providers: Vec::new(),
+        mongo_clusters: mongo_clusters.unwrap_or_default(),
     });
 
     let infra_struct = Some(Infrastructure {
@@ -1028,6 +1118,18 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         infra: infra_struct,
         deployment,
         encore_platform: None,
+    }
+}
+
+// Helper function to resolve an EnvString to its value,
+// reading the environment variable if it is a reference.
+fn resolve_env_string(env_string: &EnvString) -> String {
+    match env_string {
+        EnvString::String(s) => s.clone(),
+        EnvString::EnvRef(env_ref) => std::env::var(&env_ref.env).unwrap_or_else(|_| {
+            ::log::error!("environment variable {} is not set", env_ref.env);
+            String::new()
+        }),
     }
 }
 

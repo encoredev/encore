@@ -195,6 +195,66 @@ type RedisServer struct {
 	b   *InfraBuilder
 }
 
+func (b *InfraBuilder) MongoRole(p *runtimev1.MongoRole) *MongoRole {
+	return b.MongoRoleFn(p.Rid, tofn(p))
+}
+
+func (b *InfraBuilder) MongoRoleFn(rid string, fn func() *runtimev1.MongoRole) *MongoRole {
+	val := addResFunc(&b.infra.Credentials.MongoRoles, b.rs, rid, fn)
+	return &MongoRole{Val: val, b: b}
+}
+
+type MongoRole struct {
+	Val *runtimev1.MongoRole
+	b   *InfraBuilder
+}
+
+func (b *InfraBuilder) MongoCluster(p *runtimev1.MongoCluster) *MongoCluster {
+	return b.MongoClusterFn(p.Rid, tofn(p))
+}
+
+func (b *InfraBuilder) MongoClusterFn(rid string, fn func() *runtimev1.MongoCluster) *MongoCluster {
+	val := addResFunc(&b.infra.Resources.MongoClusters, b.rs, rid, fn)
+	return &MongoCluster{Val: val, b: b}
+}
+
+type MongoCluster struct {
+	Val *runtimev1.MongoCluster
+	b   *InfraBuilder
+}
+
+func (c *MongoCluster) MongoDatabase(p *runtimev1.MongoDatabase) *MongoDatabase {
+	return c.MongoDatabaseFn(p.Rid, tofn(p))
+}
+
+func (c *MongoCluster) MongoDatabaseFn(rid string, fn func() *runtimev1.MongoDatabase) *MongoDatabase {
+	val := addResFunc(&c.Val.Databases, c.b.rs, rid, fn)
+	return &MongoDatabase{Val: val, b: c.b}
+}
+
+type MongoDatabase struct {
+	Val *runtimev1.MongoDatabase
+	b   *InfraBuilder
+}
+
+func (c *MongoDatabase) AddConnectionPool(p *runtimev1.MongoConnectionPool) {
+	c.Val.ConnPools = append(c.Val.ConnPools, p)
+}
+
+func (c *MongoCluster) MongoServer(p *runtimev1.MongoServer) *MongoServer {
+	return c.MongoServerFn(p.Rid, tofn(p))
+}
+
+func (c *MongoCluster) MongoServerFn(rid string, fn func() *runtimev1.MongoServer) *MongoServer {
+	val := addResFunc(&c.Val.Servers, c.b.rs, rid, fn)
+	return &MongoServer{Val: val, b: c.b}
+}
+
+type MongoServer struct {
+	Val *runtimev1.MongoServer
+	b   *InfraBuilder
+}
+
 func (b *InfraBuilder) BucketCluster(p *runtimev1.BucketCluster) *BucketCluster {
 	return b.BucketClusterFn(p.Rid, tofn(p))
 }
@@ -310,6 +370,16 @@ func reduceForServices(infra *runtimev1.Infrastructure, md *meta.Data, svcs []st
 		}
 	}
 
+	mongoToKeep := make(map[string]bool)
+	for _, svc := range md.Svcs {
+		if !svcNames[svc.Name] {
+			continue
+		}
+		for _, dbName := range svc.MongoDatabases {
+			mongoToKeep[dbName] = true
+		}
+	}
+
 	cachesToKeep := make(map[string]bool)
 	for _, cacheCluster := range md.CacheClusters {
 		for _, keySpace := range cacheCluster.Keyspaces {
@@ -333,6 +403,13 @@ func reduceForServices(infra *runtimev1.Infrastructure, md *meta.Data, svcs []st
 	for _, cluster := range infra.Resources.RedisClusters {
 		cluster.Databases = slices.DeleteFunc(cluster.Databases, func(t *runtimev1.RedisDatabase) bool {
 			_, found := cachesToKeep[t.EncoreName]
+			return !found
+		})
+	}
+
+	for _, cluster := range infra.Resources.MongoClusters {
+		cluster.Databases = slices.DeleteFunc(cluster.Databases, func(t *runtimev1.MongoDatabase) bool {
+			_, found := mongoToKeep[t.EncoreName]
 			return !found
 		})
 	}

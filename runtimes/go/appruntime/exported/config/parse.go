@@ -253,6 +253,34 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 		}
 	}
 
+	// Map MongoDB servers configuration
+	for i, mongoServer := range infraCfg.MongoDBServers {
+		cfg.MongoServers = append(cfg.MongoServers, &MongoServer{
+			Hosts:      mongoServer.Hosts,
+			ReplicaSet: mongoServer.ReplicaSet,
+		})
+		if mongoServer.TLSConfig != nil && !mongoServer.TLSConfig.Disabled {
+			cfg.MongoServers[i].ServerCACert = mongoServer.TLSConfig.CA
+			if mongoServer.TLSConfig.ClientCert != nil {
+				cfg.MongoServers[i].ClientCert = mongoServer.TLSConfig.ClientCert.Cert
+				cfg.MongoServers[i].ClientKey = mongoServer.TLSConfig.ClientCert.Key.Value()
+			}
+		}
+
+		for dbName, db := range mongoServer.Databases {
+			cfg.MongoDatabases = append(cfg.MongoDatabases, &MongoDatabase{
+				ServerID:       i,
+				EncoreName:     orDefault(db.Name, dbName),
+				DatabaseName:   dbName,
+				User:           db.Username.Value(),
+				Password:       db.Password.Value(),
+				AuthSource:     db.AuthSource,
+				MinConnections: db.MinConnections,
+				MaxConnections: db.MaxConnections,
+			})
+		}
+	}
+
 	// Map Redis configuration
 	cfg.RedisServers = make([]*RedisServer, len(infraCfg.Redis))
 	var i int

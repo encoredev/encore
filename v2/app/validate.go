@@ -6,6 +6,7 @@ import (
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/infra/caches"
+	"encr.dev/v2/parser/infra/mongodb"
 	"encr.dev/v2/parser/infra/objects"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/infra/secrets"
@@ -29,6 +30,7 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 	d.validateConfigs(pc, result)
 	d.validateCrons(pc, result)
 	d.validateDatabases(pc, result)
+	d.validateMongoDB(pc, result)
 	d.validatePubSub(pc, result)
 	d.validateObjects(pc, result)
 
@@ -53,6 +55,9 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 			continue
 		case *sqldb.Database:
 			// Databases are allowed anywhere
+			continue
+		case *mongodb.Database:
+			// MongoDB databases are allowed anywhere, like SQL databases
 			continue
 		case *caches.Cluster:
 			// Cache clusters are allowed anywhere
