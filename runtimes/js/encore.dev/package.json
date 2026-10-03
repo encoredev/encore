@@ -65,6 +65,11 @@
       "bun": "./storage/sqldb/mod.ts",
       "default": "./dist/storage/sqldb/mod.js"
     },
+    "./storage/mongodb": {
+      "types": "./storage/mongodb/mod.ts",
+      "bun": "./storage/mongodb/mod.ts",
+      "default": "./dist/storage/mongodb/mod.js"
+    },
     "./storage/objects": {
       "types": "./storage/objects/mod.ts",
       "bun": "./storage/objects/mod.ts",

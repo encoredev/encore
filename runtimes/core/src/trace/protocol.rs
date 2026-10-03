@@ -50,6 +50,8 @@ pub enum EventType {
     BucketListObjectsEnd = 0x20,
     BucketDeleteObjectsStart = 0x21,
     BucketDeleteObjectsEnd = 0x22,
+    MongoCallStart = 0x23,
+    MongoCallEnd = 0x24,
 }
 
 // A global event id counter.
@@ -1040,6 +1042,68 @@ impl Tracer {
         eb.err_with_legacy_stack(data.error);
 
         _ = self.send(EventType::CacheCallEnd, data.source.span, eb);
+    }
+}
+
+pub struct MongoCallStartData<'a> {
+    pub source: &'a Request,
+    /// The Encore name of the database.
+    pub database: &'a str,
+    pub collection: &'a str,
+    /// The operation, e.g. "insertOne".
+    pub operation: &'static str,
+    /// The filter, pipeline or document, as JSON.
+    pub query: &'a str,
+}
+
+pub struct MongoCallEndData<'a, E> {
+    pub start_id: Option<TraceEventId>,
+    pub source: &'a Request,
+    pub error: Option<&'a E>,
+}
+
+impl Tracer {
+    #[inline]
+    pub fn mongo_call_start(&self, data: MongoCallStartData) -> Option<TraceEventId> {
+        if !data.source.traced {
+            return None;
+        }
+        let mut eb = BasicEventData {
+            correlation_event_id: None,
+            extra_space: 64
+                + data.database.len()
+                + data.collection.len()
+                + data.operation.len()
+                + data.query.len(),
+        }
+        .into_eb();
+
+        eb.str(data.database);
+        eb.str(data.collection);
+        eb.str(data.operation);
+        eb.str(data.query);
+        eb.nyi_stack_pcs();
+
+        Some(self.send(EventType::MongoCallStart, data.source.span, eb))
+    }
+
+    #[inline]
+    pub fn mongo_call_end<E>(&self, data: MongoCallEndData<E>)
+    where
+        E: std::fmt::Display,
+    {
+        let Some(start_id) = data.start_id else {
+            return;
+        };
+        let mut eb = BasicEventData {
+            correlation_event_id: Some(start_id),
+            extra_space: 4 + 4 + 8,
+        }
+        .into_eb();
+
+        eb.err_with_legacy_stack(data.error);
+
+        _ = self.send(EventType::MongoCallEnd, data.source.span, eb);
     }
 }
 

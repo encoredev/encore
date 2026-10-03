@@ -276,6 +276,10 @@ func (tp *traceParser) spanEvent(eventType trace2.EventType) *tracepb2.SpanEvent
 		ev.Data = &tracepb2.SpanEvent_BucketDeleteObjectsStart{BucketDeleteObjectsStart: tp.bucketDeleteObjectsStart()}
 	case trace2.BucketDeleteObjectsEnd:
 		ev.Data = &tracepb2.SpanEvent_BucketDeleteObjectsEnd{BucketDeleteObjectsEnd: tp.bucketDeleteObjectsEnd()}
+	case trace2.MongoCallStart:
+		ev.Data = &tracepb2.SpanEvent_MongoCallStart{MongoCallStart: tp.mongoCallStart()}
+	case trace2.MongoCallEnd:
+		ev.Data = &tracepb2.SpanEvent_MongoCallEnd{MongoCallEnd: tp.mongoCallEnd()}
 
 	default:
 		tp.bailout(fmt.Errorf("unknown event %v", eventType))
@@ -693,6 +697,22 @@ func (tp *traceParser) bucketDeleteObjectsStart() *tracepb2.BucketDeleteObjectsS
 
 func (tp *traceParser) bucketDeleteObjectsEnd() *tracepb2.BucketDeleteObjectsEnd {
 	return &tracepb2.BucketDeleteObjectsEnd{
+		Err: tp.errWithStack(),
+	}
+}
+
+func (tp *traceParser) mongoCallStart() *tracepb2.MongoCallStart {
+	return &tracepb2.MongoCallStart{
+		Database:   tp.String(),
+		Collection: tp.String(),
+		Operation:  tp.String(),
+		Query:      tp.String(),
+		Stack:      tp.stack(),
+	}
+}
+
+func (tp *traceParser) mongoCallEnd() *tracepb2.MongoCallEnd {
+	return &tracepb2.MongoCallEnd{
 		Err: tp.errWithStack(),
 	}
 }

@@ -435,6 +435,12 @@ fn resolve_binds(resources: &[Resource], binds: Vec<UnresolvedBind>) -> Vec<Lrc<
                 },
                 r,
             )),
+            Resource::MongoDatabase(db) => Some((
+                ResourcePath::MongoDatabase {
+                    name: db.name.clone(),
+                },
+                r,
+            )),
             Resource::Bucket(bkt) => Some((
                 ResourcePath::Bucket {
                     name: bkt.name.clone(),

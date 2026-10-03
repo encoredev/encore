@@ -602,6 +602,62 @@ func TestParse(t *testing.T) {
 		},
 
 		{
+			Name: "MongoCallStart",
+			Emit: func(l *trace2.Log) {
+				l.MongoCallStart(trace2.MongoCallStartParams{
+					EventParams: ep,
+					Database:    "urls",
+					Collection:  "urls",
+					Operation:   "findOne",
+					Query:       `{"_id":"abc"}`,
+					Stack:       stack.Stack{},
+				})
+			},
+			Want: &tracepb2.TraceEvent{
+				TraceId: pbTraceID,
+				SpanId:  pbSpanID,
+				Event: &tracepb2.TraceEvent_SpanEvent{SpanEvent: &tracepb2.SpanEvent{
+					Goid:   goid,
+					DefLoc: &udefLoc,
+					Data: &tracepb2.SpanEvent_MongoCallStart{
+						MongoCallStart: &tracepb2.MongoCallStart{
+							Database:   "urls",
+							Collection: "urls",
+							Operation:  "findOne",
+							Query:      `{"_id":"abc"}`,
+							Stack:      nil,
+						},
+					},
+				}},
+			},
+		},
+
+		{
+			Name: "MongoCallEnd",
+			Emit: func(l *trace2.Log) {
+				l.MongoCallEnd(trace2.MongoCallEndParams{
+					EventParams: ep,
+					StartID:     1,
+					Err:         err,
+				})
+			},
+			Want: &tracepb2.TraceEvent{
+				TraceId: pbTraceID,
+				SpanId:  pbSpanID,
+				Event: &tracepb2.TraceEvent_SpanEvent{SpanEvent: &tracepb2.SpanEvent{
+					Goid:               goid,
+					DefLoc:             &udefLoc,
+					CorrelationEventId: ptr[uint64](1),
+					Data: &tracepb2.SpanEvent_MongoCallEnd{
+						MongoCallEnd: &tracepb2.MongoCallEnd{
+							Err: pbErr,
+						},
+					},
+				}},
+			},
+		},
+
+		{
 			Name: "LogMessage",
 			Emit: func(l *trace2.Log) {
 				l.LogMessage(trace2.LogMessageParams{

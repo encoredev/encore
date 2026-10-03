@@ -28,6 +28,7 @@ pub mod meta;
 pub mod metadata;
 pub mod metrics;
 pub mod model;
+pub mod mongodb;
 mod names;
 pub mod objects;
 pub mod proccfg;
@@ -210,6 +211,7 @@ pub struct Runtime {
     secrets: secrets::Manager,
     sqldb: sqldb::Manager,
     cache: cache::Manager,
+    mongodb: mongodb::Manager,
     objects: objects::Manager,
     api: api::Manager,
     app_meta: meta::AppMeta,
@@ -395,6 +397,15 @@ impl Runtime {
         .build()
         .context("unable to initialize cache manager")?;
 
+        let mongodb = mongodb::ManagerConfig {
+            clusters: resources.mongo_clusters,
+            creds: &creds,
+            secrets: &secrets,
+            tracer: tracer.clone(),
+        }
+        .build()
+        .context("unable to initialize mongodb manager")?;
+
         // Determine the compute configuration.
         let compute = {
             let mut cfg = ComputeConfig::default();
@@ -460,6 +471,7 @@ impl Runtime {
             secrets,
             sqldb,
             cache,
+            mongodb,
             objects,
             api,
             app_meta,
@@ -491,6 +503,11 @@ impl Runtime {
     #[inline]
     pub fn cache(&self) -> &cache::Manager {
         &self.cache
+    }
+
+    #[inline]
+    pub fn mongodb(&self) -> &mongodb::Manager {
+        &self.mongodb
     }
 
     #[inline]

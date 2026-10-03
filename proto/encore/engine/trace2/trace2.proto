@@ -206,6 +206,9 @@ message SpanEvent {
     BucketListObjectsEnd bucket_list_objects_end = 33;
     BucketDeleteObjectsStart bucket_delete_objects_start = 34;
     BucketDeleteObjectsEnd bucket_delete_objects_end = 35;
+
+    MongoCallStart mongo_call_start = 36;
+    MongoCallEnd mongo_call_end = 37;
   }
 }
 
@@ -348,6 +351,21 @@ message BucketDeleteObjectEntry {
 }
 
 message BucketDeleteObjectsEnd {
+  optional Error err = 1;
+}
+
+message MongoCallStart {
+  // The Encore name of the database.
+  string database = 1;
+  string collection = 2;
+  // The operation, e.g. "insertOne".
+  string operation = 3;
+  // The filter, pipeline or document, as JSON.
+  string query = 4;
+  StackTrace stack = 5;
+}
+
+message MongoCallEnd {
   optional Error err = 1;
 }
 

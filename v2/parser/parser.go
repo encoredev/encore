@@ -145,6 +145,7 @@ var allParsers = []*resourceparser.Parser{
 	crons.JobParser,
 	metrics.MetricParser,
 	mongodb.DatabaseParser,
+	mongodb.NamedParser,
 	pubsub.TopicParser,
 	pubsub.SubscriptionParser,
 	secrets.SecretsParser,

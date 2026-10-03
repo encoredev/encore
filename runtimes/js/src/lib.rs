@@ -9,6 +9,8 @@ mod headers;
 mod log;
 mod meta;
 pub mod metrics;
+mod mongodb;
+mod mongodb_bson;
 mod napi_util;
 pub mod objects;
 pub mod pubsub;

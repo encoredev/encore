@@ -15,7 +15,19 @@ package mongodb
 // in snake_case (lowercase alphanumerics and underscore separated). Once created and deployed never
 // change the database name, or else a new database will be created.
 func NewDatabase(name string, config DatabaseConfig) *Database {
-	// Connecting to MongoDB is not implemented yet; for now only the
-	// declaration exists so that Encore can parse it.
-	return &Database{name: name}
+	return Singleton.GetDB(name)
+}
+
+// constStr is a string that can only be provided as a constant.
+//
+//publicapigen:keep
+type constStr string
+
+// Named returns a reference to the MongoDB database with the given name,
+// declared elsewhere with NewDatabase. Use it to access another service's
+// database without importing that service's package.
+//
+// The name must be a string literal constant, to facilitate static analysis.
+func Named(name constStr) *Database {
+	return Singleton.GetDB(string(name))
 }

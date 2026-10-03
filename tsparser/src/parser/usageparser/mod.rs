@@ -239,6 +239,7 @@ pub enum Usage {
     CallEndpoint(apis::api::CallEndpointUsage),
     Topic(infra::pubsub_topic::TopicUsage),
     AccessDatabase(infra::sqldb::AccessDatabaseUsage),
+    AccessMongoDatabase(infra::mongodb::AccessMongoDatabaseUsage),
     Bucket(infra::objects::BucketUsage),
     Metric(infra::metrics::MetricUsage),
     CacheCluster(infra::cache::CacheClusterUsage),
@@ -282,6 +283,11 @@ impl UsageResolver<'_> {
                 }
                 Resource::SQLDatabase(db) => {
                     if let Some(u) = infra::sqldb::resolve_database_usage(&data, db.clone()) {
+                        usages.push(u)
+                    }
+                }
+                Resource::MongoDatabase(db) => {
+                    if let Some(u) = infra::mongodb::resolve_database_usage(&data, db.clone()) {
                         usages.push(u)
                     }
                 }
