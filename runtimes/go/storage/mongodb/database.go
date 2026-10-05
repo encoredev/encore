@@ -159,7 +159,7 @@ func (db *Database) WithTransaction(ctx context.Context, fn func(ctx context.Con
 		return nil, fn(ctx)
 	})
 	end(err)
-	return err
+	return convertErr(err)
 }
 
 // Driver returns the underlying MongoDB driver database,
