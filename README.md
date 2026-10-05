@@ -69,7 +69,8 @@ Encore provisions every resource with sane production defaults, then helps you m
 | ---------- | ------------------------------------------------ |
 | TypeScript | [encore.dev/docs/ts](https://encore.dev/docs/ts) |
 | Go         | [encore.dev/docs/go](https://encore.dev/docs/go) |
-| Python     | Coming soon                                      |
+| Python     | Coming soon. [Sign up for early access](https://encore.dev/py)                                      |
+| Rust       | Coming soon. [Sign up for early access](https://encore.dev/rs)                                      |
 
 ## The Development Workflow
 
