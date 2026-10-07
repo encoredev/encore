@@ -1,0 +1,30 @@
+-- svc/svc.go --
+// Package svc reads two secrets.
+package svc // the service
+
+import "context"
+
+var secrets struct {
+	APIKey   string
+	Password string
+}
+
+//encore:api
+func API(context.Context) error { return nil }
+
+func key() string { return secrets.APIKey }
+-- want:svc/svc.go --
+// Package svc reads two secrets.
+package svc;import __encore_secrets "encore.dev/appruntime/infrasdk/secrets";/*line :2:12*/ // the service
+
+import "context"
+
+var secrets = struct {
+	APIKey   string
+	Password string
+}{APIKey: __encore_secrets.Load("APIKey", "svc"), Password: __encore_secrets.Load("Password", "svc")}/*line :9:2*/
+
+//encore:api
+func API(context.Context) error { return nil }
+
+func key() string { return secrets.APIKey }
