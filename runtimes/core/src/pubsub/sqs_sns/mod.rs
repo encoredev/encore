@@ -82,11 +82,14 @@ impl LazyClient {
             .operation_attempt_timeout(OPERATION_ATTEMPT_TIMEOUT)
             .build();
 
-        aws_config::defaults(aws_config::BehaviorVersion::latest())
+        // Keep the pinned behavior version; newer ones change retry and timeout defaults.
+        #[allow(deprecated)]
+        let config = aws_config::defaults(aws_config::BehaviorVersion::v2025_08_07())
             .region(provider)
             .timeout_config(timeout_config)
             .load()
-            .await
+            .await;
+        config
     }
 
     async fn get_sns(&self) -> &aws_sdk_sns::Client {

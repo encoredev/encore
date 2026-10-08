@@ -78,14 +78,14 @@ fn production_install_failure_is_reported() {
 }
 
 struct PrepareCase {
-    root: tempdir::TempDir,
-    bin: tempdir::TempDir,
+    root: tempfile::TempDir,
+    bin: tempfile::TempDir,
     yarn_version: String,
 }
 impl PrepareCase {
     fn new(manager: &str, yarn_version: &str, existing: bool) -> Self {
-        let root = tempdir::TempDir::new("prepare-app").unwrap();
-        let bin = tempdir::TempDir::new("prepare-bin").unwrap();
+        let root = tempfile::TempDir::with_prefix("prepare-app").unwrap();
+        let bin = tempfile::TempDir::with_prefix("prepare-bin").unwrap();
         std::fs::write(
             root.path().join("package.json"),
             serde_json::json!({

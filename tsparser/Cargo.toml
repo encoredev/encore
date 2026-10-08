@@ -41,7 +41,7 @@ txtar = { version = "1.0.0", path = "./txtar" }
 litparser = { version = "0.1.0", path = "./litparser" }
 litparser-derive = { version = "0.1.0", path = "./litparser-derive" }
 prost = "0.12.1"
-tempdir = "0.3.7"
+tempfile = "3.27.0"
 cron-parser = "0.8.0"
 chrono = "0.4.31"
 regex = "1.9.5"

@@ -61,7 +61,7 @@ impl WebSocketClient {
         let msg = String::from_utf8(msg).map_err(super::Error::internal)?;
 
         self.send_channel
-            .send(Message::Text(msg))
+            .send(Message::Text(msg.into()))
             .map_err(super::Error::internal)?;
 
         Ok(())
@@ -73,7 +73,7 @@ impl WebSocketClient {
 
             let bytes: bytes::Bytes = match msg {
                 Some(Message::Text(msg)) => msg.into(),
-                Some(Message::Binary(vec)) => vec.into(),
+                Some(Message::Binary(bytes)) => bytes,
                 Some(_msg) => continue,
                 None => return None,
             };
