@@ -134,7 +134,7 @@ func (g *Generator) addRPC(rpc *meta.RPC) error {
 		}
 	}
 
-	g.spec.Paths[rpcPath(rpc)] = item
+	g.spec.Paths.Set(rpcPath(rpc), item)
 	return nil
 }
 
@@ -152,11 +152,11 @@ func (g *Generator) rpcTags(rpc *meta.RPC) []string {
 
 func (g *Generator) getOrCreatePath(rpc *meta.RPC) *openapi3.PathItem {
 	path := rpcPath(rpc)
-	if existing, ok := g.spec.Paths[path]; ok {
+	if existing := g.spec.Paths.Value(path); existing != nil {
 		return existing
 	}
 	item := &openapi3.PathItem{}
-	g.spec.Paths[path] = item
+	g.spec.Paths.Set(path, item)
 	return item
 }
 
@@ -169,7 +169,7 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 		Summary:     summary,
 		Description: desc,
 		OperationID: method + ":" + rpc.ServiceName + "." + rpc.Name,
-		Responses:   make(openapi3.Responses),
+		Responses:   openapi3.NewResponses(),
 	}
 
 	if g.opts.OpenAPIEmitTags {
@@ -286,12 +286,12 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 			}
 		}
 
-		op.Responses["200"] = &openapi3.ResponseRef{
+		op.Responses.Set("200", &openapi3.ResponseRef{
 			Value: resp,
-		}
-		op.Responses["default"] = &openapi3.ResponseRef{
+		})
+		op.Responses.Set("default", &openapi3.ResponseRef{
 			Ref: "#/components/responses/APIError",
-		}
+		})
 	}
 
 	return op, nil
@@ -362,7 +362,7 @@ func newSpec(appSlug string) *openapi3.T {
 			},
 		},
 		OpenAPI: "3.0.0",
-		Paths:   make(openapi3.Paths),
+		Paths:   openapi3.NewPaths(),
 	}
 
 	// Add the local platform server:
@@ -379,7 +379,7 @@ func newSpec(appSlug string) *openapi3.T {
 				"application/json": &openapi3.MediaType{
 					Schema: &openapi3.SchemaRef{
 						Value: &openapi3.Schema{
-							Type:  openapi3.TypeObject,
+							Type:  &openapi3.Types{openapi3.TypeObject},
 							Title: "APIError",
 							ExternalDocs: &openapi3.ExternalDocs{
 								URL: "https://pkg.go.dev/encore.dev/beta/errs#Error",
@@ -389,7 +389,7 @@ func newSpec(appSlug string) *openapi3.T {
 									Value: &openapi3.Schema{
 										Description: "Error code",
 										Example:     "not_found",
-										Type:        openapi3.TypeString,
+										Type:        &openapi3.Types{openapi3.TypeString},
 										ExternalDocs: &openapi3.ExternalDocs{
 											URL: "https://pkg.go.dev/encore.dev/beta/errs#ErrCode",
 										},
@@ -398,13 +398,13 @@ func newSpec(appSlug string) *openapi3.T {
 								"message": {
 									Value: &openapi3.Schema{
 										Description: "Error message",
-										Type:        openapi3.TypeString,
+										Type:        &openapi3.Types{openapi3.TypeString},
 									},
 								},
 								"details": {
 									Value: &openapi3.Schema{
 										Description: "Error details",
-										Type:        openapi3.TypeObject,
+										Type:        &openapi3.Types{openapi3.TypeObject},
 									},
 								},
 							},
