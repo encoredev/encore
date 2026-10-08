@@ -9,7 +9,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -632,15 +631,6 @@ type langSelectDone = cmdutil.SimpleSelectDone[cmdutil.Language]
 
 type loadedTemplates []templateItem
 
-var defaultTutorials = []templateItem{
-	{
-		ItemTitle: "Intro to Encore.ts",
-		Desc:      "An interactive tutorial",
-		Template:  "ts/introduction",
-		Lang:      "ts",
-	},
-}
-
 var defaultTemplates = []templateItem{
 	{
 		ItemTitle: "Hello World",
@@ -724,20 +714,7 @@ func fetchTemplates(url string, defaults []templateItem) []templateItem {
 }
 
 func loadTemplates() tea.Msg {
-	var wg sync.WaitGroup
-	var templates, tutorials []templateItem
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		templates = fetchTemplates("https://raw.githubusercontent.com/encoredev/examples/main/cli-templates.json", defaultTemplates)
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		tutorials = fetchTemplates("https://raw.githubusercontent.com/encoredev/examples/main/cli-tutorials.json", defaultTutorials)
-	}()
-	wg.Wait()
-	return loadedTemplates(append(tutorials, templates...))
+	return loadedTemplates(fetchTemplates("https://raw.githubusercontent.com/encoredev/examples/main/cli-templates.json", defaultTemplates))
 }
 
 // incrementalValidateNameInput is like validateName but only
