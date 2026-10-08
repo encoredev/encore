@@ -51,6 +51,8 @@ impl LazyS3Client {
         self.cell
             .get_or_init(|| async {
                 let region = aws_config::Region::new(self.cfg.region.clone());
+                // Keep the pinned behavior version; newer ones change retry and timeout defaults.
+                #[allow(deprecated)]
                 let mut builder =
                     aws_config::defaults(aws_config::BehaviorVersion::v2025_08_07()).region(region);
                 if let Some(endpoint) = self.cfg.endpoint.as_ref() {

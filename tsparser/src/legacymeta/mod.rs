@@ -1106,7 +1106,7 @@ fn new_meta() -> v1::Data {
 mod tests {
     use swc_common::errors::{Handler, HANDLER};
     use swc_common::{Globals, SourceMap, GLOBALS};
-    use tempdir::TempDir;
+    use tempfile::TempDir;
 
     use crate::parser::parser::Parser;
     use crate::parser::resourceparser::PassOneParser;
@@ -1162,7 +1162,7 @@ import { Bar } from './bar.ts';
 -- bar.ts --
 export const Bar = 5;
         "#;
-        let tmp_dir = TempDir::new("tsparser-test")?;
+        let tmp_dir = TempDir::with_prefix("tsparser-test")?;
         let meta = parse(tmp_dir.path(), src)?;
         assert_eq!(meta.svcs.len(), 0);
         Ok(())
@@ -1221,7 +1221,7 @@ export const uniqueScores = new NumberSetKeyspace<string>(cluster, {
 -- package.json --
 { "name": "test", "type": "module", "dependencies": { "encore.dev": "^1.35.0" } }
         "#;
-        let tmp_dir = TempDir::new("tsparser-cache-test")?;
+        let tmp_dir = TempDir::with_prefix("tsparser-cache-test")?;
         let meta = parse(tmp_dir.path(), src)?;
 
         // Should have exactly one cache cluster
@@ -1296,7 +1296,7 @@ export const tags = new StringSetKeyspace<string>(cluster, {
 -- package.json --
 { "name": "test", "type": "module", "dependencies": { "encore.dev": "^1.35.0" } }
         "#;
-        let tmp_dir = TempDir::new("tsparser-cache-named-test")?;
+        let tmp_dir = TempDir::with_prefix("tsparser-cache-named-test")?;
         let meta = parse(tmp_dir.path(), src)?;
 
         assert_eq!(meta.cache_clusters.len(), 1, "expected 1 cache cluster");

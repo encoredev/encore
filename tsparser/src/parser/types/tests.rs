@@ -13,7 +13,7 @@ use itertools::Itertools;
 use object::Reexport;
 use swc_common::errors::{Handler, HANDLER};
 use swc_common::{Globals, SourceMap, GLOBALS};
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 #[test]
 fn resolve_types() {
@@ -34,7 +34,7 @@ fn resolve_types() {
             HANDLER.set(&errs, || {
                 let input = fs::read_to_string(path).unwrap();
                 let ar = txtar::from_str(&input);
-                let tmp_dir = TempDir::new("tsparser-test").unwrap();
+                let tmp_dir = TempDir::with_prefix("tsparser-test").unwrap();
                 ar.materialize(&tmp_dir).unwrap();
 
                 let resolver =

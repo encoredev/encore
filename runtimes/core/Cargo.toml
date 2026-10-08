@@ -35,8 +35,9 @@ tokio-postgres = { version = "0.7.13", features = [
 ] }
 cidr = "0.3.1"
 tokio-util = "0.7.10"
-tokio-tungstenite = { version = "0.21.0", features = [
+tokio-tungstenite = { version = "0.30.0", features = [
     "rustls-tls-native-roots",
+    "url",
 ] }
 futures-util = "0.3.31"
 rand = "0.8.5"
@@ -89,9 +90,22 @@ uuid = "1.7.0"
 openssl-probe = "0.1.5"
 jsonwebtoken = "9.2.0"
 google-cloud-gax = "0.17.0"
-aws-sdk-sns = "1.20.0"
-aws-config = "1.1.10"
-aws-sdk-sqs = "1.19.0"
+# The AWS crates have default features disabled to avoid pulling in the
+# `aws-lc-rs` crypto backend (via `default-https-client`); see the comment on
+# google-cloud-monitoring-v3 below.
+aws-sdk-sns = { version = "1.90.0", default-features = false, features = [
+    "rt-tokio",
+    "rustls",
+] }
+aws-config = { version = "1.8.8", default-features = false, features = [
+    "rt-tokio",
+    "credentials-process",
+    "sso",
+] }
+aws-sdk-sqs = { version = "1.89.0", default-features = false, features = [
+    "rt-tokio",
+    "rustls",
+] }
 tokio-retry = "0.3.0"
 rsa = { version = "0.9.6", features = ["pem"] }
 flate2 = "1.0.30"
@@ -119,7 +133,11 @@ tracing-subscriber = { version = "0.3.18", features = [
 thiserror = "1.0.64"
 async-stream = "0.3.6"
 md5 = "0.7.0"
-aws-sdk-s3 = "1.58.0"
+aws-sdk-s3 = { version = "1.112.0", default-features = false, features = [
+    "sigv4a",
+    "rt-tokio",
+    "rustls",
+] }
 aws-smithy-types = { version = "1.2.8", features = [
     "byte-stream-poll-next",
     "rt-tokio",
@@ -143,7 +161,7 @@ google-cloud-wkt = "1.0.0"
 google-cloud-secretmanager-v1 = { version = "1.10.0", default-features = false }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 sysinfo = "0.37.2"
-aws-sdk-cloudwatch = { version = "1.94.0", default-features = false, features = [
+aws-sdk-cloudwatch = { version = "1.97.0", default-features = false, features = [
     "behavior-version-latest",
     "rt-tokio",
     "rustls",
