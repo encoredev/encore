@@ -129,6 +129,14 @@ Install Encore:
 
 Full walkthrough in the [Quickstart guide](https://encore.dev/docs/ts/quick-start).
 
+### For Contributors
+
+If you're contributing to Encore, set the `GOPROXY` environment variable to ensure dependencies are fetched through the Aikido security proxy:
+
+```bash
+export GOPROXY=https://go.aikido.io/270ce580f701dc62a3db4,https://proxy.golang.org,direct
+```
+
 ## AI Integration
 
 Encore is built for AI-assisted development. When you run `encore app create`, you can pick your AI tool (Cursor, Claude Code, etc.) and Encore generates the right rules files for it, plus configures an [MCP server](https://encore.dev/docs/ts/cli/mcp) that lets agents introspect your app: services, APIs, databases, traces. Combined with the fast local-to-preview-env iteration loop above, agents can validate their own changes end-to-end against real infrastructure instead of guessing.

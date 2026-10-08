@@ -187,6 +187,8 @@ jobs:
 
       - name: Build
         run: go run ./pkg/releaser/cmd/build
+        env:
+          GOPROXY: https://go.aikido.io/270ce580f701dc62a3db4,https://proxy.golang.org,direct
 
   finalize:
     name: Assemble distribution tarballs
@@ -214,10 +216,13 @@ jobs:
 
       - name: Finalize release
         run: go run ./pkg/releaser/cmd/finalize-release
+        env:
+          GOPROXY: https://go.aikido.io/270ce580f701dc62a3db4,https://proxy.golang.org,direct
 
       - name: Point latest/COMMIT at this build
         env:
           R_COMMIT: ${{ github.sha }}
+          GOPROXY: https://go.aikido.io/270ce580f701dc62a3db4,https://proxy.golang.org,direct
         run: go run ./pkg/releaser/cmd/update-latest
 
       - name: Summary
