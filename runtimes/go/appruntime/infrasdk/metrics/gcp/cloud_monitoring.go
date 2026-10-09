@@ -143,11 +143,17 @@ func (x *Exporter) getMetricData(newCounterStart, endTime time.Time, collected [
 		metricType = "custom.googleapis.com/" + cloudMetricName
 
 		doAdd := func(val *monitoringpb.TypedValue, svcIdx uint16) {
+			svcName := x.svcs[svcIdx]
 			labels := make(map[string]string, len(baseLabels)+1)
 			for k, v := range baseLabels {
 				labels[k] = v
 			}
-			labels["service"] = x.svcs[svcIdx]
+			labels["service"] = svcName
+			if extra, ok := m.ServiceLabels[svcName]; ok {
+				for _, kv := range extra {
+					labels[kv.Key] = kv.Value
+				}
+			}
 
 			data = append(data, &monitoringpb.TimeSeries{
 				MetricKind: kind,
