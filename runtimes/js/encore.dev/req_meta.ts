@@ -81,6 +81,14 @@ export interface APICallMeta {
    * Contains values set in middlewares via `MiddlewareRequest.data`.
    */
   middlewareData?: Record<string, any>;
+
+  /**
+   * The name of the service that made the API call, for
+   * service-to-service calls. Not set when the request comes from
+   * outside the application (e.g. through an API gateway) or when
+   * the caller is unknown.
+   */
+  callerService?: string;
 }
 
 /** Describes a Pub/Sub message being processed. */
@@ -184,7 +192,8 @@ export function currentRequest(): RequestMeta | undefined {
       pathParams: meta.apiCall.pathParams ?? {},
       parsedPayload: meta.apiCall.parsedPayload,
       headers: meta.apiCall.headers,
-      middlewareData: (req as any).middlewareData
+      middlewareData: (req as any).middlewareData,
+      callerService: meta.apiCall.callerService
     };
     return { ...base, ...api };
   } else if (meta.pubsubMessage) {

@@ -10,6 +10,14 @@ checkresp '{"Path": "/svc.CurrentRequest", "IdempotencyKey": "foo"}'
 call GET X-Encore-Cron-Execution=foo /svc.CurrentRequest '' no-platform-auth
 checkresp '{"Path": "/svc.CurrentRequest", "IdempotencyKey": ""}'
 
+# Requests from outside the application have no caller service
+call GET /svc.WhoCalled ''
+checkresp '{"CallerService": ""}'
+
+# Service-to-service calls report the name of the calling service
+call GET /svc2.CallWho ''
+checkresp '{"CallerService": "svc2"}'
+
 
 -- svc/svc.go --
 package svc
@@ -43,6 +51,17 @@ func CurrentRequest(ctx context.Context) (*RequestData, error) {
     }, nil
 }
 
+type CallerData struct {
+    CallerService string
+}
+
+//encore:api public
+func WhoCalled(ctx context.Context) (*CallerData, error) {
+    return &CallerData{
+        CallerService: encore.CurrentRequest().CallerService,
+    }, nil
+}
+
 var topic = pubsub.NewTopic[*Event]("topic", pubsub.TopicConfig{
     DeliveryGuarantee: pubsub.AtLeastOnce,
 })
@@ -57,3 +76,17 @@ var _ = pubsub.NewSubscription(topic, "sub", pubsub.SubscriptionConfig[*Event]{
         return nil
     },
 })
+
+-- svc2/svc2.go --
+package svc2
+
+import (
+    "context"
+
+    "test/svc"
+)
+
+//encore:api public
+func CallWho(ctx context.Context) (*svc.CallerData, error) {
+    return svc.WhoCalled(ctx)
+}
