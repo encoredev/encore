@@ -56,6 +56,17 @@ func init() {
 	llmRulesToolFlag.AddFlag(llmRules)
 }
 
+// RunInit runs the interactive LLM rules initialization flow.
+// It can be called from other commands (e.g. "encore run") to prompt the user.
+func RunInit() error {
+	var tool Tool
+	cfg, err := userconfig.Global().Get()
+	if err == nil {
+		tool = Tool(cfg.LLMRules)
+	}
+	return initLLMRules(tool)
+}
+
 func initLLMRules(tool Tool) error {
 	if tool == "" {
 		var llmRulesModel ToolSelectModel
