@@ -94,9 +94,9 @@ export namespace svc {
         /**
          * DummyAPI is a dummy endpoint.
          */
-        public async DummyAPI(): Promise<Response> {
+        public async DummyAPI(options?: CallParameters): Promise<Response> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/svc.DummyAPI`)
+            const resp = await this.baseClient.callTypedAPI("POST", `/svc.DummyAPI`, undefined, options)
             return await resp.json() as Response
         }
     }
