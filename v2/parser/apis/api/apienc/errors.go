@@ -64,7 +64,8 @@ var (
 	errInvalidHeaderType = errRange.Newf(
 		"Invalid request type",
 		"API request parameters of type %s are not supported in headers. You can only "+
-			"use built-in types types such as strings, booleans, int, time.Time.",
+			"use built-in types, named types based on built-in types, or slices of those types "+
+			"such as strings, booleans, int, time.Time.",
 
 		errors.WithDetails("See https://encore.dev/docs/develop/api-schemas#supported-types for more information."),
 	)
@@ -72,7 +73,8 @@ var (
 	errInvalidQueryStringType = errRange.Newf(
 		"Invalid request type",
 		"API request parameters of type %s are not supported in query strings. You can only "+
-			"use built-in types, or slices of built-in types such as strings, booleans, int, time.Time.",
+			"use built-in types, named types based on built-in types, or slices of those types "+
+			"such as strings, booleans, int, time.Time.",
 
 		errors.WithDetails("APIs which are sent as GET, HEAD or DELETE requests are unable to contain JSON bodies, "+
 			"thus all parameters must be sent as query strings or headers. "+
