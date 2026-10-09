@@ -92,12 +92,15 @@ jsonwebtoken = "9.2.0"
 google-cloud-gax = "0.17.0"
 # The AWS crates have default features disabled to avoid pulling in the
 # `aws-lc-rs` crypto backend (via `default-https-client`); see the comment on
-# google-cloud-monitoring-v3 below.
+# google-cloud-monitoring-v3 below. They use the hyper 0.14 + rustls/ring HTTP
+# client instead: `rustls` on the SDK crates and `legacy-client` on aws-config,
+# which has no HTTP client without one of its client features.
 aws-sdk-sns = { version = "1.90.0", default-features = false, features = [
     "rt-tokio",
     "rustls",
 ] }
-aws-config = { version = "1.8.8", default-features = false, features = [
+aws-config = { version = "1.11.0", default-features = false, features = [
+    "legacy-client",
     "rt-tokio",
     "credentials-process",
     "sso",
