@@ -13,6 +13,7 @@ fn production_install_commands() {
         ("npm", "", "install\n--omit=dev\n"),
         ("pnpm", "", "install\n--prod\n"),
         ("bun", "", "install\n--backend\ncopyfile\n--omit\ndev\n"),
+        ("deno", "", "install\n--prod\n"),
         ("yarn", "1.22.22", "install\n--production=true\n"),
         ("yarn", "4.6.0", "workspaces\nfocus\n--all\n--production\n"),
     ] {
@@ -32,7 +33,7 @@ fn production_install_commands() {
 
 #[test]
 fn default_install_keeps_development_behavior() {
-    for manager in ["npm", "pnpm", "bun", "yarn"] {
+    for manager in ["npm", "pnpm", "bun", "yarn", "deno"] {
         for mode in [None, Some("all")] {
             for existing in [false, true] {
                 let case = PrepareCase::new(manager, "4.6.0", existing);

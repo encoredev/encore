@@ -112,6 +112,9 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
                 let mut command = match p.nodejs_runtime {
                     NodeJSRuntime::NodeJS => vec!["node".into(), "--enable-source-maps".into()],
                     NodeJSRuntime::Bun => vec!["bun".into(), "run".into()],
+                    // Deno sandboxes by default. Node and Bun run with full access,
+                    // and the runtime's native module needs FFI, so allow everything.
+                    NodeJSRuntime::Deno => vec!["deno".into(), "run".into(), "--allow-all".into()],
                 };
 
                 match p.debug {

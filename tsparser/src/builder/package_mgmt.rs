@@ -127,6 +127,10 @@ pub(super) fn resolve_package_manager(
             pkg_json: package_json,
             dir: package_dir.to_path_buf(),
         })),
+        "deno" => Ok(Box::new(DenoPackageManager {
+            pkg_json: package_json,
+            dir: package_dir.to_path_buf(),
+        })),
         _ => Err(PrepareError::UnsupportedPackageManagerError(
             package_manager.to_string(),
         )),
@@ -440,6 +444,52 @@ impl PackageManager for PnpmPackageManager {
 
     fn mgr_name(&self) -> &'static str {
         "pnpm"
+    }
+}
+
+struct DenoPackageManager {
+    pkg_json: PackageJson,
+    dir: PathBuf,
+}
+
+impl PackageManager for DenoPackageManager {
+    fn setup_deps(
+        &self,
+        encore_dev_version: &PackageVersion,
+        mode: InstallMode,
+    ) -> Result<(), PrepareError> {
+        // Install `encore.dev` if necessary
+        let installed = self.pkg_json.dependencies.get("encore.dev");
+        let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
+            encore_dev_version.is_installed(v, &self.dir)
+        });
+
+        // First ensure the package.json file is up to date.
+        let modified = update_package_json(&self.dir, v, encore_dev_version)?;
+
+        // Production installs always run; an existing tree may contain dev dependencies.
+        if mode == InstallMode::Production || modified || !self.dir.join("node_modules").exists() {
+            let mut command = vec!["deno", "install"];
+            match mode {
+                InstallMode::All => {}
+                InstallMode::Production => command.push("--prod"),
+            }
+            run_install(&self.dir, &command)?;
+        }
+        Ok(())
+    }
+
+    fn run_tests(&self) -> CmdSpec {
+        CmdSpec {
+            // No '--': deno task passes it through to the script, unlike npm and bun.
+            command: vec!["deno".to_string(), "task".to_string(), "test".to_string()],
+            env: vec![],
+            prioritized_files: vec![],
+        }
+    }
+
+    fn mgr_name(&self) -> &'static str {
+        "deno"
     }
 }
 

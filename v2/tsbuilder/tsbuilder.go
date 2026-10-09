@@ -221,8 +221,15 @@ func (i *BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*bu
 	data := p.Parse.Data.(*data)
 
 	nodejsRuntime := NodeJS
-	if experiments.BunRuntime.Enabled(p.Experiments) {
+	bun := experiments.BunRuntime.Enabled(p.Experiments)
+	deno := experiments.DenoRuntime.Enabled(p.Experiments)
+	switch {
+	case bun && deno:
+		return nil, fmt.Errorf("the %s and %s experiments cannot both be enabled", experiments.BunRuntime, experiments.DenoRuntime)
+	case bun:
 		nodejsRuntime = Bun
+	case deno:
+		nodejsRuntime = Deno
 	}
 
 	input, _ := json.Marshal(compileInput{
@@ -372,6 +379,7 @@ type NodeJSRuntime string
 const (
 	NodeJS NodeJSRuntime = "nodejs"
 	Bun    NodeJSRuntime = "bun"
+	Deno   NodeJSRuntime = "deno"
 )
 
 type prepareInput struct {
