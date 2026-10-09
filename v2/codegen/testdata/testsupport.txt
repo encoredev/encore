@@ -8,7 +8,7 @@ import "strings"
 func Title(s string) string { return strings.ToUpper(s) }
 -- want:textutil/textutil.go --
 // Package textutil formats names.
-package textutil;import _ "encore.dev/appruntime/shared/testsupport";/*line :2:17*/
+package textutil;import _ "encore.dev/appruntime/shared/testsupport"/*line :2:17*/
 
 import "strings"
 
