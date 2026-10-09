@@ -619,6 +619,8 @@ fn write_gen_encore_dir(app_root: &Path, files: &[CodegenFile]) -> Result<(), Pr
         }
 
         let file_path = base_dir.join(&f.path);
+        clear_path_conflicts(&base_dir, &f.path).map_err(PrepareError::GenerateCode)?;
+
         // Create the parent of the file, if needed
         if let Some(parent) = file_path.parent() {
             DirBuilder::new()
@@ -639,10 +641,36 @@ fn write_gen_encore_dir(app_root: &Path, files: &[CodegenFile]) -> Result<(), Pr
     // entrypoints and clients of a service that has since been deleted. Otherwise they
     // keep importing modules that no longer exist and break type checking.
     // This runs after writing so the current files are never missing, even briefly.
-    if base_dir.exists() {
+    // It is skipped if encore.gen is a symlink, so cleanup never deletes files outside
+    // the app through a linked directory.
+    let is_real_dir = fs::symlink_metadata(&base_dir).is_ok_and(|m| m.is_dir());
+    if is_real_dir {
         remove_stale_files(&base_dir, &written).map_err(PrepareError::GenerateCode)?;
     }
 
+    Ok(())
+}
+
+/// Removes entries left by earlier runs that would block writing rel_path under base_dir:
+/// a file where one of its parent directories should be, or a directory where the file
+/// itself should be. This can happen when the generated layout changes between versions.
+fn clear_path_conflicts(base_dir: &Path, rel_path: &Path) -> io::Result<()> {
+    let mut path = base_dir.to_path_buf();
+    let mut components = rel_path.components().peekable();
+    while let Some(component) = components.next() {
+        path.push(component);
+        let Ok(meta) = fs::symlink_metadata(&path) else {
+            // Nothing exists here, so nothing below it can conflict either.
+            return Ok(());
+        };
+        let is_last = components.peek().is_none();
+        if is_last && meta.is_dir() {
+            fs::remove_dir_all(&path)?;
+        } else if !is_last && !meta.is_dir() {
+            fs::remove_file(&path)?;
+            return Ok(());
+        }
+    }
     Ok(())
 }
 
@@ -760,6 +788,48 @@ mod tests {
             .is_file());
         assert!(!gen.join("internal/clients/deleted").exists());
         assert!(!gen.join("internal/entrypoints/services/deleted").exists());
+    }
+
+    #[test]
+    fn test_write_gen_encore_dir_replaces_dir_with_file() {
+        let tmp = TempDir::new().unwrap();
+        write_gen_encore_dir(tmp.path(), &[gen_file("internal/clients/svc/main.ts")]).unwrap();
+
+        // The next run generates a file where the previous run had a directory.
+        write_gen_encore_dir(tmp.path(), &[gen_file("internal/clients/svc")]).unwrap();
+
+        let path = tmp.path().join("encore.gen/internal/clients/svc");
+        assert!(path.is_file());
+    }
+
+    #[test]
+    fn test_write_gen_encore_dir_replaces_file_with_dir() {
+        let tmp = TempDir::new().unwrap();
+        write_gen_encore_dir(tmp.path(), &[gen_file("internal/clients/svc")]).unwrap();
+
+        // The next run generates a file inside what the previous run wrote as a file.
+        write_gen_encore_dir(tmp.path(), &[gen_file("internal/clients/svc/main.ts")]).unwrap();
+
+        let path = tmp.path().join("encore.gen/internal/clients/svc/main.ts");
+        assert!(path.is_file());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_write_gen_encore_dir_keeps_files_behind_symlink() {
+        let tmp = TempDir::new().unwrap();
+        let target = tmp.path().join("shared");
+        fs::create_dir_all(&target).unwrap();
+        fs::write(target.join("unrelated.txt"), "keep me").unwrap();
+
+        let app_root = tmp.path().join("app");
+        fs::create_dir_all(&app_root).unwrap();
+        std::os::unix::fs::symlink(&target, app_root.join("encore.gen")).unwrap();
+
+        write_gen_encore_dir(&app_root, &[gen_file("clients/index.d.ts")]).unwrap();
+
+        assert!(target.join("clients/index.d.ts").is_file());
+        assert!(target.join("unrelated.txt").is_file());
     }
 
     #[test]
