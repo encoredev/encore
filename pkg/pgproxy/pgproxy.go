@@ -1,20 +1,21 @@
 package pgproxy
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"crypto/tls"
-	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"slices"
 	"sync"
 	"time"
 
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgproto3/v2"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -53,7 +54,15 @@ type SingleBackendProxy struct {
 	gotBackend chan struct{} // closed when first connection is received
 
 	mu      sync.Mutex
-	keyData map[pgproto3.BackendKeyData]LogicalConn
+	keyData map[backendKey]LogicalConn
+}
+
+// backendKey identifies a backend connection for routing cancel requests.
+// It mirrors pgproto3.BackendKeyData, which is not comparable since the
+// secret key is variable-length as of protocol version 3.2.
+type backendKey struct {
+	processID uint32
+	secretKey string
 }
 
 type DatabaseNotFoundError struct {
@@ -141,15 +150,16 @@ func (p *SingleBackendProxy) doRunProxy(ctx context.Context, cl *Client) error {
 	startup := cl.Hello.(*StartupData)
 	server, err := p.DialBackend(ctx, startup)
 	if err != nil {
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		cl.Backend.Send(&pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Message:  err.Error(),
 		})
+		_ = cl.Backend.Flush()
 		return err
 	}
 	defer fns.CloseIgnore(server)
 
-	fe := pgproto3.NewFrontend(pgproto3.NewChunkReader(server), server)
+	fe := pgproto3.NewFrontend(server, server)
 	log.Trace().Msg("successfully setup server connection")
 
 	err = AuthenticateClient(cl.Backend)
@@ -168,9 +178,9 @@ func (p *SingleBackendProxy) doRunProxy(ctx context.Context, cl *Client) error {
 	if key != nil {
 		p.mu.Lock()
 		if p.keyData == nil {
-			p.keyData = make(map[pgproto3.BackendKeyData]LogicalConn)
+			p.keyData = make(map[backendKey]LogicalConn)
 		}
-		p.keyData[*key] = server
+		p.keyData[backendKey{processID: key.ProcessID, secretKey: string(key.SecretKey)}] = server
 		p.mu.Unlock()
 	}
 
@@ -200,7 +210,8 @@ func SetupServer(server net.Conn, cfg *ServerConfig) (*pgproto3.Frontend, error)
 	raw.Parameters["user"] = cfg.Startup.Username
 
 	log.Trace().Msg("sending startup message to server")
-	if err := fe.Send(raw); err != nil {
+	fe.Send(raw)
+	if err := fe.Flush(); err != nil {
 		return nil, fmt.Errorf("unable to send startup message: %v", err)
 	}
 
@@ -228,15 +239,15 @@ func SetupServer(server net.Conn, cfg *ServerConfig) (*pgproto3.Frontend, error)
 				return fe, nil
 
 			case *pgproto3.AuthenticationCleartextPassword:
-				err := fe.Send(&pgproto3.PasswordMessage{Password: cfg.Startup.Password})
-				if err != nil {
+				fe.Send(&pgproto3.PasswordMessage{Password: cfg.Startup.Password})
+				if err := fe.Flush(); err != nil {
 					return nil, err
 				}
 
 			case *pgproto3.AuthenticationMD5Password:
 				password := computeMD5(cfg.Startup.Username, cfg.Startup.Password, msg.Salt)
-				err := fe.Send(&pgproto3.PasswordMessage{Password: password})
-				if err != nil {
+				fe.Send(&pgproto3.PasswordMessage{Password: password})
+				if err := fe.Flush(); err != nil {
 					return nil, err
 				}
 
@@ -256,19 +267,22 @@ func SetupServer(server net.Conn, cfg *ServerConfig) (*pgproto3.Frontend, error)
 }
 
 func serverTLSNegotiate(server net.Conn, tlsConfig *tls.Config) (*pgproto3.Frontend, error) {
-	cr := pgproto3.NewChunkReader(server)
-	frontend := pgproto3.NewFrontend(cr, server)
 	if tlsConfig == nil {
-		return frontend, nil
+		return pgproto3.NewFrontend(server, server), nil
 	}
 
 	log.Trace().Msg("negotiating tls with server")
-	if err := frontend.Send(&pgproto3.SSLRequest{}); err != nil {
+	sslRequest, err := (&pgproto3.SSLRequest{}).Encode(nil)
+	if err != nil {
 		return nil, err
 	}
-	// Read the TLS response.
-	resp, err := cr.Next(1)
-	if err != nil {
+	if _, err := server.Write(sslRequest); err != nil {
+		return nil, err
+	}
+	// Read the TLS response. Read exactly one byte, without buffering,
+	// since the TLS handshake follows directly on the same connection.
+	resp := make([]byte, 1)
+	if _, err := io.ReadFull(server, resp); err != nil {
 		return nil, err
 	}
 	switch resp[0] {
@@ -283,24 +297,21 @@ func serverTLSNegotiate(server net.Conn, tlsConfig *tls.Config) (*pgproto3.Front
 		log.Trace().Msg("completed server tls handshake")
 
 		// Return a new backend that wraps the tls conn.
-		return pgproto3.NewFrontend(pgproto3.NewChunkReader(tlsConn), tlsConn), nil
+		return pgproto3.NewFrontend(tlsConn, tlsConn), nil
 	case 'N':
 		log.Trace().Msg("server rejected tls request")
 		return nil, fmt.Errorf("server rejected tls")
 	case 'E':
-		// ErrorMessage: we've already parsed the first byte so read it manually.
-		hdr, err := cr.Next(4)
+		// ErrorMessage: we've already consumed the message type byte,
+		// so put it back in front of the rest of the message.
+		fe := pgproto3.NewFrontend(io.MultiReader(bytes.NewReader(resp), server), server)
+		msg, err := fe.Receive()
 		if err != nil {
 			return nil, err
 		}
-		bodyLen := int(binary.BigEndian.Uint32(hdr)) - 4
-		msgBody, err := cr.Next(bodyLen)
-		if err != nil {
-			return nil, err
-		}
-		var errMsg pgproto3.ErrorResponse
-		if err := errMsg.Decode(msgBody); err != nil {
-			return nil, err
+		errMsg, ok := msg.(*pgproto3.ErrorResponse)
+		if !ok {
+			return nil, fmt.Errorf("got unexpected response to tls request: %T", msg)
 		}
 		log.Error().Msgf("server tls negotiation error: %+v", errMsg)
 		return nil, fmt.Errorf("could not negotiate tls with server: error %s: %s", errMsg.Code, errMsg.Message)
@@ -350,8 +361,8 @@ func SetupClient(client net.Conn, cfg *ClientConfig) (*Client, error) {
 		Username: startup.Parameters["user"],
 	}
 	if cfg.WantPassword {
-		err := be.Send(&pgproto3.AuthenticationCleartextPassword{})
-		if err != nil {
+		be.Send(&pgproto3.AuthenticationCleartextPassword{})
+		if err := be.Flush(); err != nil {
 			return nil, err
 		}
 		msg, err := be.Receive()
@@ -373,7 +384,7 @@ func SetupClient(client net.Conn, cfg *ClientConfig) (*Client, error) {
 
 func clientTLSNegotiate(client net.Conn, tlsConfig *tls.Config) (*pgproto3.Backend, pgproto3.FrontendMessage, error) {
 	log.Trace().Msg("negotiating TLS with client")
-	backend := pgproto3.NewBackend(pgproto3.NewChunkReader(client), client)
+	backend := pgproto3.NewBackend(client, client)
 	hasTLS := false
 
 StartupMessageLoop:
@@ -407,7 +418,7 @@ StartupMessageLoop:
 			// The TLS handshake was successful.
 			// Create a new backend that reads from the now-encrypted TLS connection.
 			hasTLS = true
-			backend = pgproto3.NewBackend(pgproto3.NewChunkReader(tlsConn), tlsConn)
+			backend = pgproto3.NewBackend(tlsConn, tlsConn)
 		case *pgproto3.CancelRequest, *pgproto3.StartupMessage:
 			// Startup complete.
 			log.Debug().Msg("startup completed")
@@ -430,7 +441,8 @@ type AuthData struct {
 // AuthenticateClient tells the client they've successfully authenticated.
 func AuthenticateClient(be *pgproto3.Backend) error {
 	_ = be.SetAuthType(pgproto3.AuthTypeOk)
-	return be.Send(&pgproto3.AuthenticationOk{})
+	be.Send(&pgproto3.AuthenticationOk{})
+	return be.Flush()
 }
 
 func computeMD5(username, password string, salt [4]byte) string {
@@ -446,12 +458,11 @@ func computeMD5(username, password string, salt [4]byte) string {
 }
 
 func SendCancelRequest(conn io.ReadWriter, req *pgproto3.CancelRequest) error {
-	buf := make([]byte, 16)
-	binary.BigEndian.PutUint32(buf[0:4], 16)
-	binary.BigEndian.PutUint32(buf[4:8], 80877102)
-	binary.BigEndian.PutUint32(buf[8:12], uint32(req.ProcessID))
-	binary.BigEndian.PutUint32(buf[12:16], uint32(req.SecretKey))
-	_, err := conn.Write(buf)
+	buf, err := req.Encode(nil)
+	if err != nil {
+		return err
+	}
+	_, err = conn.Write(buf)
 	if err != nil {
 		return err
 	}
@@ -474,7 +485,9 @@ func FinalizeInitialHandshake(client *pgproto3.Backend, server *pgproto3.Fronten
 		msg, err := server.Receive()
 		if err != nil {
 			return nil, fmt.Errorf("pgproxy: cannot read from backend: %v", err)
-		} else if err := client.Send(msg); err != nil {
+		}
+		client.Send(msg)
+		if err := client.Flush(); err != nil {
 			return nil, fmt.Errorf("pgproxy: could not write to frontend: %v", err)
 		}
 
@@ -482,6 +495,7 @@ func FinalizeInitialHandshake(client *pgproto3.Backend, server *pgproto3.Fronten
 		case *pgproto3.BackendKeyData:
 			// Make a copy; this object is only valid until the next call to Receive()
 			copy := *msg
+			copy.SecretKey = slices.Clone(msg.SecretKey)
 			keyData = &copy
 
 		case *pgproto3.ReadyForQuery:
@@ -514,7 +528,8 @@ func CopySteadyState(client *pgproto3.Backend, server *pgproto3.Frontend) error 
 			} else if err != nil {
 				return err
 			}
-			if err := client.Send(msg); err != nil {
+			client.Send(msg)
+			if err := client.Flush(); err != nil {
 				return err
 			}
 			select {
@@ -550,7 +565,8 @@ func CopySteadyState(client *pgproto3.Backend, server *pgproto3.Frontend) error 
 		case err := <-errChan:
 			return err
 		case msg := <-clientMsgs:
-			err := server.Send(msg)
+			server.Send(msg)
+			err := server.Flush()
 
 			if err != nil {
 				return err
@@ -566,9 +582,9 @@ func CopySteadyState(client *pgproto3.Backend, server *pgproto3.Frontend) error 
 
 func (p *SingleBackendProxy) cancelRequest(ctx context.Context, cancel *CancelData) {
 	p.Log.Trace().Msg("received cancel request")
-	key := pgproto3.BackendKeyData{
-		ProcessID: cancel.Raw.ProcessID,
-		SecretKey: cancel.Raw.SecretKey,
+	key := backendKey{
+		processID: cancel.Raw.ProcessID,
+		secretKey: string(cancel.Raw.SecretKey),
 	}
 	p.mu.Lock()
 	conn, ok := p.keyData[key]
