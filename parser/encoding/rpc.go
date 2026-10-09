@@ -209,6 +209,10 @@ type ParameterEncoding struct {
 	Type *schema.Type `json:"type"`
 	// RawTag specifies the raw, unparsed struct tag for the field.
 	RawTag string `json:"raw_tag"`
+	// OpenAPIExampleJSON is the JSON-encoded OpenAPI example value for the parameter.
+	OpenAPIExampleJSON string `json:"openapi_example_json,omitempty"`
+	// OpenAPIDefaultJSON is the JSON-encoded OpenAPI default value for the parameter.
+	OpenAPIDefaultJSON string `json:"openapi_default_json,omitempty"`
 	// WireFormat is the wire format of the parameter.
 	WireFormat string `json:"wire_format"`
 	// Optional indicates whether the field is optional.
@@ -714,14 +718,16 @@ func describeParam(lang meta.Lang, encodingHints *encodingHints, field *schema.F
 	location := encodingHints.defaultLocation
 	name := formatName(lang, encodingHints.defaultLocation, field.Name)
 	param := ParameterEncoding{
-		Name:       name,
-		OmitEmpty:  false,
-		SrcName:    field.Name,
-		Doc:        field.Doc,
-		Type:       field.Typ,
-		RawTag:     field.RawTag,
-		Optional:   field.Optional,
-		WireFormat: name,
+		Name:               name,
+		OmitEmpty:          false,
+		SrcName:            field.Name,
+		Doc:                field.Doc,
+		Type:               field.Typ,
+		RawTag:             field.RawTag,
+		OpenAPIExampleJSON: field.OpenapiExampleJson,
+		OpenAPIDefaultJSON: field.OpenapiDefaultJson,
+		Optional:           field.Optional,
+		WireFormat:         name,
 	}
 
 	var usedOverrideTag string

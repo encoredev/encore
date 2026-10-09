@@ -333,14 +333,14 @@ func (m *Manager) getEndpoints(ctx context.Context, request mcp.CallToolRequest)
 
 					// For request and response schemas
 					if rpc.RequestSchema != nil {
-						str, _ := schemautil.NamedOrInlineStruct(declByID, rpc.RequestSchema)
-						qry, headers, cookies, body := schemautil.StructBits(str, rpc.HttpMethods[0], false, false, true)
+						str, typeArgs := schemautil.NamedOrInlineStruct(declByID, rpc.RequestSchema)
+						qry, headers, cookies, body := schemautil.StructBitsWithDecls(declByID, str, typeArgs, rpc.HttpMethods[0], false, false, true)
 						schemas["request_schema"] = strings.Join([]string{"{", qry, headers, cookies, body, "}"}, "")
 					}
 
 					if rpc.ResponseSchema != nil {
-						str, _ := schemautil.NamedOrInlineStruct(declByID, rpc.ResponseSchema)
-						qry, headers, cookies, body := schemautil.StructBits(str, rpc.HttpMethods[0], true, false, true)
+						str, typeArgs := schemautil.NamedOrInlineStruct(declByID, rpc.ResponseSchema)
+						qry, headers, cookies, body := schemautil.StructBitsWithDecls(declByID, str, typeArgs, rpc.HttpMethods[0], true, false, true)
 						schemas["response_schema"] = strings.Join([]string{"{", qry, headers, cookies, body, "}"}, "")
 					}
 

@@ -106,6 +106,9 @@ var Parser = &resourceparser.Parser{
 					}
 
 					switch dir.Name {
+					case "enum":
+						// Parsed by the schema parser; no API resource to register.
+						continue
 					case "service":
 						ss := servicestruct.Parse(servicestruct.ParseData{
 							Errs:   p.Errs,
