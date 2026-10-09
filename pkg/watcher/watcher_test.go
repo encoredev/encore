@@ -1,6 +1,8 @@
 package watcher
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -62,4 +64,55 @@ func waitUntilParked(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatal("timed out waiting for a caller to park in WaitForEvents")
+}
+
+// TestFilesInNewDirectory verifies that files created together with a new
+// directory are reported, even though they exist before the directory is watched.
+// The directory is populated elsewhere and moved in, so the file never gets
+// an event of its own.
+func TestFilesInNewDirectory(t *testing.T) {
+	w, err := New("test-app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	if err := w.RecursivelyWatch(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = w.Close() })
+
+	staging := t.TempDir()
+	staged := filepath.Join(staging, "a", "migrations", "1_init.up.sql")
+	if err := os.MkdirAll(filepath.Dir(staged), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(staged, []byte("CREATE TABLE t (id INT);"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(staging, "a"), filepath.Join(root, "a")); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(root, "a", "migrations", "1_init.up.sql")
+
+	found := make(chan struct{})
+	go func() {
+		for {
+			events, ok := w.WaitForEvents()
+			if !ok {
+				return
+			}
+			for _, ev := range events {
+				if ev.Path == file && ev.EventType == CREATED {
+					close(found)
+					return
+				}
+			}
+		}
+	}()
+
+	select {
+	case <-found:
+	case <-time.After(5 * time.Second):
+		t.Fatal("no event for a file created together with its directory")
+	}
 }
