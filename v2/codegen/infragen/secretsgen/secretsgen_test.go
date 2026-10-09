@@ -19,3 +19,15 @@ func TestCodegen(t *testing.T) {
 	}
 	codegentest.Run(t, fn)
 }
+
+// TestCodegenTestBuild covers a test build, where the test support import goes
+// into the same file as the secrets import.
+func TestCodegenTestBuild(t *testing.T) {
+	fn := func(gen *codegen.Generator, desc *app.Desc) {
+		all := parser.Resources[*secrets.Secrets](desc.Parse)
+		svc, _ := desc.ServiceForPath(all[0].File.Pkg.FSPath)
+		Gen(gen, option.AsOptional(svc), all[0].File.Pkg, all)
+		gen.InsertTestSupport(all[0].File.Pkg)
+	}
+	codegentest.RunDir(t, "testdata/testbuild", fn)
+}

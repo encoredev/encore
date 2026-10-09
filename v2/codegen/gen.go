@@ -114,6 +114,9 @@ func (g *Generator) Overlays() []overlay.File {
 // The import goes on the package clause's line, like every rewrite of a user's
 // file: a rewrite must not add lines, since tools that ignore line directives
 // (cmd/cover since Go 1.27) would report everything below it on the wrong line.
+// It has no trailing semicolon: the newline ending the line inserts one, and
+// another insert at the same position (secrets) brings its own leading one,
+// where two in a row would be an empty declaration and fail to parse.
 func (g *Generator) InsertTestSupport(pkg *pkginfo.Package) {
 	if g.addedTestSupport[pkg.ImportPath] {
 		return
@@ -126,6 +129,6 @@ func (g *Generator) InsertTestSupport(pkg *pkginfo.Package) {
 
 	insertPos := a.Name.End()
 	ln := g.FS.Position(insertPos)
-	rw.Insert(insertPos, []byte(fmt.Sprintf(";import _ %s;/*line :%d:%d*/",
+	rw.Insert(insertPos, []byte(fmt.Sprintf(";import _ %s/*line :%d:%d*/",
 		strconv.Quote("encore.dev/appruntime/shared/testsupport"), ln.Line, ln.Column)))
 }
