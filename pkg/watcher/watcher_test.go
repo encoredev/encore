@@ -68,6 +68,8 @@ func waitUntilParked(t *testing.T) {
 
 // TestFilesInNewDirectory verifies that files created together with a new
 // directory are reported, even though they exist before the directory is watched.
+// The directory is populated elsewhere and moved in, so the file never gets
+// an event of its own.
 func TestFilesInNewDirectory(t *testing.T) {
 	w, err := New("test-app")
 	if err != nil {
@@ -79,13 +81,18 @@ func TestFilesInNewDirectory(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = w.Close() })
 
+	staging := t.TempDir()
+	staged := filepath.Join(staging, "a", "migrations", "1_init.up.sql")
+	if err := os.MkdirAll(filepath.Dir(staged), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(staged, []byte("CREATE TABLE t (id INT);"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(staging, "a"), filepath.Join(root, "a")); err != nil {
+		t.Fatal(err)
+	}
 	file := filepath.Join(root, "a", "migrations", "1_init.up.sql")
-	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(file, []byte("CREATE TABLE t (id INT);"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 
 	found := make(chan struct{})
 	go func() {
@@ -95,7 +102,7 @@ func TestFilesInNewDirectory(t *testing.T) {
 				return
 			}
 			for _, ev := range events {
-				if ev.Path == file {
+				if ev.Path == file && ev.EventType == CREATED {
 					close(found)
 					return
 				}
