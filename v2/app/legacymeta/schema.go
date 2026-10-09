@@ -76,6 +76,12 @@ func (b *builder) schemaType(typ schemav2.Type) *schema.Type {
 		if typ.DeclInfo.File.Pkg.ImportPath == "encore.dev/config" {
 			return b.configValue(typ)
 		}
+		// If the named type is unexported, resolve to its underlying type
+		// instead of exposing it as a named declaration.
+		if !ast.IsExported(typ.DeclInfo.Name) {
+			resolved := schemautil.ConcretizeWithTypeArgs(b.errs, typ.Decl().Type, typ.TypeArgs)
+			return b.schemaType(resolved)
+		}
 		return &schema.Type{Typ: &schema.Type_Named{
 			Named: &schema.Named{
 				Id:            b.decl(typ.Decl()),
@@ -86,13 +92,11 @@ func (b *builder) schemaType(typ schemav2.Type) *schema.Type {
 	case schemav2.StructType:
 		var fields []*schema.Field
 		for _, f := range typ.Fields {
-			if f.IsAnonymous() {
-				continue // not supported by meta
+			if f.IsAnonymous() || !f.IsExported() {
+				continue // not supported by meta, or unexported
 			}
 			field := b.structField(f)
-			if f.IsExported() { // to match legacy meta behavior
-				fields = append(fields, field)
-			}
+			fields = append(fields, field)
 		}
 
 		return &schema.Type{Typ: &schema.Type_Struct{
