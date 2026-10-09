@@ -2,6 +2,7 @@ use crate::api::{new_api_handler, APIRoute, Request};
 use crate::cache::CacheCluster;
 use crate::gateway::{Gateway, GatewayConfig};
 use crate::log::Logger;
+use crate::mongodb::MongoDatabase;
 use crate::napi_util::EnvMap;
 use crate::pubsub::{PubSubSubscription, PubSubSubscriptionConfig, PubSubTopic};
 use crate::pvalue::{parse_pvalues, transform_pvalues_request, PVals};
@@ -143,6 +144,13 @@ impl Runtime {
         let encore_name: encore_runtime_core::EncoreName = encore_name.into();
         let db = self.runtime.sqldb().database(&encore_name);
         SQLDatabase::new(db)
+    }
+
+    #[napi]
+    pub fn mongo_database(&self, encore_name: String) -> MongoDatabase {
+        let encore_name: encore_runtime_core::EncoreName = encore_name.into();
+        let db = self.runtime.mongodb().database(&encore_name);
+        MongoDatabase::new(db)
     }
 
     #[napi]

@@ -1,6 +1,7 @@
 pub mod cache;
 pub mod cron;
 pub mod metrics;
+pub mod mongodb;
 pub mod objects;
 pub mod pubsub_subscription;
 pub mod pubsub_topic;

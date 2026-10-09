@@ -91,6 +91,7 @@ impl MetaBuilder<'_> {
                 databases: vec![], // filled in later
                 buckets: vec![],   // filled in later
                 metrics: vec![],   // filled in later
+                mongo_databases: vec![],
                 has_config: false, // TODO change when config is supported
 
                 // We no longer care about migrations in a service, so just set
@@ -269,6 +270,13 @@ impl MetaBuilder<'_> {
 
                 Resource::SQLDatabase(db) => {
                     self.data.sql_databases.push(self.sql_database(db)?);
+                }
+
+                Resource::MongoDatabase(db) => {
+                    self.data.mongo_databases.push(v1::MongoDatabase {
+                        name: db.name.clone(),
+                        doc: db.doc.clone(),
+                    });
                 }
 
                 Resource::Bucket(bkt) => {
@@ -647,6 +655,20 @@ impl MetaBuilder<'_> {
                     self.data.svcs[*idx].databases.push(access.db.name.clone());
                 }
 
+                Usage::AccessMongoDatabase(access) => {
+                    let Some(svc) = self.service_for_range(&access.range) else {
+                        access.range.err(
+                            "cannot determine which service is accessing this MongoDB database",
+                        );
+                        continue;
+                    };
+
+                    let idx = svc_index.get(&svc.name).unwrap();
+                    self.data.svcs[*idx]
+                        .mongo_databases
+                        .push(access.db.name.clone());
+                }
+
                 Usage::Bucket(access) => {
                     let Some(svc) = self.service_for_range(&access.range) else {
                         access
@@ -802,6 +824,8 @@ impl MetaBuilder<'_> {
             // Remove duplicate database access.
             svc.databases.sort();
             svc.databases.dedup();
+            svc.mongo_databases.sort();
+            svc.mongo_databases.dedup();
 
             // Sort buckets by name for deterministic output.
             svc.buckets.sort_by(|a, b| a.bucket.cmp(&b.bucket));
@@ -1097,6 +1121,7 @@ fn new_meta() -> v1::Data {
         metrics: vec![],
         sql_databases: vec![],
         buckets: vec![],
+        mongo_databases: vec![],
         gateways: vec![],
         language: v1::Lang::Typescript as i32,
     }

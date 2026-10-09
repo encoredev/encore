@@ -10,6 +10,7 @@ use crate::parser::resources::apis::service::SERVICE_PARSER;
 use crate::parser::resources::infra::cache::{CACHE_CLUSTER_PARSER, CACHE_KEYSPACE_PARSER};
 use crate::parser::resources::infra::cron::CRON_PARSER;
 use crate::parser::resources::infra::metrics::METRIC_PARSER;
+use crate::parser::resources::infra::mongodb::MONGODB_PARSER;
 use crate::parser::resources::infra::objects::OBJECTS_PARSER;
 use crate::parser::resources::infra::pubsub_subscription::SUBSCRIPTION_PARSER;
 use crate::parser::resources::infra::pubsub_topic::TOPIC_PARSER;
@@ -28,6 +29,7 @@ pub enum Resource {
     Gateway(Lrc<apis::gateway::Gateway>),
     Service(Lrc<apis::service::Service>),
     SQLDatabase(Lrc<infra::sqldb::SQLDatabase>),
+    MongoDatabase(Lrc<infra::mongodb::MongoDatabase>),
     Bucket(Lrc<infra::objects::Bucket>),
     PubSubTopic(Lrc<infra::pubsub_topic::Topic>),
     PubSubSubscription(Lrc<infra::pubsub_subscription::Subscription>),
@@ -41,6 +43,7 @@ pub enum Resource {
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
 pub enum ResourcePath {
     SQLDatabase { name: String },
+    MongoDatabase { name: String },
     Bucket { name: String },
     CacheCluster { name: String },
 }
@@ -59,6 +62,7 @@ impl Display for Resource {
                 write!(f, "Gateway({})", gw.name)
             }
             Resource::SQLDatabase(db) => write!(f, "SQLDatabase({})", db.name),
+            Resource::MongoDatabase(db) => write!(f, "MongoDatabase({})", db.name),
             Resource::Bucket(db) => write!(f, "Bucket({})", db.name),
             Resource::PubSubTopic(topic) => write!(f, "PubSubTopic({})", topic.name),
             Resource::PubSubSubscription(sub) => write!(f, "PubSubSubscription({})", sub.name),
@@ -87,6 +91,7 @@ pub static DEFAULT_RESOURCE_PARSERS: &[&ResourceParser] = &[
     &AUTHHANDLER_PARSER,
     &GATEWAY_PARSER,
     &SQLDB_PARSER,
+    &MONGODB_PARSER,
     &OBJECTS_PARSER,
     &TOPIC_PARSER,
     &SUBSCRIPTION_PARSER,

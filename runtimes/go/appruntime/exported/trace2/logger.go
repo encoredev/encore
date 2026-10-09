@@ -55,4 +55,6 @@ type Logger interface {
 	BucketListObjectsEnd(BucketListObjectsEndParams)
 	BucketDeleteObjectsStart(BucketDeleteObjectsStartParams) EventID
 	BucketDeleteObjectsEnd(BucketDeleteObjectsEndParams)
+	MongoCallStart(MongoCallStartParams) EventID
+	MongoCallEnd(MongoCallEndParams)
 }

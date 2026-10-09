@@ -14,6 +14,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/internal/debugflags"
+	"encr.dev/cli/daemon/mongodb"
 	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/objects"
 	"encr.dev/cli/daemon/pubsub"
@@ -31,6 +32,7 @@ const (
 	Cache   Type = "cache"
 	SQLDB   Type = "sqldb"
 	Objects Type = "objects"
+	Mongo   Type = "mongodb"
 )
 
 const (
@@ -107,6 +109,10 @@ func (rm *ResourceManager) StartRequiredServices(a *optracker.AsyncBuildJobs, md
 		a.Go("Starting Redis server", true, 250*time.Millisecond, rm.StartRedis)
 	}
 
+	if mongodb.IsUsed(md) && rm.GetMongo() == nil {
+		a.Go("Starting MongoDB server", true, 300*time.Millisecond, rm.StartMongo(md))
+	}
+
 	if objects.IsUsed(md) && rm.GetObjects() == nil {
 		a.Go("Starting Object Storage server", true, 250*time.Millisecond, rm.StartObjects(md))
 	}
@@ -158,6 +164,43 @@ func (rm *ResourceManager) GetRedis() *redis.Server {
 
 	if srv, found := rm.servers[Cache]; found {
 		return srv.(*redis.Server)
+	}
+	return nil
+}
+
+// StartMongo starts a MongoDB server.
+func (rm *ResourceManager) StartMongo(md *meta.Data) func(context.Context) error {
+	return func(ctx context.Context) error {
+		srv := mongodb.New(rm.ns, rm.forTests, rm.log)
+		if err := srv.Start(ctx); err != nil {
+			return err
+		}
+
+		// Tests start from empty databases.
+		if rm.forTests {
+			names := make([]string, 0, len(md.MongoDatabases))
+			for _, db := range md.MongoDatabases {
+				names = append(names, db.Name)
+			}
+			if err := srv.DropDatabases(ctx, names); err != nil {
+				return err
+			}
+		}
+
+		rm.mutex.Lock()
+		rm.servers[Mongo] = srv
+		rm.mutex.Unlock()
+		return nil
+	}
+}
+
+// GetMongo returns the MongoDB server if it is running otherwise it returns nil
+func (rm *ResourceManager) GetMongo() *mongodb.Server {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
+
+	if srv, found := rm.servers[Mongo]; found {
+		return srv.(*mongodb.Server)
 	}
 	return nil
 }
@@ -369,6 +412,24 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 		}
 	}
 
+	if mongo := rm.GetMongo(); mongo != nil {
+		srv := &config.MongoServer{
+			Hosts:            []string{mongo.Addr()},
+			ReplicaSet:       mongodb.ReplicaSet,
+			DirectConnection: true,
+		}
+		serverID := len(cfg.MongoServers)
+		cfg.MongoServers = append(cfg.MongoServers, srv)
+
+		for _, db := range md.MongoDatabases {
+			cfg.MongoDatabases = append(cfg.MongoDatabases, &config.MongoDatabase{
+				ServerID:     serverID,
+				EncoreName:   db.Name,
+				DatabaseName: db.Name,
+			})
+		}
+	}
+
 	return nil
 }
 
@@ -462,6 +523,27 @@ func (rm *ResourceManager) RedisConfig(redis *meta.CacheCluster) (config.RedisSe
 	dbCfg := config.RedisDatabase{
 		EncoreName: redis.Name,
 		KeyPrefix:  redis.Name + "/",
+	}
+
+	return srvCfg, dbCfg, nil
+}
+
+// MongoConfig returns the MongoDB server and database configuration for the given database.
+func (rm *ResourceManager) MongoConfig(db *meta.MongoDatabase) (config.MongoServer, config.MongoDatabase, error) {
+	mongo := rm.GetMongo()
+	if mongo == nil {
+		return config.MongoServer{}, config.MongoDatabase{}, errors.New("no MongoDB server found")
+	}
+
+	srvCfg := config.MongoServer{
+		Hosts:            []string{mongo.Addr()},
+		ReplicaSet:       mongodb.ReplicaSet,
+		DirectConnection: true,
+	}
+
+	dbCfg := config.MongoDatabase{
+		EncoreName:   db.Name,
+		DatabaseName: db.Name,
 	}
 
 	return srvCfg, dbCfg, nil

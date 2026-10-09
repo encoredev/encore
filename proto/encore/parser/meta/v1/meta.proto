@@ -25,6 +25,7 @@ message Data {
   repeated Gateway gateways = 15;
   Lang language = 16;
   repeated Bucket buckets = 17;
+  repeated MongoDatabase mongo_databases = 18;
 }
 
 // Lang describes the language an application is written in.
@@ -61,6 +62,7 @@ message Service {
   bool has_config = 6; // true if the service has uses config
   repeated BucketUsage buckets = 7; // buckets this service uses
   repeated string metrics = 8; // metrics this service uses
+  repeated string mongo_databases = 9; // MongoDB databases this service uses
 }
 
 message BucketUsage {
@@ -363,6 +365,11 @@ message SQLDatabase {
   optional string migration_rel_path = 3;
   repeated DBMigration migrations = 4;
   bool allow_non_sequential_migrations = 5;
+}
+
+message MongoDatabase {
+  string name = 1;
+  optional string doc = 2;
 }
 
 message DBMigration {

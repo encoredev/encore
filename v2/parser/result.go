@@ -13,6 +13,7 @@ import (
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/posmap"
+	"encr.dev/v2/parser/infra/mongodb"
 	"encr.dev/v2/parser/infra/sqldb"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/usage"
@@ -210,6 +211,9 @@ func (d *Result) initBinds(errs *perr.List, binds []resource.Bind) {
 			case len(ref.Path) > 0 && ref.Path[0].Kind == resource.SQLDatabase:
 				dbName := ref.Path[0].Name
 				errs.Add(sqldb.ErrDatabaseNotFound(dbName).AtGoPos(b.Pos(), token.NoPos))
+			case len(ref.Path) > 0 && ref.Path[0].Kind == resource.MongoDatabase:
+				dbName := ref.Path[0].Name
+				errs.Add(mongodb.ErrDatabaseNotFound(dbName).AtGoPos(b.Pos(), token.NoPos))
 			default:
 
 				// NOTE(andre): We could end up here in the future when we support

@@ -1,0 +1,14 @@
+-- foo/foo.ts --
+import { MongoDatabase } from "encore.dev/storage/mongodb";
+
+export const db = new MongoDatabase("urls", {});
+export const withoutConfig = new MongoDatabase("url_stats");
+
+-- package.json --
+{
+  "name": "foo",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}

@@ -363,6 +363,32 @@ func (mr *MockLoggerMockRecorder) MarkDone() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkDone", reflect.TypeOf((*MockLogger)(nil).MarkDone))
 }
 
+// MongoCallEnd mocks base method.
+func (m *MockLogger) MongoCallEnd(arg0 trace2.MongoCallEndParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "MongoCallEnd", arg0)
+}
+
+// MongoCallEnd indicates an expected call of MongoCallEnd.
+func (mr *MockLoggerMockRecorder) MongoCallEnd(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MongoCallEnd", reflect.TypeOf((*MockLogger)(nil).MongoCallEnd), arg0)
+}
+
+// MongoCallStart mocks base method.
+func (m *MockLogger) MongoCallStart(arg0 trace2.MongoCallStartParams) trace2.EventID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MongoCallStart", arg0)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
+}
+
+// MongoCallStart indicates an expected call of MongoCallStart.
+func (mr *MockLoggerMockRecorder) MongoCallStart(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MongoCallStart", reflect.TypeOf((*MockLogger)(nil).MongoCallStart), arg0)
+}
+
 // PubsubMessageSpanEnd mocks base method.
 func (m *MockLogger) PubsubMessageSpanEnd(params trace2.PubsubMessageSpanEndParams) {
 	m.ctrl.T.Helper()

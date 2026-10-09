@@ -60,6 +60,8 @@ type Runtime struct {
 	PubsubTopics     map[string]*PubsubTopic `json:"pubsub_topics,omitempty"`
 	RedisServers     []*RedisServer          `json:"redis_servers,omitempty"`
 	RedisDatabases   []*RedisDatabase        `json:"redis_databases,omitempty"`
+	MongoServers     []*MongoServer          `json:"mongo_servers,omitempty"`
+	MongoDatabases   []*MongoDatabase        `json:"mongo_databases,omitempty"`
 	BucketProviders  []*BucketProvider       `json:"bucket_providers,omitempty"`
 	Buckets          map[string]*Bucket      `json:"buckets,omitempty"`
 	Metrics          *Metrics                `json:"metrics,omitempty"`
@@ -341,6 +343,45 @@ type SQLServer struct {
 	ClientCert string `json:"client_cert,omitempty"`
 	// ClientKey is the PEM-encoded client key, or "" if not required.
 	ClientKey string `json:"client_key,omitempty"`
+}
+
+type MongoServer struct {
+	// Hosts are the hosts to connect to, as "hostname:port".
+	// For a replica set, these are its members.
+	Hosts []string `json:"hosts"`
+
+	// ReplicaSet is the name of the replica set, or "" if not a replica set.
+	ReplicaSet string `json:"replica_set,omitempty"`
+
+	// DirectConnection, if true, connects only to the given host
+	// without discovering the other members of the replica set.
+	DirectConnection bool `json:"direct_connection,omitempty"`
+
+	// ServerCACert is the PEM-encoded server CA cert, or "" if not required.
+	ServerCACert string `json:"server_ca_cert,omitempty"`
+	// ClientCert is the PEM-encoded client cert, or "" if not required.
+	ClientCert string `json:"client_cert,omitempty"`
+	// ClientKey is the PEM-encoded client key, or "" if not required.
+	ClientKey string `json:"client_key,omitempty"`
+}
+
+type MongoDatabase struct {
+	ServerID     int    `json:"server_id"`     // the index into (*Runtime).MongoServers
+	EncoreName   string `json:"encore_name"`   // the Encore name for the database
+	DatabaseName string `json:"database_name"` // the actual database name on the MongoDB server.
+	User         string `json:"user,omitempty"`
+	Password     string `json:"password,omitempty"`
+
+	// AuthSource is the database that holds the user's credentials, e.g. "admin".
+	AuthSource string `json:"auth_source,omitempty"`
+
+	// MinConnections is the minimum number of open connections to use
+	// for this database.
+	MinConnections int `json:"min_connections"`
+
+	// MaxConnections is the maximum number of open connections to use
+	// for this database.
+	MaxConnections int `json:"max_connections"`
 }
 
 type SQLDatabase struct {

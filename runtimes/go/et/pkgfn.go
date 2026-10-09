@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"encore.dev/beta/auth"
+	"encore.dev/storage/mongodb"
 	"encore.dev/storage/sqldb"
 )
 
@@ -70,6 +71,23 @@ func NewTestDatabase(ctx context.Context, name stringLiteral) (*sqldb.Database, 
 		return nil, fmt.Errorf("et: cannot create test database in non-test environment")
 	}
 	return Singleton.db.NewTestDatabase(ctx, string(name))
+}
+
+// NewTestMongoDatabase returns a new, empty MongoDB database for the database
+// with the given name. The name must be a database known to Encore
+// (via `mongodb.NewDatabase`), otherwise it reports an error.
+//
+// The returned database has the same collections API, but stores its data
+// in a separate database on the same server, so it is isolated to the
+// current test and any sub-tests. It is automatically dropped at the end
+// of the test, and its connections are closed.
+//
+// The provided name must be a constant string literal (like "mydb").
+func NewTestMongoDatabase(ctx context.Context, name stringLiteral) (*mongodb.Database, error) {
+	if Singleton.runtime.EnvType != "test" {
+		return nil, fmt.Errorf("et: cannot create test database in non-test environment")
+	}
+	return Singleton.mongodb.NewTestDatabase(ctx, string(name))
 }
 
 // SQLDBWithSuperuser returns a copy of the given database whose connections
