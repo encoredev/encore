@@ -259,6 +259,60 @@ func (rm *ResourceManager) StartSQLCluster(a *optracker.AsyncBuildJobs, md *meta
 	}
 }
 
+// PendingDBChange describes a database whose state in the running
+// SQL cluster is behind the app metadata.
+type PendingDBChange struct {
+	// DBName is the name of the database.
+	DBName string
+	// New is true if the database has not been created in the cluster.
+	New bool
+	// Migrations are the migration files that have not been applied.
+	Migrations []string
+}
+
+// DBChanges compares the databases in md with the SQL cluster. It reports
+// the databases and migrations that have not been applied as pending, and
+// the names of the databases that are fully applied as upToDate.
+//
+// Databases are only created and migrated when the cluster starts, so
+// changes made during a live reload stay pending until the app is restarted.
+func (rm *ResourceManager) DBChanges(ctx context.Context, md *meta.Data) (pending []PendingDBChange, upToDate []string) {
+	cluster := rm.GetSQLCluster()
+	if cluster == nil {
+		return nil, nil
+	}
+
+	for _, dbMeta := range md.SqlDatabases {
+		if cluster.IsExternalDB(dbMeta.Name) {
+			continue
+		}
+
+		var migrations []*meta.DBMigration
+		db, ok := cluster.GetDB(dbMeta.Name)
+		if !ok {
+			migrations = dbMeta.Migrations
+		} else if len(dbMeta.Migrations) > 0 {
+			applied, err := db.ListAppliedMigrations(ctx)
+			if err != nil {
+				rm.log.Debug().Err(err).Str("db", dbMeta.Name).Msg("could not list applied migrations")
+				continue
+			}
+			migrations = sqldb.PendingMigrations(dbMeta, applied)
+		}
+
+		if ok && len(migrations) == 0 {
+			upToDate = append(upToDate, dbMeta.Name)
+			continue
+		}
+		change := PendingDBChange{DBName: dbMeta.Name, New: !ok}
+		for _, m := range migrations {
+			change.Migrations = append(change.Migrations, m.Filename)
+		}
+		pending = append(pending, change)
+	}
+	return pending, upToDate
+}
+
 // GetSQLCluster returns the SQL cluster
 func (rm *ResourceManager) GetSQLCluster() *sqldb.Cluster {
 	rm.mutex.Lock()

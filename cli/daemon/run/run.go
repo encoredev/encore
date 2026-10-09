@@ -17,6 +17,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -69,6 +70,10 @@ type Run struct {
 	proc    atomic.Value    // current process
 	exited  chan struct{}   // exit is closed when the run has fully exited
 	started chan struct{}   // started is closed once the run has fully started
+
+	dbStateMu        sync.Mutex
+	lastPendingDBMsg string          // pending database changes last reported on reload
+	knownDBs         map[string]bool // databases known to be set up in this run
 }
 
 func (r *Run) SecretValues(ctx context.Context) (*secret.Data, error) {
@@ -304,6 +309,12 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 	err = r.buildAndStart(r.ctx, tracker, false)
 	if err != nil {
 		return err
+	}
+
+	// All databases are set up when the app starts.
+	r.knownDBs = make(map[string]bool)
+	for _, db := range r.ProcGroup().Meta.SqlDatabases {
+		r.knownDBs[db.Name] = true
 	}
 
 	// Below this line the function must never return an error
