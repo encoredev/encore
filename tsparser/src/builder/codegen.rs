@@ -609,17 +609,32 @@ pub struct CodegenFile {
 
 fn write_gen_encore_dir(app_root: &Path, files: &[CodegenFile]) -> Result<(), PrepareError> {
     let base_dir = app_root.join("encore.gen");
-    let mut written = HashSet::with_capacity(files.len());
+
+    // Check every path before touching the filesystem. Paths include names from the
+    // app's source (such as service names), so a ".." must not escape encore.gen.
     for f in files {
-        if f.path.is_absolute() {
+        let escapes = f.path.is_absolute()
+            || f.path
+                .components()
+                .any(|c| matches!(c, Component::ParentDir));
+        if escapes {
             return Err(PrepareError::Internal(anyhow::anyhow!(
-                "path {:?} is not relative to the encore.gen folder",
+                "path {:?} is not inside the encore.gen folder",
                 f.path
             )));
         }
+    }
 
+    // If encore.gen is a symlink, write through it as before but never delete anything,
+    // so nothing outside the app can be removed through the link.
+    let is_symlink = fs::symlink_metadata(&base_dir).is_ok_and(|m| m.file_type().is_symlink());
+
+    let mut written = HashSet::with_capacity(files.len());
+    for f in files {
         let file_path = base_dir.join(&f.path);
-        clear_path_conflicts(&base_dir, &f.path).map_err(PrepareError::GenerateCode)?;
+        if !is_symlink {
+            clear_path_conflicts(&base_dir, &f.path).map_err(PrepareError::GenerateCode)?;
+        }
 
         // Create the parent of the file, if needed
         if let Some(parent) = file_path.parent() {
@@ -641,10 +656,7 @@ fn write_gen_encore_dir(app_root: &Path, files: &[CodegenFile]) -> Result<(), Pr
     // entrypoints and clients of a service that has since been deleted. Otherwise they
     // keep importing modules that no longer exist and break type checking.
     // This runs after writing so the current files are never missing, even briefly.
-    // It is skipped if encore.gen is a symlink, so cleanup never deletes files outside
-    // the app through a linked directory.
-    let is_real_dir = fs::symlink_metadata(&base_dir).is_ok_and(|m| m.is_dir());
-    if is_real_dir {
+    if !is_symlink && base_dir.is_dir() {
         remove_stale_files(&base_dir, &written).map_err(PrepareError::GenerateCode)?;
     }
 
@@ -830,6 +842,42 @@ mod tests {
 
         assert!(target.join("clients/index.d.ts").is_file());
         assert!(target.join("unrelated.txt").is_file());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_write_gen_encore_dir_never_clears_conflicts_behind_symlink() {
+        let tmp = TempDir::new().unwrap();
+        let target = tmp.path().join("shared");
+        fs::create_dir_all(target.join("clients/index.d.ts")).unwrap();
+        fs::write(target.join("clients/index.d.ts/unrelated.txt"), "keep me").unwrap();
+
+        let app_root = tmp.path().join("app");
+        fs::create_dir_all(&app_root).unwrap();
+        std::os::unix::fs::symlink(&target, app_root.join("encore.gen")).unwrap();
+
+        // The generated file conflicts with a directory in the symlink target. Writing
+        // fails instead of deleting that directory.
+        assert!(write_gen_encore_dir(&app_root, &[gen_file("clients/index.d.ts")]).is_err());
+        assert!(target.join("clients/index.d.ts/unrelated.txt").is_file());
+    }
+
+    #[test]
+    fn test_write_gen_encore_dir_rejects_escaping_paths() {
+        let tmp = TempDir::new().unwrap();
+        let app_root = tmp.path().join("app");
+        let outside = tmp.path().join("outside");
+        fs::create_dir_all(&app_root).unwrap();
+        fs::create_dir_all(outside.join("main.ts")).unwrap();
+
+        // A service named "../../../../outside" would produce a path like this.
+        let escaping = gen_file("internal/entrypoints/services/../../../../outside/main.ts");
+        assert!(
+            write_gen_encore_dir(&app_root, &[gen_file("clients/index.d.ts"), escaping]).is_err()
+        );
+
+        assert!(outside.join("main.ts").is_dir());
+        assert!(!app_root.join("encore.gen").exists());
     }
 
     #[test]
