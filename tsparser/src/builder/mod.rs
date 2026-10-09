@@ -219,4 +219,5 @@ pub enum NodeJSRuntime {
     #[default]
     NodeJS,
     Bun,
+    Deno,
 }

@@ -44,6 +44,9 @@ const (
 
 	// BunRuntime enables bun as the nodejs runtime
 	BunRuntime Name = "bun-runtime"
+
+	// DenoRuntime enables deno as the nodejs runtime
+	DenoRuntime Name = "deno-runtime"
 )
 
 // Valid reports whether the given name is a known experiment.
@@ -59,7 +62,8 @@ func (x Name) Valid() bool {
 		StreamTraces,
 		AdaptiveGCPPubSubGoroutines,
 		TSWorkerThreads,
-		BunRuntime:
+		BunRuntime,
+		DenoRuntime:
 		return true
 	default:
 		return false
