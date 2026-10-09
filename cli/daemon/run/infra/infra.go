@@ -270,16 +270,23 @@ type PendingDBChange struct {
 	Migrations []string
 }
 
+// DBCheckError describes a database whose migration state could not be checked.
+type DBCheckError struct {
+	DBName string
+	Err    error
+}
+
 // DBChanges compares the databases in md with the SQL cluster. It reports
-// the databases and migrations that have not been applied as pending, and
-// the names of the databases that are fully applied as upToDate.
+// the databases and migrations that have not been applied as pending, the
+// names of the databases that are fully applied as upToDate, and the
+// databases whose state could not be determined as checkErrs.
 //
 // Databases are only created and migrated when the cluster starts, so
 // changes made during a live reload stay pending until the app is restarted.
-func (rm *ResourceManager) DBChanges(ctx context.Context, md *meta.Data) (pending []PendingDBChange, upToDate []string) {
+func (rm *ResourceManager) DBChanges(ctx context.Context, md *meta.Data) (pending []PendingDBChange, upToDate []string, checkErrs []DBCheckError) {
 	cluster := rm.GetSQLCluster()
 	if cluster == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	for _, dbMeta := range md.SqlDatabases {
@@ -295,6 +302,7 @@ func (rm *ResourceManager) DBChanges(ctx context.Context, md *meta.Data) (pendin
 			applied, err := db.ListAppliedMigrations(ctx)
 			if err != nil {
 				rm.log.Debug().Err(err).Str("db", dbMeta.Name).Msg("could not list applied migrations")
+				checkErrs = append(checkErrs, DBCheckError{DBName: dbMeta.Name, Err: err})
 				continue
 			}
 			migrations = sqldb.PendingMigrations(dbMeta, applied)
@@ -310,7 +318,7 @@ func (rm *ResourceManager) DBChanges(ctx context.Context, md *meta.Data) (pendin
 		}
 		pending = append(pending, change)
 	}
-	return pending, upToDate
+	return pending, upToDate, checkErrs
 }
 
 // GetSQLCluster returns the SQL cluster

@@ -62,24 +62,28 @@ func (mgr *Manager) watch(run *Run, liveReload bool) error {
 // success. The full list is only printed when it changes, so a burst of
 // reloads while setting up a database doesn't repeat it. Databases that the
 // reload did set up (e.g. the app's first database, which starts the cluster)
-// are reported too.
+// are reported too. If a database can't be checked, that's reported instead
+// of claiming success, and the previously reported list is kept.
 func (r *Run) reloadedMessage() string {
 	var (
-		pending  []infra.PendingDBChange
-		upToDate []string
-		md       *meta.Data
+		pending   []infra.PendingDBChange
+		upToDate  []string
+		checkErrs []infra.DBCheckError
+		md        *meta.Data
 	)
 	if p := r.ProcGroup(); p != nil {
 		md = p.Meta
 		ctx, cancel := context.WithTimeout(r.ctx, 5*time.Second)
-		pending, upToDate = r.ResourceManager.DBChanges(ctx, md)
+		pending, upToDate, checkErrs = r.ResourceManager.DBChanges(ctx, md)
 		cancel()
 	}
 	msg := formatPendingDBChanges(pending)
 
 	r.dbStateMu.Lock()
 	prev := r.lastPendingDBMsg
-	r.lastPendingDBMsg = msg
+	if len(checkErrs) == 0 {
+		r.lastPendingDBMsg = msg
+	}
 	var created []string
 	for _, name := range upToDate {
 		if !r.knownDBs[name] {
@@ -96,10 +100,16 @@ func (r *Run) reloadedMessage() string {
 	for _, line := range created {
 		b.WriteString(aurora.Green(line).String() + "\n")
 	}
-	switch msg {
-	case "":
+	for _, e := range checkErrs {
+		line := fmt.Sprintf("Could not check database %q for pending migrations: %v", e.DBName, e.Err)
+		b.WriteString(aurora.Yellow(line).String() + "\n")
+	}
+	switch {
+	case msg == "" && len(checkErrs) > 0:
+		b.WriteString("Reloaded.\n")
+	case msg == "":
 		b.WriteString("Reloaded successfully.\n")
-	case prev:
+	case msg == prev:
 		b.WriteString(aurora.Yellow("Reloaded, database changes still pending. Restart encore run to apply them.").String() + "\n")
 	default:
 		b.WriteString(aurora.Yellow("Reloaded, but database changes need a restart to apply:").String() + "\n" +

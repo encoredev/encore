@@ -82,10 +82,22 @@ func TestPendingMigrations(t *testing.T) {
 		{Filename: "3_c.up.sql", Number: 3},
 	}
 	testCases := map[string]struct {
-		nonSeq   bool
-		applied  map[uint64]bool
-		expected []string
+		nonSeq     bool
+		migrations []*meta.DBMigration // defaults to migrations
+		applied    map[uint64]bool
+		expected   []string
 	}{
+		// Drizzle numbers its first migration 0.
+		"seq_zero_none_applied": {
+			migrations: []*meta.DBMigration{{Filename: "0000_init.sql", Number: 0}},
+			applied:    map[uint64]bool{},
+			expected:   []string{"0000_init.sql"},
+		},
+		"seq_zero_applied": {
+			migrations: []*meta.DBMigration{{Filename: "0000_init.sql", Number: 0}},
+			applied:    map[uint64]bool{0: false},
+			expected:   nil,
+		},
 		"seq_none_applied":    {applied: map[uint64]bool{}, expected: []string{"1_a.up.sql", "2_b.up.sql", "3_c.up.sql"}},
 		"seq_all_applied":     {applied: map[uint64]bool{3: false}, expected: nil},
 		"seq_new_migration":   {applied: map[uint64]bool{2: false}, expected: []string{"3_c.up.sql"}},
@@ -98,6 +110,9 @@ func TestPendingMigrations(t *testing.T) {
 	for name, tc := range testCases {
 		c.Run(name, func(c *qt.C) {
 			dbMeta := &meta.SQLDatabase{Migrations: migrations, AllowNonSequentialMigrations: tc.nonSeq}
+			if tc.migrations != nil {
+				dbMeta.Migrations = tc.migrations
+			}
 			var got []string
 			for _, m := range PendingMigrations(dbMeta, tc.applied) {
 				got = append(got, m.Filename)

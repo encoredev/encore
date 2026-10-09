@@ -344,6 +344,9 @@ func PendingMigrations(dbMeta *meta.SQLDatabase, applied map[uint64]bool) []*met
 
 	// Sequential migrations only track the latest version,
 	// so everything after it is pending.
+	if len(applied) == 0 {
+		return dbMeta.Migrations
+	}
 	var latest uint64
 	for v := range applied {
 		latest = max(latest, v)
