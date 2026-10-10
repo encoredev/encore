@@ -644,7 +644,7 @@ impl MetaBuilder<'_> {
                                 access.range.to_span(),
                                 "cannot determine which service is accessing this database",
                             )
-                            .help("infrastructure resources can only be used within services. To use the database from shared code, pass a reference to it into the library.")
+                            .help("databases can only be used within services. Use the database from the service that needs it.")
                             .emit();
                         });
                         continue;
