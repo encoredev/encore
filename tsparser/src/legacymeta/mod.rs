@@ -637,9 +637,16 @@ impl MetaBuilder<'_> {
                 }
                 Usage::AccessDatabase(access) => {
                     let Some(svc) = self.service_for_range(&access.range) else {
-                        access
-                            .range
-                            .parse_err("cannot determine which service is accessing this database");
+                        // Without a service the database isn't configured for the process
+                        // using it when deployed, so this must fail at parse time.
+                        HANDLER.with(|h| {
+                            h.struct_span_err(
+                                access.range.to_span(),
+                                "cannot determine which service is accessing this database",
+                            )
+                            .help("infrastructure resources can only be used within services. To use the database from shared code, pass a reference to it into the library.")
+                            .emit();
+                        });
                         continue;
                     };
 
@@ -1116,6 +1123,11 @@ mod tests {
     use super::*;
 
     fn parse(tmp_dir: &Path, src: &str) -> anyhow::Result<v1::Data> {
+        parse_with_errors(tmp_dir, src).map(|(md, _)| md)
+    }
+
+    /// Like parse, but also reports whether any errors were emitted.
+    fn parse_with_errors(tmp_dir: &Path, src: &str) -> anyhow::Result<(v1::Data, bool)> {
         let globals = Globals::new();
         let cm: Rc<SourceMap> = Default::default();
         let errs = Rc::new(Handler::with_tty_emitter(
@@ -1149,9 +1161,60 @@ mod tests {
                 let parser = Parser::new(&pc, pass1);
                 let parse = parser.parse();
                 let md = compute_meta(&pc, &parse)?;
-                Ok(md)
+                Ok((md, errs.has_errors()))
             })
         })
+    }
+
+    const DB_SERVICE: &str = r#"
+-- auth/encore.service.ts --
+import { Service } from "encore.dev/service";
+export default new Service("auth");
+
+-- auth/db.ts --
+import { SQLDatabase } from "encore.dev/storage/sqldb";
+export const DB = new SQLDatabase("pingvin", { migrations: "./migrations" });
+
+-- auth/migrations/1_init.up.sql --
+CREATE TABLE users (id BIGSERIAL PRIMARY KEY);
+
+-- package.json --
+{ "name": "test", "type": "module", "dependencies": { "encore.dev": "^1.35.0" } }
+"#;
+
+    #[test]
+    fn test_database_usage_in_service() -> anyhow::Result<()> {
+        let src = format!(
+            "{DB_SERVICE}
+-- auth/auth.ts --
+import {{ DB }} from \"./db\";
+export const count = () => DB.queryRow`SELECT 1`;
+"
+        );
+        let tmp_dir = TempDir::with_prefix("tsparser-db-test")?;
+        let (meta, has_errors) = parse_with_errors(tmp_dir.path(), &src)?;
+        assert!(!has_errors);
+        assert_eq!(meta.svcs[0].databases, vec!["pingvin".to_string()]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_database_usage_outside_service() -> anyhow::Result<()> {
+        let src = format!(
+            "{DB_SERVICE}
+-- lib/db.ts --
+import {{ SQLDatabase }} from \"encore.dev/storage/sqldb\";
+const DB = SQLDatabase.named(\"pingvin\");
+export const connectionString = () => DB.connectionString;
+"
+        );
+        let tmp_dir = TempDir::with_prefix("tsparser-db-test")?;
+        let (_, has_errors) = parse_with_errors(tmp_dir.path(), &src)?;
+        assert!(
+            has_errors,
+            "using a database outside a service should be an error"
+        );
+        Ok(())
     }
 
     #[test]
