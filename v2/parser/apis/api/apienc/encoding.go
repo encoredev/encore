@@ -160,6 +160,8 @@ func (r *RequestEncoding) AllParameters() []*ParameterEncoding {
 type ParameterEncoding struct {
 	// SrcName is the name of the struct field
 	SrcName string `json:"src_name"`
+	// SrcPath is the embedded fields to select through to reach SrcName, if any.
+	SrcPath []string `json:"src_path,omitempty"`
 	// WireName is how the name is encoded on the wire.
 	WireName string `json:"wire_name"`
 	// Location is the location this encoding is for.
@@ -410,20 +412,28 @@ func DescribeAuth(errs *perr.List, authSchema schema.Type) *AuthEncoding {
 	}
 }
 
-// describeParams calls describeParam() for each field in the payload struct
+// describeParams calls describeParam() for each field in the payload struct,
+// with embedded structs flattened.
 func describeParams(errs *perr.List, encodingHints *encodingHints, payload schema.StructType) (fields map[WireLoc][]*ParameterEncoding, ok bool) {
 	paramByLocation := make(map[WireLoc][]*ParameterEncoding)
-	for _, f := range payload.Fields {
-		if !f.IsExported() {
+	for _, flat := range schemautil.FlattenStruct(errs, payload) {
+		if !flat.Field.IsExported() {
 			continue
 		}
 
-		f, ok := describeParam(errs, encodingHints, f)
+		// The generated code does not allocate embedded pointers.
+		if flat.ThroughPointer() {
+			errs.Add(errAnonymousFields.AtGoNode(flat.Path[0].AST))
+			return nil, false
+		}
+
+		f, ok := describeParam(errs, encodingHints, flat.Field)
 		if !ok {
 			return nil, false
 		}
 
 		if f != nil {
+			f.SrcPath = flat.GoPath()
 			paramByLocation[f.Location] = append(paramByLocation[f.Location], f)
 		}
 	}
@@ -460,12 +470,7 @@ func IgnoreField(field schema.StructField) bool {
 //
 // It returns nil, nil if the field is not to be encoded.
 func describeParam(errs *perr.List, encodingHints *encodingHints, field schema.StructField) (*ParameterEncoding, bool) {
-	if field.Name.Empty() {
-		// TODO(andre) We don't yet support encoding anonymous fields.
-		errs.Add(errAnonymousFields.AtGoNode(field.AST))
-		return nil, false
-	}
-	srcName := field.Name.MustGet()
+	srcName := field.Name.MustGet() // FlattenStruct always names its fields
 
 	defaultWireName := formatName(encodingHints.defaultLocation, srcName)
 	param := ParameterEncoding{

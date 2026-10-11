@@ -128,7 +128,8 @@ func validateStructFields(errs *perr.List, ref schema.StructType) {
 	fieldErr := ErrInvalidFieldTags
 
 nextField:
-	for _, field := range ref.Fields {
+	for _, flat := range schemautil.FlattenStruct(errs, ref) {
+		field := flat.Field
 		// No tags, then we tell them they need to specify it
 		if field.Tag.Len() == 0 {
 			fieldErr = fieldErr.AtGoNode(field.AST, errors.AsError("you must specify a \"header\", \"query\", or \"cookie\" tag for this field"))

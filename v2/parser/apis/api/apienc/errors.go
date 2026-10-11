@@ -13,7 +13,9 @@ var (
 
 	errAnonymousFields = errRange.New(
 		"Invalid API schema",
-		"Anonymous fields in top-level request/response types are not supported.",
+		"Embedded struct pointers in top-level request/response types are not supported.",
+		errors.WithDetails("Embed the struct by value instead, or use a named field. Embedded pointers are "+
+			"supported in nested types."),
 	)
 
 	errTagConflict = errRange.Newf(
@@ -56,6 +58,7 @@ var (
 		"Interfaces are not supported in API schemas.",
 	)
 
+	// Deprecated: no longer reported. Kept so later error codes are unchanged.
 	ErrAnonymousFieldsNotSupported = errRange.New(
 		"Invalid API schema",
 		"Anonymous fields are not supported in API schemas.",

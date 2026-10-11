@@ -119,6 +119,21 @@ func Raw(w http.ResponseWriter, req *http.Request) {}
 				HTTPMethods: []string{"*"},
 			},
 		},
+		{
+			name: "embedded_pointer_in_request",
+			def: `
+//encore:api public method=POST
+func Foo(ctx context.Context, p *Params) error {}
+
+type Params struct {
+	*Inner
+	Name string
+}
+
+type Inner struct{ X string }
+`,
+			wantErrs: []string{`(?s).*Embedded struct pointers in top-level request/response types are not supported.*`},
+		},
 	}
 
 	// testArchive renders the txtar archive to use for a given test.
