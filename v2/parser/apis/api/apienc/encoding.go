@@ -457,9 +457,11 @@ func describeParams(errs *perr.List, encodingHints *encodingHints, payload schem
 		}
 
 		// Report the field it conflicts with where it was dropped.
-		kind, nameOf, shown := "JSON", jsonName, jsonName(i).MustGet().Name
+		kind, nameOf, shown := "JSON", jsonName, ""
 		if !wireKept[i] {
 			kind, nameOf, shown = string(p.Location), sentName, p.WireName
+		} else {
+			shown = jsonName(i).MustGet().Name
 		}
 		name := nameOf(i).MustGet().Name
 		other := 0
