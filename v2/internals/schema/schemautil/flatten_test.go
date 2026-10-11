@@ -56,6 +56,11 @@ func TestFlattenStruct(t *testing.T) {
 			want: []string{"Inner.X"},
 		},
 		{
+			name: "json_dash_field_does_not_shadow",
+			code: "type T struct { Inner; X string `json:\"-\" header:\"x\"` }\ntype Inner struct { X string }",
+			want: []string{"Inner.X", "X"},
+		},
+		{
 			name: "embedded_non_struct_is_a_field",
 			code: "type T struct { ID }\ntype ID string",
 			want: []string{"ID"},

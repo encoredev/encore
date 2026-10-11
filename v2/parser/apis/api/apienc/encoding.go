@@ -415,8 +415,8 @@ func DescribeAuth(errs *perr.List, authSchema schema.Type) *AuthEncoding {
 // describeParams calls describeParam() for each field in the payload struct,
 // with embedded structs flattened.
 func describeParams(errs *perr.List, encodingHints *encodingHints, payload schema.StructType) (fields map[WireLoc][]*ParameterEncoding, ok bool) {
-	paramByLocation := make(map[WireLoc][]*ParameterEncoding)
-	for _, flat := range schemautil.FlattenStruct(errs, payload) {
+	var flats []schemautil.FlatField
+	for _, flat := range schemautil.PromotedFields(errs, payload) {
 		if !flat.Field.IsExported() {
 			continue
 		}
@@ -426,18 +426,103 @@ func describeParams(errs *perr.List, encodingHints *encodingHints, payload schem
 			errs.Add(errAnonymousFields.AtGoNode(flat.Path[0].AST))
 			return nil, false
 		}
+		flats = append(flats, flat)
+	}
 
+	// params[i] describes flats[i], or is nil if the field is not encoded.
+	params := make([]*ParameterEncoding, len(flats))
+	for i, flat := range flats {
 		f, ok := describeParam(errs, encodingHints, flat.Field)
 		if !ok {
 			return nil, false
 		}
-
 		if f != nil {
 			f.SrcPath = flat.GoPath()
-			paramByLocation[f.Location] = append(paramByLocation[f.Location], f)
+			params[i] = f
+		}
+	}
+
+	// Fields conflict when they are sent in the same place under the same name.
+	// Clients know fields by their JSON name instead, so both must keep the same fields.
+	sentName := func(i int) option.Option[schemautil.ConflictName] {
+		return wireName(encodingHints, flats[i].Field, params[i])
+	}
+	jsonName := func(i int) option.Option[schemautil.ConflictName] {
+		return schemautil.JSONName(flats[i])
+	}
+	wireKept, jsonKept := keptFields(flats, sentName), keptFields(flats, jsonName)
+	for i, p := range params {
+		if p == nil || wireKept[i] == jsonKept[i] {
+			continue
+		}
+
+		// Report the field it conflicts with where it was dropped.
+		kind, nameOf, shown := "JSON", jsonName, jsonName(i).MustGet().Name
+		if !wireKept[i] {
+			kind, nameOf, shown = string(p.Location), sentName, p.WireName
+		}
+		name := nameOf(i).MustGet().Name
+		other := 0
+		for j := range flats {
+			if n, ok := nameOf(j).Get(); ok && j != i && n.Name == name {
+				other = j
+				break
+			}
+		}
+
+		errs.Add(errFieldNameConflict(fieldPath(flats[i]), fieldPath(flats[other]), kind, shown).
+			AtGoNode(flats[i].Field.AST).
+			AtGoNode(flats[other].Field.AST, errors.AsHelp("conflicts with this field")))
+		return nil, false
+	}
+
+	paramByLocation := make(map[WireLoc][]*ParameterEncoding)
+	for i, p := range params {
+		if p != nil && wireKept[i] {
+			paramByLocation[p.Location] = append(paramByLocation[p.Location], p)
 		}
 	}
 	return paramByLocation, true
+}
+
+// keptFields reports, for each of flats, whether it survives conflicts on the names given by name.
+func keptFields(flats []schemautil.FlatField, name func(i int) option.Option[schemautil.ConflictName]) []bool {
+	idx := make([]int, len(flats))
+	for i := range idx {
+		idx[i] = i
+	}
+	kept := make([]bool, len(flats))
+	for _, i := range schemautil.ResolveConflicts(idx, func(i int) (schemautil.FlatField, option.Option[schemautil.ConflictName]) {
+		return flats[i], name(i)
+	}) {
+		kept[i] = true
+	}
+	return kept
+}
+
+// wireName returns the name p is sent under, qualified by where it is sent,
+// or None if the field is not encoded.
+func wireName(encodingHints *encodingHints, field schema.StructField, p *ParameterEncoding) option.Option[schemautil.ConflictName] {
+	if p == nil {
+		return option.None[schemautil.ConflictName]()
+	}
+	tagged := false
+	for _, tag := range field.Tag.Tags() {
+		if hint, ok := encodingHints.tags[tag.Key]; ok && hint.location == p.Location && tag.Name != "" {
+			tagged = true
+		}
+	}
+	return option.Some(schemautil.ConflictName{Name: string(p.Location) + ":" + p.WireName, Tagged: tagged})
+}
+
+// fieldPath returns the field's name, qualified by the embedded fields it was promoted from.
+func fieldPath(f schemautil.FlatField) string {
+	var parts []string
+	for _, p := range f.Path {
+		name, _ := schemautil.EmbeddedFieldName(p)
+		parts = append(parts, name)
+	}
+	return strings.Join(append(parts, f.Field.Name.MustGet()), ".")
 }
 
 // formatName formats a parameter name with the default formatting for the location (e.g. snakecase for query)

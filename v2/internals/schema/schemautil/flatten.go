@@ -60,6 +60,14 @@ func EmbeddedFieldName(f schema.StructField) (string, bool) {
 // with the fields of embedded structs promoted, in declaration order.
 // A struct without embedded fields is returned unchanged.
 func FlattenStruct(errs *perr.List, st schema.StructType) []FlatField {
+	return ResolveConflicts(PromotedFields(errs, st), func(f FlatField) (FlatField, option.Option[ConflictName]) {
+		return f, JSONName(f)
+	})
+}
+
+// PromotedFields returns the fields of st with the fields of embedded structs promoted,
+// in declaration order, without resolving name conflicts; see ResolveConflicts.
+func PromotedFields(errs *perr.List, st schema.StructType) []FlatField {
 	if !slices.ContainsFunc(st.Fields, func(f schema.StructField) bool { return f.IsAnonymous() }) {
 		result := make([]FlatField, len(st.Fields))
 		for i, f := range st.Fields {
@@ -68,23 +76,14 @@ func FlattenStruct(errs *perr.List, st schema.StructType) []FlatField {
 		return result
 	}
 
-	var candidates []flatCandidate
-	collectFlatFields(errs, st, nil, nil, nil, &candidates)
-	return resolveFlatConflicts(candidates)
+	var out []FlatField
+	collectFlatFields(errs, st, nil, nil, &out)
+	return out
 }
 
-// flatCandidate is a field found while flattening, before conflicts are resolved.
-type flatCandidate struct {
-	FlatField
-	index    []int // field index at each level, for ordering
-	jsonName string
-	tagged   bool // jsonName came from a json tag
-}
-
-func collectFlatFields(errs *perr.List, st schema.StructType, path []schema.StructField, index []int, seen []pkgDeclKey, out *[]flatCandidate) {
-	for i, f := range st.Fields {
-		idx := append(slices.Clone(index), i)
-		tagName, tagged, omit := jsonFieldTag(f)
+func collectFlatFields(errs *perr.List, st schema.StructType, path []schema.StructField, seen []pkgDeclKey, out *[]FlatField) {
+	for _, f := range st.Fields {
+		_, tagged, omit := jsonFieldTag(f)
 
 		name, named := f.Name.Get()
 		if !named {
@@ -108,7 +107,7 @@ func collectFlatFields(errs *perr.List, st schema.StructType, path []schema.Stru
 					}
 
 					concrete := ConcretizeWithTypeArgs(errs, st, named.TypeArgs).(schema.StructType)
-					collectFlatFields(errs, concrete, append(slices.Clone(path), f), idx, append(slices.Clone(seen), key), out)
+					collectFlatFields(errs, concrete, append(slices.Clone(path), f), append(slices.Clone(seen), key), out)
 					continue
 				}
 			}
@@ -118,52 +117,70 @@ func collectFlatFields(errs *perr.List, st schema.StructType, path []schema.Stru
 				continue
 			}
 			f.Name = option.Some(typeName)
-			name = typeName
 		} else if len(path) > 0 && !ast.IsExported(name) {
 			continue
 		}
 
-		jsonName := name
-		if tagged {
-			jsonName = tagName
-		}
-		*out = append(*out, flatCandidate{
-			FlatField: FlatField{Field: f, Path: path},
-			index:     idx,
-			jsonName:  jsonName,
-			tagged:    tagged,
-		})
+		*out = append(*out, FlatField{Field: f, Path: path})
 	}
 }
 
-// resolveFlatConflicts drops fields that lose a JSON name conflict, as encoding/json does,
-// and returns the rest in declaration order.
-func resolveFlatConflicts(candidates []flatCandidate) []FlatField {
-	byName := make(map[string][]int, len(candidates))
-	for i, c := range candidates {
-		byName[c.jsonName] = append(byName[c.jsonName], i)
+// ConflictName is the name a field is known by when resolving name conflicts.
+type ConflictName struct {
+	Name   string
+	Tagged bool // set by a tag, which breaks ties between fields at the same depth
+}
+
+// JSONName returns the name encoding/json encodes f under.
+// Fields tagged `json:"-"` have none, so they never conflict.
+func JSONName(f FlatField) option.Option[ConflictName] {
+	tagName, tagged, omit := jsonFieldTag(f.Field)
+	switch {
+	case omit:
+		return option.None[ConflictName]()
+	case tagged:
+		return option.Some(ConflictName{Name: tagName, Tagged: true})
+	default:
+		return option.Some(ConflictName{Name: f.Field.Name.MustGet()})
+	}
+}
+
+// ResolveConflicts drops the items whose field loses a name conflict, as encoding/json does:
+// the shallowest field wins, then the only tagged one; otherwise all of them are dropped.
+// Only conflicts involving a promoted field are resolved, to keep existing behavior.
+// key returns an item's field and the name it is known by, if any.
+func ResolveConflicts[T any](items []T, key func(T) (FlatField, option.Option[ConflictName])) []T {
+	type entry struct {
+		depth    int
+		tagged   bool
+		promoted bool
+	}
+	entries := make([]entry, len(items))
+	byName := make(map[string][]int, len(items))
+	for i, item := range items {
+		f, name := key(item)
+		entries[i] = entry{depth: len(f.Path), promoted: f.IsPromoted()}
+		if n, ok := name.Get(); ok {
+			entries[i].tagged = n.Tagged
+			byName[n.Name] = append(byName[n.Name], i)
+		}
 	}
 
-	drop := make([]bool, len(candidates))
+	drop := make([]bool, len(items))
 	for _, group := range byName {
-		if len(group) < 2 {
+		if len(group) < 2 || !slices.ContainsFunc(group, func(i int) bool { return entries[i].promoted }) {
 			continue
 		}
 
-		// Only resolve conflicts involving promoted fields, to keep existing behavior.
-		if !slices.ContainsFunc(group, func(i int) bool { return candidates[i].IsPromoted() }) {
-			continue
-		}
-
-		minDepth := len(candidates[group[0]].Path)
+		minDepth := entries[group[0]].depth
 		for _, i := range group {
-			minDepth = min(minDepth, len(candidates[i].Path))
+			minDepth = min(minDepth, entries[i].depth)
 		}
 		var shallowest, tagged []int
 		for _, i := range group {
-			if len(candidates[i].Path) == minDepth {
+			if entries[i].depth == minDepth {
 				shallowest = append(shallowest, i)
-				if candidates[i].tagged {
+				if entries[i].tagged {
 					tagged = append(tagged, i)
 				}
 			}
@@ -180,21 +197,13 @@ func resolveFlatConflicts(candidates []flatCandidate) []FlatField {
 		}
 	}
 
-	var kept []flatCandidate
-	for i, c := range candidates {
+	var kept []T
+	for i, item := range items {
 		if !drop[i] {
-			kept = append(kept, c)
+			kept = append(kept, item)
 		}
 	}
-	slices.SortStableFunc(kept, func(a, b flatCandidate) int {
-		return slices.Compare(a.index, b.index)
-	})
-
-	result := make([]FlatField, len(kept))
-	for i, c := range kept {
-		result[i] = c.FlatField
-	}
-	return result
+	return kept
 }
 
 // jsonFieldTag returns the field's json tag name, and whether it is `json:"-"`.
