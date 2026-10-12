@@ -12,16 +12,18 @@
 
 ## What is Encore?
 
-Encore is the infrastructure platform for the intelligence era, where engineers and AI agents build production systems without waiting on infrastructure. Run and validate with real infrastructure locally and in preview environments, then deploy to your own AWS or GCP account.
+Encore helps developers and AI coding agents build and deploy backend applications without having to manually set up and manage infrastructure.
 
-It has two parts that work together:
+You define the infrastructure your app needs in code, run the entire application locally with working infrastructure, and deploy to your own AWS or Google Cloud account.
 
-- An open source **infrastructure SDK** for TypeScript and Go. Declare the resources your app needs (databases, Pub/Sub, object storage, caches, cron jobs, secrets) directly in your code, and `encore run` starts the whole system locally with real Postgres, real Pub/Sub semantics, and distributed tracing.
-- The **Encore platform**, an optional managed platform that orchestrates cloud infrastructure. From preview environments for end-to-end testing PRs, to provisioning infrastructure in your AWS or GCP account for production.
+Encore has two parts that work together:
 
-You can also use just the SDK for local development and provision infrastructure yourself using Terraform or any other tool.
+- An open source **infrastructure SDK**: Define databases, Pub/Sub, object storage, caches, cron jobs, and secrets directly in your code. Run `encore run` to start your application locally with real infrastructure and built-in distributed tracing.
+- The Encore platform: An optional managed platform that automatically provisions and manages infrastructure in your AWS or Google Cloud account. It provides a control plane for configuration and infrastructure approvals, preview environments for testing changes before production, and built-in metrics and distributed tracing.
 
-### Example: Declaring resources
+You can use the SDK on its own, without Encore's platform, and manage production infrastructure yourself using Terraform or other tools.
+
+### Example: Declaring resources using the SDK
 
 ```typescript
 import { SQLDatabase } from "encore.dev/storage/sqldb";
@@ -40,7 +42,7 @@ const avatars = new Bucket("avatars", { versioned: true });
 
 Each declaration becomes a node in Encore's application graph. Encore runs the migrations and stands up local equivalents on `encore run`, and provisions the cloud equivalents on deploy:
 
-| Resource       | Local              | AWS             | GCP             |
+| Resource       | Local              | AWS             | Google Cloud             |
 | -------------- | ------------------ | --------------- | --------------- |
 | SQL Database   | Postgres           | RDS             | Cloud SQL       |
 | Pub/Sub        | NSQ                | SNS + SQS       | Cloud Pub/Sub   |
@@ -50,7 +52,7 @@ Each declaration becomes a node in Encore's application graph. Encore runs the m
 | Secrets        | Encore vault       | Secrets Manager | Secret Manager  |
 | Compute        | Local              | Fargate / EKS   | Cloud Run / GKE |
 
-When you push a change that adds or modifies a resource, Encore diffs the application graph against the environment, provisions whatever is missing in your AWS or GCP account, and rolls out the new code against it.
+When you push a change that adds or modifies a resource, Encore diffs the application graph against the environment, provisions whatever is missing in your AWS or Google Cloud account, and rolls out the new code against it.
 
 ### Configuration
 
