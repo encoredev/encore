@@ -199,6 +199,18 @@ func (meta CallMeta) PrivateAPIAccess() bool {
 	return meta.Internal != nil && meta.Internal.Caller != nil && meta.Internal.Caller.PrivateAPIAccess()
 }
 
+// CallerServiceName reports the name of the service that made the call,
+// if the caller is another API endpoint. Otherwise it reports "".
+func (meta CallMeta) CallerServiceName() string {
+	if meta.Internal == nil {
+		return ""
+	}
+	if caller, ok := meta.Internal.Caller.(ApiCaller); ok {
+		return caller.ServiceName
+	}
+	return ""
+}
+
 // MetaFromRequest reads the metadata from the given request and returns it
 func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err error) {
 	// Read the meta version if set and check it's only version 1

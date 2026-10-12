@@ -55,6 +55,14 @@ export const getGreetingViaService2 = api(
   }
 );
 
+// Service-to-service call: Ask service2 who called it
+export const getCallerViaService2 = api(
+  { expose: true, method: "GET", path: "/get-caller" },
+  async (): Promise<{ callerService?: string }> => {
+    return await service2.whoCalled();
+  }
+);
+
 // Endpoint with custom HTTP status
 export const customStatus = api(
   { expose: true, method: "GET", path: "/test-custom-status" },

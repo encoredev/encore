@@ -55,6 +55,11 @@ type Request struct {
 	PathParams PathParams // If there are path parameters, what are they?
 	Method     string     // What HTTP method was used
 
+	// CallerService is the name of the service that made the API call,
+	// for service-to-service calls. It is empty if the request did not
+	// come from another service.
+	CallerService string
+
 	// Headers contains the request headers sent with the request, if any.
 	//
 	// It is currently empty for service-to-service API calls when the caller
@@ -185,6 +190,7 @@ func (mgr *Manager) CurrentRequest() *Request {
 		}
 		result.Method = data.HTTPMethod
 		result.Headers = data.RequestHeaders
+		result.CallerService = data.CallerService
 
 		result.API = &APIDesc{
 			RequestType:  desc.RequestType,
