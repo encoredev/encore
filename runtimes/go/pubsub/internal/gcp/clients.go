@@ -26,9 +26,9 @@ func (mgr *Manager) getClientForProject(projectID string) *pubsub.Client {
 	return client
 }
 
-// numGoroutines computes the number of goroutines to use for the subscription,
+// adaptivePullConcurrency computes the number of pull connections to use for the subscription,
 // by adaptively taking into account gRPC stream limits and the number of subscriptions.
-func numGoroutines(numSubs int) int {
+func adaptivePullConcurrency(numSubs int) int {
 	if numSubs < 1 {
 		numSubs = 1 // avoid division by zero
 	}
