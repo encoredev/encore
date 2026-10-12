@@ -7,7 +7,7 @@ license = "MIT"
 
 [features]
 default = []
-tls = ["dep:tokio-rustls", "dep:rustls", "dep:rustls-pemfile"]
+tls = ["dep:tokio-rustls", "dep:rustls"]
 
 [dependencies]
 # Async runtime
@@ -34,7 +34,6 @@ rand = "0.9"
 # TLS (optional)
 tokio-rustls = { version = "0.26", optional = true, default-features = false, features = ["ring"] }
 rustls = { version = "0.23", optional = true, default-features = false, features = ["ring", "logging", "std", "tls12"] }
-rustls-pemfile = { version = "2", optional = true }
 
 # Lua scripting
 mlua = { version = "0.11", features = ["lua51", "vendored", "send"] }

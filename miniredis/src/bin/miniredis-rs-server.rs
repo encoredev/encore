@@ -28,6 +28,8 @@ use miniredis_rs::Miniredis;
 use tokio::signal::unix::{SignalKind, signal};
 
 #[cfg(feature = "tls")]
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject};
+#[cfg(feature = "tls")]
 use std::fs;
 
 #[cfg(feature = "tls")]
@@ -40,16 +42,14 @@ fn load_tls_config(
     let key_pem = fs::read(key_path).expect("read key file");
     let ca_pem = fs::read(ca_cert_path).expect("read CA cert file");
 
-    let certs: Vec<_> = rustls_pemfile::certs(&mut &cert_pem[..])
+    let certs: Vec<_> = CertificateDer::pem_slice_iter(&cert_pem)
         .collect::<Result<Vec<_>, _>>()
         .expect("parse certs");
 
-    let key = rustls_pemfile::private_key(&mut &key_pem[..])
-        .expect("parse key")
-        .expect("no key found");
+    let key = PrivateKeyDer::from_pem_slice(&key_pem).expect("parse key");
 
     let mut root_store = rustls::RootCertStore::empty();
-    for cert in rustls_pemfile::certs(&mut &ca_pem[..]) {
+    for cert in CertificateDer::pem_slice_iter(&ca_pem) {
         root_store
             .add(cert.expect("parse CA cert"))
             .expect("add CA cert");

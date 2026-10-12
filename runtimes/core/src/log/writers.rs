@@ -34,11 +34,9 @@ impl Debug for dyn Writer {
 pub fn default_writer(fields: &'static FieldConfig) -> Arc<dyn Writer> {
     // Check if the user has set the `ENCORE_LOG_FORMAT` environment variable to `console`.
     // if so we'll use the pretty console writer.
-    for var in &["ENCORE_LOG_FORMAT"] {
-        if let Ok(format) = env::var(var) {
-            if format == "console" {
-                return Arc::new(ConsoleWriter::new(fields, std::io::stderr()));
-            }
+    if let Ok(format) = env::var("ENCORE_LOG_FORMAT") {
+        if format == "console" {
+            return Arc::new(ConsoleWriter::new(fields, std::io::stderr()));
         }
     }
 

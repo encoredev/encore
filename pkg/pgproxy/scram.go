@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/jackc/pgproto3/v2"
+	"github.com/jackc/pgx/v5/pgproto3"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/text/secure/precis"
 )
@@ -55,7 +55,8 @@ func scramAuth(fe *pgproto3.Frontend, password string, serverAuthMechanisms []st
 		AuthMechanism: "SCRAM-SHA-256",
 		Data:          sc.clientFirstMessage(),
 	}
-	if err := fe.Send(saslInitialResponse); err != nil {
+	fe.Send(saslInitialResponse)
+	if err := fe.Flush(); err != nil {
 		return err
 	}
 
@@ -78,7 +79,8 @@ func scramAuth(fe *pgproto3.Frontend, password string, serverAuthMechanisms []st
 	saslResponse := &pgproto3.SASLResponse{
 		Data: []byte(sc.clientFinalMessage()),
 	}
-	if err := fe.Send(saslResponse); err != nil {
+	fe.Send(saslResponse)
+	if err := fe.Flush(); err != nil {
 		return err
 	}
 

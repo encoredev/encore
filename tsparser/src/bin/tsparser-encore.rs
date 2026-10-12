@@ -48,6 +48,7 @@ fn main() -> Result<()> {
             {
                 let pp = builder::PrepareParams {
                     app_root: prepare.app_root.clone(),
+                    install_mode: prepare.install_mode,
 
                     encore_dev_version: match prepare.local_runtime_override {
                         Some(buf) => builder::PackageVersion::Local(buf.join("encore.dev")),
@@ -292,6 +293,8 @@ struct PrepareInput {
     runtime_version: String,
     #[serde(default)]
     local_runtime_override: Option<PathBuf>,
+    #[serde(default)]
+    install_mode: builder::InstallMode,
 }
 
 #[derive(Deserialize, Debug)]

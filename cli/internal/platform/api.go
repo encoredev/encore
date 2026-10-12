@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/option"
 	metav1 "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -19,6 +20,9 @@ type CreateAppParams struct {
 	Name           string
 	InitialSecrets map[string]string
 	AppRootDir     string
+
+	// OrgID, if set, creates the app owned by this org.
+	OrgID option.Option[string]
 }
 
 type App struct {

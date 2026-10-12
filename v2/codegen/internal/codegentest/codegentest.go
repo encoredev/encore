@@ -34,9 +34,14 @@ type Case struct {
 var goldenUpdate = flag.Bool("golden-update", os.Getenv("GOLDEN_UPDATE") != "", "update golden files")
 
 func Run(t *testing.T, fn func(*codegen.Generator, *app.Desc)) {
+	RunDir(t, "testdata", fn)
+}
+
+// RunDir is like Run but reads the test cases from dir.
+func RunDir(t *testing.T, dir string, fn func(*codegen.Generator, *app.Desc)) {
 	flag.Parse()
 	c := qt.New(t)
-	tests := readTestCases(c, "testdata")
+	tests := readTestCases(c, dir)
 	for _, test := range tests {
 		c.Run(test.name, func(c *qt.C) {
 			tc := testutil.NewContext(c, false, test.input)
@@ -87,6 +92,8 @@ func Run(t *testing.T, fn func(*codegen.Generator, *app.Desc)) {
 				got[key] = string(o.Contents)
 			}
 
+			assertKeepsLines(c, overlays)
+
 			if *goldenUpdate {
 				updateGoldenFiles(c, test, got)
 			} else if diff := cmp.Diff(got, test.want); diff != "" {
@@ -96,6 +103,22 @@ func Run(t *testing.T, fn func(*codegen.Generator, *app.Desc)) {
 			// Make sure it compiles
 			goBuild(tc, overlays)
 		})
+	}
+}
+
+// assertKeepsLines checks that every rewritten file has as many lines as the
+// file it rewrites. Tools that ignore //line directives (cmd/cover since Go
+// 1.27) would otherwise report everything below an added line on the wrong
+// line of the user's source.
+func assertKeepsLines(c *qt.C, overlays []overlay.File) {
+	for _, o := range overlays {
+		orig, err := os.ReadFile(o.Source.ToIO())
+		if errors.Is(err, fs.ErrNotExist) {
+			continue // a generated file, not a rewrite
+		}
+		c.Assert(err, qt.IsNil)
+		c.Assert(strings.Count(string(o.Contents), "\n"), qt.Equals, strings.Count(string(orig), "\n"),
+			qt.Commentf("rewrite of %s changed its number of lines", o.Source))
 	}
 }
 

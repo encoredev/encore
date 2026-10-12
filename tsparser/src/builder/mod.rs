@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub use codegen::{CodegenParams, CodegenResult};
 pub use compile::CompileParams;
 pub use parse::{ParseError, ParseParams};
-pub use prepare::{PackageVersion, PrepareParams};
+pub use prepare::{InstallMode, PackageVersion, PrepareParams};
 pub use test::TestParams;
 
 mod codegen;

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/doc/comment"
+	"sort"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -31,7 +32,9 @@ type Generator struct {
 	ver       GenVersion
 	spec      *openapi3.T
 	md        *meta.Data
+	opts      clientgentypes.Options
 	seenDecls map[string]uint32
+	usedTags  map[string]bool
 }
 
 func New(version GenVersion) *Generator {
@@ -57,13 +60,26 @@ func (g *Generator) Generate(p clientgentypes.GenerateParams) (err error) {
 	}()
 
 	g.md = p.Meta
+	g.opts = p.Options
 	g.spec = newSpec(p.AppSlug)
+	g.usedTags = make(map[string]bool)
 
 	for _, svc := range p.Meta.Svcs {
 		if p.Services.Has(svc.Name) {
 			if err := g.addService(svc, p.Tags, p.Options); err != nil {
 				return err
 			}
+		}
+	}
+
+	if g.opts.OpenAPIEmitTags && len(g.usedTags) > 0 {
+		names := make([]string, 0, len(g.usedTags))
+		for name := range g.usedTags {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			g.spec.Tags = append(g.spec.Tags, &openapi3.Tag{Name: name})
 		}
 	}
 
@@ -118,17 +134,29 @@ func (g *Generator) addRPC(rpc *meta.RPC) error {
 		}
 	}
 
-	g.spec.Paths[rpcPath(rpc)] = item
+	g.spec.Paths.Set(rpcPath(rpc), item)
 	return nil
+}
+
+func (g *Generator) rpcTags(rpc *meta.RPC) []string {
+	var tags []string
+	for _, sel := range rpc.Tags {
+		if sel.Type != meta.Selector_TAG {
+			continue
+		}
+		tags = append(tags, sel.Value)
+		g.usedTags[sel.Value] = true
+	}
+	return tags
 }
 
 func (g *Generator) getOrCreatePath(rpc *meta.RPC) *openapi3.PathItem {
 	path := rpcPath(rpc)
-	if existing, ok := g.spec.Paths[path]; ok {
+	if existing := g.spec.Paths.Value(path); existing != nil {
 		return existing
 	}
 	item := &openapi3.PathItem{}
-	g.spec.Paths[path] = item
+	g.spec.Paths.Set(path, item)
 	return item
 }
 
@@ -141,7 +169,11 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 		Summary:     summary,
 		Description: desc,
 		OperationID: method + ":" + rpc.ServiceName + "." + rpc.Name,
-		Responses:   make(openapi3.Responses),
+		Responses:   openapi3.NewResponses(),
+	}
+
+	if g.opts.OpenAPIEmitTags {
+		op.Tags = g.rpcTags(rpc)
 	}
 
 	// Add path parameters
@@ -254,12 +286,12 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 			}
 		}
 
-		op.Responses["200"] = &openapi3.ResponseRef{
+		op.Responses.Set("200", &openapi3.ResponseRef{
 			Value: resp,
-		}
-		op.Responses["default"] = &openapi3.ResponseRef{
+		})
+		op.Responses.Set("default", &openapi3.ResponseRef{
 			Ref: "#/components/responses/APIError",
-		}
+		})
 	}
 
 	return op, nil
@@ -330,7 +362,7 @@ func newSpec(appSlug string) *openapi3.T {
 			},
 		},
 		OpenAPI: "3.0.0",
-		Paths:   make(openapi3.Paths),
+		Paths:   openapi3.NewPaths(),
 	}
 
 	// Add the local platform server:
@@ -347,7 +379,7 @@ func newSpec(appSlug string) *openapi3.T {
 				"application/json": &openapi3.MediaType{
 					Schema: &openapi3.SchemaRef{
 						Value: &openapi3.Schema{
-							Type:  openapi3.TypeObject,
+							Type:  &openapi3.Types{openapi3.TypeObject},
 							Title: "APIError",
 							ExternalDocs: &openapi3.ExternalDocs{
 								URL: "https://pkg.go.dev/encore.dev/beta/errs#Error",
@@ -357,7 +389,7 @@ func newSpec(appSlug string) *openapi3.T {
 									Value: &openapi3.Schema{
 										Description: "Error code",
 										Example:     "not_found",
-										Type:        openapi3.TypeString,
+										Type:        &openapi3.Types{openapi3.TypeString},
 										ExternalDocs: &openapi3.ExternalDocs{
 											URL: "https://pkg.go.dev/encore.dev/beta/errs#ErrCode",
 										},
@@ -366,13 +398,13 @@ func newSpec(appSlug string) *openapi3.T {
 								"message": {
 									Value: &openapi3.Schema{
 										Description: "Error message",
-										Type:        openapi3.TypeString,
+										Type:        &openapi3.Types{openapi3.TypeString},
 									},
 								},
 								"details": {
 									Value: &openapi3.Schema{
 										Description: "Error details",
-										Type:        openapi3.TypeObject,
+										Type:        &openapi3.Types{openapi3.TypeObject},
 									},
 								},
 							},

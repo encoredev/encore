@@ -1,0 +1,5 @@
+# Runner labels actionlint doesn't know about: the CI and Latest Release
+# workflows run on Blacksmith (https://docs.blacksmith.sh) runners.
+self-hosted-runner:
+  labels:
+    - blacksmith-*

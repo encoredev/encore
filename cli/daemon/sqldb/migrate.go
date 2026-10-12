@@ -286,7 +286,7 @@ func LoadAppliedVersions(ctx context.Context, conn *sql.Conn, schemaName, migrat
 	appliedVersions := map[uint64]bool{}
 
 	query := `SELECT version, dirty FROM ` + pq.QuoteIdentifier(schemaName) + `.` + pq.QuoteIdentifier(migrationsTable) + ` ORDER BY version`
-	rows, err := conn.QueryContext(context.Background(), query)
+	rows, err := conn.QueryContext(ctx, query)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {
 			if e.Code.Name() == "undefined_table" {

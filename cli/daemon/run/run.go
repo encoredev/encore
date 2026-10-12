@@ -71,6 +71,10 @@ type Run struct {
 	started chan struct{}   // started is closed once the run has fully started
 }
 
+func (r *Run) SecretValues(ctx context.Context) (*secret.Data, error) {
+	return r.secrets.Get(ctx, nil)
+}
+
 // StartParams groups the parameters for the Run method.
 type StartParams struct {
 	// App is the app to start.

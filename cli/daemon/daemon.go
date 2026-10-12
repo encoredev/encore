@@ -168,6 +168,9 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	if params.OpenapiExcludePrivateEndpoints != nil {
 		opts.OpenAPIExcludePrivateEndpoints = *params.OpenapiExcludePrivateEndpoints
 	}
+	if params.OpenapiEmitTags != nil {
+		opts.OpenAPIEmitTags = *params.OpenapiEmitTags
+	}
 	if params.TsSharedTypes != nil {
 		opts.TSSharedTypes = *params.TsSharedTypes
 	}

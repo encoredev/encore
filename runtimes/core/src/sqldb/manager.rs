@@ -1,7 +1,7 @@
 use anyhow::Context;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use tokio_postgres::proxy;
 
 use tokio_postgres::proxy::{AcceptConn, AuthMethod, ClientBouncer, RejectConn};
@@ -108,7 +108,18 @@ pub trait Database: Send + Sync {
     fn pool_config(&self) -> anyhow::Result<PoolConfig>;
     fn config(&self) -> anyhow::Result<&tokio_postgres::Config>;
     fn tls(&self) -> anyhow::Result<&postgres_native_tls::MakeTlsConnector>;
-    fn new_pool(&self) -> anyhow::Result<Pool>;
+
+    /// Returns the connection pool for this database, opening it on first use.
+    ///
+    /// The pool belongs to the database, not to the caller: every handle to the
+    /// same database shares it. Handing out a fresh pool per handle would let a
+    /// host that resolves the same database repeatedly — a test runner
+    /// re-evaluating the module that declares it, say — accumulate a full set of
+    /// connections per resolution, with nothing closing the earlier ones.
+    ///
+    /// The error is shared rather than cloned because [`anyhow::Error`] isn't
+    /// `Clone`, and a pool that failed to build stays failed.
+    fn pool(&self) -> Result<&Pool, Arc<anyhow::Error>>;
 
     /// Returns the connection string for connecting to this database via the proxy.
     fn proxy_conn_string(&self) -> &str;
@@ -124,6 +135,9 @@ pub struct DatabaseImpl {
 
     min_conns: u32,
     max_conns: u32,
+
+    /// The connection pool, built on first use and shared from then on.
+    pool: OnceLock<Result<Pool, Arc<anyhow::Error>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -152,8 +166,14 @@ impl Database for DatabaseImpl {
         Ok(&self.tls)
     }
 
-    fn new_pool(&self) -> anyhow::Result<Pool> {
-        Pool::new(self, self.tracer.clone())
+    fn pool(&self) -> Result<&Pool, Arc<anyhow::Error>> {
+        match self
+            .pool
+            .get_or_init(|| Pool::new(self, self.tracer.clone()).map_err(Arc::new))
+        {
+            Ok(pool) => Ok(pool),
+            Err(err) => Err(err.clone()),
+        }
     }
 
     fn proxy_conn_string(&self) -> &str {
@@ -183,8 +203,10 @@ impl Database for NoopDatabase {
         anyhow::bail!("this database is not configured for use by this process")
     }
 
-    fn new_pool(&self) -> anyhow::Result<Pool> {
-        anyhow::bail!("this database is not configured for use by this process")
+    fn pool(&self) -> Result<&Pool, Arc<anyhow::Error>> {
+        Err(Arc::new(anyhow::anyhow!(
+            "this database is not configured for use by this process"
+        )))
     }
 
     fn proxy_conn_string(&self) -> &str {
@@ -374,6 +396,8 @@ fn databases_from_cfg(
 
                     min_conns: pool.min_connections as u32,
                     max_conns: pool.max_connections as u32,
+
+                    pool: OnceLock::new(),
                 }),
             );
         }
@@ -401,4 +425,84 @@ fn convert_client_key_if_necessary(pem: &[u8]) -> anyhow::Result<Cow<'_, [u8]>> 
         .to_pkcs8_pem(rsa::pkcs8::LineEnding::LF)
         .context("failed to convert PKCS#1 private key to PKCS#8")?;
     Ok(Cow::Owned(pkcs8.as_bytes().to_owned()))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn database(dbname: &str, max_conns: u32) -> DatabaseImpl {
+        let tls = native_tls::TlsConnector::new().expect("build tls connector");
+        let mut config = tokio_postgres::Config::new();
+        config
+            .host("localhost")
+            .port(5432)
+            .dbname(dbname)
+            .user("encore");
+        DatabaseImpl {
+            name: dbname.into(),
+            config: Arc::new(config),
+            tls: postgres_native_tls::MakeTlsConnector::new(tls),
+            proxy_conn_string: String::new(),
+            tracer: Tracer::noop(),
+            min_conns: 0,
+            max_conns,
+            pool: OnceLock::new(),
+        }
+    }
+
+    /// Every handle to a database shares one pool.
+    ///
+    /// Building a pool per handle meant a host that resolves the same database
+    /// repeatedly — a test runner re-evaluating the module that declares it —
+    /// opened a fresh set of up to `max_conns` connections each time, with
+    /// nothing ever closing the earlier ones, until the server refused more.
+    #[tokio::test]
+    async fn pool_is_shared_across_lookups() {
+        let db = database("shared_lookups", 30);
+        let first = db.pool().expect("first pool");
+        let second = db.pool().expect("second pool");
+        assert!(
+            std::ptr::eq(first, second),
+            "each lookup built its own pool"
+        );
+    }
+
+    /// A process can accumulate runtimes — in test mode each `Runtime`
+    /// construction builds its own, and a test runner that re-evaluates the
+    /// declaring module builds one per test file. Each brings its own
+    /// `DatabaseImpl`, so pooling per database object still multiplied the
+    /// connections; they have to be keyed on the connection instead.
+    #[tokio::test]
+    async fn connections_are_shared_across_runtimes() {
+        let one = database("shared_runtimes", 30);
+        let two = database("shared_runtimes", 30);
+        assert!(one
+            .pool()
+            .expect("first pool")
+            .shares_connections_with(two.pool().expect("second pool")));
+    }
+
+    #[tokio::test]
+    async fn connections_are_not_shared_across_databases() {
+        let one = database("distinct_a", 30);
+        let two = database("distinct_b", 30);
+        assert!(!one
+            .pool()
+            .expect("first pool")
+            .shares_connections_with(two.pool().expect("second pool")));
+    }
+
+    /// Pool sizing is part of what makes connections interchangeable: a handle
+    /// asking for a different ceiling must not be handed a pool built for
+    /// another one.
+    #[tokio::test]
+    async fn connections_are_not_shared_across_pool_sizes() {
+        let one = database("distinct_sizes", 10);
+        let two = database("distinct_sizes", 30);
+        assert!(!one
+            .pool()
+            .expect("first pool")
+            .shares_connections_with(two.pool().expect("second pool")));
+    }
 }

@@ -204,3 +204,16 @@ func GetAnonID() string {
 func IsDebug() bool {
 	return singleton.cfg.Debug
 }
+
+func RotateAnonymousID() error {
+	newAnonID, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
+
+	singleton.mu.Lock()
+	singleton.cfg.AnonID = newAnonID.String()
+	singleton.mu.Unlock()
+
+	return singleton.saveConfig()
+}

@@ -97,6 +97,9 @@ func (tv *TarVec) getReader() (*currReader, error) {
 
 // Read the data represented by the tarvec
 func (tv *TarVec) Read(b []byte) (int, error) {
+	if len(b) == 0 {
+		return 0, nil
+	}
 	cr, err := tv.getReader()
 	if err != nil {
 		return 0, err
@@ -113,16 +116,19 @@ func (tv *TarVec) Read(b []byte) (int, error) {
 		panic("TarVec: zero remaining size but more vecs exist")
 	}
 
+	b = b[:min(int64(len(b)), remaining)]
 	n, err := cr.data.ReadAt(b, off)
 	if err == io.EOF {
-		// Ignore EOF from individual readers.
-		// getReader reports EOF when running out of readers.
-		err = nil
+		if int64(n) < remaining {
+			err = io.ErrUnexpectedEOF
+		} else {
+			err = nil
+		}
+	}
+	if n == 0 && err == nil {
+		err = io.ErrNoProgress
 	}
 
-	if n == 0 && len(b) > 0 && (err == nil || err == io.EOF) {
-		panic("TarVec: empty read from vec, more data remaining")
-	}
 	tv.pos += int64(n)
 
 	return n, err

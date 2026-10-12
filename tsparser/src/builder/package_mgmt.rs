@@ -4,12 +4,11 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use duct::cmd;
 use serde::Deserialize;
 
 use crate::builder::compile::CmdSpec;
 
-use super::prepare::{PackageVersion, PrepareError};
+use super::prepare::{InstallMode, PackageVersion, PrepareError};
 
 #[derive(Debug, Clone)]
 pub enum InstalledVersion {
@@ -150,8 +149,22 @@ fn resolve_executable(name: &str) -> OsString {
     }
 }
 
+// Arguments are passed directly to the executable, never interpreted by a shell.
+fn run_install(dir: &Path, command: &[&str]) -> Result<(), PrepareError> {
+    duct::cmd(resolve_executable(command[0]), &command[1..])
+        .dir(dir)
+        .stdout_to_stderr()
+        .run()
+        .map_err(|e| PrepareError::InstallNodeModules(e, command.join(" ")))?;
+    Ok(())
+}
+
 pub(super) trait PackageManager {
-    fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError>;
+    fn setup_deps(
+        &self,
+        encore_dev_version: &PackageVersion,
+        mode: InstallMode,
+    ) -> Result<(), PrepareError>;
 
     fn run_tests(&self) -> CmdSpec;
 
@@ -165,7 +178,11 @@ struct NpmPackageManager {
 }
 
 impl PackageManager for NpmPackageManager {
-    fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError> {
+    fn setup_deps(
+        &self,
+        encore_dev_version: &PackageVersion,
+        mode: InstallMode,
+    ) -> Result<(), PrepareError> {
         // Install `encore.dev` if necessary
         let installed = self.pkg_json.dependencies.get("encore.dev");
         let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
@@ -175,13 +192,14 @@ impl PackageManager for NpmPackageManager {
         // First ensure the package.json file is up to date.
         let modified = update_package_json(&self.dir, v, encore_dev_version)?;
 
-        // If we modified anything or don't have a node_modules directory, run 'npm install'.
-        if modified || !self.dir.join("node_modules").exists() {
-            cmd!(resolve_executable("npm"), "install")
-                .dir(&self.dir)
-                .stdout_to_stderr()
-                .run()
-                .map_err(|e| PrepareError::InstallNodeModules(e, "npm install".into()))?;
+        // Production installs always run; an existing tree may contain dev dependencies.
+        if mode == InstallMode::Production || modified || !self.dir.join("node_modules").exists() {
+            let mut command = vec!["npm", "install"];
+            match mode {
+                InstallMode::All => {}
+                InstallMode::Production => command.push("--omit=dev"),
+            }
+            run_install(&self.dir, &command)?;
         }
 
         Ok(())
@@ -213,7 +231,11 @@ struct BunPackageManager {
 }
 
 impl PackageManager for BunPackageManager {
-    fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError> {
+    fn setup_deps(
+        &self,
+        encore_dev_version: &PackageVersion,
+        mode: InstallMode,
+    ) -> Result<(), PrepareError> {
         // Install `encore.dev` if necessary
         let installed = self.pkg_json.dependencies.get("encore.dev");
         let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
@@ -223,27 +245,20 @@ impl PackageManager for BunPackageManager {
         // First ensure the package.json file is up to date.
         let modified = update_package_json(&self.dir, v, encore_dev_version)?;
 
-        // If we modified anything or don't have a node_modules directory, run 'bun install'.
-        if modified || !self.dir.join("node_modules").exists() {
+        // Production installs always run; an existing tree may contain dev dependencies.
+        if mode == InstallMode::Production || modified || !self.dir.join("node_modules").exists() {
             let backend = std::env::var("BUN_INSTALL_BACKEND").unwrap_or_default();
-            if backend.is_empty() {
-                cmd!(resolve_executable("bun"), "install")
-                    .dir(&self.dir)
-                    .stdout_to_stderr()
-                    .run()
-                    .map_err(|e| PrepareError::InstallNodeModules(e, "bun install".into()))?;
-            } else {
-                cmd!(resolve_executable("bun"), "install", "--backend", &backend)
-                    .dir(&self.dir)
-                    .stdout_to_stderr()
-                    .run()
-                    .map_err(|e| {
-                        PrepareError::InstallNodeModules(
-                            e,
-                            format!("bun install --backend {backend}"),
-                        )
-                    })?;
+            let mut command = vec!["bun", "install"];
+            if !backend.is_empty() {
+                command.extend(["--backend", backend.as_str()]);
             }
+            match mode {
+                InstallMode::All => {}
+                // --production also freezes the lockfile in Bun. Prepare may have just
+                // updated encore.dev, so omit dev dependencies without freezing it.
+                InstallMode::Production => command.extend(["--omit", "dev"]),
+            }
+            run_install(&self.dir, &command)?;
         }
 
         Ok(())
@@ -275,7 +290,11 @@ struct YarnPackageManager {
 }
 
 impl PackageManager for YarnPackageManager {
-    fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError> {
+    fn setup_deps(
+        &self,
+        encore_dev_version: &PackageVersion,
+        mode: InstallMode,
+    ) -> Result<(), PrepareError> {
         self.ensure_nodelinker()?;
 
         // Install `encore.dev` if necessary
@@ -287,13 +306,23 @@ impl PackageManager for YarnPackageManager {
         // First ensure the package.json file is up to date.
         let modified = update_package_json(&self.dir, v, encore_dev_version)?;
 
-        // If we modified anything or don't have a node_modules directory, run 'npm install'.
-        if modified || !self.dir.join("node_modules").exists() {
-            cmd!(resolve_executable("yarn"), "install")
-                .dir(&self.dir)
-                .stdout_to_stderr()
-                .run()
-                .map_err(|e| PrepareError::InstallNodeModules(e, "yarn install".into()))?;
+        // Production installs always run; an existing tree may contain dev dependencies.
+        if mode == InstallMode::Production || modified || !self.dir.join("node_modules").exists() {
+            let command = match mode {
+                InstallMode::All => vec!["yarn", "install"],
+                InstallMode::Production => {
+                    // Query from the app root so Corepack and yarnPath select the
+                    // actual version, including a workspace's inherited selection.
+                    let version = duct::cmd(resolve_executable("yarn"), ["--version"])
+                        .dir(&self.dir)
+                        .read()
+                        .map_err(|e| {
+                            PrepareError::InstallNodeModules(e, "yarn --version".into())
+                        })?;
+                    yarn_production_command(&version)?
+                }
+            };
+            run_install(&self.dir, &command)?;
         }
 
         Ok(())
@@ -310,6 +339,31 @@ impl PackageManager for YarnPackageManager {
     fn mgr_name(&self) -> &'static str {
         "yarn"
     }
+}
+
+// Yarn Classic accepts --production; Modern uses workspace-tools (built in
+// since Yarn 4). --all preserves the whole workspace install scope.
+fn yarn_production_command(version: &str) -> Result<Vec<&'static str>, PrepareError> {
+    let major = version
+        .trim()
+        .split('.')
+        .next()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|v| *v > 0)
+        .ok_or_else(|| {
+            PrepareError::InstallNodeModules(
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("invalid Yarn version: {version:?}"),
+                ),
+                "yarn --version".into(),
+            )
+        })?;
+    Ok(if major == 1 {
+        vec!["yarn", "install", "--production=true"]
+    } else {
+        vec!["yarn", "workspaces", "focus", "--all", "--production"]
+    })
 }
 
 impl YarnPackageManager {
@@ -350,7 +404,11 @@ struct PnpmPackageManager {
 }
 
 impl PackageManager for PnpmPackageManager {
-    fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError> {
+    fn setup_deps(
+        &self,
+        encore_dev_version: &PackageVersion,
+        mode: InstallMode,
+    ) -> Result<(), PrepareError> {
         // Install `encore.dev` if necessary
         let installed = self.pkg_json.dependencies.get("encore.dev");
         let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
@@ -360,13 +418,14 @@ impl PackageManager for PnpmPackageManager {
         // First ensure the package.json file is up to date.
         let modified = update_package_json(&self.dir, v, encore_dev_version)?;
 
-        // If we modified anything or don't have a node_modules directory, run 'npm install'.
-        if modified || !self.dir.join("node_modules").exists() {
-            cmd!(resolve_executable("pnpm"), "install")
-                .dir(&self.dir)
-                .stdout_to_stderr()
-                .run()
-                .map_err(|e| PrepareError::InstallNodeModules(e, "pnpm install".into()))?;
+        // Production installs always run; an existing tree may contain dev dependencies.
+        if mode == InstallMode::Production || modified || !self.dir.join("node_modules").exists() {
+            let mut command = vec!["pnpm", "install"];
+            match mode {
+                InstallMode::All => {}
+                InstallMode::Production => command.push("--prod"),
+            }
+            run_install(&self.dir, &command)?;
         }
         Ok(())
     }

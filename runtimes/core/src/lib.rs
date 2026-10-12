@@ -826,6 +826,8 @@ async fn fetch_gcs(bucket: &str, object: &str) -> Result<Vec<u8>, ParseError> {
 async fn fetch_s3(bucket: &str, key: &str) -> Result<Vec<u8>, ParseError> {
     // Region and credentials resolved from the default provider chain
     // (AWS_REGION, shared config/profile, instance metadata, ...).
+    // Keep the pinned behavior version; newer ones change retry and timeout defaults.
+    #[allow(deprecated)]
     let config = aws_config::defaults(aws_config::BehaviorVersion::v2025_08_07())
         .load()
         .await;

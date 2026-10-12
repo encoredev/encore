@@ -24,7 +24,7 @@ func (m *Manager) registerDocsTools() {
 		mcp.WithArray("facet_filters",
 			mcp.Items(map[string]any{
 				"type":        "string",
-				"description": "Optional array of facet filters to narrow down search results. These can include categories, tags, or other metadata to refine the search.",
+				"description": "Optional array of facet filters to narrow down search results. These can include categories, tags, or other metadata to refine the search. Use 'lang:go' or 'lang:ts' to scope results to a language; language-agnostic pages (indexed as 'lang:all') are always included.",
 			})),
 	), m.searchDocs)
 
@@ -86,6 +86,45 @@ func (m *Manager) searchDocs(ctx context.Context, request mcp.CallToolRequest) (
 	return mcp.NewToolResultText(string(jsonData)), nil
 }
 
+const (
+	// langFacetPrefix is the Algolia facet used to scope docs pages to a language.
+	langFacetPrefix = "lang:"
+
+	// langFacetAll is the sentinel emitted for language-agnostic docs pages.
+	// They must surface no matter which language the caller filters on.
+	langFacetAll = "lang:all"
+)
+
+// buildFacetFilterGroups turns the caller-provided facet filters into Algolia
+// filter groups, where each group is ORed internally and the groups are ANDed
+// together. All filters are ANDed as-is, except lang: filters which are ORed
+// with each other and with lang:all, so language-agnostic pages always match.
+func buildFacetFilterGroups(facetFilters []string) [][]string {
+	var groups [][]string
+	var langs []string
+	seenLang := make(map[string]bool)
+
+	for _, filter := range facetFilters {
+		if !strings.HasPrefix(filter, langFacetPrefix) {
+			groups = append(groups, []string{filter})
+			continue
+		}
+		if !seenLang[filter] {
+			seenLang[filter] = true
+			langs = append(langs, filter)
+		}
+	}
+
+	if len(langs) > 0 {
+		if !seenLang[langFacetAll] {
+			langs = append(langs, langFacetAll)
+		}
+		groups = append(groups, langs)
+	}
+
+	return groups
+}
+
 // performAlgoliaSearch performs the actual search against Algolia
 func performAlgoliaSearch(ctx context.Context, query string, page, hitsPerPage int, facetFilters []string) (map[string]interface{}, error) {
 	// Initialize Algolia client with configurable app ID and API key
@@ -103,18 +142,13 @@ func performAlgoliaSearch(ctx context.Context, query string, page, hitsPerPage i
 	}
 
 	// Add facet filters if any
-	if len(facetFilters) > 0 {
-		// For a simple AND of all filters - need to convert []string to variadic arguments
-		if len(facetFilters) == 1 {
-			params = append(params, opt.FacetFilter(facetFilters[0]))
-		} else {
-			// Convert []string to []interface{} for compatibility
-			facetFilterInterfaces := make([]interface{}, len(facetFilters))
-			for i, filter := range facetFilters {
-				facetFilterInterfaces[i] = filter
-			}
-			params = append(params, opt.FacetFilterAnd(facetFilterInterfaces...))
+	if groups := buildFacetFilterGroups(facetFilters); len(groups) > 0 {
+		// Each group is ORed internally, and the groups are ANDed together.
+		groupsAny := make([]interface{}, len(groups))
+		for i, group := range groups {
+			groupsAny[i] = group
 		}
+		params = append(params, opt.FacetFilterAnd(groupsAny...))
 	}
 
 	// Perform the search

@@ -33,6 +33,12 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 		extraWhereClause += " AND message_id = $" + strconv.Itoa(len(args))
 	}
 
+	if q.TraceID != "" {
+		// The dashboard's trace-id box is a search/substring match, not an exact lookup
+		args = append(args, q.TraceID)
+		extraWhereClause += " AND trace_id LIKE '%' || $" + strconv.Itoa(len(args)) + " || '%'"
+	}
+
 	if q.Service != "" {
 		args = append(args, q.Service)
 		extraWhereClause += " AND service_name = $" + strconv.Itoa(len(args))

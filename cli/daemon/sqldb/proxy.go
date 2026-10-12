@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgproto3/v2"
+	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/cli/daemon/internal/debugflags"
@@ -76,7 +76,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 		found, ok := cm.LookupPassword(password)
 		if !ok {
 			cm.log.Error().Msg("dbproxy: could not find cluster")
-			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+			sendError(cl.Backend, &pgproto3.ErrorResponse{
 				Severity: "FATAL",
 				Code:     "08006",
 				Message:  "database cluster not found or invalid connection string",
@@ -89,7 +89,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 		app, err := cm.apps.FindLatestByPlatformOrLocalID(startup.Username)
 		if err != nil {
 			cm.log.Error().Err(err).Msg("dbproxy: could not find app")
-			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+			sendError(cl.Backend, &pgproto3.ErrorResponse{
 				Severity: "FATAL",
 				Code:     "08006",
 				Message:  "unknown app ID",
@@ -110,7 +110,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 		}
 		if err != nil {
 			cm.log.Error().Err(err).Msg("dbproxy: could not find infra namespace")
-			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+			sendError(cl.Backend, &pgproto3.ErrorResponse{
 				Severity: "FATAL",
 				Code:     "08006",
 				Message:  "unknown active infra namespace",
@@ -129,7 +129,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 			ct = Shadow
 		default:
 			cm.log.Error().Str("password", startup.Password).Msg("dbproxy: invalid password for connection URI")
-			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+			sendError(cl.Backend, &pgproto3.ErrorResponse{
 				Severity: "FATAL",
 				Code:     "28P01", // 28P01 = invalid password
 				Message:  "if connecting with an app slug as the username, the only accepted passwords are 'local' or 'test' to route to those instances on your local system",
@@ -149,7 +149,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 		_, err = cluster.Start(context.Background(), nil)
 		if err != nil {
 			cm.log.Error().Err(err).Msg("dbproxy: could not start cluster")
-			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+			sendError(cl.Backend, &pgproto3.ErrorResponse{
 				Severity: "FATAL",
 				Code:     "08006",
 				Message:  "could not start database cluster",
@@ -179,7 +179,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 		// Wait for up to 60s for the cluster and database to come online.
 		select {
 		case <-db.Ctx.Done():
-			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+			sendError(cl.Backend, &pgproto3.ErrorResponse{
 				Severity: "FATAL",
 				Code:     "08006",
 				Message:  "db is shutting down",
@@ -187,7 +187,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 			return nil
 		case <-time.After(60 * time.Second):
 			cm.log.Error().Str("db", db.ApplicationCloudName()).Msg("dbproxy: timed out waiting for database to come online")
-			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+			sendError(cl.Backend, &pgproto3.ErrorResponse{
 				Severity: "FATAL",
 				Code:     "08006",
 				Message:  "timed out waiting for db to complete setup",
@@ -201,7 +201,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 
 	info, err := cluster.Info(context.Background())
 	if err != nil {
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "cluster not running: " + err.Error(),
@@ -211,7 +211,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 
 	server, err := net.Dial("tcp", info.Config.Host)
 	if err != nil {
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "database not running: " + err.Error(),
@@ -252,7 +252,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 		Startup: startup,
 	})
 	if err != nil {
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "could not connect: " + err.Error(),
@@ -267,7 +267,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 
 	keyData, err := pgproxy.FinalizeInitialHandshake(cl.Backend, fe)
 	if err != nil {
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "could not establish connection: " + err.Error(),
@@ -279,11 +279,11 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 	// Store the key data so we know where to route cancellation requests.
 	if keyData != nil {
 		cm.mu.Lock()
-		cm.backendKeyData[keyData.SecretKey] = cluster
+		cm.backendKeyData[string(keyData.SecretKey)] = cluster
 		cm.mu.Unlock()
 		defer func() {
 			cm.mu.Lock()
-			delete(cm.backendKeyData, keyData.SecretKey)
+			delete(cm.backendKeyData, string(keyData.SecretKey))
 			cm.mu.Unlock()
 		}()
 	}
@@ -311,7 +311,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 	cluster, ok := cm.Get(id)
 	if !ok {
 		cm.log.Error().Interface("cluster", id).Msg("dbproxy: could not find cluster")
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "database cluster not running",
@@ -320,7 +320,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 	}
 	if cluster.IsExternalDB(startup.Database) {
 		cm.log.Error().Str("db", startup.Database).Msg("dbproxy: cannot proxy external database")
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "proxy to external databases is disabled",
@@ -329,7 +329,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 	}
 	db, ok := cluster.GetDB(startup.Database)
 	if !ok {
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "database not found",
@@ -340,7 +340,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 	// Wait for up to 60s for the cluster to come online.
 	select {
 	case <-db.Ctx.Done():
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "db is shutting down",
@@ -348,7 +348,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 		return nil
 	case <-time.After(60 * time.Second):
 		cm.log.Error().Str("db", startup.Database).Msg("dbproxy: timed out waiting for database to come online")
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "timed out waiting for db to complete setup",
@@ -361,7 +361,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 
 	info, err := cluster.Info(context.Background())
 	if err != nil {
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "cluster not running: " + err.Error(),
@@ -371,7 +371,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 
 	server, err := net.Dial("tcp", info.Config.Host)
 	if err != nil {
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "database not running: " + err.Error(),
@@ -389,7 +389,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 		Startup: startup,
 	})
 	if err != nil {
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "could not connect: " + err.Error(),
@@ -403,7 +403,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 
 	keyData, err := pgproxy.FinalizeInitialHandshake(cl.Backend, fe)
 	if err != nil {
-		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+		sendError(cl.Backend, &pgproto3.ErrorResponse{
 			Severity: "FATAL",
 			Code:     "08006",
 			Message:  "could not establish connection: " + err.Error(),
@@ -414,11 +414,11 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 	// Store the key data so we know where to route cancellation requests.
 	if keyData != nil {
 		cm.mu.Lock()
-		cm.backendKeyData[keyData.SecretKey] = cluster
+		cm.backendKeyData[string(keyData.SecretKey)] = cluster
 		cm.mu.Unlock()
 		defer func() {
 			cm.mu.Lock()
-			delete(cm.backendKeyData, keyData.SecretKey)
+			delete(cm.backendKeyData, string(keyData.SecretKey))
 			cm.mu.Unlock()
 		}()
 	}
@@ -430,7 +430,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 // cancelRequest handles a cancel request.
 func (cm *ClusterManager) cancelRequest(client io.Writer, req *pgproxy.CancelData) {
 	cm.mu.Lock()
-	cluster, ok := cm.backendKeyData[req.Raw.SecretKey]
+	cluster, ok := cm.backendKeyData[string(req.Raw.SecretKey)]
 	cm.mu.Unlock()
 	if !ok {
 		return
@@ -461,6 +461,12 @@ func (cm *ClusterManager) cancelRequest(client io.Writer, req *pgproxy.CancelDat
 	}
 	defer fns.CloseIgnore(backend)
 	_ = pgproxy.SendCancelRequest(backend, req.Raw)
+}
+
+// sendError sends an error response to the client.
+func sendError(be *pgproto3.Backend, msg *pgproto3.ErrorResponse) {
+	be.Send(msg)
+	_ = be.Flush()
 }
 
 func writeMsg(w io.Writer, msg pgproto3.Message) error {

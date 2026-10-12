@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/llm_rules"
 	"encr.dev/internal/conf"
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/xos"
 )
 
@@ -30,6 +32,7 @@ const (
 )
 
 var (
+	initAppOrg  string
 	initAppLang = cmdutil.Oneof{
 		Value:     "",
 		Allowed:   cmdutil.LanguageFlagValues(),
@@ -55,7 +58,7 @@ func init() {
 			if len(args) > 0 {
 				name = args[0]
 			}
-			if err := initializeApp(name); err != nil {
+			if err := initializeApp(context.Background(), name); err != nil {
 				cmdutil.Fatal(err)
 			}
 		},
@@ -63,9 +66,10 @@ func init() {
 
 	appCmd.AddCommand(initAppCmd)
 	initAppLang.AddFlag(initAppCmd)
+	initAppCmd.Flags().StringVar(&initAppOrg, "org", "", "ID or slug of the org to create the app in")
 }
 
-func initializeApp(name string) error {
+func initializeApp(ctx context.Context, name string) error {
 	// Check if encore.app file exists
 	_, _, err := cmdutil.MaybeAppRoot()
 	if errors.Is(err, cmdutil.ErrNoEncoreApp) {
@@ -90,16 +94,23 @@ func initializeApp(name string) error {
 	appSlugComments := ""
 	// Create the app on the server.
 	if _, err := conf.CurrentUser(); err == nil {
+		orgID, err := selectAppOrg(ctx, option.AsOptional(initAppOrg))
+		if err != nil {
+			return err
+		}
+
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Creating app on encore.dev "
 		s.Start()
 
-		app, err := createAppOnServer(name, exampleConfig{})
+		app, err := createAppOnServer(name, exampleConfig{}, orgID)
 		s.Stop()
 		if err != nil {
 			return fmt.Errorf("creating app on encore.dev: %v", err)
 		}
 		appSlug = app.Slug
+	} else if initAppOrg != "" {
+		return errors.New("--org requires being logged in")
 	} else {
 		warnNotLoggedIn()
 	}

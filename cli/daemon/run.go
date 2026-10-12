@@ -176,7 +176,10 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 
 	ops.AllDone()
 
-	secrets, _ := s.sm.Load(app).Get(ctx, nil)
+	secrets, err := runInstance.SecretValues(ctx)
+	if err != nil {
+		log.Warn().Err(err).Str("runInstanceID", runInstance.ID).Msg("failed to load secrets")
+	}
 	externalDBs := map[string]string{}
 	for key, val := range secrets.Values {
 		if db, ok := strings.CutPrefix(key, "sqldb::"); ok {

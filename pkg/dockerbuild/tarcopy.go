@@ -3,6 +3,7 @@ package dockerbuild
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -20,7 +21,6 @@ import (
 
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/tarstream"
-	"encr.dev/pkg/xos"
 	"encr.dev/v2/compiler/build"
 )
 
@@ -102,14 +102,22 @@ func (lc *layeredTarCopier) Layers() []imageLayer {
 }
 
 type tarCopier struct {
-	fileTimes *time.Time
-	entries   []*tarEntry
-	seenDirs  map[ImagePath]bool
+	ctx                context.Context
+	preparationWorkers int
+	readAheadBytes     int
+	readAheadWorkers   int
+	fileTimes          *time.Time
+	entries            []*tarEntry
+	seenDirs           map[ImagePath]bool
 }
 
 func newTarCopier(opts ...tarCopyOption) *tarCopier {
 	tc := &tarCopier{
-		seenDirs: make(map[ImagePath]bool),
+		seenDirs:           make(map[ImagePath]bool),
+		ctx:                context.Background(),
+		preparationWorkers: min(2, runtime.GOMAXPROCS(0)),
+		readAheadBytes:     256 << 10,
+		readAheadWorkers:   4,
 	}
 	for _, opt := range opts {
 		opt(tc)
@@ -247,93 +255,7 @@ func shouldInclude(desc *dirCopyDesc, path HostPath) bool {
 }
 
 func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
-	err := filepath.WalkDir(string(desc.SrcPath), func(pathStr string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		path := HostPath(pathStr)
-
-		// Should we keep this path?
-		if !shouldInclude(desc, path) {
-			if d.IsDir() {
-				return filepath.SkipDir
-			} else {
-				return nil
-			}
-		}
-
-		// Should we skip this path?
-		if desc.ExcludeSrcPaths[path] {
-			if d.IsDir() {
-				return filepath.SkipDir
-			} else {
-				return nil
-			}
-		}
-
-		relPath, err := desc.SrcPath.Rel(path)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
-		// Skip volatile pnpm bookkeeping files; see volatilePnpmMetadata.
-		if !d.IsDir() && isVolatilePnpmMetadata(relPath) {
-			return nil
-		}
-
-		dstPath := desc.DstPath.Join(string(relPath.ToImage()))
-
-		// Route node_modules trees to the dependency layer's copier, if configured.
-		dst := tc
-		if desc.DepsCopier != nil {
-			if within, isRoot := nodeModulesPath(relPath); within {
-				dst = desc.DepsCopier
-				if isRoot {
-					// Entering a node_modules tree: make sure its parent
-					// directories exist in the dependency layer.
-					if err := dst.MkdirAll(dstPath.Dir(), 0755); err != nil {
-						return errors.Wrap(err, "create deps dirs")
-					}
-				}
-			}
-		}
-
-		// If this is a symlink, compute the link target relative to DstPath.
-		var link ImagePath
-
-		isSymlink := d.Type()&fs.ModeSymlink != 0
-		if !isSymlink && runtime.GOOS == "windows" {
-			// Check if the file is a junction point on Windows.
-			if isJunction, _ := xos.IsWindowsJunctionPoint(pathStr); isJunction {
-				return errors.Newf("%q is a windows junction point and cannot be copied to a docker image. Use symlinks instead.", pathStr)
-			}
-
-		}
-
-		if isSymlink {
-			target, err := os.Readlink(string(path))
-			if err != nil {
-				return errors.WithStack(err)
-			}
-
-			link, err = tc.rewriteSymlink(desc, path, HostPath(target))
-			if err != nil {
-				return errors.WithStack(err)
-			} else if link == "" {
-				// Drop the symlink
-				return nil
-			}
-		}
-
-		fi, err := d.Info()
-		if err != nil {
-			return errors.WithStack(err)
-		}
-		err = dst.CopyFile(dstPath, path, fi, link)
-		return errors.Wrap(err, "add file")
-	})
-
-	return errors.WithStack(err)
+	return tc.copyDir(tc.ctx, desc, tc.preparationWorkers)
 }
 
 // rewriteSymlink rewrites the symlink to the target filesystem.
@@ -433,10 +355,26 @@ func (tc *tarCopier) MkdirAll(dstPath ImagePath, mode fs.FileMode) (err error) {
 	return nil
 }
 
-func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInfo, linkTarget ImagePath) (err error) {
-	header, err := tar.FileInfoHeader(fi, linkTarget.String())
+func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInfo, linkTarget ImagePath) error {
+	entry, err := tc.prepareFile(dstPath, srcPath, fi, linkTarget)
 	if err != nil {
 		return err
+	}
+	tc.appendEntry(entry)
+	return nil
+}
+
+func (tc *tarCopier) appendEntry(entry *tarEntry) {
+	tc.entries = append(tc.entries, entry)
+	if entry.header.Typeflag == tar.TypeDir {
+		tc.seenDirs[entry.dest] = true
+	}
+}
+
+func (tc *tarCopier) prepareFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInfo, linkTarget ImagePath) (*tarEntry, error) {
+	header, err := tar.FileInfoHeader(fi, linkTarget.String())
+	if err != nil {
+		return nil, err
 	}
 	if tc.fileTimes != nil {
 		header.ModTime = *tc.fileTimes
@@ -450,6 +388,11 @@ func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInf
 	header.Gid = 0
 	header.Uname = ""
 	header.Gname = ""
+	// Symlink permission bits are host-specific (0755 on macOS, 0777 on Linux)
+	// and ignored on extraction; pin them so the digest is the same everywhere.
+	if header.Typeflag == tar.TypeSymlink {
+		header.Mode = 0777
+	}
 
 	// HACK: make the linux binary executable when cross compiling from windows as the unix permissions gets lost.
 	if runtime.GOOS == "windows" && fi.Name() == build.BinaryName {
@@ -457,12 +400,10 @@ func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInf
 	}
 
 	header.Name = tarHeaderName(dstPath, fi.IsDir())
-	entry := &tarEntry{header: header}
-	tc.entries = append(tc.entries, entry)
+	entry := &tarEntry{header: header, dest: dstPath}
 
 	if fi.IsDir() {
-		tc.seenDirs[dstPath] = true
-		return nil
+		return encodeEntry(entry)
 	}
 
 	// If this is not a symlink, write the file.
@@ -470,7 +411,7 @@ func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInf
 		entry.hostPath = option.Some(srcPath)
 	}
 
-	return nil
+	return encodeEntry(entry)
 }
 
 func (tc *tarCopier) WriteFile(dstPath ImagePath, mode fs.FileMode, data []byte) (err error) {
@@ -492,7 +433,9 @@ func (tc *tarCopier) WriteFile(dstPath ImagePath, mode fs.FileMode, data []byte)
 }
 
 type tarEntry struct {
-	header *tar.Header
+	dest        ImagePath
+	headerBytes []byte
+	header      *tar.Header
 
 	data     option.Option[[]byte]
 	hostPath option.Option[HostPath]
@@ -506,20 +449,15 @@ func (tc *tarCopier) Opener() tarball.Opener {
 	}
 
 	var dvecs []tarstream.Datavec
+	var fileIndices []int
 	for _, e := range tc.entries {
 
-		// create buffer to write tar header to
-		buf := new(bytes.Buffer)
-		tw := tar.NewWriter(buf)
-
-		// write tar header to buffer
-		if err := tw.WriteHeader(e.header); err != nil {
-			return errThunk(errors.Wrap(err, fmt.Sprintf("writing header %v", e)))
+		if e.headerBytes == nil {
+			if _, err := encodeEntry(e); err != nil {
+				return errThunk(err)
+			}
 		}
-
-		memv := tarstream.MemVec{
-			Data: buf.Bytes(),
-		}
+		memv := tarstream.MemVec{Data: e.headerBytes}
 
 		// add the tar header mem buffer to the tarvec
 		dvecs = append(dvecs, memv)
@@ -527,6 +465,9 @@ func (tc *tarCopier) Opener() tarball.Opener {
 		var dataEntry tarstream.Datavec
 		if hostPath, ok := e.hostPath.Get(); ok {
 			fi := e.header.FileInfo()
+			if fi.Mode().IsRegular() && fi.Size() > 0 {
+				fileIndices = append(fileIndices, len(dvecs))
+			}
 			dataEntry = &tarstream.PathVec{
 				Path: hostPath.String(),
 				Info: fi,
@@ -551,11 +492,31 @@ func (tc *tarCopier) Opener() tarball.Opener {
 		}
 	}
 
-	tv := tarstream.NewTarVec(dvecs)
-	return func() (io.ReadCloser, error) {
-		tv2 := tv.Clone()
-		return tv2, nil
+	var size int64
+	for _, vec := range dvecs {
+		size += vec.GetSize()
 	}
+	budget := tc.readAheadBytes
+	// Tiny and entirely in-memory layers cannot usefully overlap filesystem I/O.
+	if len(fileIndices) == 0 || size <= 64<<10 {
+		budget = -1
+	} else if int64(budget) > size {
+		budget = int(size)
+	}
+	return func() (io.ReadCloser, error) {
+		return newFileReadAhead(tc.ctx, dvecs, fileIndices, budget, tc.readAheadWorkers), nil
+	}
+}
+
+func encodeEntry(entry *tarEntry) (*tarEntry, error) {
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	if err := tw.WriteHeader(entry.header); err != nil {
+		return nil, errors.Wrap(err, "encode tar header")
+	}
+	// This is only a header vector; closing tw would append archive terminators.
+	entry.headerBytes = buf.Bytes()
+	return entry, nil
 }
 
 func tarHeaderName(p ImagePath, isDir bool) string {

@@ -29,6 +29,7 @@ import (
 	"encr.dev/internal/userconfig"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/github"
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -36,6 +37,7 @@ import (
 var (
 	createAppTemplate   string
 	createAppOnPlatform bool
+	createAppOrg        string
 	createAppLang       = cmdutil.Oneof{
 		Value:     "",
 		Allowed:   cmdutil.LanguageFlagValues(),
@@ -87,6 +89,7 @@ func init() {
 	appCmd.AddCommand(createAppCmd)
 	createAppCmd.Flags().BoolVar(&createAppOnPlatform, "platform", true, "whether to create the app with the Encore Platform")
 	createAppCmd.Flags().StringVar(&createAppTemplate, "example", "", "URL to example code to use.")
+	createAppCmd.Flags().StringVar(&createAppOrg, "org", "", "ID or slug of the org to create the app in")
 	createAppLang.AddFlag(createAppCmd)
 	createAppLLMRules.AddFlag(createAppCmd)
 }
@@ -198,6 +201,15 @@ func createApp(ctx context.Context, name, template string, lang cmdutil.Language
 		return fmt.Errorf("directory %s already exists", name)
 	}
 
+	var orgID option.Option[string]
+	if _, err := conf.CurrentUser(); err == nil && createAppOnPlatform {
+		if orgID, err = selectAppOrg(ctx, option.AsOptional(createAppOrg)); err != nil {
+			return err
+		}
+	} else if createAppOrg != "" {
+		return errors.New("--org requires being logged in and --platform")
+	}
+
 	// Parse template information, if provided.
 	var ex *github.Tree
 	if template != "" {
@@ -261,7 +273,7 @@ func createApp(ctx context.Context, name, template string, lang cmdutil.Language
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Creating app on encore.dev "
 		s.Start()
-		app, err = createAppOnServer(name, exCfg)
+		app, err = createAppOnServer(name, exCfg, orgID)
 		s.Stop()
 		if err != nil {
 			return fmt.Errorf("creating app on encore.dev: %v", err)
@@ -483,7 +495,7 @@ func npmInstallEncore(dir string) error {
 	return err
 }
 
-func createAppOnServer(name string, cfg exampleConfig) (*platform.App, error) {
+func createAppOnServer(name string, cfg exampleConfig, orgID option.Option[string]) (*platform.App, error) {
 	if _, err := conf.CurrentUser(); err != nil {
 		return nil, err
 	}
@@ -493,6 +505,7 @@ func createAppOnServer(name string, cfg exampleConfig) (*platform.App, error) {
 		Name:           name,
 		InitialSecrets: cfg.InitialSecrets,
 		AppRootDir:     cfg.EncoreAppPath,
+		OrgID:          orgID,
 	}
 	return platform.CreateApp(ctx, params)
 }

@@ -7,7 +7,7 @@ use common::js_runtime_path;
 use insta::glob;
 use swc_common::errors::{Handler, HANDLER};
 use swc_common::{Globals, SourceMap, GLOBALS};
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 use encore_tsparser::builder::Builder;
 use encore_tsparser::parser::parser::ParseContext;
@@ -21,7 +21,7 @@ fn test_parser() {
     glob!("testdata/*.txt", |path| {
         let input = fs::read_to_string(path).unwrap();
         let ar = txtar::from_str(&input);
-        let tmp_dir = TempDir::new("parse").unwrap();
+        let tmp_dir = TempDir::with_prefix("parse").unwrap();
         ar.materialize(&tmp_dir).unwrap();
         match parse_txtar(tmp_dir.path()) {
             Ok(_) => {}

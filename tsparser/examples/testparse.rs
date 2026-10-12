@@ -36,6 +36,7 @@ fn main() {
                 let pp = builder::PrepareParams {
                     app_root: app_root.clone(),
                     encore_dev_version: builder::PackageVersion::Published("0.0.0".to_string()),
+                    install_mode: builder::InstallMode::All,
                 };
                 builder.prepare(&pp).unwrap();
             }

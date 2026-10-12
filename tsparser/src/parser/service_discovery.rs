@@ -170,7 +170,7 @@ mod tests {
 
     use swc_common::errors::{Handler, HANDLER};
     use swc_common::{Globals, SourceMap, GLOBALS};
-    use tempdir::TempDir;
+    use tempfile::TempDir;
 
     use crate::parser::parser::{ParseContext, Parser};
     use crate::parser::resourceparser::PassOneParser;
@@ -219,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_api_endpoints() {
-        let tmp_dir = TempDir::new("tsparser-test").unwrap();
+        let tmp_dir = TempDir::with_prefix("tsparser-test").unwrap();
         let svcs = parse(
             tmp_dir.path(),
             r#"

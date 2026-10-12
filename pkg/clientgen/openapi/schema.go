@@ -180,7 +180,9 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 
 		if haveAllLiterals {
 			s := openapi3.NewSchema()
-			s.Type = literalsType
+			if literalsType != "" {
+				s.Type = &openapi3.Types{literalsType}
+			}
 			s.Nullable = haveLiteralNull
 			return s.WithEnum(literals...).NewRef()
 		}

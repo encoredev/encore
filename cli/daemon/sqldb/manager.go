@@ -26,7 +26,7 @@ func NewClusterManager(driver Driver, apps *apps.Manager, ns *namespace.Manager,
 		apps:           apps,
 		ns:             ns,
 		clusters:       make(map[clusterKey]*Cluster),
-		backendKeyData: make(map[uint32]*Cluster),
+		backendKeyData: make(map[string]*Cluster),
 		secretMgr:      secretMgr,
 	}
 }
@@ -45,7 +45,7 @@ type ClusterManager struct {
 	// backendKeyData maps the secret data to a cluster,
 	// for forwarding cancel requests to the right cluster.
 	// Access is guarded by mu.
-	backendKeyData map[uint32]*Cluster
+	backendKeyData map[string]*Cluster
 }
 
 // ClusterID uniquely identifies a cluster.

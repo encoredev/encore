@@ -30,6 +30,8 @@ impl LazyCloudWatchClient {
     async fn get(&self) -> &anyhow::Result<cloudwatch::Client> {
         self.cell
             .get_or_init(|| async {
+                // Keep the pinned behavior version; newer ones change retry and timeout defaults.
+                #[allow(deprecated)]
                 let config = aws_config::defaults(aws_config::BehaviorVersion::v2025_08_07())
                     .load()
                     .await;

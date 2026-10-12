@@ -158,6 +158,9 @@ func TestClientCodeGenerationFromTSApp(t *testing.T) {
 						if strings.Contains(file.Name(), "shared") {
 							options.TSSharedTypes = true
 						}
+						if strings.Contains(file.Name(), "tags") && language == LangOpenAPI {
+							options.OpenAPIEmitTags = true
+						}
 						c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
 
 						services := clientgentypes.AllServices(res.Meta)

@@ -1,6 +1,6 @@
 use encore_runtime_core::objects as core;
 use napi::bindgen_prelude::Buffer;
-use napi::{Env, JsBuffer, JsObject};
+use napi::{Env, JsObject};
 use napi_derive::napi;
 use std::time::Duration;
 
@@ -80,12 +80,12 @@ impl BucketObject {
     pub fn upload(
         &self,
         env: Env,
-        data: JsBuffer,
+        data: Buffer,
         opts: Option<UploadOptions>,
         source: Option<&Request>,
     ) -> napi::Result<JsObject> {
         // TODO: reference the data via a Ref, so that we can keep it alive throughout the upload.
-        let data = data.into_value()?.as_ref().to_vec();
+        let data = data.to_vec();
 
         let cursor = std::io::Cursor::new(data);
         let opts = opts.unwrap_or_default().into();
