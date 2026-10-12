@@ -14,6 +14,7 @@ import (
 
 	"encore.dev/appruntime/exported/scrub"
 	"encr.dev/v2/app"
+	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/testutil"
 	"encr.dev/v2/parser"
@@ -21,7 +22,7 @@ import (
 
 func TestScrub(t *testing.T) {
 	c := qt.New(t)
-	reqType := testParse(c, `
+	reqType, errs := testParse(c, `
 -- svc/svc.go --
 package svc
 import (
@@ -89,7 +90,7 @@ type Bar struct {
 func Foo(ctx context.Context, p *Params) error { return nil }
 `)
 
-	cmp := NewComputer(zerolog.New(os.Stdout))
+	cmp := NewComputer(zerolog.New(os.Stdout), errs)
 	res := cmp.Compute(reqType, 0)
 
 	f := func(name string) scrub.PathEntry {
@@ -134,7 +135,7 @@ func Foo(ctx context.Context, p *Params) error { return nil }
 
 func TestScrubAuthHandler(t *testing.T) {
 	c := qt.New(t)
-	reqType := testParse(c, `
+	reqType, errs := testParse(c, `
 -- svc/svc.go --
 package svc
 import "context"
@@ -149,7 +150,7 @@ type Params struct {
 func Foo(ctx context.Context, p *Params) error { return nil }
 `)
 
-	cmp := NewComputer(zerolog.New(os.Stdout))
+	cmp := NewComputer(zerolog.New(os.Stdout), errs)
 	res := cmp.Compute(reqType, AuthHandler)
 
 	f := func(name string) scrub.PathEntry {
@@ -166,8 +167,8 @@ func Foo(ctx context.Context, p *Params) error { return nil }
 }
 
 // testParse parses the given txtar code and returns the request schema.Type
-// for the first endpoint in the first service.
-func testParse(c *qt.C, code string) schema.Type {
+// for the first endpoint in the first service, and the parse error list.
+func testParse(c *qt.C, code string) (schema.Type, *perr.List) {
 	c.Helper()
 	code = strings.ReplaceAll(code, "SCRUB", "`encore:\"sensitive\"`")
 	ar := txtar.Parse([]byte(code))
@@ -202,5 +203,34 @@ func testParse(c *qt.C, code string) schema.Type {
 	if ep.Request == nil {
 		c.Fatal("endpoint has no request type")
 	}
-	return ep.Request
+	return ep.Request, tc.Errs
+}
+
+func TestScrubEmbedded(t *testing.T) {
+	c := qt.New(t)
+	reqType, errs := testParse(c, `
+-- svc/svc.go --
+package svc
+import "context"
+
+type Credentials struct {
+	Password string SCRUB
+}
+
+type Params struct {
+	Credentials
+	Username string
+}
+
+//encore:api public
+func Foo(ctx context.Context, p *Params) error { return nil }
+`)
+
+	cmp := NewComputer(zerolog.New(os.Stdout), errs)
+	res := cmp.Compute(reqType, 0)
+
+	// Embedded fields are encoded at the top level of the object.
+	c.Assert(res.Payload, qt.DeepEquals, []scrub.Path{
+		{{Kind: scrub.ObjectField, FieldName: strconv.Quote("Password")}},
+	})
 }

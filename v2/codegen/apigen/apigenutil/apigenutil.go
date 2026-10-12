@@ -14,6 +14,16 @@ import (
 	"encr.dev/v2/parser/apis/api/apienc"
 )
 
+// FieldExpr returns an expression accessing p on base,
+// selecting through any embedded structs it was promoted from.
+func FieldExpr(base *Statement, p *apienc.ParameterEncoding) *Statement {
+	expr := base.Clone()
+	for _, name := range p.SrcPath {
+		expr = expr.Dot(name)
+	}
+	return expr.Dot(p.SrcName)
+}
+
 // DecodeHeaders generates code for decoding HTTP headers from the http request
 // given by httpReqExpr and storing the result into the params given by paramsExpr.
 func DecodeHeaders(g *Group, httpHeaderExpr, paramExpr *Statement, dec *genutil.TypeUnmarshaller, params []*apienc.ParameterEncoding) {
@@ -27,7 +37,7 @@ func DecodeHeaders(g *Group, httpHeaderExpr, paramExpr *Statement, dec *genutil.
 		singleValExpr := Id("h").Dot("Get").Call(Lit(f.WireName))
 		listValExpr := Id("h").Dot("Values").Call(Lit(f.WireName))
 		decodeExpr := dec.UnmarshalQueryOrHeader(f.Type, f.WireName, singleValExpr, listValExpr)
-		g.Add(paramExpr.Clone().Dot(f.SrcName).Op("=").Add(decodeExpr))
+		g.Add(FieldExpr(paramExpr, f).Op("=").Add(decodeExpr))
 	}
 	g.Line()
 }
@@ -44,7 +54,7 @@ func DecodeQuery(g *Group, urlValuesExpr, paramExpr *Statement, dec *genutil.Typ
 		singleValExpr := Id("qs").Dot("Get").Call(Lit(f.WireName))
 		listValExpr := Id("qs").Index(Lit(f.WireName))
 		decodeExpr := dec.UnmarshalQueryOrHeader(f.Type, f.WireName, singleValExpr, listValExpr)
-		g.Add(paramExpr.Clone()).Dot(f.SrcName).Op("=").Add(decodeExpr)
+		g.Add(FieldExpr(paramExpr, f)).Op("=").Add(decodeExpr)
 	}
 	g.Line()
 }
@@ -63,9 +73,9 @@ func DecodeCookie(errs *perr.List, g *Group, httpReqExpr, paramExpr *Statement, 
 			// Cookies can either be a builtin or a *http.Cookie.
 			if builtin, ok := f.Type.(schema.BuiltinType); ok {
 				decodeExpr := dec.UnmarshalBuiltin(builtin.Kind, f.WireName, Id("c").Dot("Value"), false)
-				g.Add(paramExpr.Clone()).Dot(f.SrcName).Op("=").Add(decodeExpr)
+				g.Add(FieldExpr(paramExpr, f)).Op("=").Add(decodeExpr)
 			} else if info, ok := schemautil.DerefNamedInfo(f.Type, true); ok && info.QualifiedName() == cookieType {
-				g.Add(paramExpr.Clone()).Dot(f.SrcName).Op("=").Id("c")
+				g.Add(FieldExpr(paramExpr, f)).Op("=").Id("c")
 				g.Add(dec.IncNonEmpty())
 			} else {
 				errs.Addf(f.Type.ASTExpr().Pos(), "cannot unmarshal cookie into field of type %s", f.Type)
@@ -93,7 +103,7 @@ func DecodeBody(g *Group, ioReaderExpr *Statement, paramsExpr *Statement, dec *g
 			Switch(Qual("strings", "ToLower").Call(Id("key"))).BlockFunc(func(g *Group) {
 				for _, f := range params {
 					g.Case(Lit(strings.ToLower(f.WireName))).Block(
-						dec.ParseJSON(f.SrcName, Id("iter"), Op("&").Add(paramsExpr.Clone()).Dot(f.SrcName)),
+						dec.ParseJSON(f.SrcName, Id("iter"), Op("&").Add(FieldExpr(paramsExpr, f))),
 					)
 				}
 				g.Default().Block(Id("_").Op("=").Id("iter").Dot("SkipAndReturnBytes").Call())
@@ -120,7 +130,7 @@ func EncodeHeaders(errs *perr.List, g *Group, httpHeaderExpr, paramExpr *Stateme
 			continue
 		}
 
-		strVals, ok := genutil.MarshalQueryOrHeader(f.Type, paramExpr.Clone().Dot(f.SrcName))
+		strVals, ok := genutil.MarshalQueryOrHeader(f.Type, FieldExpr(paramExpr, f))
 		if !ok {
 			errs.Addf(f.Type.ASTExpr().Pos(), "cannot marshal %s to header", f.Type)
 			continue
@@ -150,7 +160,7 @@ func EncodeQuery(errs *perr.List, g *Group, urlValuesExpr, paramExpr *Statement,
 			continue
 		}
 
-		strVals, ok := genutil.MarshalQueryOrHeader(f.Type, paramExpr.Clone().Dot(f.SrcName))
+		strVals, ok := genutil.MarshalQueryOrHeader(f.Type, FieldExpr(paramExpr, f))
 		if !ok {
 			errs.Addf(f.Type.ASTExpr().Pos(), "cannot marshal %s to query string", f.Type)
 			continue
@@ -176,14 +186,14 @@ func EncodeBody(gu *genutil.Helper, g *Group, streamExpr, paramExpr *Statement, 
 
 		// If this field is omitted when empty, we need to wrap the write in an if statement.
 		if p.OmitEmpty {
-			g.If(gu.IsNotJSONEmpty(paramExpr.Clone().Dot(p.SrcName), p.Type)).BlockFunc(func(g *Group) {
+			g.If(gu.IsNotJSONEmpty(FieldExpr(paramExpr, p), p.Type)).BlockFunc(func(g *Group) {
 				g.Comment(fmt.Sprintf("%s is set to omitempty, so we need to check if it's empty before writing it", p.SrcName))
 				writeBlock = g
 			})
 		}
 
 		writeBlock.Add(streamExpr.Clone().Dot("WriteObjectField").Call(Lit(p.WireName)))
-		writeBlock.Add(streamExpr.Clone().Dot("WriteVal").Call(paramExpr.Clone().Dot(p.SrcName)))
+		writeBlock.Add(streamExpr.Clone().Dot("WriteVal").Call(FieldExpr(paramExpr, p)))
 		if i+1 < len(params) {
 			// If we're not on the last field, write a comma.
 			// we do this within the writeBlock so that we don't write a comma if we're omitting the field.
