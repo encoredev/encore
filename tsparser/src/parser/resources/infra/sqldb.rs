@@ -437,7 +437,9 @@ fn parse_migrations(
     source: Option<&MigrationFileSource>,
 ) -> ParseResult<Vec<DBMigration>> {
     if !dir.exists() {
-        return Err(span.parse_err("migrations directory does not exist"));
+        return Err(span.parse_err(
+            "migrations directory does not exist; create it and add a migration file, e.g. 1_init.up.sql",
+        ));
     } else if !dir.is_dir() {
         return Err(span.parse_err("migrations path is not a directory"));
     }

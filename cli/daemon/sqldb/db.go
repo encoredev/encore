@@ -328,6 +328,37 @@ func (db *DB) ListAppliedMigrations(ctx context.Context) (map[uint64]bool, error
 	return LoadAppliedVersions(ctx, conn, "public", "schema_migrations")
 }
 
+// PendingMigrations returns the migrations in dbMeta that have not been applied,
+// given the applied versions as returned by ListAppliedMigrations (version -> dirty).
+// A dirty version counts as not applied.
+func PendingMigrations(dbMeta *meta.SQLDatabase, applied map[uint64]bool) []*meta.DBMigration {
+	var pending []*meta.DBMigration
+	if dbMeta.AllowNonSequentialMigrations {
+		for _, m := range dbMeta.Migrations {
+			if dirty, ok := applied[m.Number]; !ok || dirty {
+				pending = append(pending, m)
+			}
+		}
+		return pending
+	}
+
+	// Sequential migrations only track the latest version,
+	// so everything after it is pending.
+	if len(applied) == 0 {
+		return dbMeta.Migrations
+	}
+	var latest uint64
+	for v := range applied {
+		latest = max(latest, v)
+	}
+	for _, m := range dbMeta.Migrations {
+		if m.Number > latest || (m.Number == latest && applied[latest]) {
+			pending = append(pending, m)
+		}
+	}
+	return pending
+}
+
 func RunMigration(ctx context.Context, dbName string, allowNonSeq bool, conn *sql.Conn, mdSrc *MetadataSource) (err error) {
 	var (
 		dbDriver  database.Driver

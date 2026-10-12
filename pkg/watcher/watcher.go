@@ -136,9 +136,31 @@ func (w *Watcher) handleCreateEvent(path string) {
 		if err := w.RecursivelyWatch(path); err != nil {
 			w.log.Err(err).Str("path", path).Msg("unable to start watching new directory")
 		}
+		w.recordExistingFiles(path)
 	} else {
 		w.recordEventInBatch(path, CREATED, info)
 	}
+}
+
+// recordExistingFiles records a CREATED event for each file in a newly created
+// directory. Files created before the directory was watched
+// (e.g. `mkdir -p dir && touch dir/file`) produce no events of their own.
+func (w *Watcher) recordExistingFiles(dir string) {
+	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if IgnoreFolder(path) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if info, err := d.Info(); err == nil {
+			w.recordEventInBatch(path, CREATED, info)
+		}
+		return nil
+	})
 }
 
 func (w *Watcher) handleDeleteEvent(path string) {

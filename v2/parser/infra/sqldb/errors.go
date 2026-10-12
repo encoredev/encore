@@ -45,7 +45,7 @@ var (
 	)
 	errNewDatabaseMigrationDirNotFound = errRange.New(
 		"Invalid sqldb.NewDatabase call",
-		"The migration directory does not exist.",
+		"The migration directory does not exist. Create it and add a migration file, e.g. 1_init.up.sql.",
 	)
 	errMigrationsNotInMainModule = errRange.New(
 		"Invalid database migration directory",
