@@ -64,10 +64,11 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 	req.Header.Set("Content-Encoding", "snappy")
 	req.Header.Set("User-Agent", "encore")
 	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
-	_, err = http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("unable to send metrics to Prometheus remote write destination: %v", err)
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
