@@ -91,7 +91,18 @@
                 }
               }
             },
-            "description": "Success response"
+            "description": "Success response",
+            "headers": {
+              "x-amount": {
+                "allowEmptyValue": true,
+                "explode": true,
+                "required": true,
+                "schema": {
+                  "type": "string"
+                },
+                "style": "simple"
+              }
+            }
           },
           "default": {
             "$ref": "#/components/responses/APIError"

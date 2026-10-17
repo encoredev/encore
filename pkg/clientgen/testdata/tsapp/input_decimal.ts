@@ -5,7 +5,7 @@
 {"name": "ts-test-app"}
 
 -- svc/svc.ts --
-import { api } from "encore.dev/api";
+import { api, Header } from "encore.dev/api";
 import { Decimal } from "encore.dev/types";
 
 export const dummy = api(
@@ -19,4 +19,5 @@ interface Request {
 }
 interface Response {
   result: Decimal
+  amount: Header<Decimal, "x-amount">
 }

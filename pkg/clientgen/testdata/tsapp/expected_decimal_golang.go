@@ -78,6 +78,7 @@ type SvcRequest struct {
 
 type SvcResponse struct {
 	Result string
+	Amount string `header:"x-amount"`
 }
 
 // SvcClient Provides you access to call public and authenticated APIs on svc. The concrete implementation is svcClient.
@@ -106,9 +107,27 @@ func (c *svcClient) Dummy(ctx context.Context, params SvcRequest) (resp SvcRespo
 		return
 	}
 
+	// We only want the response body to marshal into these fields and none of the header fields,
+	// so we'll construct a new struct with only those fields.
+	respBody := struct {
+		Result string `json:"result"`
+	}{}
+
 	// Now make the actual call to the API
-	_, err = callAPI(ctx, c.base, "GET", fmt.Sprintf("/dummy?%s", queryString.Encode()), nil, nil, &resp)
+	var respHeaders http.Header
+	respHeaders, err = callAPI(ctx, c.base, "GET", fmt.Sprintf("/dummy?%s", queryString.Encode()), nil, nil, &respBody)
 	if err != nil {
+		return
+	}
+
+	// Copy the unmarshalled response body into our response struct
+	respDecoder := &serde{}
+
+	resp.amount = respDecoder.ToString("amount", respHeaders.Get("x-amount"), true)
+	resp.result = respBody.result
+
+	if respDecoder.LastError != nil {
+		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
 		return
 	}
 
@@ -472,6 +491,14 @@ type serde struct {
 }
 
 func (e *serde) FromString(s string) (v string) {
+	e.NonEmptyValues++
+	return s
+}
+
+func (e *serde) ToString(field string, s string, required bool) (v string) {
+	if !required && s == "" {
+		return
+	}
 	e.NonEmptyValues++
 	return s
 }
