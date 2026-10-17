@@ -6,6 +6,7 @@ import { RawResponse } from "./mod";
 import { RawRequest } from "./mod";
 import { InternalHandlerResponse } from "../internal/appinit/mod";
 import { IterableSocket, IterableStream, Sink } from "./stream";
+import type { Decimal } from "../types/mod";
 export { RawRequest, RawResponse } from "./node_http";
 
 export type Method =
@@ -20,7 +21,7 @@ export type Method =
   | "CONNECT";
 
 export type Header<
-  TypeOrName extends string | number | boolean | Date = string,
+  TypeOrName extends string | number | boolean | Date | Decimal = string,
   Name extends string = ""
 > = TypeOrName extends string ? string : TypeOrName;
 
@@ -33,7 +34,9 @@ export type Query<
     | boolean
     | boolean[]
     | Date
-    | Date[] = string,
+    | Date[]
+    | Decimal
+    | Decimal[] = string,
   Name extends string = ""
 > = TypeOrName extends string ? string : TypeOrName;
 
