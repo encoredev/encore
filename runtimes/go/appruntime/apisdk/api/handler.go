@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -293,11 +294,29 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 	}()
 
 	if decodeErr != nil {
-		beginErr = errs.WrapCode(decodeErr, errs.InvalidArgument, "decode request")
+		beginErr = publicDecodeErr(decodeErr)
 		return
 	}
 
 	return reqData, nil
+}
+
+// publicDecodeErr converts a request decode error into the error returned to the caller.
+//
+// A body decode error can name Go struct fields, JSON parser internals and an excerpt
+// of the payload. It is kept in Meta, which is logged but never sent to external clients,
+// and the caller gets a generic message. Path, query and header errors name the offending
+// parameter and are returned as they are.
+func publicDecodeErr(decodeErr error) error {
+	// etype.BodyError; this package cannot import etype without an import cycle.
+	if errors.As(decodeErr, new(interface{ IsRequestBodyError() })) {
+		return errs.B().
+			Code(errs.InvalidArgument).
+			Meta("decode_error", decodeErr.Error()).
+			Msg("unable to decode request body").
+			Err()
+	}
+	return errs.WrapCode(decodeErr, errs.InvalidArgument, "decode request")
 }
 
 // handleIncoming executes the given handler, running middleware in the process.

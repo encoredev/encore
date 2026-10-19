@@ -170,17 +170,35 @@ func (u *Unmarshaller) setErr(msg, field string, err error) {
 	}
 }
 
+// BodyError marks a failure to read or parse the request body.
+// Its text can name Go struct fields, JSON parser internals and an excerpt
+// of the payload, so callers must keep it out of responses to external clients.
+type BodyError struct{ Err error }
+
+func (e *BodyError) Error() string { return e.Err.Error() }
+func (e *BodyError) Unwrap() error { return e.Err }
+
+// IsRequestBodyError lets packages that cannot import etype detect a BodyError.
+func (e *BodyError) IsRequestBodyError() {}
+
+// setBodyErr is like setErr but marks the error as a [BodyError].
+func (u *Unmarshaller) setBodyErr(msg, field string, err error) {
+	if err != nil && u.Error == nil {
+		u.Error = &BodyError{Err: fmt.Errorf("%s: %s: %w", field, msg, err)}
+	}
+}
+
 func (u *Unmarshaller) ReadBody(body io.Reader) (payload []byte) {
 	payload, err := io.ReadAll(body)
 	if err == nil && len(payload) == 0 {
-		u.setErr("missing request body", "request_body", fmt.Errorf("missing request body"))
+		u.setBodyErr("missing request body", "request_body", fmt.Errorf("missing request body"))
 	} else if err != nil {
-		u.setErr("could not parse request body", "request_body", err)
+		u.setBodyErr("could not parse request body", "request_body", err)
 	}
 	return payload
 }
 
 func (u *Unmarshaller) ParseJSON(field string, iter *jsoniter.Iterator, dst any) {
 	iter.ReadVal(dst)
-	u.setErr("invalid json parameter", field, iter.Error)
+	u.setBodyErr("invalid json parameter", field, iter.Error)
 }
