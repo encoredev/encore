@@ -72,19 +72,26 @@ Rules embedded curl DSL:
 
 ## Deploying to Encore Cloud
 
-Deploy = commit + push to the `encore` git remote. Every push to the app's main branch deploys to `staging` (free Encore Cloud environment, type `development`).
+Deploy = commit + push to the git repo the app deploys from:
+- Default: Encore-managed git, so push to the `encore` remote.
+- App linked to a GitHub repository (Cloud Dashboard > Settings > GitHub): push to that repository (usually `origin`); GitHub pushes trigger deploys.
+- Check `git remote -v`. If you can't tell which one the app deploys from, ask the user.
+
+Which environment deploys: each environment deploys from its own branch (environment Settings > Branch Push) or only manually. New apps have one environment, `staging` (type `development`), deploying the app's main branch. One push can deploy several environments. If a production environment deploys from the branch you push, the push deploys to production, so check before pushing.
 
 ```bash
 git add -A && git commit -m "describe change"
-git push encore
+git push encore              # Encore-managed git
+git push origin <branch>     # GitHub-linked app
 ```
 
-- Success prints `remote: main: triggered deploy https://app.encore.dev/<app-id>/envs/staging/deploys/<id>`. No such line = nothing deployed (nothing new committed, or the pushed branch isn't deployed by any environment).
-- Push returns once the deploy starts; no CLI wait. Follow the printed URL, or read deploy status via the Cloud MCP (above). Deployed API: `https://staging-<app-id>.encr.app`. Logs: `encore logs --env=staging`.
+- `encore` remote: success prints one line per environment, `remote: <branch>: triggered deploy https://app.encore.dev/<app-id>/envs/<env>/deploys/<id>`. No such line = nothing deployed (nothing new committed, or no environment deploys from the pushed branch).
+- GitHub: git prints nothing from Encore. Check Deployments in the Cloud Dashboard, or the Cloud MCP (above; lists environments, deploys, builds and their logs).
+- Push returns once the deploy starts; no CLI wait. Environment API: `https://<env>-<app-id>.encr.app` (unless a custom domain is set). Logs: `encore logs --env=<env>`.
 - The deploy runs the app's tests; failing tests block the deploy, so run `encore test ./...` first.
-- Every declared secret needs a value in the target environment, else the deploy fails with `secret key(s) not defined`. Set: `printf '%s' "$VAL" | encore secret set --type dev,local <Name>` (`dev` covers `staging`; add `prod` for production environments).
-- Redeploy without a new commit (e.g. after setting a secret): `encore alpha deploy --env=staging --branch=main` (branch must already be pushed).
-- No `encore` remote (`git remote -v`) = app created logged out or with `--platform=false`. Log in (`encore auth login`; without a browser: `--auth-key=<key>` or `ENCORE_AUTH_KEY`), `rm encore.app` (copy settings other than `id`/`lang` first, re-add after), `encore app init <name> --lang go` (registers the app and adds the remote), commit, push. App created in the Cloud Dashboard: `encore app clone <app-id>`.
+- Every declared secret needs a value in the target environment, else the deploy fails with `secret key(s) not defined`. Set per environment type: `printf '%s' "$VAL" | encore secret set --type <types> <Name>` (`dev` = development environments including `staging`, `prod` = production, `pr` = preview, `local`), or for one environment: `--env <env-name>`.
+- Redeploy without a code change (e.g. after setting a secret): `git commit --allow-empty -m "Redeploy"` and push to the deploy branch, or Cloud Dashboard > Deployments > New Deploy > Branch.
+- No `encore` remote and no GitHub link = app created logged out or with `--platform=false`. Log in (`encore auth login`; without a browser: `--auth-key=<key>` or `ENCORE_AUTH_KEY`), `rm encore.app` (copy settings other than `id`/`lang` first, re-add after), `encore app init <name> --lang go` (registers the app and adds the `encore` remote), commit, push. App created in the Cloud Dashboard: `encore app clone <app-id>` (GitHub-linked: `git clone` the GitHub repository).
 - Failed deploys: https://encore.dev/docs/platform/deploy/troubleshooting. All commands: https://encore.dev/docs/agent-quick-reference
 
 ## Encore Go domain knowledge
@@ -844,8 +851,7 @@ Random data (utility):
 - encore rand words [--sep=SEP] NUM - Generate memorable passphrase
 
 Deploy:
-- git push encore - Deploy (see Deploying to Encore Cloud)
-- encore alpha deploy --env=<name> (--commit=<sha> | --branch=<name>) - Deploy an already-pushed branch or commit without pushing
+- git push encore (or push to the linked GitHub repository) - Deploy (see Deploying to Encore Cloud)
 
 Version:
 - encore version - Report version
