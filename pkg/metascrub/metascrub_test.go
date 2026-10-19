@@ -59,6 +59,8 @@ type Params struct {
 
 	JsonKey string `+"`"+`json:"json_key" encore:"sensitive"`+"`"+`
 	Header string `+"`"+`header:"X-Header" encore:"sensitive"`+"`"+`
+	Cookie string `+"`"+`cookie:"session" encore:"sensitive"`+"`"+`
+	PlainCookie string `+"`"+`cookie:"theme"`+"`"+`
 }
 
 type Generic[T any] struct {
@@ -127,9 +129,11 @@ func Foo(ctx context.Context, p *Params) error { return nil }
 		{f("MapTwo"), f("Foo"), mapVal, f("Two"), f("Scrub")},
 		{fCase("json_key")},
 		{f("Header")},
+		{f("Cookie")},
 	})
 
 	c.Assert(res.Headers, qt.DeepEquals, []string{"X-Header"})
+	c.Assert(res.Cookies, qt.DeepEquals, []string{"session"})
 }
 
 func TestScrubAuthHandler(t *testing.T) {
@@ -142,6 +146,7 @@ import "context"
 type Params struct {
 	Header string `+"`"+`header:"Foo"`+"`"+`
 	Query string `+"`"+`query:"query"`+"`"+`
+	Cookie string `+"`"+`cookie:"session"`+"`"+`
 	Other string
 }
 
@@ -160,10 +165,12 @@ func Foo(ctx context.Context, p *Params) error { return nil }
 	c.Assert(res.Payload, qt.DeepEquals, []scrub.Path{
 		{f("Header")},
 		{f("Query")},
+		{f("Cookie")},
 		{f("Other")},
 	})
 
 	c.Assert(res.Headers, qt.DeepEquals, []string{"Foo"})
+	c.Assert(res.Cookies, qt.DeepEquals, []string{"session"})
 }
 
 func testParse(c *qt.C, code string) *meta.Data {

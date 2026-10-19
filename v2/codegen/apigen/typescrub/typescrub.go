@@ -2,6 +2,7 @@
 package typescrub
 
 import (
+	"net/http"
 	"slices"
 	"strconv"
 
@@ -32,7 +33,12 @@ type Computer struct {
 
 type Desc struct {
 	Payload []scrub.Path
+
+	// Headers are the names of headers whose values should be redacted entirely.
 	Headers []string
+
+	// Cookies are the names of cookies whose values should be redacted.
+	Cookies []string
 }
 
 type ParseMode int
@@ -63,6 +69,7 @@ func (c *Computer) Compute(typ schema.Type, mode ParseMode) Desc {
 	return Desc{
 		Payload: res.scrub,
 		Headers: res.headers,
+		Cookies: res.cookies,
 	}
 }
 
@@ -103,6 +110,7 @@ type declResult struct {
 	scrub      []scrub.Path
 	typeParams []typeParamPath
 	headers    []string
+	cookies    []string
 }
 
 func (p *typeParser) typ(typ schema.Type) declResult {
@@ -121,9 +129,10 @@ func (p *typeParser) typ(typ schema.Type) declResult {
 			// Clone the paths since we're modifying them.
 			scrub: slices.Clone(decl.scrub),
 
-			// Copy the headers directly since they never get modified,
-			// since we only care about the top-level type's headers.
+			// Copy the headers and cookies directly since they never get modified,
+			// since we only care about the top-level type's headers and cookies.
 			headers: decl.headers,
+			cookies: decl.cookies,
 		}
 
 		for i, arg := range t.TypeArgs {
@@ -205,6 +214,11 @@ func (p *typeParser) typ(typ schema.Type) declResult {
 				if headerName, ok := isHeader(f); ok {
 					out.headers = append(out.headers, headerName)
 				}
+
+				// If this is a cookie field, add it to the cookies to scrub.
+				if cookieName, ok := isCookie(f); ok {
+					out.cookies = append(out.cookies, cookieName)
+				}
 			} else {
 				// Otherwise check the type and see if there's anything to scrub within it.
 				fieldRes := p.typ(f.Type)
@@ -252,9 +266,22 @@ func isSensitive(f schema.StructField) (sensitive bool, fieldName string, caseSe
 	return sensitive, fieldName, caseSensitive
 }
 
+// isHeader reports whether f is a header field, and if so its header name.
+// The name is canonicalized since the runtime looks it up in an http.Header.
 func isHeader(f schema.StructField) (headerName string, ok bool) {
 	if headerTag, err := f.Tag.Get("header"); err == nil {
 		name := headerTag.Name
+		if name == "" {
+			name = f.Name.GetOrElse("")
+		}
+		return http.CanonicalHeaderKey(name), true
+	}
+	return "", false
+}
+
+func isCookie(f schema.StructField) (cookieName string, ok bool) {
+	if cookieTag, err := f.Tag.Get("cookie"); err == nil {
+		name := cookieTag.Name
 		if name == "" {
 			name = f.Name.GetOrElse("")
 		}

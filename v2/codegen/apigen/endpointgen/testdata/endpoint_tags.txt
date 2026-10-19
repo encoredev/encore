@@ -96,6 +96,7 @@ var EncoreInternal_api_APIDesc_Tagged = &__api.Desc[*EncoreInternal_TaggedReq, E
 	ReqUserPayload: func(reqData *EncoreInternal_TaggedReq) any {
 		return nil
 	},
+	ScrubRequestCookies:  nil,
 	ScrubRequestHeaders:  nil,
 	ScrubRequestPaths:    nil,
 	ScrubResponseHeaders: nil,

@@ -38,6 +38,7 @@ type RPCDesc struct {
 
 	ScrubRequestPaths    []scrub.Path
 	ScrubRequestHeaders  map[string]bool
+	ScrubRequestCookies  []string // cookie names to redact in the Cookie header
 	ScrubResponsePaths   []scrub.Path
 	ScrubResponseHeaders map[string]bool
 }

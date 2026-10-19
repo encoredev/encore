@@ -219,7 +219,7 @@ func (l *Log) RequestSpanStart(req *model.Request, goid uint32) {
 		tb.String(pp.Value)
 	}
 
-	l.logHeaders(&tb, data.RequestHeaders, desc.ScrubRequestHeaders)
+	l.logHeaders(&tb, data.RequestHeaders, desc.ScrubRequestHeaders, desc.ScrubRequestCookies)
 
 	scrubbedRequest := scrub.JSON(data.NonRawPayload, desc.ScrubRequestPaths, []byte(`"[REDACTED]"`))
 	tb.ByteString(scrubbedRequest)
@@ -260,7 +260,7 @@ func (l *Log) RequestSpanEnd(p RequestSpanEndParams) {
 	tb.String(desc.Endpoint)
 
 	tb.UVarint(uint64(p.Resp.HTTPStatus))
-	l.logHeaders(&tb, p.Resp.RawResponseHeaders, desc.ScrubResponseHeaders)
+	l.logHeaders(&tb, p.Resp.RawResponseHeaders, desc.ScrubResponseHeaders, nil)
 	tb.ByteString(scrubbedResponse)
 	tb.UVarint(uint64(p.CallerEventID))
 	tb.String(uid)
@@ -1049,7 +1049,7 @@ func (l *Log) BucketDeleteObjectsEnd(p BucketDeleteObjectsEndParams) {
 	})
 }
 
-func (l *Log) logHeaders(tb *EventBuffer, headers http.Header, scrubHeaders map[string]bool) {
+func (l *Log) logHeaders(tb *EventBuffer, headers http.Header, scrubHeaders map[string]bool, scrubCookies []string) {
 	tb.UVarint(uint64(len(headers)))
 	for k, v := range headers {
 		firstVal := ""
@@ -1057,6 +1057,9 @@ func (l *Log) logHeaders(tb *EventBuffer, headers http.Header, scrubHeaders map[
 			firstVal = "[REDACTED]"
 		} else if len(v) > 0 {
 			firstVal = v[0]
+			if k == "Cookie" {
+				firstVal = scrub.Cookie(firstVal, scrubCookies, "[REDACTED]")
+			}
 		}
 		tb.String(k)
 		tb.String(firstVal)

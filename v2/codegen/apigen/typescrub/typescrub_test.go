@@ -141,7 +141,9 @@ import "context"
 
 type Params struct {
 	Header string `+"`"+`header:"Foo"`+"`"+`
+	Lower string `+"`"+`header:"x-api-key"`+"`"+`
 	Query string `+"`"+`query:"query"`+"`"+`
+	Cookie string `+"`"+`cookie:"session"`+"`"+`
 	Other string
 }
 
@@ -158,11 +160,15 @@ func Foo(ctx context.Context, p *Params) error { return nil }
 
 	c.Assert(res.Payload, qt.DeepEquals, []scrub.Path{
 		{f("Header")},
+		{f("Lower")},
 		{f("Query")},
+		{f("Cookie")},
 		{f("Other")},
 	})
 
-	c.Assert(res.Headers, qt.DeepEquals, []string{"Foo"})
+	// Header names are canonicalized, as the runtime matches them against an http.Header.
+	c.Assert(res.Headers, qt.DeepEquals, []string{"Foo", "X-Api-Key"})
+	c.Assert(res.Cookies, qt.DeepEquals, []string{"session"})
 }
 
 // testParse parses the given txtar code and returns the request schema.Type

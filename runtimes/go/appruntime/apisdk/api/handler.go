@@ -113,6 +113,7 @@ type Desc[Req, Resp any] struct {
 
 	ScrubRequestPaths    []scrub.Path
 	ScrubRequestHeaders  map[string]bool
+	ScrubRequestCookies  []string
 	ScrubResponsePaths   []scrub.Path
 	ScrubResponseHeaders map[string]bool
 
@@ -921,6 +922,7 @@ func (d *Desc[Req, Resp]) rpcDesc() *model.RPCDesc {
 			ScrubRequestPaths:    d.ScrubRequestPaths,
 			ScrubResponsePaths:   d.ScrubResponsePaths,
 			ScrubRequestHeaders:  d.ScrubRequestHeaders,
+			ScrubRequestCookies:  d.ScrubRequestCookies,
 			ScrubResponseHeaders: d.ScrubResponseHeaders,
 		}
 

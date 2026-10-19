@@ -19,6 +19,17 @@ func HeadersToJen(headers []string) Code {
 	})
 }
 
+func CookiesToJen(cookies []string) Code {
+	if len(cookies) == 0 {
+		return Nil()
+	}
+	return Index().String().ValuesFunc(func(g *Group) {
+		for _, c := range cookies {
+			g.Add(Lit(c))
+		}
+	})
+}
+
 func PathsToJen(paths []scrub.Path) Code {
 	if len(paths) == 0 {
 		return Nil()

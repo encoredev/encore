@@ -109,6 +109,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
 		return nil
 	},
+	ScrubRequestCookies:  nil,
 	ScrubRequestHeaders:  nil,
 	ScrubRequestPaths:    nil,
 	ScrubResponseHeaders: nil,
@@ -177,6 +178,7 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*EncoreInternal_BarReq, EncoreI
 	ReqUserPayload: func(reqData *EncoreInternal_BarReq) any {
 		return nil
 	},
+	ScrubRequestCookies:  nil,
 	ScrubRequestHeaders:  nil,
 	ScrubRequestPaths:    nil,
 	ScrubResponseHeaders: nil,
