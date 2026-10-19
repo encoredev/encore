@@ -1,6 +1,7 @@
 package endpointgen
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -80,6 +81,14 @@ func genAPIDesc(
 	reqScrub := gen.TypeScrubber.Compute(ep.Request, scrubMode)
 	respScrub := gen.TypeScrubber.Compute(ep.Response, scrubMode)
 
+	// Requests carry the auth handler's credentials as well,
+	// so scrub them from every endpoint's request headers.
+	if !gen.Build.DisableSensitiveScrubbing {
+		authScrub := authHandlerScrub(gen, appDesc)
+		reqScrub.Headers = mergeNames(reqScrub.Headers, authScrub.Headers)
+		reqScrub.Cookies = mergeNames(reqScrub.Cookies, authScrub.Cookies)
+	}
+
 	pos := ep.Decl.AST.Pos()
 	desc := f.VarDecl("APIDesc", ep.Name)
 	desc.Value(Op("&").Add(apiQ("Desc")).Types(
@@ -117,6 +126,7 @@ func genAPIDesc(
 
 		Id("ScrubRequestPaths"):    typescrub.PathsToJen(reqScrub.Payload),
 		Id("ScrubRequestHeaders"):  typescrub.HeadersToJen(reqScrub.Headers),
+		Id("ScrubRequestCookies"):  typescrub.CookiesToJen(reqScrub.Cookies),
 		Id("ScrubResponsePaths"):   typescrub.PathsToJen(respScrub.Payload),
 		Id("ScrubResponseHeaders"): typescrub.HeadersToJen(respScrub.Headers),
 	}))
@@ -213,4 +223,37 @@ func tagNames(tags selector.Set) Code {
 			}
 		})
 	})
+}
+
+// authHandlerScrub returns the headers and cookies the app's auth handler
+// reads its credentials from. They're empty if the app has no auth handler.
+func authHandlerScrub(gen *codegen.Generator, appDesc *app.Desc) typescrub.Desc {
+	fw, ok := appDesc.Framework.Get()
+	if !ok {
+		return typescrub.Desc{}
+	}
+	ah, ok := fw.AuthHandler.Get()
+	if !ok {
+		return typescrub.Desc{}
+	}
+
+	desc := gen.TypeScrubber.Compute(ah.Param, typescrub.AuthHandler)
+	return typescrub.Desc{
+		// A token-string auth handler reads the Authorization header,
+		// which has no struct field to describe it, so always include it.
+		Headers: mergeNames([]string{"Authorization"}, desc.Headers),
+		Cookies: desc.Cookies,
+	}
+}
+
+// mergeNames returns the names in a followed by those in b, without duplicates.
+// Duplicates must go since header names become keys in a map literal.
+func mergeNames(a, b []string) []string {
+	var out []string
+	for _, name := range slices.Concat(a, b) {
+		if !slices.Contains(out, name) {
+			out = append(out, name)
+		}
+	}
+	return out
 }

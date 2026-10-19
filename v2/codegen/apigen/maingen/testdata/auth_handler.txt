@@ -115,7 +115,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
 		return nil
 	},
-	ScrubRequestHeaders:  nil,
+	ScrubRequestCookies:  nil,
+	ScrubRequestHeaders:  map[string]bool{"Authorization": true},
 	ScrubRequestPaths:    nil,
 	ScrubResponseHeaders: nil,
 	ScrubResponsePaths:   nil,

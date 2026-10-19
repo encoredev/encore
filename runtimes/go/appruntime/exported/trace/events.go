@@ -125,7 +125,7 @@ func (l *Log) BeginRequest(req *model.Request, goid uint32) {
 		tb.String(req.ExtCorrelationID)
 
 		if desc.Raw {
-			l.logHeaders(&tb, data.RequestHeaders, desc.ScrubRequestHeaders)
+			l.logHeaders(&tb, data.RequestHeaders, desc.ScrubRequestHeaders, desc.ScrubRequestCookies)
 		} else {
 			// Scrub the payload according to the RPC description.
 			scrubbed := scrub.JSON(data.NonRawPayload, desc.ScrubRequestPaths, []byte(`"[REDACTED]"`))
@@ -179,7 +179,7 @@ func (l *Log) FinishRequest(req *model.Request, resp *model.Response) {
 		isRaw := req.RPCData.Desc.Raw
 		tb.Bool(isRaw)
 		if isRaw {
-			l.logHeaders(&tb, resp.RawResponseHeaders, req.RPCData.Desc.ScrubResponseHeaders)
+			l.logHeaders(&tb, resp.RawResponseHeaders, req.RPCData.Desc.ScrubResponseHeaders, nil)
 		} else {
 			scrubbed := scrub.JSON(resp.Payload, req.RPCData.Desc.ScrubResponsePaths, []byte(`"[REDACTED]"`))
 			tb.ByteString(scrubbed)
@@ -529,7 +529,7 @@ func (l *Log) BodyStream(p BodyStreamParams) {
 	l.Add(BodyStream, tb.Buf())
 }
 
-func (l *Log) logHeaders(tb *Buffer, headers http.Header, scrubHeaders map[string]bool) {
+func (l *Log) logHeaders(tb *Buffer, headers http.Header, scrubHeaders map[string]bool, scrubCookies []string) {
 	tb.UVarint(uint64(len(headers)))
 	for k, v := range headers {
 		tb.String(k)
@@ -539,6 +539,9 @@ func (l *Log) logHeaders(tb *Buffer, headers http.Header, scrubHeaders map[strin
 			firstVal = "[REDACTED]"
 		} else if len(v) > 0 {
 			firstVal = v[0]
+			if k == "Cookie" {
+				firstVal = scrub.Cookie(firstVal, scrubCookies, "[REDACTED]")
+			}
 		}
 
 		tb.String(firstVal)

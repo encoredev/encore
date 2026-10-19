@@ -34,7 +34,13 @@ type Computer struct {
 
 type Desc struct {
 	Payload []scrub.Path
+
+	// Headers are the names of headers whose values should be redacted entirely.
 	Headers []string
+
+	// Cookies are the names of cookies whose values should be redacted.
+	// Use scrub.Cookie to redact them in a Cookie header.
+	Cookies []string
 }
 
 type ParseMode int
@@ -68,6 +74,7 @@ func (c *Computer) Compute(typ *schema.Type, mode ParseMode) Desc {
 	return Desc{
 		Payload: res.scrub,
 		Headers: res.headers,
+		Cookies: res.cookies,
 	}
 }
 
@@ -109,6 +116,7 @@ type declResult struct {
 	scrub      []scrub.Path
 	typeParams []typeParamPath
 	headers    []string
+	cookies    []string
 }
 
 func (p *typeParser) typ(typ *schema.Type) declResult {
@@ -127,9 +135,10 @@ func (p *typeParser) typ(typ *schema.Type) declResult {
 			// Clone the paths since we're modifying them.
 			scrub: slices.Clone(decl.scrub),
 
-			// Copy the headers directly since they never get modified,
-			// since we only care about the top-level type's headers.
+			// Copy the headers and cookies directly since they never get modified,
+			// since we only care about the top-level type's headers and cookies.
 			headers: decl.headers,
+			cookies: decl.cookies,
 		}
 
 		for i, arg := range t.Named.TypeArguments {
@@ -171,23 +180,26 @@ func (p *typeParser) typ(typ *schema.Type) declResult {
 
 	case *schema.Type_Union:
 		var results []declResult
-		var numScrub, numTypeParams, numHeaders int
+		var numScrub, numTypeParams, numHeaders, numCookies int
 		for _, typ := range t.Union.Types {
 			res := p.typ(typ)
 			results = append(results, res)
 			numScrub += len(res.scrub)
 			numTypeParams += len(res.typeParams)
 			numHeaders += len(res.headers)
+			numCookies += len(res.cookies)
 		}
 		combined := declResult{
 			scrub:      make([]scrub.Path, 0, numScrub),
 			typeParams: make([]typeParamPath, 0, numTypeParams),
 			headers:    make([]string, 0, numHeaders),
+			cookies:    make([]string, 0, numCookies),
 		}
 		for _, res := range results {
 			combined.scrub = append(combined.scrub, res.scrub...)
 			combined.typeParams = append(combined.typeParams, res.typeParams...)
 			combined.headers = append(combined.headers, res.headers...)
+			combined.cookies = append(combined.cookies, res.cookies...)
 		}
 		return combined
 
@@ -232,6 +244,11 @@ func (p *typeParser) typ(typ *schema.Type) declResult {
 				// If this is a header field, add it to the headers to scrub.
 				if headerName, ok := isHeader(f); ok {
 					out.headers = append(out.headers, headerName)
+				}
+
+				// If this is a cookie field, add it to the cookies to scrub.
+				if cookieName, ok := isCookie(f); ok {
+					out.cookies = append(out.cookies, cookieName)
 				}
 			} else {
 				// Otherwise check the type and see if there's anything to scrub within it.
@@ -283,6 +300,19 @@ func isSensitive(f *schema.Field) (sensitive bool, fieldName string, caseSensiti
 func isHeader(f *schema.Field) (headerName string, ok bool) {
 	for _, t := range f.Tags {
 		if t.Key == "header" {
+			name := t.Name
+			if name == "" {
+				name = f.Name
+			}
+			return name, true
+		}
+	}
+	return "", false
+}
+
+func isCookie(f *schema.Field) (cookieName string, ok bool) {
+	for _, t := range f.Tags {
+		if t.Key == "cookie" {
 			name := t.Name
 			if name == "" {
 				name = f.Name
