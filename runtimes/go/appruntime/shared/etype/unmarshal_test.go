@@ -86,6 +86,16 @@ func TestReadBodyDetail(t *testing.T) {
 	}
 }
 
+func TestReadBodyRejectsNonObject(t *testing.T) {
+	for body, wantErr := range map[string]bool{`42`: true, ` "x"`: true, `[1]`: true, " ": true, ` {"a":1}`: false, `null`: false} {
+		var dec etype.Unmarshaller
+		dec.ReadBody(strings.NewReader(body))
+		if got := dec.Error != nil; got != wantErr {
+			t.Errorf("body %q: error = %v, want error %v", body, dec.Error, wantErr)
+		}
+	}
+}
+
 func TestParameterErrorsAreNotBodyErrors(t *testing.T) {
 	var dec etype.Unmarshaller
 	etype.UnmarshalOne(&dec, strconv.Atoi, "limit", "abc", true)

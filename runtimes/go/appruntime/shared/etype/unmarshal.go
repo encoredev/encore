@@ -1,6 +1,7 @@
 package etype
 
 import (
+	"bytes"
 	"encoding"
 	"encoding/base64"
 	stdjson "encoding/json"
@@ -202,6 +203,10 @@ func (u *Unmarshaller) ReadBody(body io.Reader) (payload []byte) {
 		u.setBodyErr("missing request body", "request_body", fmt.Errorf("missing request body"), "missing request body")
 	} else if err != nil {
 		u.setBodyErr("could not parse request body", "request_body", err, "")
+	} else if b := bytes.TrimLeft(payload, " \t\r\n"); len(b) == 0 || (b[0] != '{' && b[0] != 'n') {
+		// The generated decoder reads the body with ReadObjectCB, which leaves
+		// a non-object value (such as 42) unreported. Only an object or null is valid.
+		u.setBodyErr("invalid request body", "request_body", fmt.Errorf("request body is not a JSON object"), "request body must be a JSON object")
 	}
 	return payload
 }
