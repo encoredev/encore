@@ -70,6 +70,23 @@ Rules embedded curl DSL:
 - For "most-recent first" by publish order, DO NOT sort by `created_at = NOW()` or subscription-side row id — both subscription-insert order, at-least-once can flip. Sort by column monotonic with publish (entity id from event payload, or publish-time sequence in event).
 - Handler-only checks, skip infra: `et.Topic(T).PublishedMessages()`.
 
+## Deploying to Encore Cloud
+
+Deploy = commit + push to the `encore` git remote. Every push to the app's main branch deploys to `staging` (free Encore Cloud environment, type `development`).
+
+```bash
+git add -A && git commit -m "describe change"
+git push encore
+```
+
+- Success prints `remote: main: triggered deploy https://app.encore.dev/<app-id>/envs/staging/deploys/<id>`. No such line = nothing deployed (nothing new committed, or the pushed branch isn't deployed by any environment).
+- Push returns once the deploy starts; no CLI wait. Follow the printed URL, or read deploy status via the Cloud MCP (above). Deployed API: `https://staging-<app-id>.encr.app`. Logs: `encore logs --env=staging`.
+- The deploy runs the app's tests; failing tests block the deploy, so run `encore test ./...` first.
+- Every declared secret needs a value in the target environment, else the deploy fails with `secret key(s) not defined`. Set: `printf '%s' "$VAL" | encore secret set --type dev,local <Name>` (`dev` covers `staging`; add `prod` for production environments).
+- Redeploy without a new commit (e.g. after setting a secret): `encore alpha deploy --env=staging --branch=main` (branch must already be pushed).
+- No `encore` remote (`git remote -v`) = app created logged out or with `--platform=false`. Log in (`encore auth login`; without a browser: `--auth-key=<key>` or `ENCORE_AUTH_KEY`), `rm encore.app` (copy settings other than `id`/`lang` first, re-add after), `encore app init <name> --lang go` (registers the app and adds the remote), commit, push. App created in the Cloud Dashboard: `encore app clone <app-id>`.
+- Failed deploys: https://encore.dev/docs/platform/deploy/troubleshooting. All commands: https://encore.dev/docs/agent-quick-reference
+
 ## Encore Go domain knowledge
 
 ### Application structure
@@ -770,7 +787,7 @@ App management:
 - encore app clone [app-id] [directory] - Clone app
 - encore app create [name] [--example=name] [-l go] - Create new app
 - encore app init [name] - Create from existing repo
-- encore app link [app-id] [-f] - Link app with server
+- encore app link [app-id] [-f] - Link to an existing Encore Cloud app (adds the `encore` remote only if the repo has no remotes)
 
 Authentication:
 - encore auth login/logout/signup/whoami
@@ -826,8 +843,9 @@ Random data (utility):
 - encore rand bytes N [-f format] - Generate N random bytes
 - encore rand words [--sep=SEP] NUM - Generate memorable passphrase
 
-Deploy (alpha):
-- encore alpha deploy --env=<name> (--commit=<sha> | --branch=<name>) - Deploy app to a cloud env
+Deploy:
+- git push encore - Deploy (see Deploying to Encore Cloud)
+- encore alpha deploy --env=<name> (--commit=<sha> | --branch=<name>) - Deploy an already-pushed branch or commit without pushing
 
 Version:
 - encore version - Report version

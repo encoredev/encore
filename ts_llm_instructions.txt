@@ -77,6 +77,23 @@ Rules for embedded curl DSL:
 - For "most-recent first" by publish order, do NOT sort by `created_at = NOW()` nor subscription-side row id — both = subscription-insert order, at-least-once can flip. Sort by column monotonic w/ publish (entity id from event payload, or publish-time seq in event).
 - For handler-only checks, skip infra: `et.Topic(T).PublishedMessages()`.
 
+## Deploying to Encore Cloud
+
+Deploy = commit + push to `encore` git remote. Every push to app's main branch deploys to `staging` (free Encore Cloud env, type `development`).
+
+```bash
+git add -A && git commit -m "describe change"
+git push encore
+```
+
+- Success prints `remote: main: triggered deploy https://app.encore.dev/<app-id>/envs/staging/deploys/<id>`. No such line = nothing deployed (nothing new committed, or pushed branch not deployed by any env).
+- Push returns once deploy starts; no CLI wait. Follow printed URL, or read deploy status via Cloud MCP (above). Deployed API: `https://staging-<app-id>.encr.app`. Logs: `encore logs --env=staging`.
+- Deploy runs tests; failing tests block deploy. Run `CI=true encore test` first (no TTY → vitest watch mode never exits).
+- Every declared secret needs value in target env, else deploy fails `secret key(s) not defined`. Set: `printf '%s' "$VAL" | encore secret set --type dev,local <Name>` (`dev` covers `staging`; add `prod` for prod envs).
+- Redeploy w/o new commit (e.g. after setting secret): `encore alpha deploy --env=staging --branch=main` (branch must be pushed).
+- No `encore` remote (`git remote -v`) = app created logged out / `--platform=false`. Log in (`encore auth login`; no browser: `--auth-key=<key>` or `ENCORE_AUTH_KEY`), `rm encore.app` (copy non-`id`/`lang` settings first, re-add after), `encore app init <name> --lang ts` (registers app + adds remote), commit, push. App created in Cloud Dashboard: `encore app clone <app-id>`.
+- Failed deploys: https://encore.dev/docs/platform/deploy/troubleshooting. All commands: https://encore.dev/docs/agent-quick-reference
+
 ## Encore.ts domain knowledge
 
 ### API definition
@@ -1063,14 +1080,14 @@ Execution:
 - encore help [command]: lists cmds (or shows usage for specific cmd). Use when unsure of subcommand/flag.
 - encore run [--debug] [--watch=true] [-p port] [flags]: runs app. Before starting yourself, check if already running by polling `http://localhost:<port>/__encore/healthz` (default `4000`) — `200` = healthy, hit endpoints directly w/o re-running.
 - encore check ['curl ...'; 'curl ...'] | encore check < commands.txt: compile + boot app, verify services healthy, optionally run curls. See section above.
-- encore test [flags]: provisions isolated test infra (DBs, Pub/Sub, etc.) then runs `test` script from `package.json` (Vitest recommended). Test DBs skip fsync + use in-memory FS for speed. Use instead of `npm test` / `vitest` direct when code touches Encore infra.
+- encore test [flags]: provisions isolated test infra (DBs, Pub/Sub, etc.) then runs `test` script from `package.json` (Vitest recommended). Test DBs skip fsync + use in-memory FS for speed. Use instead of `npm test` / `vitest` direct when code touches Encore infra. No TTY: `CI=true encore test` (vitest watch mode never exits).
 - encore exec path/to/script [args...]: run executable script against local app.
 
 App mgmt:
 - encore app clone [app-id] [directory]: clone Encore app
 - encore app create [name] [--example=name] [-l ts]: create new Encore app
 - encore app init [name]: create new app from existing repo
-- encore app link [app-id] [-f]: link app w/ server
+- encore app link [app-id] [-f]: link to existing Encore Cloud app (adds `encore` remote only if repo has no remotes)
 
 Auth:
 - encore auth login [-k auth-key]: log in
@@ -1128,8 +1145,9 @@ Random data (utility):
 - encore rand bytes N [-f format]: gen N random bytes
 - encore rand words [--sep=SEP] NUM: gen memorable passphrase
 
-Deploy (alpha):
-- encore alpha deploy --env=<name> (--commit=<sha> | --branch=<name>): deploy app to a cloud env
+Deploy:
+- git push encore: deploy (see Deploying to Encore Cloud)
+- encore alpha deploy --env=<name> (--commit=<sha> | --branch=<name>): deploy already-pushed branch/commit w/o pushing
 
 Version:
 - encore version: report current
