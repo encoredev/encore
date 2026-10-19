@@ -1,10 +1,12 @@
 package etype
 
 import (
+	"encoding"
 	"encoding/base64"
 	stdjson "encoding/json"
 	"fmt"
 	"io"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -173,32 +175,88 @@ func (u *Unmarshaller) setErr(msg, field string, err error) {
 // BodyError marks a failure to read or parse the request body.
 // Its text can name Go struct fields, JSON parser internals and an excerpt
 // of the payload, so callers must keep it out of responses to external clients.
-type BodyError struct{ Err error }
+type BodyError struct {
+	Err error
+	// Detail is a description that is safe to show to clients,
+	// expressed only in terms of the API contract. It may be empty.
+	Detail string
+}
 
 func (e *BodyError) Error() string { return e.Err.Error() }
 func (e *BodyError) Unwrap() error { return e.Err }
 
-// IsRequestBodyError lets packages that cannot import etype detect a BodyError.
-func (e *BodyError) IsRequestBodyError() {}
+// PublicDetail returns the client-safe description of the error. It may be empty.
+// It lets packages that cannot import etype detect a BodyError.
+func (e *BodyError) PublicDetail() string { return e.Detail }
 
 // setBodyErr is like setErr but marks the error as a [BodyError].
-func (u *Unmarshaller) setBodyErr(msg, field string, err error) {
+func (u *Unmarshaller) setBodyErr(msg, field string, err error, detail string) {
 	if err != nil && u.Error == nil {
-		u.Error = &BodyError{Err: fmt.Errorf("%s: %s: %w", field, msg, err)}
+		u.Error = &BodyError{Err: fmt.Errorf("%s: %s: %w", field, msg, err), Detail: detail}
 	}
 }
 
 func (u *Unmarshaller) ReadBody(body io.Reader) (payload []byte) {
 	payload, err := io.ReadAll(body)
 	if err == nil && len(payload) == 0 {
-		u.setBodyErr("missing request body", "request_body", fmt.Errorf("missing request body"))
+		u.setBodyErr("missing request body", "request_body", fmt.Errorf("missing request body"), "missing request body")
 	} else if err != nil {
-		u.setBodyErr("could not parse request body", "request_body", err)
+		u.setBodyErr("could not parse request body", "request_body", err, "")
 	}
 	return payload
 }
 
+// ParseJSON reads the next JSON value into dst. field is the name of the field in the API.
 func (u *Unmarshaller) ParseJSON(field string, iter *jsoniter.Iterator, dst any) {
 	iter.ReadVal(dst)
-	u.setBodyErr("invalid json parameter", field, iter.Error)
+	if iter.Error != nil {
+		u.setBodyErr("invalid json parameter", field, iter.Error, jsonFieldDetail(field, dst))
+	}
+}
+
+// jsonFieldDetail describes a field that failed to decode, without naming Go identifiers.
+// jsoniter reports syntax and type errors alike as text, so it only says what the field expects.
+func jsonFieldDetail(field string, dst any) string {
+	if want := jsonTypeName(dst); want != "" {
+		return fmt.Sprintf("invalid value for field %q: expected %s", field, want)
+	}
+	return fmt.Sprintf("invalid value for field %q", field)
+}
+
+var (
+	jsonUnmarshalerType = reflect.TypeFor[stdjson.Unmarshaler]()
+	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
+)
+
+// jsonTypeName names the JSON type that dst (a pointer) expects, or "" if that is not
+// predictable, as for types with their own unmarshalling.
+func jsonTypeName(dst any) string {
+	t := reflect.TypeOf(dst).Elem()
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if p := reflect.PointerTo(t); p.Implements(jsonUnmarshalerType) || p.Implements(textUnmarshalerType) {
+		return ""
+	}
+	switch t.Kind() {
+	case reflect.String:
+		return "a string"
+	case reflect.Bool:
+		return "a boolean"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "an integer"
+	case reflect.Float32, reflect.Float64:
+		return "a number"
+	case reflect.Slice:
+		if t.Elem().Kind() == reflect.Uint8 {
+			return "a base64-encoded string"
+		}
+		return "an array"
+	case reflect.Array:
+		return "an array"
+	case reflect.Map, reflect.Struct:
+		return "an object"
+	}
+	return ""
 }

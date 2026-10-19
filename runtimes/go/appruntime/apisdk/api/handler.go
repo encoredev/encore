@@ -309,11 +309,18 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 // parameter and are returned as they are.
 func publicDecodeErr(decodeErr error) error {
 	// etype.BodyError; this package cannot import etype without an import cycle.
-	if errors.As(decodeErr, new(interface{ IsRequestBodyError() })) {
+	if bodyErr, ok := errors.AsType[interface {
+		error
+		PublicDetail() string
+	}](decodeErr); ok {
+		msg := "unable to decode request body"
+		if detail := bodyErr.PublicDetail(); detail != "" {
+			msg += ": " + detail
+		}
 		return errs.B().
 			Code(errs.InvalidArgument).
 			Meta("decode_error", decodeErr.Error()).
-			Msg("unable to decode request body").
+			Msg(msg).
 			Err()
 	}
 	return errs.WrapCode(decodeErr, errs.InvalidArgument, "decode request")

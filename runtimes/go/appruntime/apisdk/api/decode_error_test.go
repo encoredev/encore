@@ -8,23 +8,31 @@ import (
 	"encore.dev/beta/errs"
 )
 
-type fakeBodyError struct{ error }
+type fakeBodyError struct {
+	error
+	detail string
+}
 
-func (fakeBodyError) IsRequestBodyError() {}
+func (e fakeBodyError) PublicDetail() string { return e.detail }
 
 func TestPublicDecodeErr_Body(t *testing.T) {
-	decodeErr := fmt.Errorf("Title: invalid json parameter: %w",
-		fakeBodyError{fmt.Errorf(`found 1, error found in #10 byte of ...|"title": 123}|...`)})
+	tests := []struct{ detail, want string }{
+		{`invalid value for field "title": expected a string`, `unable to decode request body: invalid value for field "title": expected a string`},
+		{"", "unable to decode request body"},
+	}
+	for _, tt := range tests {
+		inner := fakeBodyError{fmt.Errorf(`found 1, error found in #10 byte of ...|"title": 123}|...`), tt.detail}
+		err := publicDecodeErr(fmt.Errorf("Title: invalid json parameter: %w", inner)).(*errs.Error)
 
-	err := publicDecodeErr(decodeErr).(*errs.Error)
-	if err.Code != errs.InvalidArgument {
-		t.Fatalf("code = %v, want invalid_argument", err.Code)
-	}
-	if got, want := err.ErrorMessage(), "unable to decode request body"; got != want {
-		t.Errorf("message = %q, want %q", got, want)
-	}
-	if got, _ := err.Meta["decode_error"].(string); !strings.Contains(got, "Title") {
-		t.Errorf("decode_error meta = %q, want the full decode error", got)
+		if err.Code != errs.InvalidArgument {
+			t.Fatalf("code = %v, want invalid_argument", err.Code)
+		}
+		if got := err.ErrorMessage(); got != tt.want {
+			t.Errorf("message = %q, want %q", got, tt.want)
+		}
+		if got, _ := err.Meta["decode_error"].(string); !strings.Contains(got, "Title") {
+			t.Errorf("decode_error meta = %q, want the full decode error", got)
+		}
 	}
 }
 
