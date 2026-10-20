@@ -8,7 +8,10 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -183,22 +186,34 @@ func (s *Server) RunSpec(req *daemonpb.RunSpecRequest, stream daemonpb.Daemon_Ru
 // stdout, stderr, and exit code. The URL is appended after user-supplied args
 // so callers can't accidentally override it via a positional URL.
 //
-// An HTTP error response (status 400 or above) fails the command, unless the
-// args set curl's fail mode themselves (e.g. --no-fail to expect an error).
+// curl exits 0 on HTTP error responses, so runCurl reads the response status
+// from the headers curl dumps, and fails the command on a status of 400 or
+// above unless the args include --no-fail. The dump flag goes before the
+// caller's args, so a --dump-header of their own replaces it, and then only
+// curl's exit code counts.
 func runCurl(ctx context.Context, listenAddr string, c *daemonpb.CurlCommand) (stdout, stderr []byte, exitCode int32) {
-	argv := []string{"-s"}
-	if !setsFailMode(c.Args) {
-		argv = append(argv, curlFailFlag())
+	headers, err := os.CreateTemp("", "encore-check-headers-*")
+	if err != nil {
+		return nil, []byte(err.Error()), -1
 	}
-	argv = append(argv, c.Args...)
+	_ = headers.Close()
+	defer func() { _ = os.Remove(headers.Name()) }()
+
+	argv := append([]string{"-s", "--dump-header", headers.Name()}, c.Args...)
 	argv = append(argv, "http://"+listenAddr+c.Path)
 
 	cmd := exec.CommandContext(ctx, "curl", argv...)
 	var sout, serr bytes.Buffer
 	cmd.Stdout = &sout
 	cmd.Stderr = &serr
-	err := cmd.Run()
+	err = cmd.Run()
 	if err == nil {
+		dump, _ := os.ReadFile(headers.Name())
+		if status := lastHTTPStatus(dump); status >= 400 && !slices.Contains(c.Args, "--no-fail") {
+			fmt.Fprintf(&serr, "encore: HTTP status %d (pass --no-fail if this is expected)\n", status)
+			// The exit code curl --fail uses for HTTP errors.
+			return sout.Bytes(), serr.Bytes(), 22
+		}
 		return sout.Bytes(), serr.Bytes(), 0
 	}
 	var exitErr *exec.ExitError
@@ -213,64 +228,21 @@ func runCurl(ctx context.Context, listenAddr string, c *daemonpb.CurlCommand) (s
 	return sout.Bytes(), serr.Bytes(), -1
 }
 
-// curlShortValueOptions are curl's short options that take a value (from
-// `curl --help all`). The value is either the rest of the option group, as in
-// -XPOST, or the next argument.
-const curlShortValueOptions = "ACDEFHKPQTUXYbcdehmortuwxyz"
-
-// setsFailMode reports whether args contain a curl option that decides how
-// HTTP errors are treated. curl rejects --fail-with-body combined with --fail,
-// so the caller's choice wins. -f counts on its own or in a group like -sSf,
-// but not inside an option's value, as in -dfoo=bar.
-func setsFailMode(args []string) bool {
-	for i := 0; i < len(args); i++ {
-		a := args[i]
-		switch {
-		case a == "--fail", a == "--fail-with-body", a == "--no-fail", a == "--no-fail-with-body":
-			return true
-		case len(a) > 1 && a[0] == '-' && a[1] != '-':
-			for j := 1; j < len(a); j++ {
-				if a[j] == 'f' {
-					return true
-				}
-				if strings.IndexByte(curlShortValueOptions, a[j]) >= 0 {
-					if j == len(a)-1 {
-						i++ // The value is the next argument.
-					}
-					break
-				}
+// lastHTTPStatus returns the status code of the last response in a curl
+// header dump, or 0 if it has none. When curl follows redirects, that's the
+// final response.
+func lastHTTPStatus(dump []byte) int {
+	status := 0
+	for _, line := range strings.Split(string(dump), "\n") {
+		// Status lines look like "HTTP/1.1 404 Not Found" or "HTTP/2 404".
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && strings.HasPrefix(fields[0], "HTTP/") {
+			if code, err := strconv.Atoi(fields[1]); err == nil {
+				status = code
 			}
 		}
 	}
-	return false
-}
-
-// curlFailFlag returns the curl flag that makes HTTP errors fail the command.
-// --fail-with-body also prints the response, which usually explains the error,
-// but needs curl 7.76.0 or later. Older versions get --fail instead.
-var curlFailFlag = sync.OnceValue(func() string {
-	out, err := exec.Command("curl", "--version").Output()
-	if err != nil {
-		return "--fail"
-	}
-	major, minor, ok := parseCurlVersion(string(out))
-	if ok && (major > 7 || (major == 7 && minor >= 76)) {
-		return "--fail-with-body"
-	}
-	return "--fail"
-})
-
-// parseCurlVersion parses the major and minor version from the output of
-// `curl --version`, which starts with e.g. "curl 8.7.1 (x86_64-apple-darwin24.0)".
-func parseCurlVersion(out string) (major, minor int, ok bool) {
-	fields := strings.Fields(out)
-	if len(fields) < 2 || fields[0] != "curl" {
-		return 0, 0, false
-	}
-	if _, err := fmt.Sscanf(fields[1], "%d.%d", &major, &minor); err != nil {
-		return 0, 0, false
-	}
-	return major, minor, true
+	return status
 }
 
 func formatCurlDisplay(c *daemonpb.CurlCommand) string {
