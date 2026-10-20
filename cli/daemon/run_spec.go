@@ -213,17 +213,33 @@ func runCurl(ctx context.Context, listenAddr string, c *daemonpb.CurlCommand) (s
 	return sout.Bytes(), serr.Bytes(), -1
 }
 
+// curlShortValueOptions are curl's short options that take a value (from
+// `curl --help all`). The value is either the rest of the option group, as in
+// -XPOST, or the next argument.
+const curlShortValueOptions = "ACDEFHKPQTUXYbcdehmortuwxyz"
+
 // setsFailMode reports whether args contain a curl option that decides how
 // HTTP errors are treated. curl rejects --fail-with-body combined with --fail,
-// so the caller's choice wins. Any short option group containing 'f' (like
-// -sf) counts, which errs towards leaving the args unchanged.
+// so the caller's choice wins. -f counts on its own or in a group like -sSf,
+// but not inside an option's value, as in -dfoo=bar.
 func setsFailMode(args []string) bool {
-	for _, a := range args {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
 		switch {
 		case a == "--fail", a == "--fail-with-body", a == "--no-fail", a == "--no-fail-with-body":
 			return true
-		case len(a) > 1 && a[0] == '-' && a[1] != '-' && strings.ContainsRune(a, 'f'):
-			return true
+		case len(a) > 1 && a[0] == '-' && a[1] != '-':
+			for j := 1; j < len(a); j++ {
+				if a[j] == 'f' {
+					return true
+				}
+				if strings.IndexByte(curlShortValueOptions, a[j]) >= 0 {
+					if j == len(a)-1 {
+						i++ // The value is the next argument.
+					}
+					break
+				}
+			}
 		}
 	}
 	return false
