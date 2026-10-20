@@ -8,7 +8,10 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -182,16 +185,35 @@ func (s *Server) RunSpec(req *daemonpb.RunSpecRequest, stream daemonpb.Daemon_Ru
 // runCurl executes a single curl command against the app and returns its
 // stdout, stderr, and exit code. The URL is appended after user-supplied args
 // so callers can't accidentally override it via a positional URL.
+//
+// curl exits 0 on HTTP error responses, so runCurl reads the response status
+// from the headers curl dumps, and fails the command on a status of 400 or
+// above unless the args include --no-fail. The dump flag goes before the
+// caller's args, so a --dump-header of their own replaces it, and then only
+// curl's exit code counts.
 func runCurl(ctx context.Context, listenAddr string, c *daemonpb.CurlCommand) (stdout, stderr []byte, exitCode int32) {
-	argv := append([]string{"-s"}, c.Args...)
+	headers, err := os.CreateTemp("", "encore-check-headers-*")
+	if err != nil {
+		return nil, []byte(err.Error()), -1
+	}
+	_ = headers.Close()
+	defer func() { _ = os.Remove(headers.Name()) }()
+
+	argv := append([]string{"-s", "--dump-header", headers.Name()}, c.Args...)
 	argv = append(argv, "http://"+listenAddr+c.Path)
 
 	cmd := exec.CommandContext(ctx, "curl", argv...)
 	var sout, serr bytes.Buffer
 	cmd.Stdout = &sout
 	cmd.Stderr = &serr
-	err := cmd.Run()
+	err = cmd.Run()
 	if err == nil {
+		dump, _ := os.ReadFile(headers.Name())
+		if status := lastHTTPStatus(dump); status >= 400 && !slices.Contains(c.Args, "--no-fail") {
+			fmt.Fprintf(&serr, "encore: HTTP status %d (pass --no-fail if this is expected)\n", status)
+			// The exit code curl --fail uses for HTTP errors.
+			return sout.Bytes(), serr.Bytes(), 22
+		}
 		return sout.Bytes(), serr.Bytes(), 0
 	}
 	var exitErr *exec.ExitError
@@ -204,6 +226,23 @@ func runCurl(ctx context.Context, listenAddr string, c *daemonpb.CurlCommand) (s
 	}
 	serr.WriteString(err.Error())
 	return sout.Bytes(), serr.Bytes(), -1
+}
+
+// lastHTTPStatus returns the status code of the last response in a curl
+// header dump, or 0 if it has none. When curl follows redirects, that's the
+// final response.
+func lastHTTPStatus(dump []byte) int {
+	status := 0
+	for _, line := range strings.Split(string(dump), "\n") {
+		// Status lines look like "HTTP/1.1 404 Not Found" or "HTTP/2 404".
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && strings.HasPrefix(fields[0], "HTTP/") {
+			if code, err := strconv.Atoi(fields[1]); err == nil {
+				status = code
+			}
+		}
+	}
+	return status
 }
 
 func formatCurlDisplay(c *daemonpb.CurlCommand) string {

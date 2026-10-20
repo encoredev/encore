@@ -37,6 +37,8 @@ separated by ';'. Blank lines and lines starting with '#' are ignored.
 
   curl <path> [args...]    # path must start with '/'.
                            # remaining tokens are passed verbatim to curl.
+                           # an HTTP error (status 400 or above) fails the
+                           # command; pass --no-fail to expect one.
 
 Examples:
   encore check
