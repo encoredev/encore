@@ -99,7 +99,7 @@ git push origin <branch>     # GitHub-linked app
 - Every declared secret needs value in target env, else deploy fails `secret key(s) not defined`. Set per env type: `printf '%s' "$VAL" | encore secret set --type <types> <Name>` (`dev` = development envs incl. `staging`, `prod` = production, `pr` = preview, `local`), or one env: `--env <env-name>`.
 - Redeploy w/o code change (e.g. after setting secret): `git commit --allow-empty -m "Redeploy"` + push to deploy branch, or Cloud Dashboard > Deployments > New Deploy > Branch.
 - No `encore` remote and no GitHub link = app created logged out / `--platform=false`. Log in (`encore auth login`; no browser: set `ENCORE_AUTH_KEY`, which CLI picks up automatically. Never pass a real key via `--auth-key`: leaks into shell history + process list), `rm encore.app` (copy non-`id`/`lang` settings first, re-add after), `encore app init <name> --lang ts` (registers app + adds `encore` remote), commit, push. App created in Cloud Dashboard: `encore app clone <app-id>` (GitHub-linked: `git clone` the GitHub repo).
-- Failed deploys: https://encore.dev/docs/platform/deploy/troubleshooting. CLI cheat sheet: https://encore.dev/docs/cli/cheat-sheet
+- Failed deploys: https://encore.dev/docs/platform/deploy/troubleshooting. CLI reference: https://encore.dev/docs/cli/cli-reference
 
 ## Encore.ts domain knowledge
 
