@@ -182,8 +182,15 @@ func (s *Server) RunSpec(req *daemonpb.RunSpecRequest, stream daemonpb.Daemon_Ru
 // runCurl executes a single curl command against the app and returns its
 // stdout, stderr, and exit code. The URL is appended after user-supplied args
 // so callers can't accidentally override it via a positional URL.
+//
+// An HTTP error response (status 400 or above) fails the command, unless the
+// args set curl's fail mode themselves (e.g. --no-fail to expect an error).
 func runCurl(ctx context.Context, listenAddr string, c *daemonpb.CurlCommand) (stdout, stderr []byte, exitCode int32) {
-	argv := append([]string{"-s"}, c.Args...)
+	argv := []string{"-s"}
+	if !setsFailMode(c.Args) {
+		argv = append(argv, curlFailFlag())
+	}
+	argv = append(argv, c.Args...)
 	argv = append(argv, "http://"+listenAddr+c.Path)
 
 	cmd := exec.CommandContext(ctx, "curl", argv...)
@@ -204,6 +211,50 @@ func runCurl(ctx context.Context, listenAddr string, c *daemonpb.CurlCommand) (s
 	}
 	serr.WriteString(err.Error())
 	return sout.Bytes(), serr.Bytes(), -1
+}
+
+// setsFailMode reports whether args contain a curl option that decides how
+// HTTP errors are treated. curl rejects --fail-with-body combined with --fail,
+// so the caller's choice wins. Any short option group containing 'f' (like
+// -sf) counts, which errs towards leaving the args unchanged.
+func setsFailMode(args []string) bool {
+	for _, a := range args {
+		switch {
+		case a == "--fail", a == "--fail-with-body", a == "--no-fail", a == "--no-fail-with-body":
+			return true
+		case len(a) > 1 && a[0] == '-' && a[1] != '-' && strings.ContainsRune(a, 'f'):
+			return true
+		}
+	}
+	return false
+}
+
+// curlFailFlag returns the curl flag that makes HTTP errors fail the command.
+// --fail-with-body also prints the response, which usually explains the error,
+// but needs curl 7.76.0 or later. Older versions get --fail instead.
+var curlFailFlag = sync.OnceValue(func() string {
+	out, err := exec.Command("curl", "--version").Output()
+	if err != nil {
+		return "--fail"
+	}
+	major, minor, ok := parseCurlVersion(string(out))
+	if ok && (major > 7 || (major == 7 && minor >= 76)) {
+		return "--fail-with-body"
+	}
+	return "--fail"
+})
+
+// parseCurlVersion parses the major and minor version from the output of
+// `curl --version`, which starts with e.g. "curl 8.7.1 (x86_64-apple-darwin24.0)".
+func parseCurlVersion(out string) (major, minor int, ok bool) {
+	fields := strings.Fields(out)
+	if len(fields) < 2 || fields[0] != "curl" {
+		return 0, 0, false
+	}
+	if _, err := fmt.Sscanf(fields[1], "%d.%d", &major, &minor); err != nil {
+		return 0, 0, false
+	}
+	return major, minor, true
 }
 
 func formatCurlDisplay(c *daemonpb.CurlCommand) string {

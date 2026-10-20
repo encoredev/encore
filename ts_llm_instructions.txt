@@ -70,6 +70,7 @@ Rules for embedded curl DSL:
 - **Paths MUST be relative** (start w/ `/`). Use `curl /orders/1`, **not** `curl http://localhost:4000/orders/1` — host/port supplied by `encore check`. Absolute URL fails w/ `curl path "http..." must be relative`.
 - **Path first, flags after.** `curl /orders -X POST -d '...'` works; `curl -X POST /orders ...` fails — parser reads first token after `curl` as path, rejects flags (`curl path "-X" must be relative`).
 - One curl per quoted cmd. Chain w/ `;` inside one quoted string, pass multi quoted args, or pipe file w/ one curl per line.
+- **HTTP errors fail cmd.** Status >= 400 → cmd fails, response body still printed. Expecting error status (e.g. 401 w/o auth)? Add `--no-fail`: `curl /admin --no-fail -i`.
 
 ## Pub/sub verification
 
