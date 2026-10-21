@@ -108,13 +108,13 @@ func LooksLikeUninitializedEncoreApp(dir string) bool {
 	return false
 }
 
-// WorkspaceRoot determines the workspace root by looking for the .git folder in app root or parents to it.
+// WorkspaceRoot determines the workspace root by looking for the .git folder or file in app root or parents to it.
 // It reports the absolute path to the workspace root.
 func WorkspaceRoot(appRoot string) string {
 	dir := appRoot
 	for {
 		path := filepath.Join(dir, ".git")
-		fi, err := os.Stat(path)
+		_, err := os.Stat(path)
 		if errors.Is(err, fs.ErrNotExist) {
 			dir2 := filepath.Dir(dir)
 			if dir2 == dir {
@@ -124,9 +124,8 @@ func WorkspaceRoot(appRoot string) string {
 			continue
 		} else if err != nil {
 			Fatal(err)
-		} else if !fi.IsDir() {
-			continue
 		} else {
+			// A .git directory, or the .git file of a worktree or submodule.
 			return dir
 		}
 	}
