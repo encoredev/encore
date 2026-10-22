@@ -8,7 +8,7 @@ import (
 	"encr.dev/cli/internal/platform/gql"
 )
 
-func ListSecretGroups(ctx context.Context, appSlug string, keys []string) ([]*gql.Secret, error) {
+func ListSecretGroups(ctx context.Context, appSlug string, keys ...string) ([]*gql.Secret, error) {
 	query := `
 query ListSecretGroups($appSlug: String!, $keys: [String!]) {
 	app(slug: $appSlug) {
