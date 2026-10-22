@@ -194,7 +194,7 @@ func (d *requestDesc) reqDataPathParamExpr(i int) *Statement {
 	return d.reqDataExpr().Dot(d.pathParamFieldName(i))
 }
 
-// reqDataPathParamName returns the field name for the i'th path parameter
+// pathParamFieldName returns the field name for the i'th path parameter
 // in the reqData struct.
 func (d *requestDesc) pathParamFieldName(i int) string {
 	return fmt.Sprintf("P%d", i)
