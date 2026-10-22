@@ -14,14 +14,11 @@
 
 Encore helps developers and AI coding agents build and deploy backend applications without having to manually set up and manage infrastructure.
 
-You define the infrastructure your app needs in code, run the entire application locally with working infrastructure, and deploy to your own AWS or Google Cloud account.
+Encore combines an open source SDK, CLI, and cloud platform into one workflow for building and deploying apps.
 
-Encore has two parts that work together:
+Import what you need from the SDK directly into your application to define services and infrastructure. Run your app and infrastructure locally with the CLI to test changes end to end. Then push to your repo, and the platform sets up the matching resources in your cloud (AWS or Google Cloud) and deploys your app.
 
-- An open source **infrastructure SDK**: Define databases, Pub/Sub, object storage, caches, cron jobs, and secrets directly in your code. Run `encore run` to start your application locally with real infrastructure and built-in distributed tracing.
-- The Encore platform: An optional managed platform that automatically provisions and manages infrastructure in your AWS or Google Cloud account. It provides a control plane for configuration and infrastructure approvals, preview environments for testing changes before production, and built-in metrics and distributed tracing.
-
-You can use the SDK on its own, without Encore's platform, and manage production infrastructure yourself using Terraform or other tools.
+You can also use the SDK on its own for local development, and manage production infrastructure yourself using Terraform or other tools.
 
 ### Example: Declaring resources using the SDK
 
