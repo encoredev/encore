@@ -91,9 +91,15 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 		}
 
 		doAdd := func(val float64, metricName string, baseLabels []string, svcIdx uint16) {
+			svcName := x.svcs[svcIdx]
 			labels := make([]string, len(baseLabels)+1)
 			copy(labels, baseLabels)
-			labels[len(baseLabels)] = "service:" + x.svcs[svcIdx]
+			labels[len(baseLabels)] = "service:" + svcName
+			if extra, ok := m.ServiceLabels[svcName]; ok {
+				for _, kv := range extra {
+					labels = append(labels, kv.Key+":"+kv.Value)
+				}
+			}
 			if m.Info.Type() == metrics.CounterType {
 				key := tsSvcKey{tsID: m.TimeSeriesID, svc: svcIdx}
 				lastVal := x.lastValue[key]
