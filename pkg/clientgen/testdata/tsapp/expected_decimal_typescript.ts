@@ -86,6 +86,7 @@ export namespace svc {
 
     export interface Response {
         result: string
+        amount: string
     }
 
     export class ServiceClient {
@@ -105,7 +106,11 @@ export namespace svc {
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI("GET", `/dummy`, undefined, {query})
-            return await resp.json() as Response
+
+            //Populate the return object from the JSON body and received headers
+            const rtn = await resp.json() as Response
+            rtn.amount = mustBeSet("Header `x-amount`", resp.headers.get("x-amount"))
+            return rtn
         }
     }
 }
@@ -133,6 +138,21 @@ function makeRecord<K extends string | number | symbol, V>(record: Record<K, V |
         }
     }
     return record as Record<K, V>
+}
+
+
+// mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
+function mustBeSet<A>(field: string, value: A | null | undefined): A {
+    if (value === null || value === undefined) {
+        throw new APIError(
+            500,
+            {
+                code: ErrCode.DataLoss,
+                message: `${field} was unexpectedly ${value}`, // ${value} will create the string "null" or "undefined"
+            },
+        )
+    }
+    return value
 }
 
 function encodeWebSocketHeaders(headers: Record<string, string>) {
