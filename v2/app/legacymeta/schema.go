@@ -210,13 +210,9 @@ func (b *builder) structField(f schemav2.StructField) *schema.Field {
 
 	// Set WireSpec for header fields
 	if header, _ := f.Tag.Get("header"); header != nil {
-		headerSpec := &schema.WireSpec_Header{}
-		if header.Name != "" {
-			headerSpec.Name = &header.Name
-		}
 		field.Wire = &schema.WireSpec{
 			Location: &schema.WireSpec_Header_{
-				Header: headerSpec,
+				Header: &schema.WireSpec_Header{Name: zeroNil(header.Name)},
 			},
 		}
 	}
@@ -233,26 +229,18 @@ func (b *builder) structField(f schemav2.StructField) *schema.Field {
 
 	// Set WireSpec for query string fields
 	if query := getQueryTag(); query != nil {
-		querySpec := &schema.WireSpec_Query{}
-		if query.Name != "" {
-			querySpec.Name = &query.Name
-		}
 		field.Wire = &schema.WireSpec{
 			Location: &schema.WireSpec_Query_{
-				Query: querySpec,
+				Query: &schema.WireSpec_Query{Name: zeroNil(query.Name)},
 			},
 		}
 	}
 
 	// Set WireSpec for cookie fields
 	if cookie, _ := f.Tag.Get("cookie"); cookie != nil {
-		cookieSpec := &schema.WireSpec_Cookie{}
-		if cookie.Name != "" {
-			cookieSpec.Name = &cookie.Name
-		}
 		field.Wire = &schema.WireSpec{
 			Location: &schema.WireSpec_Cookie_{
-				Cookie: cookieSpec,
+				Cookie: &schema.WireSpec_Cookie{Name: zeroNil(cookie.Name)},
 			},
 		}
 	}

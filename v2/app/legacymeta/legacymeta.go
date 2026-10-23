@@ -386,7 +386,7 @@ func (b *builder) Build() *meta.Data {
 		case *metrics.Metric:
 			var svcName *string
 			if svc, ok := b.app.ServiceForPath(r.File.Pkg.FSPath); ok {
-				svcName = &svc.Name
+				svcName = zeroNil(svc.Name)
 			}
 
 			m := &meta.Metric{
@@ -451,7 +451,7 @@ func (b *builder) Build() *meta.Data {
 			}
 			md.Middleware = append(md.Middleware, mw)
 			if svc, ok := b.app.ServiceForPath(r.File.Pkg.FSPath); ok {
-				mw.ServiceName = &svc.Name
+				mw.ServiceName = zeroNil(svc.Name)
 			}
 
 			b.nodes.addMiddleware(r)
