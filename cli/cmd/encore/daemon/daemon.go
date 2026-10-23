@@ -370,18 +370,29 @@ func (d *Daemon) openDB() *sql.DB {
 		}
 	}
 
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&_journal=wal&_txlock=immediate", dbPath))
+	db, err := d.openEncoreDB(dbPath)
 	if err != nil {
 		fatal(err)
-	}
-
-	// Initialize db schema
-	if err := d.runDBMigrations(db); err != nil {
-		fatalf("unable to migrate management database: %v", err)
 	}
 	d.closeOnExit(db)
 
 	return db
+}
+
+// openEncoreDB opens the database at dbPath and migrates it.
+func (d *Daemon) openEncoreDB(dbPath string) (*sql.DB, error) {
+	// Not shared-cache: it makes concurrent writers fail with SQLITE_LOCKED instead of waiting on the busy timeout.
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal=wal&_txlock=immediate", dbPath))
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize db schema
+	if err := d.runDBMigrations(db); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("unable to migrate management database: %v", err)
+	}
+	return db, nil
 }
 
 //go:embed migrations
@@ -494,10 +505,6 @@ type bailout struct {
 
 func fatal(err error) {
 	panic(bailout{err})
-}
-
-func fatalf(format string, args ...interface{}) {
-	panic(bailout{fmt.Errorf(format, args...)})
 }
 
 func handleBailout(err *error) {
