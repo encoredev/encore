@@ -48,6 +48,32 @@ func TestEncoreDBStoresConcurrentTraceUploads(t *testing.T) {
 	}
 }
 
+// An upload of ten request spans, each with its start and end event.
+func BenchmarkEncoreDBTraceUpload(b *testing.B) {
+	db, err := (&Daemon{}).openEncoreDB(filepath.Join(b.TempDir(), "encore.db"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Cleanup(func() { _ = db.Close() })
+	store := sqlite.New(db)
+	meta := &trace2.Meta{AppID: "app"}
+
+	var n uint64
+	for b.Loop() {
+		n++
+		var events []*tracepb2.TraceEvent
+		for span := range uint64(10) {
+			for _, ev := range requestEvents(&tracepb2.TraceID{Low: n}) {
+				ev.SpanId = span + 1
+				events = append(events, ev)
+			}
+		}
+		if err := store.WriteEvents(context.Background(), meta, events); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // requestEvents is the upload for one request: its span's start and end.
 func requestEvents(traceID *tracepb2.TraceID) []*tracepb2.TraceEvent {
 	return []*tracepb2.TraceEvent{
