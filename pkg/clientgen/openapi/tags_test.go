@@ -129,6 +129,6 @@ func TestValidationExprAppliesOpenAPIConstraints(t *testing.T) {
 
 	c.Assert(ref.Value.MinLength, qt.Equals, uint64(2))
 	c.Assert(*ref.Value.MaxLength, qt.Equals, uint64(8))
-	c.Assert(ref.Value.Pattern, qt.Equals, "(?=^A)(?=Z$)(?=.*(?:[0-9]+))")
+	c.Assert(ref.Value.Pattern, qt.Equals, `(?=[\s\S]*(?:^A))(?=[\s\S]*(?:Z$))(?=[\s\S]*(?:[0-9]+))`)
 	c.Assert(ref.Value.Format, qt.Equals, "email")
 }

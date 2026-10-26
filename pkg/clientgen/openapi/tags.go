@@ -264,15 +264,18 @@ func combinePattern(existing, next string) string {
 	if existing == "" {
 		return next
 	}
-	if strings.HasPrefix(existing, "(?=") || strings.HasPrefix(existing, "(?=.*") {
+	if strings.HasPrefix(existing, lookaheadPrefix) {
+		// Already a conjunction built by combinePattern.
 		return existing + patternLookahead(next)
 	}
 	return patternLookahead(existing) + patternLookahead(next)
 }
 
+// patternLookahead wraps pattern so it can be combined with other lookaheads
+// evaluated at the start of the string. The [\s\S]* prefix lets unanchored and
+// end-anchored patterns match anywhere; start-anchored ones still only match at 0.
 func patternLookahead(pattern string) string {
-	if strings.HasPrefix(pattern, "^") || strings.HasSuffix(pattern, "$") {
-		return "(?=" + pattern + ")"
-	}
-	return "(?=.*(?:" + pattern + "))"
+	return lookaheadPrefix + pattern + `))`
 }
+
+const lookaheadPrefix = `(?=[\s\S]*(?:`
