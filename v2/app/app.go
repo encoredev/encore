@@ -1,6 +1,8 @@
 package app
 
 import (
+	"path/filepath"
+
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app/apiframework"
@@ -29,6 +31,9 @@ type Desc struct {
 
 	// ResourceUsageOutsideServices describes resources that are used outside of a service.
 	ResourceUsageOutsideServices map[resource.Resource][]usage.Usage
+
+	// serviceByRoot maps each service's cleaned root folder to the service.
+	serviceByRoot map[string]*Service
 }
 
 // MatchingMiddleware reports which middleware applies to the given RPC,
@@ -99,6 +104,7 @@ func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {
 		Gateways:                     gateways,
 		Framework:                    framework,
 		ResourceUsageOutsideServices: make(map[resource.Resource][]usage.Usage),
+		serviceByRoot:                servicesByRoot(services),
 	}
 
 	// Find each services infra binds and usage.
@@ -113,10 +119,34 @@ func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {
 
 // ServiceForPath returns the service a given folder path belongs to, if any.
 func (d *Desc) ServiceForPath(path paths.FS) (*Service, bool) {
-	for _, svc := range d.Services {
-		if path.HasPrefix(svc.FSRoot) {
+	if filepath.Separator != '/' {
+		// Windows paths compare without regard to case, which a map lookup cannot do.
+		for _, svc := range d.Services {
+			if path.HasPrefix(svc.FSRoot) {
+				return svc, true
+			}
+		}
+		return nil, false
+	}
+
+	// Services cannot nest, so the first service root found walking up from path is the one.
+	dir := filepath.Clean(string(path))
+	for {
+		if svc, ok := d.serviceByRoot[dir]; ok {
 			return svc, true
 		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return nil, false
+		}
+		dir = parent
 	}
-	return nil, false
+}
+
+func servicesByRoot(services []*Service) map[string]*Service {
+	idx := make(map[string]*Service, len(services))
+	for _, svc := range services {
+		idx[filepath.Clean(string(svc.FSRoot))] = svc
+	}
+	return idx
 }

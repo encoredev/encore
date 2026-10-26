@@ -65,7 +65,7 @@ func discoverServices(pc *parsectx.Context, result *parser.Result) []*Service {
 		services = append(services, s)
 	}
 
-	// Note: we sort by the FSRoot because we use that for binary searches in [ServiceForPath]
+	// Sort by FSRoot so the nesting errors below come out in a stable order.
 	slices.SortStableFunc(services, func(a, b *Service) int {
 		return cmp.Compare(a.FSRoot.ToIO(), b.FSRoot.ToIO())
 	})
