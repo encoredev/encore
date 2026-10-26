@@ -9,9 +9,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"encr.dev/cli/cmd/encore/cmdutil"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
+	"github.com/tailscale/hujson"
+
+	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/internal/version"
 )
 
 const mdcTemplate string = `---
@@ -89,6 +92,10 @@ type ToolSelectModel = cmdutil.SimpleSelectModel[Tool, ToolItem]
 type ToolSelectDone = cmdutil.SimpleSelectDone[Tool]
 
 func SetupLLMRules(llmRules Tool, lang cmdutil.Language, appRootRelpath string, appSlug string) error {
+	if llmRules == LLMRulesToolNone {
+		return nil
+	}
+
 	llmInstructions, err := downloadLLMInstructions(lang)
 	if err != nil {
 		return err
@@ -160,21 +167,23 @@ func SetupLLMRules(llmRules Tool, lang cmdutil.Language, appRootRelpath string, 
 			return err
 		}
 
-		vscodePath := filepath.Join(appRootRelpath, ".vscode")
-		if err := os.MkdirAll(vscodePath, 0755); err != nil {
-			return err
-		}
-
-		// https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_configuration-format
-		mcpPath := filepath.Join(vscodePath, "mcp.json")
-		err = updateJsonFile(mcpPath, "servers", func(servers map[string]any) {
-			servers["encore-local"] = map[string]any{
-				"command": "encore",
-				"args":    []string{"mcp", "run", "--app=" + appSlug},
+		if appSlug != "" {
+			vscodePath := filepath.Join(appRootRelpath, ".vscode")
+			if err := os.MkdirAll(vscodePath, 0755); err != nil {
+				return err
 			}
-		})
-		if err != nil {
-			return err
+
+			// https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_configuration-format
+			mcpPath := filepath.Join(vscodePath, "mcp.json")
+			err = updateJsonFile(mcpPath, "servers", func(servers map[string]any) {
+				servers["encore-local"] = map[string]any{
+					"command": "encore",
+					"args":    []string{"mcp", "run", "--app=" + appSlug},
+				}
+			})
+			if err != nil {
+				return err
+			}
 		}
 
 	case LLMRulesToolAgentsMD:
@@ -242,8 +251,13 @@ func PrintLLMRulesInfo(tool Tool) {
 func updateJsonFile(path, parent string, updateFn func(field map[string]any)) error {
 	var conf map[string]any
 
-	// Read existing mcp.json if it exists
+	// Read existing config if it exists. Editor configs such as VS Code's mcp.json
+	// and Zed's settings.json are JSONC, so standardize comments and trailing commas first.
 	if existingData, err := os.ReadFile(path); err == nil {
+		existingData, err = hujson.Standardize(existingData)
+		if err != nil {
+			return fmt.Errorf("failed to parse existing %s: %w", path, err)
+		}
 		if err := json.Unmarshal(existingData, &conf); err != nil {
 			return fmt.Errorf("failed to parse existing %s: %w", path, err)
 		}
@@ -263,7 +277,7 @@ func updateJsonFile(path, parent string, updateFn func(field map[string]any)) er
 	// Write back the config
 	data, err := json.MarshalIndent(conf, "", "    ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal mcp.json: %w", err)
+		return fmt.Errorf("failed to marshal %s: %w", path, err)
 	}
 
 	err = os.WriteFile(path, data, 0644)
@@ -291,13 +305,12 @@ func writeNewFileOrSkip(filePath string, data []byte) error {
 }
 
 func downloadLLMInstructions(lang cmdutil.Language) (string, error) {
-	fmt.Println("Downloading LLM Instructions...")
-	var url string
+	var file string
 	switch lang {
 	case cmdutil.LanguageGo:
-		url = "https://raw.githubusercontent.com/encoredev/encore/refs/heads/main/go_llm_instructions.txt"
+		file = "go_llm_instructions.txt"
 	case cmdutil.LanguageTS:
-		url = "https://raw.githubusercontent.com/encoredev/encore/refs/heads/main/ts_llm_instructions.txt"
+		file = "ts_llm_instructions.txt"
 	default:
 		return "", fmt.Errorf("unsupported language")
 	}
@@ -305,15 +318,40 @@ func downloadLLMInstructions(lang cmdutil.Language) (string, error) {
 	s.Prefix = "Downloading LLM instructions..."
 	s.Start()
 	defer s.Stop()
-	resp, err := http.Get(url)
+
+	// Prefer the instructions matching this CLI release, so they only describe
+	// commands and MCP tools this version has. Fall back to main for
+	// non-release builds or if the tag is missing.
+	refs := []string{"refs/heads/main"}
+	if version.Channel == version.GA {
+		refs = []string{"refs/tags/" + version.Version, "refs/heads/main"}
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	var lastErr error
+	for _, ref := range refs {
+		url := "https://raw.githubusercontent.com/encoredev/encore/" + ref + "/" + file
+		body, err := fetchLLMInstructions(client, url)
+		if err == nil {
+			return body, nil
+		}
+		lastErr = err
+	}
+	s.FinalMSG = fmt.Sprintf("failed, skipping: %v\n", lastErr)
+	return "", lastErr
+}
+
+func fetchLLMInstructions(client *http.Client, url string) (string, error) {
+	resp, err := client.Get(url)
 	if err != nil {
-		s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		return "", err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GET %s: %s", url, resp.Status)
+	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		return "", err
 	}
 	return string(body), nil
