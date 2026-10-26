@@ -43,7 +43,7 @@ responses:
 	c.Assert(clean, qt.Equals, "UploadLogo uploads a logo.\n\nMore docs.")
 	c.Assert(patch.Parameters[0].Value.Description, qt.Equals, "Brand ID.")
 	c.Assert(patch.RequestBody.Value.Content.Get("multipart/form-data"), qt.Not(qt.IsNil))
-	c.Assert(*patch.Responses["200"].Value.Description, qt.Equals, "Logo uploaded.")
+	c.Assert(*patch.Responses.Value("200").Value.Description, qt.Equals, "Logo uploaded.")
 }
 
 func TestOpenAPIOperationPatchErrorsOnUnterminatedBlock(t *testing.T) {
@@ -63,4 +63,12 @@ func TestMergeOpenAPIOperationReplacesPathParameter(t *testing.T) {
 
 	c.Assert(dst.Parameters, qt.HasLen, 1)
 	c.Assert(dst.Parameters[0].Value.Description, qt.Equals, "Brand ID.")
+}
+
+func TestOpenAPIOperationPatchRejectsIncompleteResponse(t *testing.T) {
+	c := qt.New(t)
+
+	_, _, err := openAPIOperationPatch("Docs.\n\n```openapi\nresponses:\n  \"200\": {}\n```")
+
+	c.Assert(err, qt.ErrorMatches, `invalid openapi doc block: response "200": description is required`)
 }

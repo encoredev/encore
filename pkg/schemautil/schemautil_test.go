@@ -90,3 +90,22 @@ func TestStructBitsSkipsJSONIgnoredFieldsWithoutDanglingComma(t *testing.T) {
 	c.Assert(body, qt.Contains, `"name": ""`)
 	c.Assert(strings.Contains(body, `{,`), qt.IsFalse)
 }
+
+func TestStructBitsWithDeclsResolvesNestedGenericType(t *testing.T) {
+	c := qt.New(t)
+	tp := func(decl uint32) *schema.Type {
+		return &schema.Type{Typ: &schema.Type_TypeParameter{TypeParameter: &schema.TypeParameterRef{DeclId: decl, ParamIdx: 0}}}
+	}
+	named := func(id uint32, arg *schema.Type) *schema.Type {
+		return &schema.Type{Typ: &schema.Type_Named{Named: &schema.Named{Id: id, TypeArguments: []*schema.Type{arg}}}}
+	}
+	// Box[T] { Value T }; Outer[T] { Box Box[T] }
+	decls := map[uint32]*schema.Decl{
+		1: {Id: 1, Name: "Box", Type: &schema.Type{Typ: &schema.Type_Struct{Struct: &schema.Struct{Fields: []*schema.Field{field("Value", "value", tp(1))}}}}},
+		2: {Id: 2, Name: "Outer", Type: &schema.Type{Typ: &schema.Type_Struct{Struct: &schema.Struct{Fields: []*schema.Field{field("Box", "box", named(1, tp(2)))}}}}},
+	}
+	s := &schema.Struct{Fields: []*schema.Field{field("Outer", "outer", named(2, builtin(schema.Builtin_STRING)))}}
+
+	_, _, _, body := StructBitsWithDecls(decls, s, nil, "POST", false, false, true)
+	c.Assert(body, qt.Contains, `"outer": {"box": {"value": ""}}`)
+}

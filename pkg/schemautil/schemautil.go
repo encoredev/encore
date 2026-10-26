@@ -149,10 +149,18 @@ func writeCookiesAsJSON(decls map[uint32]*schema.Decl, typeArgs []*schema.Type, 
 
 // renderTypeValue renders a type value to the buffer
 func renderTypeValue(buf *bytes.Buffer, decls map[uint32]*schema.Decl, typeArgs []*schema.Type, typ *schema.Type) {
-	renderTypeValueSeen(buf, decls, typeArgs, typ, make(map[uint32]bool))
+	renderTypeValueSeen(buf, decls, &typeEnv{args: typeArgs}, typ, make(map[uint32]bool))
 }
 
-func renderTypeValueSeen(buf *bytes.Buffer, decls map[uint32]*schema.Decl, typeArgs []*schema.Type, typ *schema.Type, seen map[uint32]bool) {
+// typeEnv holds the type arguments of a generic declaration being rendered.
+// Type arguments are written in the scope of the enclosing declaration, so a
+// type parameter resolves to an argument that must be rendered in the parent env.
+type typeEnv struct {
+	args   []*schema.Type
+	parent *typeEnv
+}
+
+func renderTypeValueSeen(buf *bytes.Buffer, decls map[uint32]*schema.Decl, typeArgs *typeEnv, typ *schema.Type, seen map[uint32]bool) {
 	if typ == nil {
 		buf.WriteString("null")
 		return
@@ -208,7 +216,7 @@ func renderTypeValueSeen(buf *bytes.Buffer, decls map[uint32]*schema.Decl, typeA
 					return
 				}
 				seen[named.Id] = true
-				renderTypeValueSeen(buf, decls, named.TypeArguments, decl.Type, seen)
+				renderTypeValueSeen(buf, decls, &typeEnv{args: named.TypeArguments, parent: typeArgs}, decl.Type, seen)
 				delete(seen, named.Id)
 				return
 			}
@@ -225,8 +233,8 @@ func renderTypeValueSeen(buf *bytes.Buffer, decls map[uint32]*schema.Decl, typeA
 		renderLiteralValue(buf, typ.GetLiteral())
 	case typ.GetTypeParameter() != nil:
 		idx := int(typ.GetTypeParameter().ParamIdx)
-		if idx >= 0 && idx < len(typeArgs) {
-			renderTypeValueSeen(buf, decls, typeArgs, typeArgs[idx], seen)
+		if typeArgs != nil && idx >= 0 && idx < len(typeArgs.args) {
+			renderTypeValueSeen(buf, decls, typeArgs.parent, typeArgs.args[idx], seen)
 		} else {
 			buf.WriteString("null")
 		}
