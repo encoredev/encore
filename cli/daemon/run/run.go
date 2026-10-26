@@ -374,6 +374,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	defer releaseMemoryToOS()
 
 	for _, ln := range r.Mgr.listeners {
 		ln.OnCompileStart(r)

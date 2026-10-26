@@ -2,6 +2,7 @@ package run
 
 import (
 	"fmt"
+	"runtime/debug"
 	"sort"
 	"sync"
 	"time"
@@ -246,4 +247,10 @@ func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, err
 		return nil, err
 	}
 	return cfg, nil
+}
+
+// releaseMemoryToOS returns freed memory to the OS in the background. The daemon
+// outlives every command, and Go would otherwise return a build's memory gradually.
+func releaseMemoryToOS() {
+	go debug.FreeOSMemory()
 }

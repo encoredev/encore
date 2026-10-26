@@ -60,6 +60,7 @@ type ExecScriptParams struct {
 
 // ExecScript executes the script.
 func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err error) {
+	defer releaseMemoryToOS()
 	expSet, err := p.App.Experiments(p.Environ)
 	if err != nil {
 		return err
