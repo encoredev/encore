@@ -6,25 +6,22 @@ MUST write valid Go v1.22+ code, best practices.
 
 `encore.gen/` + `.encore/` CLI-regenerated; never edit.
 
-`encore.app` at repo root = app manifest — CUE-formatted **text** file, not binary, despite `.app` extension. Read like any source file.
+`encore.app` at repo root = app manifest — JSON **text** file (comments allowed), not binary, despite `.app` extension. Read like any source file.
 
 ## Encore local MCP server
 
-Local Encore MCP wired via `.mcp.json` (registered **`encore-local`**, tool prefix `mcp__encore-local__`). Prefer for live app introspection over `Read`/grep; use docs tools when unsure of Encore API surface.
+Encore's local MCP server is registered as **`encore-local`** in the editor's MCP config when set up via `encore app create` / `encore llm-rules init` (Claude Code: `.mcp.json`, Cursor: `.cursor/mcp.json`, VS Code: `.vscode/mcp.json`, Zed: `.zed/settings.json`). Not configured? Add a stdio server running `encore mcp run --app=<app-id>`. Prefer it for live app introspection; use its docs tools when unsure of Encore API surface.
 
-### Tools
-
-20 tools, all prefixed `mcp__encore-local__`. MCP client gets full catalog (names, descriptions, input schemas) via `tools/list` on session init — no need enumerate here.
+MCP client gets full tool catalog (names, descriptions, input schemas) via `tools/list` on session init — no list here.
 
 ### Important tools (runtime-only — no filesystem equivalent)
 
-Do what `Glob`/`Grep`/`Read` can't. For static config (services, endpoints, topics, schemas), see "When NOT to use it" below.
+These do what file search + reading source can't. For static structure, see "MCP only for runtime data" below.
 
-- **`call_endpoint`** — args: `service`, `endpoint`, `method`, `path`, `payload` (JSON string with body/query/headers/path-params), optional `auth_token` / `auth_payload` / `correlation_id`. Optional `retry_until: { predicate, timeout_ms?, interval_ms?, fail_on_timeout? }` polls **server-side** until predicate matches — predicate = `status: 200` OR `body_path: { path: ".events.0.orderID", equals: 7 }` OR `body_jq: ".events | length > 0"` (minimal subset: `<path> | length <op> N` or `<path>` truthy). Use instead of agent-side polling loops for eventually-consistent reads. **auto-starts app** if not running. Use instead of `curl` to test endpoints.
-- **`wait_for_subscription_message`** — args: `topic`, optional `subscription`, `timeout_ms` (default 10000), `since` (ISO/RFC3339), `match` (top-level key/value JSON filter, e.g. `{"CustomerID":"cust_42"}`). Blocks until the next message on the topic is fully processed by a subscription handler (returns or errors), then returns `{outcome, payload, duration_ms, handler_error, trace_id}`. Use to bridge async Pub/Sub work into a synchronous verify step — beats polling read-side endpoints + introspecting via `get_pubsub`/`get_traces`.
-- **`query_database`** — args: `queries` (array of `{database, query}`). Runs SQL against named DBs, multiple queries one call. Beats `encore db conn-uri` + `psql` round-trips.
-- **`get_traces`** — args: optional `service`, `endpoint`, `topic`, `subscription`, `error` (`"true"`/`"false"`), `start_time` / `end_time` (ISO), `min_duration_ms` / `max_duration_ms`, `parent_trace_id`, `limit`. Returns recent root request/Pub/Sub/test traces (timing, status, ids).
-- **`get_trace_spans`** — args: `trace_ids` (array IDs from `get_traces`). Returns full per-span details for deep debugging.
+- **`call_endpoint`** — args: `service`, `endpoint`, `method`, `path`, `payload` (JSON string w/ body/query/headers/path-params), optional `auth_token` / `auth_payload` / `correlation_id`. **auto-starts app** if not running. Use instead of `curl` to test endpoints.
+- **`query_database`** — args: `queries` (array of `{database, query}`). Runs SQL against named DBs, multi queries per call. Beats `encore db conn-uri` + `psql` round-trips.
+- **`get_traces`** — args: optional `service`, `endpoint`, `topic`, `subscription`, `error` (`"true"`/`"false"`), `start_time` / `end_time` (ISO), `min_duration_ms` / `max_duration_ms`, `parent_trace_id`, `limit`. Recent root request/Pub/Sub/test traces (timing, status, ids).
+- **`get_trace_spans`** — args: `trace_ids` (array from `get_traces`). Full per-span details for deep debug.
 - **`get_objects`** — args: `buckets` (array of bucket names). Lists objects + metadata in storage buckets.
 - **`search_docs`** — args: `query`, optional `hits_per_page`, `page`, `facet_filters`. Algolia-backed Encore docs search.
 - **`get_docs`** — args: `paths` (array of doc paths, e.g. `/docs/go/primitives/databases`). Fetches full doc pages found via `search_docs`.
@@ -35,16 +32,38 @@ Do what `Glob`/`Grep`/`Read` can't. For static config (services, endpoints, topi
 |---|---|
 | "What services / endpoints / databases exist?" | `get_metadata` once |
 | "Test my new POST /orders endpoint" | `call_endpoint` (auto-starts app) |
-| "Did the Pub/Sub handler run after I published?" | `wait_for_subscription_message` |
-| "Endpoint output is eventually consistent (e.g. read-after-publish)" | `call_endpoint` with `retry_until` |
+| "Did the Pub/Sub handler run after I published?" | `get_traces` w/ `topic` / `subscription` filter |
 | "Why did last request fail?" | `get_traces` then `get_trace_spans` |
 | "How does Encore API surface work?" | `search_docs` then `get_docs` |
 
-- **MCP only for runtime data** (`call_endpoint`, `query_database`, `get_traces`, `get_objects`, `search_docs`/`get_docs`). For **static structure** declared in source (services, endpoints, topics, subscriptions, schemas, secrets, middleware, cron jobs), `Glob`+`Grep`+`Read` faster + more reliable than `get_*` tool.
+- **MCP only for runtime data** - For **static structure** in source (services, endpoints, topics, subscriptions, schemas, secrets, middleware, cron jobs), searching + reading source files = faster + more reliable than `get_*` tools.
+
+## Encore Cloud access
+
+Needed for deploying, cloud secrets, `encore logs --env`, `encore db shell --env`, and the Cloud MCP. Local dev (`encore run`, `encore test`, `encore-local` MCP) needs no login.
+
+### CLI login
+
+- Check first: `encore auth whoami`. Logged in → done.
+- Logged out + interactive: ask the user to run `encore auth login` (opens a browser; can't be completed by an agent). New account: `encore auth signup`.
+- CI / no browser: set `ENCORE_AUTH_KEY` (app-scoped auth key from Cloud Dashboard > app > App Settings > Auth Keys; prefer ephemeral keys); CLI picks it up automatically. Never pass a real key via `--auth-key`: leaks into shell history + process list.
 
 ### Cloud MCP (deployed environments)
 
-If deployed Encore Cloud, also register `encore-cloud` via `claude mcp add --transport http encore-cloud https://api.encore.dev/mcp` for prod traces / deploy state — `encore-local` only sees local app.
+Remote MCP server at `https://api.encore.dev/mcp` (HTTP transport): prod/staging traces, deploys, builds + logs, envs, infra, secrets list, read-only DB queries. `encore-local` only sees the local app. Not configured by `encore app create` / `encore llm-rules init`; register as `encore-cloud` if the app is on Encore Cloud and the user wants it.
+
+Auth (separate from CLI login):
+- OAuth (default, local dev): no credentials in config. First use opens a browser to grant access → tell the user to expect it.
+- API key (CI / shared config): user generates one in Cloud Dashboard > app Settings > API Keys, send as `Authorization: Bearer <key>` header. Keep key out of git: use an env var or user-level (not project) config.
+
+Config:
+- Claude Code: `claude mcp add --transport http encore-cloud https://api.encore.dev/mcp` (API key: add `--header "Authorization: Bearer $ENCORE_API_KEY"`). Verify: `claude mcp list`.
+- Cursor (`.cursor/mcp.json`): `{"mcpServers": {"encore-cloud": {"url": "https://api.encore.dev/mcp"}}}`
+- VS Code (`.vscode/mcp.json`): `{"servers": {"encore-cloud": {"type": "http", "url": "https://api.encore.dev/mcp"}}}`
+- Zed (`.zed/settings.json`): `{"context_servers": {"encore-cloud": {"url": "https://api.encore.dev/mcp"}}}`
+- API key in JSON configs: add `"headers": {"Authorization": "Bearer ${env:ENCORE_API_KEY}"}` (Cursor/VS Code syntax) rather than a literal key.
+
+Docs: https://encore.dev/docs/platform/cloud-mcp
 
 ## Encore check (verify app builds + endpoints work)
 
@@ -92,14 +111,14 @@ git push origin <branch>     # GitHub-linked app
 - The deploy runs the app's tests; failing tests block the deploy, so run `encore test ./...` first.
 - Every declared secret needs a value in the target environment, else the deploy fails with `secret key(s) not defined`. Set per environment type: `printf '%s' "$VAL" | encore secret set --type <types> <Name>` (`dev` = development environments including `staging`, `prod` = production, `pr` = preview, `local`), or for one environment: `--env <env-name>`.
 - Redeploy without a code change (e.g. after setting a secret): `git commit --allow-empty -m "Redeploy"` and push to the deploy branch, or Cloud Dashboard > Deployments > New Deploy > Branch.
-- No `encore` remote and no GitHub link = app created logged out or with `--platform=false`. Log in (`encore auth login`; without a browser, set `ENCORE_AUTH_KEY`, which the CLI picks up automatically. Never pass a real key via `--auth-key`: it leaks into shell history and process listings), `rm encore.app` (copy settings other than `id`/`lang` first, re-add after), `encore app init <name> --lang go` (registers the app and adds the `encore` remote), commit, push. App created in the Cloud Dashboard: `encore app clone <app-id>` (GitHub-linked: `git clone` the GitHub repository).
+- No `encore` remote and no GitHub link = app created logged out or with `--platform=false`. Log in (see Encore Cloud access > CLI login), `rm encore.app` (copy settings other than `id`/`lang` first, re-add after), `encore app init <name> --lang go` (registers the app and adds the `encore` remote), commit, push. App created in the Cloud Dashboard: `encore app clone <app-id>` (GitHub-linked: `git clone` the GitHub repository).
 - Failed deploys: https://encore.dev/docs/platform/deploy/troubleshooting
 
 ## Encore Go domain knowledge
 
 ### Application structure
 
-Encore uses monorepo design — one app = entire backend. Enables distributed tracing + Encore Flow via unified application model. Supports monolith + microservices with monolith-style DX.
+Encore uses monorepo design — one app = entire backend. Enables distributed tracing + architecture diagrams via unified application model. Supports monolith + microservices with monolith-style DX.
 
 Directory structure:
 /app-name
@@ -160,6 +179,7 @@ Service defined by creating at least one API within Go package. Package name = s
 
 //encore:service annotation enables custom init + graceful shutdown:
 
+//encore:service
 type Service struct {
     // Dependencies here
 }
@@ -238,7 +258,7 @@ package externaldb
 import (
     "context"
     "fmt"
-    "github.com/jackc/pgx/v4/pgxpool"
+    "github.com/jackc/pgx/v5/pgxpool"
     "go4.org/syncutil"
 )
 
@@ -263,7 +283,7 @@ var secrets struct {
 func setup(ctx context.Context) (*pgxpool.Pool, error) {
     connString := fmt.Sprintf("postgresql://%s:%s@hostname:port/dbname?sslmode=require",
         "user", secrets.ExternalDBPassword)
-    return pgxpool.Connect(ctx, connString)
+    return pgxpool.New(ctx, connString)
 }
 
 Works with Cassandra, DynamoDB, BigTable, MongoDB, Neo4j, other services.
@@ -318,7 +338,7 @@ var MyCacheCluster = cache.NewCluster("my-cache-cluster", cache.ClusterConfig{
 })
 
 // Keyspace with type safety
-var RequestsPerUser = cache.NewIntKeyspace[auth.UID](cluster, cache.KeyspaceConfig{
+var RequestsPerUser = cache.NewIntKeyspace[auth.UID](MyCacheCluster, cache.KeyspaceConfig{
     KeyPattern:    "requests/:key",
     DefaultExpiry: cache.ExpireIn(10 * time.Second),
 })
@@ -328,7 +348,7 @@ type MyKey struct {
     UserID auth.UID
     ResourcePath string
 }
-var ResourceRequestsPerUser = cache.NewIntKeyspace[MyKey](cluster, cache.KeyspaceConfig{
+var ResourceRequestsPerUser = cache.NewIntKeyspace[MyKey](MyCacheCluster, cache.KeyspaceConfig{
     KeyPattern:    "requests/:UserID/:ResourcePath",
     DefaultExpiry: cache.ExpireIn(10 * time.Second),
 })
@@ -518,7 +538,7 @@ type SomeConfigType struct {
 var cfg *SomeConfigType = config.Load[*SomeConfigType]()
 
 CUE tags for constraints:
-type FooBar {
+type FooBar struct {
     A int `cue:">100"`
     B int `cue:"A-50"`
     C int `cue:"A+B"`
@@ -675,6 +695,11 @@ package auth
 
 import "github.com/clerkinc/clerk-sdk-go/clerk"
 
+var secrets struct {
+    ClientSecretKey string
+}
+
+//encore:service
 type Service struct {
     client clerk.Client
 }
@@ -703,8 +728,8 @@ func (s *Service) AuthHandler(ctx context.Context, token string) (auth.UID, *Use
 }
 
 Set secrets:
-- encore secret set --prod ClientSecretKey
-- encore secret set --dev ClientSecretKey
+- encore secret set --type prod ClientSecretKey
+- encore secret set --type dev,local ClientSecretKey
 
 ### Dependency injection
 

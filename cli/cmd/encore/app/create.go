@@ -354,7 +354,7 @@ func createApp(ctx context.Context, name, template string, lang cmdutil.Language
 		color.Red("Failed to create app on daemon: %s\n", err)
 	}
 
-	if err := llm_rules.SetupLLMRules(llmRules, lang, filepath.Join(name, appRootRelpath), appResp.AppId); err != nil {
+	if err := llm_rules.SetupLLMRules(llmRules, lang, filepath.Join(name, appRootRelpath), appResp.GetAppId()); err != nil {
 		color.Red("Failed to setup LLM rules: %s\n", err)
 	}
 

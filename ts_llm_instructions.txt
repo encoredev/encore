@@ -1,9 +1,10 @@
 ## Node.js style guide
 
-MUST write valid TypeScript w/ Node.js v20+ features + best practices:
+MUST write valid TypeScript w/ Node.js v22+ features + best practices:
 - ES6+ syntax always.
 - Built-in `fetch` for HTTP, not `node-fetch`.
 - Node.js `import`, never `require`.
+
 ## TypeScript style guide
 
 - interface/type for complex objects
@@ -17,18 +18,15 @@ MUST write valid TypeScript w/ Node.js v20+ features + best practices:
 
 ## Encore local MCP server
 
-Local Encore MCP wired via `.mcp.json` (registered as **`encore-local`**, tool prefix `mcp__encore-local__`). Prefer for live app introspection over `Read`/grep; use docs tools when unsure of Encore API surface.
+Encore's local MCP server is registered as **`encore-local`** in the editor's MCP config when set up via `encore app create` / `encore llm-rules init` (Claude Code: `.mcp.json`, Cursor: `.cursor/mcp.json`, VS Code: `.vscode/mcp.json`, Zed: `.zed/settings.json`). Not configured? Add a stdio server running `encore mcp run --app=<app-id>`. Prefer it for live app introspection; use its docs tools when unsure of Encore API surface.
 
-### Tools
-
-20 tools, all prefixed `mcp__encore-local__`. MCP client gets full catalog (names, descriptions, schemas) via `tools/list` on session init — no list here.
+MCP client gets full tool catalog (names, descriptions, input schemas) via `tools/list` on session init — no list here.
 
 ### Important tools (runtime-only — no filesystem equivalent)
 
-These do what `Glob`/`Grep`/`Read` can't. For static config (services, endpoints, topics, schemas), see "When NOT to use it" below.
+These do what file search + reading source can't. For static structure, see "MCP only for runtime data" below.
 
-- **`call_endpoint`** — args: `service`, `endpoint`, `method`, `path`, `payload` (JSON string w/ body/query/headers/path-params), optional `auth_token` / `auth_payload` / `correlation_id`. Optional `retry_until: { predicate, timeout_ms?, interval_ms?, fail_on_timeout? }` polls **server-side** until predicate matches — predicate = `status: 200` OR `body_path: { path: ".events.0.orderID", equals: 7 }` OR `body_jq: ".events | length > 0"` (minimal subset: `<path> | length <op> N` or `<path>` truthy). Use instead of agent-side polling loops for eventually-consistent reads. **auto-starts app** if not running. Use instead of `curl` to test endpoints.
-- **`wait_for_subscription_message`** — args: `topic`, optional `subscription`, `timeout_ms` (default 10000), `since` (ISO/RFC3339), `match` (top-level key/value JSON filter, e.g. `{"customerID":"cust_42"}`). Blocks until the next message on the topic is fully processed by a subscription handler (returns or errors), then returns `{outcome, payload, duration_ms, handler_error, trace_id}`. Use to bridge async Pub/Sub work into a synchronous verify step — beats polling read-side endpoints + introspecting via `get_pubsub`/`get_traces`.
+- **`call_endpoint`** — args: `service`, `endpoint`, `method`, `path`, `payload` (JSON string w/ body/query/headers/path-params), optional `auth_token` / `auth_payload` / `correlation_id`. **auto-starts app** if not running. Use instead of `curl` to test endpoints.
 - **`query_database`** — args: `queries` (array of `{database, query}`). Runs SQL against named DBs, multi queries per call. Beats `encore db conn-uri` + `psql` round-trips.
 - **`get_traces`** — args: optional `service`, `endpoint`, `topic`, `subscription`, `error` (`"true"`/`"false"`), `start_time` / `end_time` (ISO), `min_duration_ms` / `max_duration_ms`, `parent_trace_id`, `limit`. Recent root request/Pub/Sub/test traces (timing, status, ids).
 - **`get_trace_spans`** — args: `trace_ids` (array from `get_traces`). Full per-span details for deep debug.
@@ -42,16 +40,38 @@ These do what `Glob`/`Grep`/`Read` can't. For static config (services, endpoints
 |---|---|
 | "What services / endpoints / databases exist?" | `get_metadata` once |
 | "Test my new POST /orders endpoint" | `call_endpoint` (auto-starts app) |
-| "Did the Pub/Sub handler run after I published?" | `wait_for_subscription_message` |
-| "Endpoint output is eventually consistent (e.g. read-after-publish)" | `call_endpoint` w/ `retry_until` |
+| "Did the Pub/Sub handler run after I published?" | `get_traces` w/ `topic` / `subscription` filter |
 | "Why did last request fail?" | `get_traces` then `get_trace_spans` |
 | "How does Encore API surface work?" | `search_docs` then `get_docs` |
 
-- **MCP only for runtime data** - For **static structure** in source (services, endpoints, topics, subscriptions, schemas, secrets, middleware, cron jobs), `Glob`+`Grep`+`Read` = faster + more reliable than `get_*` tool.
+- **MCP only for runtime data** - For **static structure** in source (services, endpoints, topics, subscriptions, schemas, secrets, middleware, cron jobs), searching + reading source files = faster + more reliable than `get_*` tools.
+
+## Encore Cloud access
+
+Needed for deploying, cloud secrets, `encore logs --env`, `encore db shell --env`, and the Cloud MCP. Local dev (`encore run`, `encore test`, `encore-local` MCP) needs no login.
+
+### CLI login
+
+- Check first: `encore auth whoami`. Logged in → done.
+- Logged out + interactive: ask the user to run `encore auth login` (opens a browser; can't be completed by an agent). New account: `encore auth signup`.
+- CI / no browser: set `ENCORE_AUTH_KEY` (app-scoped auth key from Cloud Dashboard > app > App Settings > Auth Keys; prefer ephemeral keys); CLI picks it up automatically. Never pass a real key via `--auth-key`: leaks into shell history + process list.
 
 ### Cloud MCP (deployed environments)
 
-If deployed to Encore Cloud, also register `encore-cloud` via `claude mcp add --transport http encore-cloud https://api.encore.dev/mcp` for prod traces / deploy state — `encore-local` only sees local app.
+Remote MCP server at `https://api.encore.dev/mcp` (HTTP transport): prod/staging traces, deploys, builds + logs, envs, infra, secrets list, read-only DB queries. `encore-local` only sees the local app. Not configured by `encore app create` / `encore llm-rules init`; register as `encore-cloud` if the app is on Encore Cloud and the user wants it.
+
+Auth (separate from CLI login):
+- OAuth (default, local dev): no credentials in config. First use opens a browser to grant access → tell the user to expect it.
+- API key (CI / shared config): user generates one in Cloud Dashboard > app Settings > API Keys, send as `Authorization: Bearer <key>` header. Keep key out of git: use an env var or user-level (not project) config.
+
+Config:
+- Claude Code: `claude mcp add --transport http encore-cloud https://api.encore.dev/mcp` (API key: add `--header "Authorization: Bearer $ENCORE_API_KEY"`). Verify: `claude mcp list`.
+- Cursor (`.cursor/mcp.json`): `{"mcpServers": {"encore-cloud": {"url": "https://api.encore.dev/mcp"}}}`
+- VS Code (`.vscode/mcp.json`): `{"servers": {"encore-cloud": {"type": "http", "url": "https://api.encore.dev/mcp"}}}`
+- Zed (`.zed/settings.json`): `{"context_servers": {"encore-cloud": {"url": "https://api.encore.dev/mcp"}}}`
+- API key in JSON configs: add `"headers": {"Authorization": "Bearer ${env:ENCORE_API_KEY}"}` (Cursor/VS Code syntax) rather than a literal key.
+
+Docs: https://encore.dev/docs/platform/cloud-mcp
 
 ## Encore check (verify app builds + endpoints work)
 
@@ -76,7 +96,7 @@ Rules for embedded curl DSL:
 
 - Delivery = async + at-least-once + not order-preserving.
 - For "most-recent first" by publish order, do NOT sort by `created_at = NOW()` nor subscription-side row id — both = subscription-insert order, at-least-once can flip. Sort by column monotonic w/ publish (entity id from event payload, or publish-time seq in event).
-- For handler-only checks, skip infra: `et.Topic(T).PublishedMessages()`.
+- Verify a handler ran: `get_traces` (filter by `topic` / `subscription`), then `get_trace_spans` for handler errors.
 
 ## Deploying to Encore Cloud
 
@@ -99,7 +119,7 @@ git push origin <branch>     # GitHub-linked app
 - Deploy runs tests; failing tests block deploy. Run `CI=true encore test` first (no TTY → vitest watch mode never exits).
 - Every declared secret needs value in target env, else deploy fails `secret key(s) not defined`. Set per env type: `printf '%s' "$VAL" | encore secret set --type <types> <Name>` (`dev` = development envs incl. `staging`, `prod` = production, `pr` = preview, `local`), or one env: `--env <env-name>`.
 - Redeploy w/o code change (e.g. after setting secret): `git commit --allow-empty -m "Redeploy"` + push to deploy branch, or Cloud Dashboard > Deployments > New Deploy > Branch.
-- No `encore` remote and no GitHub link = app created logged out / `--platform=false`. Log in (`encore auth login`; no browser: set `ENCORE_AUTH_KEY`, which CLI picks up automatically. Never pass a real key via `--auth-key`: leaks into shell history + process list), `rm encore.app` (copy non-`id`/`lang` settings first, re-add after), `encore app init <name> --lang ts` (registers app + adds `encore` remote), commit, push. App created in Cloud Dashboard: `encore app clone <app-id>` (GitHub-linked: `git clone` the GitHub repo).
+- No `encore` remote and no GitHub link = app created logged out / `--platform=false`. Log in (see Encore Cloud access > CLI login), `rm encore.app` (copy non-`id`/`lang` settings first, re-add after), `encore app init <name> --lang ts` (registers app + adds `encore` remote), commit, push. App created in Cloud Dashboard: `encore app clone <app-id>` (GitHub-linked: `git clone` the GitHub repo).
 - Failed deploys: https://encore.dev/docs/platform/deploy/troubleshooting
 
 ## Encore.ts domain knowledge
@@ -125,7 +145,7 @@ interface PingResponse {
 export const ping = api(
   { method: "POST" },
   async (p: PingParams): Promise<PingResponse> => {
-    return { message: Hello ${p.name}! };
+    return { message: `Hello ${p.name}!` };
   }
 );
 
@@ -178,7 +198,7 @@ Multi service:
 │   ├── migrations/
 │   ├── encore.service.ts
 │   ├── hello.ts
-│   └── hello_test.ts
+│   └── hello.test.ts
 └── world/
     ├── encore.service.ts
     └── world.ts
@@ -268,7 +288,7 @@ Migration naming: starts w/ number + underscore, must increase sequentially, end
 
 DB ops (use only these methods):
 - query: async iterator for multi rows
-const allTodos = await db.query`SELECT * FROM todo_item`;
+const allTodos = db.query<{ id: number; title: string; done: boolean }>`SELECT id, title, done FROM todo_item`;
 for await (const todo of allTodos) {
   // Process each todo
 }
@@ -287,8 +307,8 @@ for await (const row of rows) {
 return { emails };
 
 - queryRow: single row or null
-async function getTodoTitle(id: number): string | undefined {
-  const row = await db.queryRow`SELECT title FROM todo_item WHERE id = ${id}`;
+async function getTodoTitle(id: number): Promise<string | undefined> {
+  const row = await db.queryRow<{ title: string }>`SELECT title FROM todo_item WHERE id = ${id}`;
   return row?.title;
 }
 
@@ -508,8 +528,7 @@ const githubToken = secret("GitHubAPIToken");
 
 Usage:
 async function callGitHub() {
-  const resp = await fetch("https:///api.github.com/user", {
-    credentials: "include",
+  const resp = await fetch("https://api.github.com/user", {
     headers: {
       Authorization: `token ${githubToken()}`,
     },
@@ -654,9 +673,8 @@ export const assets = api.static(
 Encore.ts has GraphQL via raw endpoints w/ auto tracing.
 
 Apollo example:
-import { HeaderMap } from "@apollo/server";
+import { ApolloServer, HeaderMap } from "@apollo/server";
 import { api } from "encore.dev/api";
-const { ApolloServer, gql } = require("apollo-server");
 import { json } from "node:stream/consumers";
 
 const server = new ApolloServer({ typeDefs, resolvers });
@@ -830,6 +848,7 @@ Reusable code running before/after API reqs across endpoints.
 
 Basic:
 import { middleware } from "encore.dev/api";
+import { Service } from "encore.dev/service";
 
 export default new Service("myService", {
     middlewares: [
@@ -893,7 +912,6 @@ const orm = drizzle(db.connectionString);
 await orm.select().from(users);
 
 Drizzle config (drizzle.config.ts):
-import 'dotenv/config';
 import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({
@@ -1065,7 +1083,7 @@ export default defineConfig({
 
 Guidelines:
 - Use `encore test` to run w/ infra setup
-- Each test file gets isolated DB transaction (rolled back after)
+- `encore test` runs against separate test DBs (not your local dev data); data persists across tests in a run, so clean up in `beforeEach`
 - Test API endpoints by calling directly as fns
 - Service-to-service calls work normally in tests
 - Mock external deps (third-party APIs, email services)
@@ -1098,7 +1116,7 @@ App mgmt:
 - encore app link [app-id] [-f]: link to existing Encore Cloud app (adds `encore` remote only if repo has no remotes)
 
 Auth:
-- encore auth login [-k auth-key]: log in
+- encore auth login: log in (no browser: set `ENCORE_AUTH_KEY` env var)
 - encore auth logout: log out
 - encore auth signup: create account
 - encore auth whoami: show current user
