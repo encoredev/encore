@@ -44,6 +44,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	}
 	bld := builderimpl.Resolve(params.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
+	defer releaseMemoryToOS()
 
 	spec, err := mgr.testSpec(ctx, bld, expSet, params.TestSpecParams)
 	if err != nil {
@@ -103,6 +104,7 @@ func (mgr *Manager) TestSpec(ctx context.Context, params TestSpecParams) (*TestS
 	}
 	bld := builderimpl.Resolve(params.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
+	defer releaseMemoryToOS()
 
 	spec, err := mgr.testSpec(ctx, bld, expSet, &params)
 	if err != nil {

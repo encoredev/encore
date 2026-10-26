@@ -42,6 +42,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 	if err != nil {
 		return "", err
 	}
+	defer releaseMemoryToOS()
 
 	// TODO: We should check that all secret keys are defined as well.
 

@@ -62,6 +62,7 @@ type ExecSpecResponse struct {
 // without actually executing it. This allows the CLI to run the command
 // directly with stdin attached for interactive support.
 func (mgr *Manager) ExecSpec(ctx context.Context, p ExecSpecParams) (*ExecSpecResponse, error) {
+	defer releaseMemoryToOS()
 	expSet, err := p.App.Experiments(p.Environ)
 	if err != nil {
 		return nil, err
