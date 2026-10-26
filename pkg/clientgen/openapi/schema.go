@@ -119,10 +119,10 @@ func (g *Generator) schemaTypeNoValidation(typ *schema.Type) *openapi3.SchemaRef
 		return arr.NewRef()
 
 	case *schema.Type_Pointer:
-		return decorateSchemaRef(g.schemaType(t.Pointer.Base), func(s *openapi3.Schema) { s.Nullable = true })
+		return g.nullableSchemaType(t.Pointer.Base)
 
 	case *schema.Type_Option:
-		return decorateSchemaRef(g.schemaType(t.Option.Value), func(s *openapi3.Schema) { s.Nullable = true })
+		return g.nullableSchemaType(t.Option.Value)
 
 	case *schema.Type_Literal:
 		switch tt := t.Literal.Value.(type) {
@@ -230,6 +230,46 @@ func (g *Generator) schemaTypeNoValidation(typ *schema.Type) *openapi3.SchemaRef
 		doBailout(errors.Newf("unknown schema type %T", t))
 		panic("unreachable")
 	}
+}
+
+// nullableSchemaType returns the schema for base marked as nullable.
+// OpenAPI 3.0 ignores nullable on a schema without a type, so when base is a
+// $ref (wrapped in allOf) the wrapper gets the referenced schema's type.
+func (g *Generator) nullableSchemaType(base *schema.Type) *openapi3.SchemaRef {
+	ref := g.schemaType(base)
+	isRef := ref != nil && ref.Value == nil && ref.Ref != ""
+	return decorateSchemaRef(ref, func(s *openapi3.Schema) {
+		s.Nullable = true
+		if isRef && s.Type == nil {
+			if typ := g.concreteSchemaTypeName(base); typ != "" {
+				s.Type = &openapi3.Types{typ}
+			}
+		}
+	})
+}
+
+// concreteSchemaTypeName reports the OpenAPI type of typ's concrete schema,
+// or "" when it has no single type (e.g. unions and literals).
+func (g *Generator) concreteSchemaTypeName(typ *schema.Type) string {
+	concrete, err := encoding.GetConcreteType(g.md.Decls, typ, nil)
+	if err != nil || concrete == nil {
+		return ""
+	}
+	switch t := concrete.Typ.(type) {
+	case *schema.Type_Struct, *schema.Type_Map:
+		return "object"
+	case *schema.Type_List:
+		return "array"
+	case *schema.Type_Builtin:
+		if s := g.builtinSchemaType(t.Builtin); s != nil && s.Type != nil && len(*s.Type) == 1 {
+			return (*s.Type)[0]
+		}
+	case *schema.Type_Pointer:
+		return g.concreteSchemaTypeName(t.Pointer.Base)
+	case *schema.Type_Option:
+		return g.concreteSchemaTypeName(t.Option.Value)
+	}
+	return ""
 }
 
 func (g *Generator) builtinSchemaType(t schema.Builtin) *openapi3.Schema {

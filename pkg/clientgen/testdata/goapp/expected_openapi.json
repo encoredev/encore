@@ -87,7 +87,8 @@
                 "$ref": "#/components/schemas/authentication.User"
               }
             ],
-            "nullable": true
+            "nullable": true,
+            "type": "object"
           },
           "description": {
             "type": "string"
@@ -145,7 +146,8 @@
                   "$ref": "#/components/schemas/svc.Recursive"
                 }
               ],
-              "nullable": true
+              "nullable": true,
+              "type": "object"
             },
             "type": "object"
           },
@@ -155,7 +157,8 @@
                 "$ref": "#/components/schemas/svc.Recursive"
               }
             ],
-            "nullable": true
+            "nullable": true,
+            "type": "object"
           },
           "Slice": {
             "items": {
@@ -170,7 +173,8 @@
                   "$ref": "#/components/schemas/svc.Recursive"
                 }
               ],
-              "nullable": true
+              "nullable": true,
+              "type": "object"
             },
             "type": "array"
           }
@@ -488,7 +492,8 @@
                           "$ref": "#/components/schemas/authentication.User"
                         }
                       ],
-                      "nullable": true
+                      "nullable": true,
+                      "type": "object"
                     },
                     "description": {
                       "type": "string"
@@ -566,7 +571,8 @@
                             "$ref": "#/components/schemas/products.Product"
                           }
                         ],
-                        "nullable": true
+                        "nullable": true,
+                        "type": "object"
                       },
                       "type": "array"
                     }
@@ -605,7 +611,8 @@
                         "$ref": "#/components/schemas/svc.DocumentedUser"
                       }
                     ],
-                    "nullable": true
+                    "nullable": true,
+                    "type": "object"
                   },
                   "order_id": {
                     "type": "string"
@@ -616,7 +623,8 @@
                         "$ref": "#/components/schemas/svc.DocumentedUser"
                       }
                     ],
-                    "nullable": true
+                    "nullable": true,
+                    "type": "object"
                   }
                 },
                 "required": [
@@ -644,7 +652,8 @@
                           "$ref": "#/components/schemas/svc.DocumentedUser"
                         }
                       ],
-                      "nullable": true
+                      "nullable": true,
+                      "type": "object"
                     },
                     "order_id": {
                       "type": "string"
@@ -655,7 +664,8 @@
                           "$ref": "#/components/schemas/svc.DocumentedUser"
                         }
                       ],
-                      "nullable": true
+                      "nullable": true,
+                      "type": "object"
                     }
                   },
                   "required": [
@@ -1121,7 +1131,8 @@
                         "$ref": "#/components/schemas/nested.Type"
                       }
                     ],
-                    "nullable": true
+                    "nullable": true,
+                    "type": "object"
                   }
                 },
                 "required": [
@@ -1144,7 +1155,8 @@
                           "$ref": "#/components/schemas/nested.Type"
                         }
                       ],
-                      "nullable": true
+                      "nullable": true,
+                      "type": "object"
                     }
                   },
                   "required": [
@@ -1183,7 +1195,8 @@
                           "$ref": "#/components/schemas/svc.Recursive"
                         }
                       ],
-                      "nullable": true
+                      "nullable": true,
+                      "type": "object"
                     },
                     "type": "object"
                   },
@@ -1193,7 +1206,8 @@
                         "$ref": "#/components/schemas/svc.Recursive"
                       }
                     ],
-                    "nullable": true
+                    "nullable": true,
+                    "type": "object"
                   },
                   "Slice": {
                     "items": {
@@ -1208,7 +1222,8 @@
                           "$ref": "#/components/schemas/svc.Recursive"
                         }
                       ],
-                      "nullable": true
+                      "nullable": true,
+                      "type": "object"
                     },
                     "type": "array"
                   }
@@ -1243,7 +1258,8 @@
                             "$ref": "#/components/schemas/svc.Recursive"
                           }
                         ],
-                        "nullable": true
+                        "nullable": true,
+                        "type": "object"
                       },
                       "type": "object"
                     },
@@ -1253,7 +1269,8 @@
                           "$ref": "#/components/schemas/svc.Recursive"
                         }
                       ],
-                      "nullable": true
+                      "nullable": true,
+                      "type": "object"
                     },
                     "Slice": {
                       "items": {
@@ -1268,7 +1285,8 @@
                             "$ref": "#/components/schemas/svc.Recursive"
                           }
                         ],
-                        "nullable": true
+                        "nullable": true,
+                        "type": "object"
                       },
                       "type": "array"
                     }
