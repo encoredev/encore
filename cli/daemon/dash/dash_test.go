@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"encr.dev/cli/daemon/run"
+	"encr.dev/pkg/errlist"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -133,6 +135,25 @@ func TestBuildMigrationHistory(t *testing.T) {
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("buildMigrationHistory() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+// With no dashboard tab open, run events must not build the app status, which holds the whole app metadata.
+// The run has no app, so building the status would panic.
+func TestRunEventsWithoutTabs(t *testing.T) {
+	s := &Server{}
+	r := &run.Run{Params: &run.StartParams{Browser: run.BrowserModeNever}}
+	events := map[string]func(){
+		"start":         func() { s.OnStart(r) },
+		"compile start": func() { s.OnCompileStart(r) },
+		"reload":        func() { s.OnReload(r) },
+		"stop":          func() { s.OnStop(r) },
+		"compile error": func() { s.OnError(r, &errlist.List{}) },
+	}
+	for name, event := range events {
+		t.Run(name, func(t *testing.T) {
+			event()
 		})
 	}
 }
