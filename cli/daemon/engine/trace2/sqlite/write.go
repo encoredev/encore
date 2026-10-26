@@ -276,45 +276,68 @@ func (s *Store) Clear(ctx context.Context, appID string) error {
 }
 
 func (s *Store) WriteEvents(ctx context.Context, meta *trace2.Meta, events []*tracepbcli.TraceEvent) error {
+	// One commit per upload costs far less than one per event. A constraint error
+	// on one event undoes only its statement, so the rest of the upload is stored.
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return errors.Wrap(err, "begin trace events transaction")
+	}
+	defer tx.Rollback() // committed explicitly on success
+
+	var endEvents []*tracepbcli.TraceEvent
 	for _, ev := range events {
-		if err := s.insertEvent(ctx, meta, ev); err != nil {
+		spanEnded, err := s.insertEvent(ctx, tx, meta, ev)
+		if err != nil {
 			log.Error().Err(err).Msg("unable to insert trace span event")
 			continue
 		}
+		if spanEnded {
+			endEvents = append(endEvents, ev)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "commit trace events")
 	}
 
+	// Listeners read the span back, so only tell them once it is committed.
+	for _, ev := range endEvents {
+		s.emitCompleteSpanToListeners(ctx, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId))
+	}
 	return nil
 }
 
-func (s *Store) insertEvent(ctx context.Context, meta *trace2.Meta, ev *tracepbcli.TraceEvent) error {
+// insertEvent stores one event and updates its span's index row.
+// It reports whether the event ended a span.
+func (s *Store) insertEvent(ctx context.Context, tx *sql.Tx, meta *trace2.Meta, ev *tracepbcli.TraceEvent) (spanEnded bool, err error) {
 	data, err := protojson.Marshal(ev)
 	if err != nil {
-		return errors.Wrap(err, "marshal trace event")
+		return false, errors.Wrap(err, "marshal trace event")
 	}
 
-	_, err = s.db.ExecContext(ctx, `
+	_, err = tx.ExecContext(ctx, `
 		INSERT INTO trace_event (
 			app_id, trace_id, span_id, event_data)
 		VALUES (?, ?, ?, ?)
 	`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId), data)
 	if err != nil {
-		return errors.Wrap(err, "insert trace span event")
+		return false, errors.Wrap(err, "insert trace span event")
 	}
 
 	if start := ev.GetSpanStart(); start != nil {
-		if err := s.updateSpanStartIndex(ctx, meta, ev, start); err != nil {
-			return errors.Wrap(err, "update span start index")
+		if err := s.updateSpanStartIndex(ctx, tx, meta, ev, start); err != nil {
+			return false, errors.Wrap(err, "update span start index")
 		}
 	} else if end := ev.GetSpanEnd(); end != nil {
-		if err := s.updateSpanEndIndex(ctx, meta, ev, end); err != nil {
-			return errors.Wrap(err, "update span end index")
+		if err := s.updateSpanEndIndex(ctx, tx, meta, ev, end); err != nil {
+			return false, errors.Wrap(err, "update span end index")
 		}
+		return true, nil
 	}
 
-	return nil
+	return false, nil
 }
 
-func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev *tracepbcli.TraceEvent, start *tracepbcli.SpanStart) error {
+func (s *Store) updateSpanStartIndex(ctx context.Context, tx *sql.Tx, meta *trace2.Meta, ev *tracepbcli.TraceEvent, start *tracepbcli.SpanStart) error {
 	isRoot := start.ParentSpanId == nil
 
 	// parentTraceID is the trace that started this span, if any. It's recorded
@@ -332,7 +355,7 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 			encodedParentSpanID := encodeSpanID(*start.ParentSpanId)
 			parentSpanID = &encodedParentSpanID
 		}
-		_, err := s.db.ExecContext(ctx, `
+		_, err := tx.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
 				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, external_request_id, parent_span_id, parent_trace_id, caller_event_id,
 				has_response, test_skipped
@@ -360,7 +383,7 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 			encodedParentSpanID := encodeSpanID(*start.ParentSpanId)
 			parentSpanID = &encodedParentSpanID
 		}
-		_, err := s.db.ExecContext(ctx, `
+		_, err := tx.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
 				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, parent_span_id, parent_trace_id, caller_event_id,
 				has_response, test_skipped
@@ -387,7 +410,7 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 			encodedParentSpanID := encodeSpanID(*start.ParentSpanId)
 			parentSpanID = &encodedParentSpanID
 		}
-		_, err := s.db.ExecContext(ctx, `
+		_, err := tx.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
 				app_id, trace_id, span_id, span_type, started_at, is_root, service_name,
 				topic_name, subscription_name, message_id, parent_span_id, parent_trace_id, caller_event_id,
@@ -417,7 +440,7 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 			encodedParentSpanID := encodeSpanID(*start.ParentSpanId)
 			parentSpanID = &encodedParentSpanID
 		}
-		_, err := s.db.ExecContext(ctx, `
+		_, err := tx.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
 				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, user_id, src_file, src_line, parent_span_id, parent_trace_id, caller_event_id,
 				has_response, test_skipped
@@ -441,19 +464,12 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 	return nil
 }
 
-func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *tracepbcli.TraceEvent, end *tracepbcli.SpanEnd) (err error) {
+func (s *Store) updateSpanEndIndex(ctx context.Context, tx *sql.Tx, meta *trace2.Meta, ev *tracepbcli.TraceEvent, end *tracepbcli.SpanEnd) error {
 	traceID := encodeTraceID(ev.TraceId)
 	spanID := encodeSpanID(ev.SpanId)
 
-	defer func() {
-		if err == nil {
-			// If the span is complete, emit it to listeners.
-			s.emitCompleteSpanToListeners(ctx, meta.AppID, traceID, spanID)
-		}
-	}()
-
 	if req := end.GetRequest(); req != nil {
-		_, err := s.db.ExecContext(ctx, `
+		_, err := tx.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
 				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos, caller_event_id
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -473,7 +489,7 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	}
 
 	if auth := end.GetAuth(); auth != nil {
-		_, err := s.db.ExecContext(ctx, `
+		_, err := tx.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
 				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos, user_id
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -492,7 +508,7 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	}
 
 	if msg := end.GetPubsubMessage(); msg != nil {
-		_, err := s.db.ExecContext(ctx, `
+		_, err := tx.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
 				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos
 			) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -510,7 +526,7 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	}
 
 	if msg := end.GetTest(); msg != nil {
-		_, err := s.db.ExecContext(ctx, `
+		_, err := tx.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
 				app_id, trace_id, span_id, span_type, has_response, is_error, test_skipped, duration_nanos
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
