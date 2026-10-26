@@ -571,26 +571,38 @@ var _ run.EventListener = (*Server)(nil)
 
 // OnStart notifies active websocket clients about the started run.
 func (s *Server) OnStart(r *run.Run) {
-	status, err := buildAppStatus(r.App, r)
-	if err != nil {
-		log.Error().Err(err).Msg("dash: could not build app status")
-		return
+	// The status holds the whole app metadata, so skip building it when no tab will receive it.
+	// A tab that opens later asks for the status itself.
+	hasClients := s.hasClients()
+	var status appStatus
+	if hasClients {
+		var err error
+		status, err = buildAppStatus(r.App, r)
+		if err != nil {
+			log.Error().Err(err).Msg("dash: could not build app status")
+			return
+		}
 	}
 
 	// Open the browser if needed.
 	browserMode := r.Params.Browser
-	if browserMode == run.BrowserModeAlways || (browserMode == run.BrowserModeAuto && !s.hasClients()) {
+	if browserMode == run.BrowserModeAlways || (browserMode == run.BrowserModeAuto && !hasClients) {
 		u := fmt.Sprintf("http://localhost:%d/%s", s.dashPort, r.App.PlatformOrLocalID())
 		browser.Open(u)
 	}
 
-	s.notify(&notification{
-		Method: "process/start",
-		Params: status,
-	})
+	if hasClients {
+		s.notify(&notification{
+			Method: "process/start",
+			Params: status,
+		})
+	}
 }
 
 func (s *Server) OnCompileStart(r *run.Run) {
+	if !s.hasClients() {
+		return
+	}
 	status, err := buildAppStatus(r.App, r)
 	if err != nil {
 		log.Error().Err(err).Msg("dash: could not build app status")
@@ -607,6 +619,9 @@ func (s *Server) OnCompileStart(r *run.Run) {
 
 // OnReload notifies active websocket clients about the reloaded run.
 func (s *Server) OnReload(r *run.Run) {
+	if !s.hasClients() {
+		return
+	}
 	status, err := buildAppStatus(r.App, r)
 	if err != nil {
 		log.Error().Err(err).Msg("dash: could not build app status")
@@ -621,6 +636,9 @@ func (s *Server) OnReload(r *run.Run) {
 
 // OnStop notifies active websocket clients about the stopped run.
 func (s *Server) OnStop(r *run.Run) {
+	if !s.hasClients() {
+		return
+	}
 	status, err := buildAppStatus(r.App, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("dash: could not build app status")
@@ -648,6 +666,9 @@ func (s *Server) OnError(r *run.Run, err *errlist.List) {
 		return
 	}
 
+	if !s.hasClients() {
+		return
+	}
 	status, statusErr := buildAppStatus(r.App, nil)
 	if statusErr != nil {
 		log.Error().Err(statusErr).Msg("dash: could not build app status")
