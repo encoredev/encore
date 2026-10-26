@@ -2,9 +2,9 @@ package schema
 
 import (
 	"go/ast"
+	"go/constant"
 	"go/token"
 	"slices"
-	"strconv"
 	"strings"
 
 	"encr.dev/pkg/option"
@@ -295,33 +295,86 @@ func exprAt(exprs []ast.Expr, idx int) ast.Expr {
 }
 
 func enumValue(expr ast.Expr, kind BuiltinKind, iotaVal int) (EnumValue, bool) {
+	v := evalEnumConst(expr, iotaVal)
+	switch v.Kind() {
+	case constant.String:
+		return EnumValue{Str: option.Some(constant.StringVal(v))}, true
+	case constant.Bool:
+		return EnumValue{Bool: option.Some(constant.BoolVal(v))}, true
+	case constant.Int:
+		if kind == Float32 || kind == Float64 {
+			f, _ := constant.Float64Val(v)
+			return EnumValue{Float: option.Some(f)}, true
+		}
+		i, exact := constant.Int64Val(v)
+		return EnumValue{Int: option.Some(i)}, exact
+	case constant.Float:
+		f, _ := constant.Float64Val(v)
+		return EnumValue{Float: option.Some(f)}, true
+	}
+	return EnumValue{}, false
+}
+
+// evalEnumConst evaluates constant expressions built from literals, iota,
+// true/false and Go operators. References to other named constants are not
+// resolved and yield an unknown value, which omits the enum member.
+func evalEnumConst(expr ast.Expr, iotaVal int) constant.Value {
+	unknown := constant.MakeUnknown()
 	switch e := expr.(type) {
 	case *ast.BasicLit:
-		switch e.Kind {
-		case token.STRING:
-			v, err := strconv.Unquote(e.Value)
-			return EnumValue{Str: option.Some(v)}, err == nil
-		case token.INT:
-			v, err := strconv.ParseInt(e.Value, 0, 64)
-			if err != nil {
-				return EnumValue{}, false
-			}
-			return numberEnumValue(kind, v), true
-		case token.FLOAT:
-			v, err := strconv.ParseFloat(e.Value, 64)
-			return EnumValue{Float: option.Some(v)}, err == nil
-		}
+		return constant.MakeFromLiteral(e.Value, e.Kind, 0)
 	case *ast.Ident:
 		switch e.Name {
 		case "iota":
-			return numberEnumValue(kind, int64(iotaVal)), true
+			return constant.MakeInt64(int64(iotaVal))
 		case "true":
-			return EnumValue{Bool: option.Some(true)}, true
+			return constant.MakeBool(true)
 		case "false":
-			return EnumValue{Bool: option.Some(false)}, true
+			return constant.MakeBool(false)
+		}
+	case *ast.ParenExpr:
+		return evalEnumConst(e.X, iotaVal)
+	case *ast.UnaryExpr:
+		x := evalEnumConst(e.X, iotaVal)
+		if x.Kind() == constant.Unknown {
+			return unknown
+		}
+		switch e.Op {
+		case token.ADD, token.SUB, token.XOR, token.NOT:
+			return constant.UnaryOp(e.Op, x, 0)
+		}
+	case *ast.BinaryExpr:
+		x, y := evalEnumConst(e.X, iotaVal), evalEnumConst(e.Y, iotaVal)
+		if x.Kind() == constant.Unknown || y.Kind() == constant.Unknown {
+			return unknown
+		}
+		switch e.Op {
+		case token.SHL, token.SHR:
+			s, ok := constant.Uint64Val(y)
+			if !ok || x.Kind() != constant.Int {
+				return unknown
+			}
+			return constant.Shift(x, e.Op, uint(s))
+		case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
+			return constant.MakeBool(constant.Compare(x, e.Op, y))
+		case token.QUO:
+			if constant.Sign(y) == 0 {
+				return unknown
+			}
+			if x.Kind() == constant.Int && y.Kind() == constant.Int {
+				return constant.BinaryOp(x, token.QUO_ASSIGN, y) // integer division
+			}
+			return constant.BinaryOp(x, e.Op, y)
+		case token.REM:
+			if constant.Sign(y) == 0 {
+				return unknown
+			}
+			return constant.BinaryOp(x, e.Op, y)
+		case token.ADD, token.SUB, token.MUL, token.AND, token.OR, token.XOR, token.AND_NOT, token.LAND, token.LOR:
+			return constant.BinaryOp(x, e.Op, y)
 		}
 	}
-	return EnumValue{}, false
+	return unknown
 }
 
 func numberEnumValue(kind BuiltinKind, v int64) EnumValue {

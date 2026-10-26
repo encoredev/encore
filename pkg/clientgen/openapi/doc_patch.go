@@ -54,7 +54,30 @@ func parseOpenAPIOperationPatch(src string) (*openapi3.Operation, error) {
 	if err := json.Unmarshal(b, &op); err != nil {
 		return nil, errors.Wrap(err, "parse openapi doc block")
 	}
+	if err := validateOpenAPIOperationPatch(&op); err != nil {
+		return nil, errors.Wrap(err, "invalid openapi doc block")
+	}
 	return &op, nil
+}
+
+// validateOpenAPIOperationPatch rejects inline objects that would replace
+// generated entries with objects missing fields required by OpenAPI.
+// $ref entries are left to document-level resolution.
+func validateOpenAPIOperationPatch(op *openapi3.Operation) error {
+	for code, resp := range op.Responses.Map() {
+		if resp == nil || (resp.Ref == "" && (resp.Value == nil || resp.Value.Description == nil)) {
+			return errors.Newf("response %q: description is required", code)
+		}
+	}
+	for i, p := range op.Parameters {
+		if p == nil || (p.Ref == "" && (p.Value == nil || p.Value.Name == "" || p.Value.In == "")) {
+			return errors.Newf("parameter %d: name and in are required", i)
+		}
+	}
+	if rb := op.RequestBody; rb != nil && rb.Ref == "" && (rb.Value == nil || len(rb.Value.Content) == 0) {
+		return errors.New("requestBody: content is required")
+	}
+	return nil
 }
 
 func mergeOpenAPIOperation(dst, src *openapi3.Operation) {
@@ -78,10 +101,10 @@ func mergeOpenAPIOperation(dst, src *openapi3.Operation) {
 	}
 	if src.Responses != nil {
 		if dst.Responses == nil {
-			dst.Responses = make(openapi3.Responses)
+			dst.Responses = openapi3.NewResponsesWithCapacity(src.Responses.Len())
 		}
-		for code, resp := range src.Responses {
-			dst.Responses[code] = resp
+		for code, resp := range src.Responses.Map() {
+			dst.Responses.Set(code, resp)
 		}
 	}
 	if len(src.Callbacks) > 0 {

@@ -310,6 +310,16 @@ const (
 	AppNEHO App = iota
 	AppNEMA
 )
+
+//encore:enum
+type Code int
+
+const (
+	CodeNeg Code = -1
+	CodeA   Code = iota + 1
+	CodeB
+	CodeC Code = 1 << 4
+)
 `)
 	tc := testutil.NewContext(c, false, a)
 	tc.GoModDownload()
@@ -329,6 +339,13 @@ const (
 	c.Assert(app.EnumValues, qt.HasLen, 2)
 	c.Assert(app.EnumValues[0].Int.MustGet(), qt.Equals, int64(0))
 	c.Assert(app.EnumValues[1].Int.MustGet(), qt.Equals, int64(1))
+
+	code := p.ParseTypeDecl(pkg.Names().PkgDecls["Code"])
+	var codes []int64
+	for _, v := range code.EnumValues {
+		codes = append(codes, v.Int.MustGet())
+	}
+	c.Assert(codes, qt.DeepEquals, []int64{-1, 2, 3, 16})
 }
 
 func TestParser_ParseFuncDecl(t *testing.T) {
