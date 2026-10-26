@@ -386,7 +386,9 @@ func PullImage(ctx context.Context) error {
 const Image = "encoredotdev/postgres:18"
 
 func isDockerRunning(ctx context.Context) bool {
-	err := exec.CommandContext(ctx, "docker", "info").Run()
+	// "docker version" fails when it cannot reach the daemon, like "docker info",
+	// but skips gathering details of every container and image.
+	err := exec.CommandContext(ctx, "docker", "version").Run()
 	return err == nil
 }
 
