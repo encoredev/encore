@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -148,4 +149,55 @@ func TestParseInfraConfigEnv(t *testing.T) {
 
 	// Compare the parsed runtime with the expected runtime
 	c.Assert(parsedRuntime, qt.DeepEquals, &expectedRuntime)
+}
+
+func TestParseInfraConfigEnv_MultipleProviders(t *testing.T) {
+	c := qt.New(t)
+
+	infraCfg := `{
+  "pubsub": [
+    {
+      "type": "nsq",
+      "hosts": "nsqd:4150",
+      "topics": {
+        "user-events": {
+          "name": "user-events",
+          "subscriptions": {"user-event-logger": {"name": "user-event-logger"}}
+        }
+      }
+    },
+    {
+      "type": "nsq",
+      "hosts": "nsqd-log:4150",
+      "topics": {
+        "login-log-events": {
+          "name": "login-log-events",
+          "subscriptions": {"login-log-writer": {"name": "login-log-writer"}}
+        }
+      }
+    }
+  ],
+  "object_storage": [
+    {"type": "gcs", "buckets": {"avatars": {"name": "avatars-gcs"}}},
+    {"type": "s3", "region": "eu-north-1", "buckets": {"uploads": {"name": "uploads-s3"}}}
+  ]
+}`
+	path := filepath.Join(t.TempDir(), "infra.config.json")
+	c.Assert(os.WriteFile(path, []byte(infraCfg), 0o644), qt.IsNil)
+
+	cfg := parseInfraConfigEnv(path)
+
+	// Topics from every provider must be kept, each pointing at its own provider.
+	c.Assert(cfg.PubsubProviders, qt.HasLen, 2)
+	c.Assert(cfg.PubsubTopics, qt.HasLen, 2)
+	c.Assert(cfg.PubsubTopics["user-events"].ProviderID, qt.Equals, 0)
+	c.Assert(cfg.PubsubTopics["user-events"].Subscriptions, qt.HasLen, 1)
+	c.Assert(cfg.PubsubTopics["login-log-events"].ProviderID, qt.Equals, 1)
+	c.Assert(cfg.PubsubTopics["login-log-events"].Subscriptions, qt.HasLen, 1)
+
+	// The same applies to buckets across object storage providers.
+	c.Assert(cfg.BucketProviders, qt.HasLen, 2)
+	c.Assert(cfg.Buckets, qt.HasLen, 2)
+	c.Assert(cfg.Buckets["avatars"].ProviderID, qt.Equals, 0)
+	c.Assert(cfg.Buckets["uploads"].ProviderID, qt.Equals, 1)
 }

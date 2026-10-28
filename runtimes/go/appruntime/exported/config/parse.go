@@ -293,6 +293,7 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 
 	// Map PubSub configuration
 	cfg.PubsubProviders = make([]*PubsubProvider, len(infraCfg.PubSub))
+	cfg.PubsubTopics = map[string]*PubsubTopic{}
 	for i, pubsub := range infraCfg.PubSub {
 		switch pubsub.Type {
 		case "gcp_pubsub":
@@ -310,7 +311,6 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 				},
 			}
 		}
-		cfg.PubsubTopics = map[string]*PubsubTopic{}
 		for topicName, topic := range pubsub.GetTopics() {
 			switch topic := topic.(type) {
 			case *infra.GCPTopic:
@@ -383,6 +383,7 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 
 	// Map Buckets
 	cfg.BucketProviders = make([]*BucketProvider, len(infraCfg.ObjectStorage))
+	cfg.Buckets = map[string]*Bucket{}
 	for i, storage := range infraCfg.ObjectStorage {
 		switch storage.Type {
 		case "gcs":
@@ -401,7 +402,6 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 				},
 			}
 		}
-		cfg.Buckets = map[string]*Bucket{}
 		for bucketName, bucket := range storage.GetBuckets() {
 			cfg.Buckets[bucketName] = &Bucket{
 				ProviderID:    i,
