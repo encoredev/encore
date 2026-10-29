@@ -34,7 +34,8 @@ impl api::BoxedHandler for JSWebSocketHandler {
                     },
                     ThreadsafeFunctionCallMode::Blocking,
                 );
-            });
+            })
+            .await;
 
             match resp {
                 Ok(resp) => api::ResponseData::Raw(resp),
