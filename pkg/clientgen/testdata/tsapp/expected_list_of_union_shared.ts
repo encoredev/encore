@@ -77,6 +77,22 @@ export interface ClientOptions {
 
     /** Default RequestInit to be used for the client */
     requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+    /**
+     * Overrides or disables the built-in date reviver for all API calls.
+     * Pass a custom function to use instead, or false to disable date parsing entirely.
+     */
+    dateReviver?: ((key: string, value: any) => any) | false
+}
+
+/**
+ * CallOptions allows you to override per-call behaviour within the generated Encore client.
+ */
+export interface CallOptions {
+    /**
+     * Overrides the date reviver for this specific call.
+     * Pass a custom function to transform date strings, or false to disable date parsing.
+     */
+    dateReviver?: ((key: string, value: any) => any) | false
 }
 
 /**
@@ -244,10 +260,10 @@ export class StreamInOut<Request, Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(url: string, headers?: Record<string, string>, reviver?: (key: string, value: any) => any) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data, dateReviver));
+            this.buffer.push(JSON.parse(event.data, reviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -288,10 +304,10 @@ export class StreamIn<Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(url: string, headers?: Record<string, string>, reviver?: (key: string, value: any) => any) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data, dateReviver));
+            this.buffer.push(JSON.parse(event.data, reviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -321,13 +337,13 @@ export class StreamOut<Request, Response> {
     public socket: WebSocketConnection;
     private responseValue: Promise<Response>;
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(url: string, headers?: Record<string, string>, reviver?: (key: string, value: any) => any) {
         let responseResolver: (_: any) => void;
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
 
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            responseResolver(JSON.parse(event.data, dateReviver))
+            responseResolver(JSON.parse(event.data, reviver))
         });
     }
 
@@ -370,6 +386,7 @@ class BaseClient {
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
     readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+    readonly reviver: ((key: string, value: any) => any) | undefined
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
@@ -389,6 +406,7 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
+        this.reviver = options.dateReviver === false ? undefined : (options.dateReviver ?? dateReviver)
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
@@ -396,7 +414,7 @@ class BaseClient {
     }
 
     // createStreamInOut sets up a stream to a streaming API endpoint.
-    async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
+    async createStreamInOut<Request, Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -413,11 +431,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamInOut(this.baseURL + path + queryString, headers);
+        return new StreamInOut(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // createStreamIn sets up a stream to a streaming API endpoint.
-    async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
+    async createStreamIn<Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamIn<Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -434,11 +452,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamIn(this.baseURL + path + queryString, headers);
+        return new StreamIn(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // createStreamOut sets up a stream to a streaming API endpoint.
-    async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
+    async createStreamOut<Request, Response>(path: string, params?: CallParameters, reviver?: ((key: string, value: any) => any) | false): Promise<StreamOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -455,7 +473,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamOut(this.baseURL + path + queryString, headers);
+        return new StreamOut(this.baseURL + path + queryString, headers, reviver === false ? undefined : (reviver ?? this.reviver));
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"
