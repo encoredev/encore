@@ -330,6 +330,15 @@ export namespace svc {
     }
 
     /**
+     * StatusResponse tests that unexported types in exported struct fields
+     * are resolved inline rather than leaked as named schema components.
+     */
+    export interface StatusResponse {
+        Status: number
+        Message: string
+    }
+
+    /**
      * Tuple is a generic type which allows us to
      * return two values of two different types
      */
@@ -358,6 +367,7 @@ export namespace svc {
             this.FallbackPath = this.FallbackPath.bind(this)
             this.Get = this.Get.bind(this)
             this.GetRequestWithAllInputTypes = this.GetRequestWithAllInputTypes.bind(this)
+            this.GetStatus = this.GetStatus.bind(this)
             this.HeaderOnlyRequest = this.HeaderOnlyRequest.bind(this)
             this.Nested = this.Nested.bind(this)
             this.RESTPath = this.RESTPath.bind(this)
@@ -444,6 +454,12 @@ export namespace svc {
             rtn.UserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
             rtn.Optional = mustBeSet("Header `x-optional`", resp.headers.get("x-optional"))
             return rtn
+        }
+
+        public async GetStatus(): Promise<StatusResponse> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI("GET", `/svc.GetStatus`)
+            return await resp.json() as StatusResponse
         }
 
         public async HeaderOnlyRequest(params: HeaderOnlyStruct): Promise<void> {

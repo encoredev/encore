@@ -105,6 +105,7 @@ class SvcServiceClient {
         this.FallbackPath = this.FallbackPath.bind(this)
         this.Get = this.Get.bind(this)
         this.GetRequestWithAllInputTypes = this.GetRequestWithAllInputTypes.bind(this)
+        this.GetStatus = this.GetStatus.bind(this)
         this.HeaderOnlyRequest = this.HeaderOnlyRequest.bind(this)
         this.Nested = this.Nested.bind(this)
         this.RESTPath = this.RESTPath.bind(this)
@@ -191,6 +192,12 @@ class SvcServiceClient {
         rtn.UserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
         rtn.Optional = resp.headers.get("x-optional")
         return rtn
+    }
+
+    async GetStatus() {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callTypedAPI("GET", `/svc.GetStatus`)
+        return await resp.json()
     }
 
     async HeaderOnlyRequest(params) {
