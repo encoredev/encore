@@ -120,15 +120,15 @@ export namespace svc {
         /**
          * DummyAPI is a dummy endpoint.
          */
-        public async DummyAPI(params: Request): Promise<void> {
-            await this.baseClient.callTypedAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
+        public async DummyAPI(params: Request, options?: CallParameters): Promise<void> {
+            await this.baseClient.callTypedAPI("POST", `/svc.DummyAPI`, JSON.stringify(params), options)
         }
 
         /**
          * Private is a basic auth endpoint.
          */
-        public async Private(params: Request): Promise<void> {
-            await this.baseClient.callTypedAPI("POST", `/svc.Private`, JSON.stringify(params))
+        public async Private(params: Request, options?: CallParameters): Promise<void> {
+            await this.baseClient.callTypedAPI("POST", `/svc.Private`, JSON.stringify(params), options)
         }
     }
 }

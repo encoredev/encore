@@ -173,7 +173,7 @@ export namespace svc {
             this.singleSetCookie = this.singleSetCookie.bind(this)
         }
 
-        public async cookieDummy(params: Request): Promise<{
+        public async cookieDummy(params: Request, options?: CallParameters): Promise<{
 }> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
@@ -194,21 +194,21 @@ export namespace svc {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/cookie-dummy`, JSON.stringify(body), {headers, query})
+            const resp = await this.baseClient.callTypedAPI("POST", `/cookie-dummy`, JSON.stringify(body), {...options, headers, query})
             return await resp.json() as {
 }
         }
 
         public async cookiesOnly(params: {
-}): Promise<{
+}, options?: CallParameters): Promise<{
 }> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/cookies-only`)
+            const resp = await this.baseClient.callTypedAPI("POST", `/cookies-only`, undefined, options)
             return await resp.json() as {
 }
         }
 
-        public async dummy(params: Request): Promise<void> {
+        public async dummy(params: Request, options?: CallParameters): Promise<void> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 baz: params.headerBaz,
@@ -227,25 +227,25 @@ export namespace svc {
                 foo: params.foo,
             }
 
-            await this.baseClient.callTypedAPI("POST", `/dummy`, JSON.stringify(body), {headers, query})
+            await this.baseClient.callTypedAPI("POST", `/dummy`, JSON.stringify(body), {...options, headers, query})
         }
 
         /**
          * Imported tests the usage of imported types
          * and this comment is also multiline.
          */
-        public async imported(params: common_stuff.ImportedRequest): Promise<common_stuff.ImportedResponse> {
+        public async imported(params: common_stuff.ImportedRequest, options?: CallParameters): Promise<common_stuff.ImportedResponse> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/imported`, JSON.stringify(params))
+            const resp = await this.baseClient.callTypedAPI("POST", `/imported`, JSON.stringify(params), options)
             return await resp.json() as common_stuff.ImportedResponse
         }
 
-        public async multiSetCookie(): Promise<{
+        public async multiSetCookie(options?: CallParameters): Promise<{
     message: string
     tokens: string[]
 }> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/multi-set-cookie`)
+            const resp = await this.baseClient.callTypedAPI("POST", `/multi-set-cookie`, undefined, options)
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as {
@@ -258,20 +258,20 @@ export namespace svc {
             return rtn
         }
 
-        public async noTypes(): Promise<void> {
-            await this.baseClient.callTypedAPI("POST", `/type-less`)
+        public async noTypes(options?: CallParameters): Promise<void> {
+            await this.baseClient.callTypedAPI("POST", `/type-less`, undefined, options)
         }
 
-        public async onlyPathParams(pathParam: string, pathParam2: string): Promise<common_stuff.ImportedResponse> {
+        public async onlyPathParams(pathParam: string, pathParam2: string, options?: CallParameters): Promise<common_stuff.ImportedResponse> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/path/${encodeURIComponent(pathParam)}/${encodeURIComponent(pathParam2)}`)
+            const resp = await this.baseClient.callTypedAPI("POST", `/path/${encodeURIComponent(pathParam)}/${encodeURIComponent(pathParam2)}`, undefined, options)
             return await resp.json() as common_stuff.ImportedResponse
         }
 
         /**
          * Root is a basic POST endpoint.
          */
-        public async root(params: Request): Promise<void> {
+        public async root(params: Request, options?: CallParameters): Promise<void> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 baz: params.headerBaz,
@@ -290,15 +290,15 @@ export namespace svc {
                 foo: params.foo,
             }
 
-            await this.baseClient.callTypedAPI("POST", `/`, JSON.stringify(body), {headers, query})
+            await this.baseClient.callTypedAPI("POST", `/`, JSON.stringify(body), {...options, headers, query})
         }
 
-        public async singleSetCookie(): Promise<{
+        public async singleSetCookie(options?: CallParameters): Promise<{
     message: string
     token: string
 }> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/single-set-cookie`)
+            const resp = await this.baseClient.callTypedAPI("POST", `/single-set-cookie`, undefined, options)
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as {
