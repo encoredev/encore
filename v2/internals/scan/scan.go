@@ -22,6 +22,13 @@ func Packages(quit chan struct{}, errs *perr.List, l *pkginfo.Loader, root paths
 		defer wg.Done()
 		for pkgPath := range work {
 			if pkg, ok := l.LoadPkg(token.NoPos, pkgPath); ok {
+				// The single consumer would otherwise parse each file in full, one at a time. It skips most
+				// main packages, and parses the one it keeps itself.
+				if pkg.Name != "main" {
+					for _, f := range pkg.Files {
+						f.ParseFull()
+					}
+				}
 				select {
 				case results <- pkg:
 				case <-quit:

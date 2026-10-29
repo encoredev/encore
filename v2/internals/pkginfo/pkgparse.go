@@ -153,7 +153,8 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 			continue
 		}
 
-		reader, err := l.c.OpenFile(d.ioPath)
+		// Read the whole file and keep it, so the full parse does not read it again.
+		data, err := l.c.ReadFile(d.ioPath)
 		if err != nil {
 			l.c.Errs.Add(errReadingFile.InFile(d.ioPath).Wrapping(err))
 			continue
@@ -162,8 +163,7 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 		// Parse the package and imports only so code can consult that.
 		// We parse the full AST on-demand later.
 		mode := goparser.ParseComments | goparser.ImportsOnly
-		astFile, err := goparser.ParseFile(l.c.FS, d.ioPath, reader, mode)
-		_ = reader.Close()
+		astFile, err := goparser.ParseFile(l.c.FS, d.ioPath, data, mode)
 		if err != nil {
 			l.c.Errs.AddStd(err)
 			continue
@@ -183,7 +183,7 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 		pkg.Files[d.ioPath] = astFile
 
 		isTestFile := strings.HasSuffix(d.baseName, "_test.go") || strings.HasSuffix(pkgName, "_test")
-		files = append(files, &File{
+		f := &File{
 			l:        l,
 			Name:     d.baseName,
 			FSPath:   d.path,
@@ -192,7 +192,9 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 			TestFile: isTestFile,
 
 			initialAST: astFile,
-		})
+		}
+		f.contentsOnce.Do(func() { f.cachedContents = data })
+		files = append(files, f)
 	}
 
 	return pkgs, files

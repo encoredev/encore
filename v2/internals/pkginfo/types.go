@@ -90,6 +90,8 @@ type File struct {
 	astCacheOnce sync.Once
 	cachedAST    *ast.File
 	cachedToken  *token.File
+	astErr       error
+	astErrOnce   sync.Once
 
 	contentsOnce   sync.Once
 	cachedContents []byte
@@ -136,13 +138,22 @@ func (f *File) Contents() []byte {
 
 // AST returns the parsed AST for this file.
 func (f *File) AST() *ast.File {
+	f.ParseFull()
+	f.astErrOnce.Do(func() { f.l.c.Errs.AssertStd(f.astErr) })
+	if f.astErr != nil {
+		return nil
+	}
+	return f.cachedAST
+}
+
+// ParseFull parses the full AST, if it has not been yet. AST reports any error, when the file is used.
+func (f *File) ParseFull() {
 	f.astCacheOnce.Do(func() {
 		astFile, err := goparser.ParseFile(f.l.c.FS, f.FSPath.ToIO(), f.Contents(), goparser.ParseComments)
-		f.l.c.Errs.AssertStd(err)
+		f.astErr = err
 		f.cachedAST = astFile
 		f.cachedToken = f.l.c.FS.File(astFile.Pos())
 	})
-	return f.cachedAST
 }
 
 func (f *File) Token() *token.File {
