@@ -403,9 +403,11 @@ func hashType(buf *bytes.Buffer, t schema.Type) {
 		for _, f := range t.Fields {
 			if name, ok := f.Name.Get(); ok {
 				buf.WriteString(name)
-				hashType(buf, f.Type)
-				buf.WriteString(";")
+			} else {
+				buf.WriteString("embed:") // an embedded field has no name
 			}
+			hashType(buf, f.Type)
+			buf.WriteString(";")
 		}
 		buf.WriteString("}")
 
