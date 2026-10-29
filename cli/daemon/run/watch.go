@@ -170,6 +170,10 @@ func ignoreEvent(ev watcher.Event) bool {
 		// Ignore generated code
 		return true
 	}
+	if filename == "go.work.sum" {
+		// Go commands rewrite it as they verify modules; it never changes what is built.
+		return true
+	}
 
 	// Ignore files which wouldn't impact the running app
 	ext := filepath.Ext(ev.Path)
