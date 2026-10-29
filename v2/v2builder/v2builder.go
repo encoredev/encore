@@ -390,6 +390,11 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 
 	cueGen := cuegen.NewGenerator(desc)
 	configs := make(map[string]string, len(desc.Services))
+
+	// Add every service's generated CUE to the tree first, so the tree is complete
+	// before it is written to disk once for all the services below.
+	serviceRelPaths := make(map[string]string, len(desc.Services))
+	var firstNode resource.Resource
 	for _, svc := range desc.Services {
 		resourceNode, ok := serviceUsesConfig[svc.Name]
 		if !ok {
@@ -419,14 +424,39 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 			}
 		}
 
-		cfg, err := cueutil.LoadFromFS(files, rel, cueMeta)
+		serviceRelPaths[svc.Name] = rel
+		if firstNode == nil {
+			firstNode = resourceNode
+		}
+	}
+
+	if len(serviceRelPaths) == 0 {
+		return configResult{configs, files}
+	}
+
+	// Load every service from a single copy of the tree on disk. A failure to
+	// write it is not specific to a service, so it is reported on the first.
+	cfgDir, cleanup, err := cueutil.WriteToDisk(files)
+	if err != nil {
+		errs.AddStdNode(err, firstNode)
+		return configResult{configs, files}
+	}
+	defer cleanup()
+
+	for _, svc := range desc.Services {
+		rel, ok := serviceRelPaths[svc.Name]
+		if !ok {
+			continue
+		}
+
+		cfg, err := cueutil.LoadFromDir(cfgDir, rel, cueMeta)
 		if err != nil {
-			errs.AddStdNode(err, resourceNode)
+			errs.AddStdNode(err, serviceUsesConfig[svc.Name])
 			continue
 		}
 		cfgData, err := cfg.MarshalJSON()
 		if err != nil {
-			errs.AddStdNode(err, resourceNode)
+			errs.AddStdNode(err, serviceUsesConfig[svc.Name])
 			continue
 		}
 
