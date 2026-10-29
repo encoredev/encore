@@ -110,7 +110,7 @@ func MarshalFloat32(s float32) (v string, present bool) {
 }
 
 func MarshalTime(s time.Time) (v string, present bool) {
-	return s.Format(time.RFC3339), true
+	return s.Format(time.RFC3339Nano), true
 }
 
 func MarshalInt8(s int8) (v string, present bool) {
