@@ -269,6 +269,76 @@ func BenchmarkCounter_NewLabelSometimes(b *testing.B) {
 	}
 }
 
+func TestRegisterServiceLabels(t *testing.T) {
+	rt := reqtrack.New(zerolog.Logger{}, nil, nil)
+	reg := NewRegistry(rt, 2)
+
+	t.Run("stores and retrieves labels", func(t *testing.T) {
+		reg.RegisterServiceLabels("svc1", map[string]string{"team": "backend", "env": "prod"})
+		got := reg.ServiceLabels()
+		want := map[string][]KeyValue{
+			"svc1": {{Key: "env", Value: "prod"}, {Key: "team", Value: "backend"}},
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("got %+v, want %+v", got, want)
+		}
+	})
+
+	t.Run("filters reserved keys", func(t *testing.T) {
+		reg.RegisterServiceLabels("svc2", map[string]string{
+			"service":  "evil",
+			"__name__": "evil",
+			"endpoint": "evil",
+			"code":     "evil",
+			"team":     "ok",
+		})
+		got := reg.ServiceLabels()["svc2"]
+		want := []KeyValue{{Key: "team", Value: "ok"}}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("got %+v, want %+v", got, want)
+		}
+	})
+
+	t.Run("filters empty keys and values", func(t *testing.T) {
+		reg.RegisterServiceLabels("svc3", map[string]string{
+			"":      "no-key",
+			"valid": "",
+			"good":  "value",
+		})
+		got := reg.ServiceLabels()["svc3"]
+		want := []KeyValue{{Key: "good", Value: "value"}}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("got %+v, want %+v", got, want)
+		}
+	})
+
+	t.Run("deletes on empty input", func(t *testing.T) {
+		reg.RegisterServiceLabels("svc4", map[string]string{"team": "x"})
+		if reg.ServiceLabels()["svc4"] == nil {
+			t.Fatal("expected labels to be set")
+		}
+		reg.RegisterServiceLabels("svc4", nil)
+		if reg.ServiceLabels() != nil && reg.ServiceLabels()["svc4"] != nil {
+			t.Fatal("expected labels to be deleted")
+		}
+	})
+
+	t.Run("deletes when all keys reserved", func(t *testing.T) {
+		reg.RegisterServiceLabels("svc5", map[string]string{"team": "x"})
+		reg.RegisterServiceLabels("svc5", map[string]string{"service": "evil"})
+		if labels := reg.ServiceLabels(); labels != nil && labels["svc5"] != nil {
+			t.Fatalf("expected labels to be deleted, got %+v", labels["svc5"])
+		}
+	})
+
+	t.Run("returns nil when no labels registered", func(t *testing.T) {
+		emptyReg := NewRegistry(rt, 1)
+		if got := emptyReg.ServiceLabels(); got != nil {
+			t.Fatalf("expected nil, got %+v", got)
+		}
+	})
+}
+
 func eq[Val comparable](t testing.TB, got, want Val) {
 	t.Helper()
 	if got != want {
