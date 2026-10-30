@@ -3,6 +3,7 @@ package daemon
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -147,10 +148,11 @@ func (s *Server) RunSpec(req *daemonpb.RunSpecRequest, stream daemonpb.Daemon_Ru
 	}
 	healthzURL := "http://" + runInstance.ListenAddr + "/__encore/healthz"
 	fmt.Fprintf(stderr, "encore: waiting for app to start (timeout %s)...\n", timeout)
-	if err := waitForHealthz(ctx, healthzURL, timeout); err != nil {
-		sendComplete(0, fmt.Sprintf("timed out waiting for /__encore/healthz: %v", err))
+	if err := waitForHealthz(ctx, healthzURL, timeout, runInstance.Done()); err != nil {
+		sendComplete(0, healthzFailure(err, sink.FirstError()))
 		return nil
 	}
+	sink.StopCapturingErrors()
 	fmt.Fprintln(stderr, "encore: app is ready")
 
 	var succeeded int32
@@ -250,9 +252,26 @@ func formatCurlDisplay(c *daemonpb.CurlCommand) string {
 	return strings.Join(parts, " ")
 }
 
+// errAppExited is what waitForHealthz returns when the app exits before it is ready.
+var errAppExited = errors.New("app exited before it was ready")
+
+// healthzFailure describes why the app never became ready, with the first
+// error the app logged, if any.
+func healthzFailure(err error, firstErr string) string {
+	msg := fmt.Sprintf("timed out waiting for /__encore/healthz: %v", err)
+	if errors.Is(err, errAppExited) {
+		msg = err.Error()
+	}
+	if firstErr != "" {
+		msg += " (first error the app logged: " + firstErr + ")"
+	}
+	return msg
+}
+
 // waitForHealthz polls /__encore/healthz with exponential backoff until it
-// returns 200, the context is canceled, or the timeout elapses.
-func waitForHealthz(ctx context.Context, url string, timeout time.Duration) error {
+// returns 200, the context is canceled, the timeout elapses, or exited is
+// closed because the app's processes have exited.
+func waitForHealthz(ctx context.Context, url string, timeout time.Duration, exited <-chan struct{}) error {
 	pollCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -263,6 +282,11 @@ func waitForHealthz(ctx context.Context, url string, timeout time.Duration) erro
 
 	client := &http.Client{Timeout: 2 * time.Second}
 	op := func() error {
+		select {
+		case <-exited:
+			return backoff.Permanent(errAppExited)
+		default:
+		}
 		req, err := http.NewRequestWithContext(pollCtx, "GET", url, nil)
 		if err != nil {
 			return backoff.Permanent(err)
@@ -286,6 +310,26 @@ func waitForHealthz(ctx context.Context, url string, timeout time.Duration) erro
 type runSpecSink struct {
 	stream daemonpb.Daemon_RunSpecServer
 	mu     sync.Mutex
+
+	// The first line the app logged at error level or above while starting,
+	// as "service: message: error".
+	firstErr      string
+	stopCapturing bool
+}
+
+// FirstError returns the first line the app logged at error level or above
+// while starting, or "".
+func (s *runSpecSink) FirstError() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.firstErr
+}
+
+// StopCapturingErrors stops looking for the first error line, once the app is ready.
+func (s *runSpecSink) StopCapturingErrors() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.stopCapturing = true
 }
 
 func newRunSpecSink(stream daemonpb.Daemon_RunSpecServer) *runSpecSink {
@@ -313,6 +357,9 @@ type runSpecWriter struct {
 func (w runSpecWriter) Write(b []byte) (int, error) {
 	w.sink.mu.Lock()
 	defer w.sink.mu.Unlock()
+	if !w.sink.stopCapturing && w.sink.firstErr == "" {
+		w.sink.firstErr = errorLogLine(b)
+	}
 	out := &daemonpb.CommandOutput{}
 	if w.stderr {
 		out.Stderr = b
@@ -323,4 +370,39 @@ func (w runSpecWriter) Write(b []byte) (int, error) {
 		return 0, err
 	}
 	return len(b), nil
+}
+
+// errorLogLine returns "service: message: error" for one of the app's JSON log lines at error level
+// or above, or "" for any other line.
+func errorLogLine(line []byte) string {
+	var l struct {
+		Level   string          `json:"level"`
+		Service json.RawMessage `json:"service"`
+		Message json.RawMessage `json:"message"`
+		Error   json.RawMessage `json:"error"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(line), &l); err != nil {
+		// Encore's own progress lines and plain-text app output are not JSON.
+		return ""
+	}
+	switch l.Level {
+	case "error", "fatal", "panic":
+		var parts []string
+		for _, f := range []json.RawMessage{l.Service, l.Message, l.Error} {
+			if s := jsonText(f); s != "" {
+				parts = append(parts, s)
+			}
+		}
+		return strings.Join(parts, ": ")
+	}
+	return ""
+}
+
+// jsonText returns the value of a JSON string, or any other JSON value as written.
+func jsonText(v json.RawMessage) string {
+	var s string
+	if err := json.Unmarshal(v, &s); err == nil {
+		return s
+	}
+	return string(v)
 }

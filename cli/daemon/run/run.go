@@ -274,7 +274,8 @@ func (r *Run) StoreProc(p *ProcGroup) {
 	r.proc.Store(p)
 }
 
-// Done returns a channel that is closed when the run is closed.
+// Done returns a channel that is closed once the run has exited:
+// every process of the run has exited, or the run failed to start.
 func (r *Run) Done() <-chan struct{} {
 	return r.exited
 }
