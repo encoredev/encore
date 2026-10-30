@@ -777,7 +777,7 @@ func buildDbMigrationStatus(ctx context.Context, appMeta *meta.Data, cluster *sq
 			// Remote database migration status are not supported yet
 			continue
 		}
-		appliedVersions, err := db.ListAppliedMigrations(ctx)
+		appliedVersions, err := db.ListAppliedMigrations(ctx, dbMeta)
 		if err != nil {
 			log.Error().Msgf("failed to list applied migrations for database %s: %v", dbMeta.Name, err)
 			continue
@@ -802,10 +802,11 @@ func buildMigrationHistory(dbMeta *meta.SQLDatabase, appliedVersions map[uint64]
 	for _, migration := range sortedMigrations {
 		dirty, attempted := appliedVersions[migration.Number]
 		applied := attempted && !dirty
-		// If the database doesn't allow non-sequential migrations,
-		// then any migrations before the last applied will also have
-		// been applied even if we don't see them in the database.
-		if !dbMeta.AllowNonSequentialMigrations && applied {
+		// If the database tracks only the latest applied version
+		// (sequential migrations tracked by number), then any migrations
+		// before the last applied will also have been applied even if
+		// we don't see them in the database.
+		if !sqldb.AppliedMigrationsAreASet(dbMeta) && applied {
 			implicitlyApplied = true
 		}
 
