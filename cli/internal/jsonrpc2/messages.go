@@ -70,6 +70,16 @@ func NewNotification(method string, params interface{}) (*Notification, error) {
 	return &Notification{method: method, params: p}, merr
 }
 
+// EncodeNotification encodes a notification message for method and params in one pass.
+// The bytes match those of encoding NewNotification's message.
+func EncodeNotification(method string, params interface{}) ([]byte, error) {
+	return json.Marshal(struct {
+		VersionTag wireVersionTag `json:"jsonrpc"`
+		Method     string         `json:"method"`
+		Params     interface{}    `json:"params"`
+	}{Method: method, Params: params})
+}
+
 func (msg *Notification) Method() string          { return msg.method }
 func (msg *Notification) Params() json.RawMessage { return msg.params }
 func (msg *Notification) isJSONRPC2Message()      {}
