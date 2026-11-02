@@ -34,6 +34,8 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
+	"math/rand/v2"
+	"time"
 
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
@@ -315,6 +317,10 @@ func (d wrappedDriver) OpenConnector(name string) (driver.Connector, error) {
 type wrappedConnector struct {
 	parent    driver.Connector
 	driverRef *wrappedDriver
+
+	// If maxLifetime is set, connections report themselves unusable to
+	// database/sql once older than maxLifetime plus up to maxLifetimeJitter.
+	maxLifetime, maxLifetimeJitter time.Duration
 }
 
 var (
@@ -327,7 +333,12 @@ func (c wrappedConnector) Connect(ctx context.Context) (conn driver.Conn, err er
 		return nil, err
 	}
 
-	return wrappedConn{mw: c.driverRef.mw, parent: conn}, nil
+	wc := wrappedConn{mw: c.driverRef.mw, parent: conn}
+	if c.maxLifetime > 0 {
+		jitter := time.Duration(rand.Float64() * float64(c.maxLifetimeJitter))
+		wc.expiresAt = time.Now().Add(c.maxLifetime).Add(jitter)
+	}
+	return wc, nil
 }
 
 func (c wrappedConnector) Driver() driver.Driver {
@@ -352,6 +363,8 @@ func (t dsnConnector) Driver() driver.Driver {
 type wrappedConn struct {
 	mw     middleware
 	parent driver.Conn
+
+	expiresAt time.Time // zero means no maximum age
 }
 
 // Compile time validation that our types implement the expected interfaces
@@ -363,6 +376,7 @@ var (
 	_ driver.Pinger             = wrappedConn{}
 	_ driver.QueryerContext     = wrappedConn{}
 	_ driver.SessionResetter    = wrappedConn{}
+	_ driver.Validator          = wrappedConn{}
 	_ driver.NamedValueChecker  = wrappedConn{}
 )
 
@@ -436,10 +450,29 @@ func (c wrappedConn) QueryContext(ctx context.Context, query string, args []driv
 }
 
 func (c wrappedConn) ResetSession(ctx context.Context) error {
+	// database/sql calls this before reusing a connection, and discards it on ErrBadConn.
+	if c.expired() {
+		return driver.ErrBadConn
+	}
 	if conn, ok := c.parent.(driver.SessionResetter); ok {
 		return conn.ResetSession(ctx)
 	}
 	return nil
+}
+
+// IsValid is called when a connection is returned to the pool; false discards it.
+func (c wrappedConn) IsValid() bool {
+	if c.expired() {
+		return false
+	}
+	if v, ok := c.parent.(driver.Validator); ok {
+		return v.IsValid()
+	}
+	return true
+}
+
+func (c wrappedConn) expired() bool {
+	return !c.expiresAt.IsZero() && time.Now().After(c.expiresAt)
 }
 
 func defaultCheckNamedValue(nv *driver.NamedValue) (err error) {
