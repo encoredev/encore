@@ -19,6 +19,10 @@ import (
 //
 // The main use case is to support libraries that expect to call sql.Open
 // themselves without exposing the underlying database credentials.
+//
+// The *sql.DB that sql.Open returns is a separate pool owned by the caller, so
+// Encore's pool settings, including DatabaseConfig.MaxConnLifetime, don't apply
+// to it. Set them on it directly, for example db.SetConnMaxLifetime(30 * time.Minute).
 func RegisterStdlibDriver(db *Database) string {
 	if db == nil {
 		panic("sqldb.StdlibDriver: received nil db")
