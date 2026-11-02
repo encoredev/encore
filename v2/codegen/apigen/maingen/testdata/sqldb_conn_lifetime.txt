@@ -1,0 +1,58 @@
+-- code.go --
+package code
+
+import (
+    "time"
+
+    "encore.dev/storage/sqldb"
+)
+
+var DB = sqldb.NewDatabase("mydb", sqldb.DatabaseConfig{
+    Migrations:            "migrations",
+    MaxConnLifetime:       30 * time.Minute,
+    MaxConnLifetimeJitter: 10 * time.Minute,
+})
+
+var Plain = sqldb.NewDatabase("plain", sqldb.DatabaseConfig{
+    Migrations: "migrations",
+})
+-- migrations/1_init.up.sql --
+CREATE TABLE foo (id int);
+-- want:encore_internal/main/main.go --
+package main
+
+import appinit "encore.dev/appruntime/apisdk/app/appinit"
+
+func main() {
+	appinit.AppMain()
+}
+-- want:synthetic/static_config.go --
+package synthetic
+
+/*
+
+This is a synthetic file describing the generated static config:
+
+{
+	"EncoreCompiler": "",
+	"AppCommit": {
+		"revision": "",
+		"uncommitted": false
+	},
+	"CORSAllowHeaders": null,
+	"CORSExposeHeaders": null,
+	"PubsubTopics": {},
+	"SQLDatabases": {
+		"mydb": {
+			"MaxConnLifetime": 1800000000000,
+			"MaxConnLifetimeJitter": 600000000000
+		}
+	},
+	"Testing": false,
+	"TestServiceMap": {},
+	"TestAppRootPath": "testing_path:main",
+	"PrettyPrintLogs": false,
+	"BundledServices": [],
+	"EmbeddedEnvs": {}
+}
+*/
