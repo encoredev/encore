@@ -35,10 +35,11 @@ type DatabaseConfig struct {
 	// Migrations are an ordered sequence of sql files of the format <number>_<description>.up.sql.
 	Migrations string
 
-	// MaxConnLifetime is how long a connection may stay open before the pool
-	// replaces it, for example 30 * time.Minute. If zero it defaults to one hour.
-	// PostgreSQL connections cache metadata for every table and partition they
-	// touch, so a shorter lifetime bounds each connection's memory.
+	// MaxConnLifetime is the age at which the pool retires a connection, checked
+	// when it is released or idle; for example 30 * time.Minute. If zero, the pool
+	// keeps pgx's default of one hour and (*Database).Stdlib sets no maximum age.
+	// PostgreSQL connections cache metadata for each table and partition they
+	// touch, so a shorter lifetime limits that memory.
 	// It also applies to (*Database).Stdlib and to sqldb.Named references.
 	MaxConnLifetime time.Duration
 
