@@ -39,8 +39,8 @@ type DatabaseConfig struct {
 	// when it is released or idle; for example 30 * time.Minute. If zero, the pool
 	// keeps pgx's default of one hour and (*Database).Stdlib sets no maximum age.
 	// PostgreSQL connections cache metadata for each table and partition they
-	// touch, so a shorter lifetime limits that memory. It also applies to Stdlib()
-	// and sqldb.Named, but not to a sql.Open pool made with RegisterStdlibDriver.
+	// touch, so a shorter lifetime limits that memory. It also applies to Stdlib(),
+	// sqldb.Named, and sql.Open pools made with RegisterStdlibDriver.
 	MaxConnLifetime time.Duration
 
 	// MaxConnLifetimeJitter adds a random extra duration, up to this value, to
