@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/lib/pq"
 
 	"encr.dev/cli/daemon/internal/debugflags"
@@ -434,7 +435,19 @@ func runMigrationsByName(ctx context.Context, dbName string, allowNonSeq bool, c
 		// two happen atomically (Postgres runs a multi-statement simple query in
 		// an implicit transaction unless the migration manages its own).
 		query := body + "\n;\n" + markStatement(schema, key, m, false)
-		if _, err := conn.ExecContext(ctx, query); err != nil {
+		_, err = conn.ExecContext(ctx, query)
+		if isActiveSQLTransaction(err) {
+			// The migration contains a statement that can't run in a transaction
+			// block, such as CREATE INDEX CONCURRENTLY, which the implicit
+			// transaction around the combined query rejects before running it.
+			// Run the migration on its own, as upstream Encore does, and mark it
+			// as applied afterwards. If that last step fails, the migration stays
+			// dirty and is retried.
+			if _, err = conn.ExecContext(ctx, body); err == nil {
+				_, err = conn.ExecContext(ctx, markStatement(schema, key, m, false))
+			}
+		}
+		if err != nil {
 			return count, errors.Wrapf(err, "migration %s failed for database %s", m.Filename, dbName)
 		}
 		applied[key] = false
@@ -445,6 +458,13 @@ func runMigrationsByName(ctx context.Context, dbName string, allowNonSeq bool, c
 		return count, err
 	}
 	return count, nil
+}
+
+// isActiveSQLTransaction reports whether err is Postgres' active_sql_transaction
+// error, returned for statements that can't run inside a transaction block.
+func isActiveSQLTransaction(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "25001" // active_sql_transaction
 }
 
 func readMigration(src *MetadataSource, m *meta.DBMigration) (string, error) {

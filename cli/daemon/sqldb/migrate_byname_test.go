@@ -300,6 +300,27 @@ func TestRunMigrationsByNameFailureIsRetried(t *testing.T) {
 	c.Assert(legacyRows(t, query), qt.DeepEquals, []string{"2:false"})
 }
 
+func TestRunMigrationsByNameNonTransactional(t *testing.T) {
+	c := qt.New(t)
+	ctx := context.Background()
+	conn, query := testDB(t)
+
+	// CREATE INDEX CONCURRENTLY can't run in a transaction block, so it can't be
+	// combined with the statement that marks it as applied.
+	src := migrationDir(t, map[string]string{
+		"1_alice.up.sql":       "CREATE TABLE alice (id int);",
+		"2_alice_index.up.sql": "CREATE INDEX CONCURRENTLY alice_id ON alice (id);",
+	})
+	n, err := runMigrationsByName(ctx, "test", false, conn, src)
+	c.Assert(err, qt.IsNil)
+	c.Assert(n, qt.Equals, 2)
+	c.Assert(scanStrings(t, query(`SELECT indexname::text FROM pg_indexes WHERE indexname = 'alice_id'`)),
+		qt.DeepEquals, []string{"alice_id"})
+	c.Assert(scanStrings(t, query(`SELECT name || ':' || dirty::text FROM encore_schema_migrations ORDER BY number`)),
+		qt.DeepEquals, []string{"alice:false", "alice_index:false"})
+	c.Assert(legacyRows(t, query), qt.DeepEquals, []string{"2:false"})
+}
+
 func TestRunMigrationsByNameNonSequential(t *testing.T) {
 	c := qt.New(t)
 	ctx := context.Background()
