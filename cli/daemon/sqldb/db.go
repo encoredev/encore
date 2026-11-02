@@ -307,7 +307,7 @@ func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *
 	}
 	defer fns.CloseIgnore(conn)
 
-	if trackMigrationsByName() {
+	if trackMigrationsByName(appRoot) {
 		applied, err := runMigrationsByName(ctx, cloudName, dbMeta.AllowNonSequentialMigrations, conn, mdSrc)
 		if err != nil {
 			return fmt.Errorf("could not migrate database %s: %v", cloudName, err)
@@ -336,13 +336,13 @@ func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *
 // ListAppliedMigrations returns the applied migrations of dbMeta (version -> dirty).
 // When migrations are tracked by name, versions are the current numbers of the
 // applied migration files; see AppliedMigrationsAreASet.
-func (db *DB) ListAppliedMigrations(ctx context.Context, dbMeta *meta.SQLDatabase) (map[uint64]bool, error) {
+func (db *DB) ListAppliedMigrations(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabase) (map[uint64]bool, error) {
 	conn, err := db.connectToDB(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer fns.CloseIgnore(conn)
-	if trackMigrationsByName() {
+	if trackMigrationsByName(appRoot) {
 		return listAppliedByName(ctx, conn, dbMeta)
 	}
 	return LoadAppliedVersions(ctx, conn, "public", "schema_migrations")
@@ -351,9 +351,9 @@ func (db *DB) ListAppliedMigrations(ctx context.Context, dbMeta *meta.SQLDatabas
 // PendingMigrations returns the migrations in dbMeta that have not been applied,
 // given the applied versions as returned by ListAppliedMigrations (version -> dirty).
 // A dirty version counts as not applied.
-func PendingMigrations(dbMeta *meta.SQLDatabase, applied map[uint64]bool) []*meta.DBMigration {
+func PendingMigrations(appRoot string, dbMeta *meta.SQLDatabase, applied map[uint64]bool) []*meta.DBMigration {
 	var pending []*meta.DBMigration
-	if AppliedMigrationsAreASet(dbMeta) {
+	if AppliedMigrationsAreASet(appRoot, dbMeta) {
 		for _, m := range dbMeta.Migrations {
 			if dirty, ok := applied[m.Number]; !ok || dirty {
 				pending = append(pending, m)

@@ -19,7 +19,7 @@ import (
 func setTrackByName(t *testing.T, enabled bool) {
 	t.Helper()
 	orig := trackMigrationsByName
-	trackMigrationsByName = func() bool { return enabled }
+	trackMigrationsByName = func(string) bool { return enabled }
 	t.Cleanup(func() { trackMigrationsByName = orig })
 }
 
@@ -31,6 +31,24 @@ func migs(filenames ...string) []*meta.DBMigration {
 		out[i] = &meta.DBMigration{Filename: fn, Number: num}
 	}
 	return out
+}
+
+func TestTrackMigrationsByNameExperiment(t *testing.T) {
+	c := qt.New(t)
+	t.Setenv("ENCORE_EXPERIMENT", "")
+	appRoot := func(appFile string) string {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "encore.app"), []byte(appFile), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return dir
+	}
+
+	c.Assert(trackMigrationsByName(appRoot(`{"id": "app"}`)), qt.IsFalse)
+	c.Assert(trackMigrationsByName(appRoot(`{"id": "app", "experiments": ["local-migrations-by-name"]}`)), qt.IsTrue)
+
+	t.Setenv("ENCORE_EXPERIMENT", "local-migrations-by-name")
+	c.Assert(trackMigrationsByName(appRoot(`{"id": "app"}`)), qt.IsTrue)
 }
 
 func TestMigrationName(t *testing.T) {

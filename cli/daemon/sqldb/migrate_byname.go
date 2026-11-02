@@ -13,7 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/lib/pq"
 
-	"encr.dev/cli/daemon/internal/debugflags"
+	"encore.dev/appruntime/exported/experiments"
+	"encr.dev/pkg/appfile"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
@@ -42,8 +43,10 @@ import (
 // and the local dashboard). Deployed environments are migrated by Encore
 // Cloud or by the user's own tooling and are not affected.
 //
-// Set ENCOREDEBUG=migrations=legacy (before the daemon starts) to restore the
-// upstream number-based behavior.
+// It is opt-in through the local-migrations-by-name experiment, enabled by
+// adding it to "experiments" in encore.app, or by setting
+// ENCORE_EXPERIMENT=local-migrations-by-name in the daemon's environment.
+// Without it the daemon uses upstream number-based tracking.
 
 const (
 	// byNameMigrationsTable is the table that tracks applied migrations by name.
@@ -51,28 +54,32 @@ const (
 	// legacyMigrationsTable is the golang-migrate table used by upstream Encore.
 	legacyMigrationsTable = "schema_migrations"
 
-	// migrationsDebugFlag is the ENCOREDEBUG flag that selects the tracking mode.
-	migrationsDebugFlag = "migrations"
-	// migrationsLegacy is the value of the migrations flag that restores
-	// upstream number-based tracking.
-	migrationsLegacy = "legacy"
-
 	// byNameAdvisoryLockID is the pg_advisory_lock key used while migrating.
 	// Advisory locks are scoped to the current database.
 	byNameAdvisoryLockID = 0x656e636f72656d67 // "encoremg"
 )
 
-// trackMigrationsByName reports whether the daemon tracks local migrations by name.
+// trackMigrationsByName reports whether the daemon tracks the local migrations
+// of the app at appRoot by name, i.e. whether the app has the
+// local-migrations-by-name experiment enabled.
 // It's a variable so tests can override it.
-var trackMigrationsByName = func() bool {
-	return debugflags.Get(migrationsDebugFlag) != migrationsLegacy
+var trackMigrationsByName = func(appRoot string) bool {
+	exp, err := appfile.Experiments(appRoot)
+	if err != nil {
+		return false
+	}
+	set, err := experiments.FromAppFileAndEnviron(exp, nil)
+	if err != nil {
+		return false
+	}
+	return experiments.LocalMigrationsByName.Enabled(set)
 }
 
 // AppliedMigrationsAreASet reports whether the applied migrations returned by
 // ListAppliedMigrations for dbMeta list every applied migration individually,
 // as opposed to only the latest applied version (golang-migrate's sequential mode).
-func AppliedMigrationsAreASet(dbMeta *meta.SQLDatabase) bool {
-	return dbMeta.AllowNonSequentialMigrations || trackMigrationsByName()
+func AppliedMigrationsAreASet(appRoot string, dbMeta *meta.SQLDatabase) bool {
+	return dbMeta.AllowNonSequentialMigrations || trackMigrationsByName(appRoot)
 }
 
 var migrationNumberPrefix = regexp.MustCompile(`^\d+_?`)

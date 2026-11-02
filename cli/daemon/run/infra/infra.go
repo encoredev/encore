@@ -299,13 +299,13 @@ func (rm *ResourceManager) DBChanges(ctx context.Context, md *meta.Data) (pendin
 		if !ok {
 			migrations = dbMeta.Migrations
 		} else if len(dbMeta.Migrations) > 0 {
-			applied, err := db.ListAppliedMigrations(ctx, dbMeta)
+			applied, err := db.ListAppliedMigrations(ctx, rm.app.Root(), dbMeta)
 			if err != nil {
 				rm.log.Debug().Err(err).Str("db", dbMeta.Name).Msg("could not list applied migrations")
 				checkErrs = append(checkErrs, DBCheckError{DBName: dbMeta.Name, Err: err})
 				continue
 			}
-			migrations = sqldb.PendingMigrations(dbMeta, applied)
+			migrations = sqldb.PendingMigrations(rm.app.Root(), dbMeta, applied)
 		}
 
 		if ok && len(migrations) == 0 {

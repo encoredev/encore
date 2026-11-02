@@ -116,7 +116,7 @@ func TestPendingMigrations(t *testing.T) {
 				dbMeta.Migrations = tc.migrations
 			}
 			var got []string
-			for _, m := range PendingMigrations(dbMeta, tc.applied) {
+			for _, m := range PendingMigrations("", dbMeta, tc.applied) {
 				got = append(got, m.Filename)
 			}
 			c.Assert(got, qt.DeepEquals, tc.expected)
@@ -138,7 +138,7 @@ func TestPendingMigrationsByName(t *testing.T) {
 	}}
 	applied := map[uint64]bool{1000: false, 1001: false, 1003: false}
 	var got []string
-	for _, m := range PendingMigrations(dbMeta, applied) {
+	for _, m := range PendingMigrations("", dbMeta, applied) {
 		got = append(got, m.Filename)
 	}
 	c.Assert(got, qt.DeepEquals, []string{"1002_joe.up.sql"})

@@ -44,6 +44,12 @@ const (
 
 	// BunRuntime enables bun as the nodejs runtime
 	BunRuntime Name = "bun-runtime"
+
+	// LocalMigrationsByName makes the local daemon track applied database
+	// migrations by name instead of by number, so renumbered migration files
+	// are neither skipped nor applied twice. It has no effect on deployed
+	// environments.
+	LocalMigrationsByName Name = "local-migrations-by-name"
 )
 
 // Valid reports whether the given name is a known experiment.
@@ -59,7 +65,8 @@ func (x Name) Valid() bool {
 		StreamTraces,
 		AdaptiveGCPPubSubGoroutines,
 		TSWorkerThreads,
-		BunRuntime:
+		BunRuntime,
+		LocalMigrationsByName:
 		return true
 	default:
 		return false
