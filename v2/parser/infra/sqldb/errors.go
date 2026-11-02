@@ -59,4 +59,12 @@ var (
 		"Unknown sqldb database",
 		"No database named %q was found in the application. Ensure it is created somewhere using sqldb.NewDatabase to be able to reference it.",
 	)
+	errNewDatabaseMaxConnLifetimeNegative = errRange.New(
+		"Invalid sqldb.NewDatabase call",
+		"The max connection lifetime must not be negative. Use 0 for the default of one hour.",
+	)
+	errNewDatabaseMaxConnLifetimeJitterNegative = errRange.New(
+		"Invalid sqldb.NewDatabase call",
+		"The max connection lifetime jitter must not be negative. Use 0 for no jitter.",
+	)
 )

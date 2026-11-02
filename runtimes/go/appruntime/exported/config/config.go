@@ -18,6 +18,10 @@ type Static struct {
 	CORSExposeHeaders []string // Headers to be exposed by cors
 	PubsubTopics      map[string]*StaticPubsubTopic
 
+	// SQLDatabases holds the pool settings set in sqldb.DatabaseConfig,
+	// keyed by database name. Databases without any are left out.
+	SQLDatabases map[string]*StaticSQLDatabase `json:",omitempty"`
+
 	Testing         bool
 	TestServiceMap  map[string]string // map of service names to their filesystem root
 	TestAppRootPath string            // the root path of the app when running tests
@@ -328,6 +332,13 @@ type StaticPubsubSubscription struct {
 	SvcNum     uint16 // the service number the subscription is in
 	TraceIdx   uint32 // The trace Idx of the subscription
 	ScrubPaths []scrub.Path
+}
+
+// StaticSQLDatabase is the connection pool configuration an app sets in code
+// for one SQL database. Zero values mean "use the default".
+type StaticSQLDatabase struct {
+	MaxConnLifetime       time.Duration `json:",omitempty"`
+	MaxConnLifetimeJitter time.Duration `json:",omitempty"`
 }
 
 type SQLServer struct {

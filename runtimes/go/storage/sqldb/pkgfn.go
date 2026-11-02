@@ -4,6 +4,7 @@ package sqldb
 
 import (
 	"context"
+	"time"
 )
 
 // NewDatabase declares a new SQL database.
@@ -33,6 +34,19 @@ type DatabaseConfig struct {
 	//
 	// Migrations are an ordered sequence of sql files of the format <number>_<description>.up.sql.
 	Migrations string
+
+	// MaxConnLifetime is how long a connection may stay open before the pool
+	// replaces it, for example 30 * time.Minute. If zero it defaults to one hour.
+	// PostgreSQL connections cache metadata for every table and partition they
+	// touch, so a shorter lifetime bounds each connection's memory.
+	// It also applies to (*Database).Stdlib and to sqldb.Named references.
+	MaxConnLifetime time.Duration
+
+	// MaxConnLifetimeJitter adds a random extra duration, up to this value, to
+	// each connection's lifetime, so connections opened together (after a deploy,
+	// say) don't all close together. If zero there is no jitter.
+	// (*Database).Stdlib ignores it, as database/sql has no jitter.
+	MaxConnLifetimeJitter time.Duration
 }
 
 // Exec executes a query without returning any rows.
