@@ -309,6 +309,13 @@ export class RawResponse extends stream.Writable {
   }
 }
 
+interface SetKeepAliveOptions {
+  enable?: boolean;
+  initialDelay?: number;
+  interval?: number;
+  count?: number;
+}
+
 // DummySocket is a dummy implementation of the net.Socket class.
 //
 // It's provided because certain libraries like Express expect the `socket` attribute
@@ -323,7 +330,9 @@ class DummySocket extends stream.Duplex {
   resume(): this { return this; }
   setTimeout(_timeout: number, _callback?: () => void): this { return this; }
   setNoDelay(_noDelay?: boolean): this { return this; }
-  setKeepAlive(_enable?: boolean, _initialDelay?: number): this { return this; }
+  setKeepAlive(options: SetKeepAliveOptions): this;
+  setKeepAlive(enable?: boolean, initialDelay?: number, interval?: number, count?: number): this;
+  setKeepAlive(_enable?: boolean | SetKeepAliveOptions, _initialDelay?: number, _interval?: number, _count?: number): this { return this; }
   getTypeOfService(): number { return 0; }
   setTypeOfService(_tos: number): this { return this; }
   address(): AddressInfo | {} { return {}; }
