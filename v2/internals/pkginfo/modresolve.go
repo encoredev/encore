@@ -125,11 +125,19 @@ func (l *Loader) loadModuleDirs() {
 			l.c.Log.Warn().Err(err).Msg("failed to decode go list module output; using partial module list")
 			break
 		}
-		// Skip errored modules and any without a resolved directory.
-		if m.Error != nil || m.Path == "" || m.Dir == "" || !paths.ValidModPath(m.Path) {
+		if m.Path == "" || !paths.ValidModPath(m.Path) {
 			continue
 		}
-		l.moduleDirs[paths.MustModPath(m.Path)] = m.Dir
+		// Keep modules that aren't on disk yet (or failed to load), with an
+		// empty Dir: dropping them would match their packages to a parent
+		// module that is on disk, e.g. cloud.google.com/go/bigquery to
+		// cloud.google.com/go. An empty Dir makes buildListModuleDir report
+		// a miss, so resolution falls back to packages.Load, which downloads.
+		dir := m.Dir
+		if m.Error != nil {
+			dir = ""
+		}
+		l.moduleDirs[paths.MustModPath(m.Path)] = dir
 	}
 
 	l.sortedModulePaths = make([]paths.Mod, 0, len(l.moduleDirs))
