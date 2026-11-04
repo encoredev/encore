@@ -221,6 +221,7 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 						DatabaseName:   db.CloudName,
 						User:           role.Username,
 						Password:       c.secretString(role.Password),
+						AuthMethod:     c.sqlAuthMethod(role.AuthMethod),
 						MinConnections: int(pool.MinConnections),
 						MaxConnections: int(pool.MaxConnections),
 					})
@@ -593,6 +594,18 @@ func (c *legacyConverter) envCloud() encore.CloudProvider {
 		return encore.EncoreCloud
 	default:
 		c.setErrf("unknown cloud %+v", c.in.Environment.Cloud)
+		return ""
+	}
+}
+
+func (c *legacyConverter) sqlAuthMethod(m runtimev1.SQLAuthMethod) config.SQLAuthMethod {
+	switch m {
+	case runtimev1.SQLAuthMethod_SQL_AUTH_METHOD_PASSWORD:
+		return config.SQLAuthPassword
+	case runtimev1.SQLAuthMethod_SQL_AUTH_METHOD_GCP_IAM:
+		return config.SQLAuthGCPIAM
+	default:
+		c.setErrf("unknown sql auth method %+v", m)
 		return ""
 	}
 }

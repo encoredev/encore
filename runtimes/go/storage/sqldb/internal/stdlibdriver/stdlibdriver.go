@@ -29,7 +29,7 @@ var pgxDriver *Driver
 
 func init() {
 	pgxDriver = &Driver{
-		configs: make(map[string]*pgx.ConnConfig),
+		configs: make(map[string]registeredConfig),
 	}
 
 	databaseSQLResultFormats = pgx.QueryResultFormatsByOID{
@@ -57,8 +57,18 @@ func GetDefaultDriver() driver.Driver {
 
 type Driver struct {
 	configMutex sync.Mutex
-	configs     map[string]*pgx.ConnConfig
+	configs     map[string]registeredConfig
 	sequence    int
+}
+
+// BeforeConnect is called with a copy of a registered ConnConfig before each
+// connection is opened with it, to change it for that connection; it is
+// pgxpool's hook of the same name.
+type BeforeConnect func(context.Context, *pgx.ConnConfig) error
+
+type registeredConfig struct {
+	config        *pgx.ConnConfig
+	beforeConnect BeforeConnect
 }
 
 func (d *Driver) Open(name string) (driver.Conn, error) {
@@ -76,11 +86,11 @@ func (d *Driver) OpenConnector(name string) (driver.Connector, error) {
 	return &driverConnector{driver: d, name: name}, nil
 }
 
-func (d *Driver) registerConnConfig(c *pgx.ConnConfig) string {
+func (d *Driver) registerConnConfig(c *pgx.ConnConfig, beforeConnect BeforeConnect) string {
 	d.configMutex.Lock()
 	connStr := fmt.Sprintf("registeredConnConfig%d", d.sequence)
 	d.sequence++
-	d.configs[connStr] = c
+	d.configs[connStr] = registeredConfig{config: c, beforeConnect: beforeConnect}
 	d.configMutex.Unlock()
 	return connStr
 }
@@ -97,16 +107,21 @@ type driverConnector struct {
 }
 
 func (dc *driverConnector) Connect(ctx context.Context) (driver.Conn, error) {
-	var connConfig *pgx.ConnConfig
-
 	dc.driver.configMutex.Lock()
-	connConfig = dc.driver.configs[dc.name]
+	registered := dc.driver.configs[dc.name]
 	dc.driver.configMutex.Unlock()
 
+	connConfig := registered.config
 	if connConfig == nil {
 		var err error
 		connConfig, err = pgx.ParseConfig(dc.name)
 		if err != nil {
+			return nil, err
+		}
+	}
+	if registered.beforeConnect != nil {
+		connConfig = connConfig.Copy()
+		if err := registered.beforeConnect(ctx, connConfig); err != nil {
 			return nil, err
 		}
 	}
@@ -131,8 +146,9 @@ func (dc *driverConnector) Driver() driver.Driver {
 }
 
 // RegisterConnConfig registers a ConnConfig and returns the connection string to use with Open.
-func RegisterConnConfig(c *pgx.ConnConfig) string {
-	return pgxDriver.registerConnConfig(c)
+// beforeConnect, if not nil, is called before each connection is opened with it.
+func RegisterConnConfig(c *pgx.ConnConfig, beforeConnect BeforeConnect) string {
+	return pgxDriver.registerConnConfig(c, beforeConnect)
 }
 
 // UnregisterConnConfig removes the ConnConfig registration for connStr.

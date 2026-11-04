@@ -247,6 +247,7 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 				DatabaseName:   dbName,
 				User:           db.Username.Value(),
 				Password:       db.Password.Value(),
+				AuthMethod:     sqlAuthMethod(db.AuthMethod),
 				MinConnections: db.MinConnections,
 				MaxConnections: db.MaxConnections,
 			})
@@ -449,6 +450,16 @@ func orDefaultPtr[T any](val *T, def T) T {
 		return def
 	}
 	return *val
+}
+
+// sqlAuthMethod is the SQLAuthMethod of an infra config auth_method, which
+// names the default "password" where the runtime config leaves it empty.
+// Anything else is passed on as is, for the database to refuse.
+func sqlAuthMethod(m string) SQLAuthMethod {
+	if m == "password" {
+		return SQLAuthPassword
+	}
+	return SQLAuthMethod(m)
 }
 
 func orDefault[T comparable](val T, def T) T {
