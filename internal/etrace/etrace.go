@@ -35,9 +35,14 @@ func Async2[A, B any](ctx context.Context, cat, name string, fn func(context.Con
 	return fn(ctx)
 }
 
+func noop() {}
+
 func doSync(ctx context.Context, cat, name string) func() {
-	gid := goroutineID()
 	tr := fromCtx(ctx)
+	if tr == nil {
+		return noop
+	}
+	gid := goroutineID()
 	tr.Emit(beginSync, name, cat, nil, gid, 0)
 	return func() {
 		tr.Emit(endSync, name, cat, nil, gid, 0)
@@ -47,9 +52,12 @@ func doSync(ctx context.Context, cat, name string) func() {
 var asyncID int64
 
 func doAsync(ctx context.Context, cat, name string) func() {
+	tr := fromCtx(ctx)
+	if tr == nil {
+		return noop
+	}
 	id := atomic.AddInt64(&asyncID, 1)
 	gid := goroutineID()
-	tr := fromCtx(ctx)
 	tr.Emit(beginAsync, name, cat, nil, gid, id)
 	return func() {
 		tr.Emit(endAsync, name, cat, nil, gid, id)
