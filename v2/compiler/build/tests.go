@@ -39,6 +39,9 @@ type TestSpec struct {
 	Environ []string
 
 	cfg *Config
+
+	// workdir is where the tests were built.
+	workdir paths.FS
 }
 
 type GenerateTestSpecConfig struct {
@@ -112,7 +115,11 @@ func (b *builder) GenerateTestSpec(cfg *GenerateTestSpecConfig) *TestSpec {
 		}
 	}
 
-	return b.generateTestSpec(cfg)
+	spec := b.generateTestSpec(cfg)
+	if b.errs.Len() > 0 {
+		b.removeTidyFingerprint()
+	}
+	return spec
 }
 
 func (b *builder) runTests(spec *TestSpec, testCfg *RunTestsConfig) {
@@ -125,6 +132,11 @@ func (b *builder) runTests(spec *TestSpec, testCfg *RunTestsConfig) {
 
 		err := cmd.Run()
 		if err != nil {
+			// A stale tidy result would show up here as a build failure, which
+			// can't be told apart from a failing test, so run tidy again next time.
+			if spec.workdir != "" {
+				_ = os.Remove(spec.workdir.Join(tidyFingerprintName).ToIO())
+			}
 			if err.Error() == "exit status 1" {
 				// This is a standard error code for failed tests.
 				// so we don't need to wrap it.
@@ -209,5 +221,6 @@ func (b *builder) generateTestSpec(testCfg *GenerateTestSpecConfig) *TestSpec {
 		Args:    args,
 		Environ: environ,
 		cfg:     b.cfg,
+		workdir: b.workdir,
 	}
 }

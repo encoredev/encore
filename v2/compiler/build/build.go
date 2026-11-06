@@ -131,6 +131,13 @@ func (b *builder) Build() *Result {
 			break
 		}
 	}
+
+	// A failed build may mean the saved tidy result no longer fits the workdir,
+	// so run tidy again next time. This also covers a compile error in the
+	// user's code, which costs one extra tidy.
+	if b.errs.Len() > 0 {
+		b.removeTidyFingerprint()
+	}
 	return res
 }
 
@@ -172,22 +179,28 @@ func (b *builder) writeModFile() {
 
 		gomodpath := b.workdir.Join("go.mod")
 		gosumpath := b.workdir.Join("go.sum")
-		if err := xos.WriteFile(gomodpath.ToIO(), data, 0o644); err != nil {
-			b.errs.Addf(token.NoPos, "unable to write go.mod: %v", err)
-			return
-		}
-
-		// Write an initial overlay for use with 'go mod tidy' when writing the go.mod file.
 		overlayFiles := slices.Clone(b.cfg.Overlays)
-		overlayPath, err := overlay.Write(b.workdir, overlayFiles)
-		if err != nil {
-			b.errs.Addf(token.NoPos, "unable to write overlay file: %v", err)
-			return
-		}
 
-		// Run `go mod tidy` on this modfile.
-		{
+		// Reuse the tidied go.mod and go.sum already in the workdir when neither
+		// tidy's inputs nor those files have changed since the last successful tidy.
+		tidyInputs, canFingerprint := b.tidyInputsHash(mainMod, data)
+		tidyUpToDate := canFingerprint && b.tidyUpToDate(tidyInputs)
 
+		if !tidyUpToDate {
+			b.removeTidyFingerprint()
+			if err := xos.WriteFile(gomodpath.ToIO(), data, 0o644); err != nil {
+				b.errs.Addf(token.NoPos, "unable to write go.mod: %v", err)
+				return
+			}
+
+			// Write an initial overlay for use with 'go mod tidy' when writing the go.mod file.
+			overlayPath, err := overlay.Write(b.workdir, overlayFiles)
+			if err != nil {
+				b.errs.Addf(token.NoPos, "unable to write overlay file: %v", err)
+				return
+			}
+
+			// Run `go mod tidy` on this modfile.
 			build := b.cfg.Ctx.Build
 			goroot := build.GOROOT
 			cmd := exec.Command(goroot.Join("bin", "go"+b.exe()).ToIO(),
@@ -219,7 +232,8 @@ func (b *builder) writeModFile() {
 			cmd.Dir = b.cfg.Ctx.MainModuleDir.ToIO()
 
 			out, err := cmd.CombinedOutput()
-			if err != nil {
+			switch {
+			case err != nil:
 				if len(out) == 0 {
 					out = []byte(err.Error())
 				}
@@ -228,6 +242,8 @@ func (b *builder) writeModFile() {
 					// HACK(andre): Make this nicer
 					b.errs.AddStd(fmt.Errorf("'go mod tidy' failed: %s", out))
 				}
+			case canFingerprint:
+				b.writeTidyFingerprint(tidyInputs)
 			}
 		}
 
