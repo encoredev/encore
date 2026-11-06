@@ -101,9 +101,9 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 			for iter.ReadObjectCB(func(_ *jsoniter.Iterator, key string) bool {
 				switch strings.ToLower(key) {
 				case "x":
-					dec.ParseJSON("X", iter, &params.X)
+					dec.ParseJSON("x", iter, &params.X)
 				case "int":
-					dec.ParseJSON("Integer", iter, &params.Integer)
+					dec.ParseJSON("int", iter, &params.Integer)
 				default:
 					_ = iter.SkipAndReturnBytes()
 				}
