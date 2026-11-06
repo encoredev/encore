@@ -82,7 +82,13 @@
             "type": "string"
           },
           "created_by": {
-            "$ref": "#/components/schemas/authentication.User"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/authentication.User"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
           },
           "description": {
             "type": "string"
@@ -135,12 +141,24 @@
           },
           "MapOfOptional": {
             "additionalProperties": {
-              "$ref": "#/components/schemas/svc.Recursive"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/svc.Recursive"
+                }
+              ],
+              "nullable": true,
+              "type": "object"
             },
             "type": "object"
           },
           "Optional": {
-            "$ref": "#/components/schemas/svc.Recursive"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/svc.Recursive"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
           },
           "Slice": {
             "items": {
@@ -150,7 +168,13 @@
           },
           "SliceOfOptional": {
             "items": {
-              "$ref": "#/components/schemas/svc.Recursive"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/svc.Recursive"
+                }
+              ],
+              "nullable": true,
+              "type": "object"
             },
             "type": "array"
           }
@@ -463,7 +487,13 @@
                       "type": "string"
                     },
                     "created_by": {
-                      "$ref": "#/components/schemas/authentication.User"
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/authentication.User"
+                        }
+                      ],
+                      "nullable": true,
+                      "type": "object"
                     },
                     "description": {
                       "type": "string"
@@ -536,7 +566,13 @@
                     },
                     "products": {
                       "items": {
-                        "$ref": "#/components/schemas/products.Product"
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/products.Product"
+                          }
+                        ],
+                        "nullable": true,
+                        "type": "object"
                       },
                       "type": "array"
                     }
@@ -570,13 +606,25 @@
                     "$ref": "#/components/schemas/svc.DocumentedUser"
                   },
                   "opt_ref": {
-                    "$ref": "#/components/schemas/svc.DocumentedUser"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/svc.DocumentedUser"
+                      }
+                    ],
+                    "nullable": true,
+                    "type": "object"
                   },
                   "order_id": {
                     "type": "string"
                   },
                   "req_ref": {
-                    "$ref": "#/components/schemas/svc.DocumentedUser"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/svc.DocumentedUser"
+                      }
+                    ],
+                    "nullable": true,
+                    "type": "object"
                   }
                 },
                 "required": [
@@ -599,13 +647,25 @@
                       "$ref": "#/components/schemas/svc.DocumentedUser"
                     },
                     "opt_ref": {
-                      "$ref": "#/components/schemas/svc.DocumentedUser"
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/svc.DocumentedUser"
+                        }
+                      ],
+                      "nullable": true,
+                      "type": "object"
                     },
                     "order_id": {
                       "type": "string"
                     },
                     "req_ref": {
-                      "$ref": "#/components/schemas/svc.DocumentedUser"
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/svc.DocumentedUser"
+                        }
+                      ],
+                      "nullable": true,
+                      "type": "object"
                     }
                   },
                   "required": [
@@ -816,6 +876,7 @@
             "name": "optional",
             "schema": {
               "format": "int64",
+              "nullable": true,
               "type": "integer"
             },
             "style": "form"
@@ -876,6 +937,7 @@
                 "allowEmptyValue": true,
                 "explode": true,
                 "schema": {
+                  "nullable": true,
                   "type": "string"
                 },
                 "style": "simple"
@@ -1039,6 +1101,7 @@
             "in": "header",
             "name": "x-optional",
             "schema": {
+              "nullable": true,
               "type": "string"
             },
             "style": "simple"
@@ -1063,7 +1126,13 @@
               "schema": {
                 "properties": {
                   "Nested": {
-                    "$ref": "#/components/schemas/nested.Type"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/nested.Type"
+                      }
+                    ],
+                    "nullable": true,
+                    "type": "object"
                   }
                 },
                 "required": [
@@ -1081,7 +1150,13 @@
                 "schema": {
                   "properties": {
                     "Nested": {
-                      "$ref": "#/components/schemas/nested.Type"
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/nested.Type"
+                        }
+                      ],
+                      "nullable": true,
+                      "type": "object"
                     }
                   },
                   "required": [
@@ -1115,12 +1190,24 @@
                   },
                   "MapOfOptional": {
                     "additionalProperties": {
-                      "$ref": "#/components/schemas/svc.Recursive"
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/svc.Recursive"
+                        }
+                      ],
+                      "nullable": true,
+                      "type": "object"
                     },
                     "type": "object"
                   },
                   "Optional": {
-                    "$ref": "#/components/schemas/svc.Recursive"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/svc.Recursive"
+                      }
+                    ],
+                    "nullable": true,
+                    "type": "object"
                   },
                   "Slice": {
                     "items": {
@@ -1130,7 +1217,13 @@
                   },
                   "SliceOfOptional": {
                     "items": {
-                      "$ref": "#/components/schemas/svc.Recursive"
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/svc.Recursive"
+                        }
+                      ],
+                      "nullable": true,
+                      "type": "object"
                     },
                     "type": "array"
                   }
@@ -1160,12 +1253,24 @@
                     },
                     "MapOfOptional": {
                       "additionalProperties": {
-                        "$ref": "#/components/schemas/svc.Recursive"
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/svc.Recursive"
+                          }
+                        ],
+                        "nullable": true,
+                        "type": "object"
                       },
                       "type": "object"
                     },
                     "Optional": {
-                      "$ref": "#/components/schemas/svc.Recursive"
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/svc.Recursive"
+                        }
+                      ],
+                      "nullable": true,
+                      "type": "object"
                     },
                     "Slice": {
                       "items": {
@@ -1175,7 +1280,13 @@
                     },
                     "SliceOfOptional": {
                       "items": {
-                        "$ref": "#/components/schemas/svc.Recursive"
+                        "allOf": [
+                          {
+                            "$ref": "#/components/schemas/svc.Recursive"
+                          }
+                        ],
+                        "nullable": true,
+                        "type": "object"
                       },
                       "type": "array"
                     }
@@ -1246,6 +1357,7 @@
                     "type": "string"
                   },
                   "optional": {
+                    "nullable": true,
                     "title": "An optional generic type\n",
                     "type": "string"
                   }
@@ -1282,6 +1394,7 @@
                       "type": "number"
                     },
                     "optional": {
+                      "nullable": true,
                       "title": "An optional generic type\n",
                       "type": "number"
                     }
