@@ -85,8 +85,18 @@ func (fs FS) HasPrefix(other FS) bool {
 	fs.checkValid()
 	other.checkValid()
 
-	// Note: we use filepath.Rel instead of strings.HasPrefix with filepath.Abs
-	// because that wouldn't work on case-insensitive filesystems.
+	// Outside Windows, filepath.Rel compares paths byte by byte, so comparing the
+	// cleaned paths gives the same answer without its allocations.
+	if filepath.Separator == '/' && filepath.IsAbs(string(fs)) && filepath.IsAbs(string(other)) {
+		dir, p := filepath.Clean(string(other)), filepath.Clean(string(fs))
+		if dir == "/" {
+			return true
+		}
+		return p == dir || (strings.HasPrefix(p, dir) && p[len(dir)] == '/')
+	}
+
+	// On Windows, filepath.Rel compares without regard to case, which
+	// strings.HasPrefix cannot.
 	rel, err := filepath.Rel(string(other), string(fs))
 	if err != nil {
 		return false
