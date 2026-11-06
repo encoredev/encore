@@ -33,7 +33,7 @@ func New(c *parsectx.Context, traceNodes *legacymeta.TraceNodes) *Generator {
 		Context:          c,
 		Util:             genutil.NewHelper(c.Errs),
 		TraceNodes:       traceNodes,
-		TypeScrubber:     typescrub.NewComputer(c.Log),
+		TypeScrubber:     typescrub.NewComputer(c.Log, c.Errs),
 		rewrites:         make(map[*pkginfo.File]*rewrite.Rewriter),
 		files:            make(map[fileKey]*File),
 		addedAppInit:     make(map[paths.Pkg]bool),

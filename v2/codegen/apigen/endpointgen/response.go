@@ -78,7 +78,7 @@ func (d *responseDesc) EncodeResponse() *Statement {
 					).BlockFunc(
 						func(g *Group) {
 							for _, f := range resp.BodyParameters {
-								g.Add(Id("ser").Dot("WriteField").Call(Lit(f.WireName), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
+								g.Add(Id("ser").Dot("WriteField").Call(Lit(f.WireName), apigenutil.FieldExpr(Id("resp"), f), Lit(f.OmitEmpty)))
 							}
 						}))
 				g.If(Err().Op("!=").Nil()).Block(
@@ -91,7 +91,7 @@ func (d *responseDesc) EncodeResponse() *Statement {
 				g.Line().Comment("Encode headers")
 				g.Id("headers").Op("=").Map(String()).Index().String().Values(DictFunc(func(dict Dict) {
 					for _, f := range resp.HeaderParameters {
-						encExpr, ok := genutil.MarshalQueryOrHeader(f.Type, Id("resp").Dot(f.SrcName))
+						encExpr, ok := genutil.MarshalQueryOrHeader(f.Type, apigenutil.FieldExpr(Id("resp"), f))
 						if !ok {
 							d.gu.Errs.Addf(f.Type.ASTExpr().Pos(), "unsupported type in header: %s", d.gu.TypeToString(f.Type))
 							continue
@@ -124,13 +124,13 @@ func (d *responseDesc) EncodeResponse() *Statement {
 
 			var statusFieldCond *Statement
 			if schemautil.IsPointer(d.ep.Response) {
-				statusFieldCond = Id("resp").Op("!=").Nil().Op("&&").Id("resp").Dot(resp.HTTPStatusParameter.SrcName).Op("!=").Lit(0)
+				statusFieldCond = Id("resp").Op("!=").Nil().Op("&&").Add(apigenutil.FieldExpr(Id("resp"), resp.HTTPStatusParameter)).Op("!=").Lit(0)
 			} else {
-				statusFieldCond = Id("resp").Dot(resp.HTTPStatusParameter.SrcName).Op("!=").Lit(0)
+				statusFieldCond = apigenutil.FieldExpr(Id("resp"), resp.HTTPStatusParameter).Op("!=").Lit(0)
 			}
 
 			g.If(statusFieldCond).Block(
-				Id("statusCode").Op("=").Int().Call(Id("resp").Dot(resp.HTTPStatusParameter.SrcName)),
+				Id("statusCode").Op("=").Int().Call(apigenutil.FieldExpr(Id("resp"), resp.HTTPStatusParameter)),
 			)
 
 			g.If(Id("statusCode").Op("!=").Lit(0)).Block(
@@ -175,7 +175,7 @@ func (d *responseDesc) DecodeExternalResp() *Statement {
 		if enc.HTTPStatusParameter != nil {
 			g.Line().Comment("Set HTTP status field")
 			statusType := d.gu.Type(enc.HTTPStatusParameter.Type)
-			g.Id("resp").Dot(enc.HTTPStatusParameter.SrcName).Op("=").Add(statusType).Call(Id("httpResp").Dot("StatusCode"))
+			g.Add(apigenutil.FieldExpr(Id("resp"), enc.HTTPStatusParameter)).Op("=").Add(statusType).Call(Id("httpResp").Dot("StatusCode"))
 		}
 
 		apigenutil.DecodeHeaders(g, Id("httpResp").Dot("Header"), Id("resp"), dec, enc.HeaderParameters)
