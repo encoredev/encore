@@ -190,7 +190,7 @@ func (b *builder) writeModFile() {
 
 			build := b.cfg.Ctx.Build
 			goroot := build.GOROOT
-			cmd := exec.Command(goroot.Join("bin", "go"+b.exe()).ToIO(),
+			cmd := exec.CommandContext(b.ctx, goroot.Join("bin", "go"+b.exe()).ToIO(),
 				"mod", "tidy",
 				"-overlay="+overlayPath.ToIO(),
 				"-modfile="+gomodpath.ToIO(),
@@ -280,9 +280,9 @@ func (b *builder) buildMain() {
 		}
 
 		args = append(args, b.cfg.MainPkg.String())
-		
+
 		goroot := build.GOROOT
-		cmd := exec.Command(goroot.Join("bin", "go"+b.exe()).ToIO(), args...)
+		cmd := exec.CommandContext(b.ctx, goroot.Join("bin", "go"+b.exe()).ToIO(), args...)
 
 		// Copy the env before we add additional env vars
 		// to avoid accidentally sharing the same backing array.
@@ -302,6 +302,28 @@ func (b *builder) buildMain() {
 		}
 		if !build.CgoEnabled {
 			env = append(env, "CGO_ENABLED=0")
+		} else {
+			hostOS := runtime.GOOS
+			hostArch := runtime.GOARCH
+			targetOS := build.GOOS
+			targetArch := build.GOARCH
+			if targetOS == "" {
+				targetOS = hostOS
+			}
+			if targetArch == "" {
+				targetArch = hostArch
+			}
+			isCrossBuild := targetOS != hostOS || targetArch != hostArch
+			if isCrossBuild {
+				cc := cCrossCompilerName(targetOS, targetArch)
+				if _, err := exec.LookPath(cc); err != nil {
+					b.errs.Addf(token.NoPos,
+						"CGO is enabled but no C cross-compiler found for %s/%s.\n"+
+							"Install %q or disable CGO to build for this target.",
+						targetOS, targetArch, cc)
+					return
+				}
+			}
 		}
 		cmd.Env = append(os.Environ(), env...)
 		cmd.Dir = b.cfg.Ctx.MainModuleDir.ToIO()
@@ -478,4 +500,19 @@ func (b *builder) prepareWorkDir() (workdir paths.FS, temporary bool) {
 	}
 
 	return paths.RootedFSPath(work, "."), isTemp
+}
+
+// cCrossCompilerName returns the expected C cross-compiler binary name
+// for the given target OS and architecture.
+func cCrossCompilerName(goos, goarch string) string {
+	switch goos + "/" + goarch {
+	case "linux/amd64":
+		return "x86_64-linux-gnu-gcc"
+	case "linux/arm64":
+		return "aarch64-linux-gnu-gcc"
+	case "linux/arm":
+		return "arm-linux-gnueabihf-gcc"
+	default:
+		return "gcc"
+	}
 }
