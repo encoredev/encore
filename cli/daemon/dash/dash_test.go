@@ -129,7 +129,7 @@ func TestBuildMigrationHistory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildMigrationHistory(tt.dbMeta, tt.appliedVersions)
+			got := buildMigrationHistory(tt.dbMeta, tt.appliedVersions, tt.dbMeta.AllowNonSequentialMigrations)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("buildMigrationHistory() = %v, want %v", got, tt.want)
 			}
