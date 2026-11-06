@@ -21,7 +21,6 @@ import (
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apienc"
 	"encr.dev/v2/parser/infra/pubsub"
-	"encr.dev/v2/parser/infra/sqldb"
 )
 
 type testParams struct {
@@ -46,7 +45,6 @@ func GenAppConfig(p GenParams, test option.Option[testParams]) *config.Static {
 		CORSAllowHeaders:   allowHeaders,
 		CORSExposeHeaders:  exposeHeaders,
 		PubsubTopics:       pubsubTopics(p.Gen, p.Desc),
-		SQLDatabases:       sqlDatabases(p.Desc),
 		Testing:            test.Present(),
 		TestServiceMap:     testServiceMap(p.Desc),
 		TestAppRootPath:    rootDir,
@@ -61,26 +59,6 @@ func GenAppConfig(p GenParams, test option.Option[testParams]) *config.Static {
 	}
 
 	return cfg
-}
-
-// sqlDatabases returns the pool settings each database sets in code,
-// leaving out databases that set none.
-func sqlDatabases(appDesc *app.Desc) map[string]*config.StaticSQLDatabase {
-	var result map[string]*config.StaticSQLDatabase
-	for _, r := range appDesc.Parse.Resources() {
-		db, ok := r.(*sqldb.Database)
-		if !ok || (db.MaxConnLifetime == 0 && db.MaxConnLifetimeJitter == 0) {
-			continue
-		}
-		if result == nil {
-			result = make(map[string]*config.StaticSQLDatabase)
-		}
-		result[db.Name] = &config.StaticSQLDatabase{
-			MaxConnLifetime:       db.MaxConnLifetime,
-			MaxConnLifetimeJitter: db.MaxConnLifetimeJitter,
-		}
-	}
-	return result
 }
 
 func pubsubTopics(gen *codegen.Generator, appDesc *app.Desc) map[string]*config.StaticPubsubTopic {

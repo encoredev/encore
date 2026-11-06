@@ -16,7 +16,6 @@ import (
 
 // Manager manages database connections.
 type Manager struct {
-	static     *config.Static
 	runtime    *config.Runtime
 	rt         *reqtrack.RequestTracker
 	ts         *testsupport.Manager
@@ -26,9 +25,8 @@ type Manager struct {
 	dbs map[string]*Database
 }
 
-func NewManager(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker, ts *testsupport.Manager, rootLogger zerolog.Logger) *Manager {
+func NewManager(runtime *config.Runtime, rt *reqtrack.RequestTracker, ts *testsupport.Manager, rootLogger zerolog.Logger) *Manager {
 	return &Manager{
-		static:     static,
 		runtime:    runtime,
 		rt:         rt,
 		ts:         ts,
@@ -97,7 +95,6 @@ func (mgr *Manager) getPool(encoreName, dbNameOverride string, hooks *hookList) 
 	if err != nil {
 		panic("sqldb: " + err.Error())
 	}
-	applyStaticConf(cfg, mgr.staticConf(encoreName))
 
 	cfg.ConnConfig.Tracer = &pgxTracer{mgr: mgr}
 	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
@@ -109,15 +106,6 @@ func (mgr *Manager) getPool(encoreName, dbNameOverride string, hooks *hookList) 
 	}
 
 	return pool, true
-}
-
-// staticConf returns the pool settings the app set in code for the database,
-// or nil if it set none. Test clones share the original's encoreName.
-func (mgr *Manager) staticConf(encoreName string) *config.StaticSQLDatabase {
-	if mgr.static == nil {
-		return nil
-	}
-	return mgr.static.SQLDatabases[encoreName]
 }
 
 func (mgr *Manager) Shutdown(p *shutdown.Process) error {

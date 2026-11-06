@@ -11,6 +11,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -122,9 +123,6 @@ func (db *Database) Stdlib() *sql.DB {
 			db.stdlib.SetMaxOpenConns(maxConns)
 			db.stdlib.SetConnMaxIdleTime(cfg.MaxConnIdleTime)
 			db.stdlib.SetMaxIdleConns(maxConns)
-			if s := db.mgr.staticConf(db.origName); s != nil && s.MaxConnLifetime > 0 {
-				db.stdlib.SetConnMaxLifetime(s.MaxConnLifetime)
-			}
 		}
 		openErr = err
 	})
@@ -181,6 +179,10 @@ func dbConf(srv *config.SQLServer, db *config.SQLDatabase, dbNameOverride string
 		cfg.MaxConns = int32(n)
 	}
 
+	// Spread out connection retirement so connections opened together,
+	// such as after a deploy, don't all reconnect at the same moment.
+	cfg.MaxConnLifetimeJitter = 10 * time.Minute
+
 	// If we have a server CA, set it in the TLS config.
 	if srv.ServerCACert != "" {
 		caCertPool := x509.NewCertPool()
@@ -201,20 +203,6 @@ func dbConf(srv *config.SQLServer, db *config.SQLDatabase, dbNameOverride string
 	}
 
 	return cfg, nil
-}
-
-// applyStaticConf applies the pool settings the app set in sqldb.DatabaseConfig.
-// Zero values keep pgx's defaults.
-func applyStaticConf(cfg *pgxpool.Config, s *config.StaticSQLDatabase) {
-	if s == nil {
-		return
-	}
-	if s.MaxConnLifetime > 0 {
-		cfg.MaxConnLifetime = s.MaxConnLifetime
-	}
-	if s.MaxConnLifetimeJitter > 0 {
-		cfg.MaxConnLifetimeJitter = s.MaxConnLifetimeJitter
-	}
 }
 
 // Exec executes a query without returning any rows.
