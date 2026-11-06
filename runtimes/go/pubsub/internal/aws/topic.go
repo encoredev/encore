@@ -70,7 +70,7 @@ func (t *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 	return aws.ToString(result.MessageId), nil
 }
 
-func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, pullConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, implCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	ackDeadline = utils.Clamp(ackDeadline, time.Second, 12*time.Hour)
 
 	if maxConcurrency == 0 {
