@@ -1,0 +1,30 @@
+-- foo/foo.ts --
+import { api } from "encore.dev/api";
+import { MinLen, MaxLen } from "encore.dev/validate";
+
+interface BaseRequest {
+  text: string;
+  count: number;
+}
+
+// Derived interface adds validators to fields inherited from base.
+export interface CreateRequest extends BaseRequest {
+  text: string & MinLen<1> & MaxLen<100>;
+}
+
+// Two levels of extends with validators.
+interface Extended extends CreateRequest {
+  extra?: string & MaxLen<50>;
+}
+
+export const create = api<CreateRequest, void>({}, () => {});
+export const extended = api<Extended, void>({}, () => {});
+
+-- package.json --
+{
+  "name": "foo",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}
