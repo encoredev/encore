@@ -62,5 +62,10 @@ func LaunchExternalEditor(fullPath string, startLine int, startCol int, editor F
 
 	log.Info().Str("full_path", fullPath).Str("editor", string(editor.Editor)).Str("cmd", cmd.String()).Msg("attempting to open file")
 
-	return errors.Wrap(cmd.Start(), "failed to start editor")
+	if err := cmd.Start(); err != nil {
+		return errors.Wrap(err, "failed to start editor")
+	}
+	// Reap the detached editor process so it doesn't linger as a zombie.
+	go func() { _ = cmd.Wait() }()
+	return nil
 }

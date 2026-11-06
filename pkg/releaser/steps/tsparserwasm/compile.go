@@ -103,6 +103,7 @@ func gzipFileInPlace(path string) error {
 
 	w := gzip.NewWriter(f)
 	if _, err := w.Write(src); err != nil {
+		_ = w.Close()
 		return err
 	}
 	return w.Close()
