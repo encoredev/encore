@@ -3,8 +3,12 @@ package codegen
 import (
 	"bytes"
 	"fmt"
+	"runtime"
+	"runtime/debug"
 	"slices"
 	"strconv"
+	"strings"
+	"sync"
 
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app/legacymeta"
@@ -76,36 +80,87 @@ func (g *Generator) InjectFile(pkgPath paths.Pkg, pkgName string, pkgDir paths.F
 	return f
 }
 
+// Overlays returns the overlay files for the generated code.
+//
+// Rendering the files, which formats the generated source, runs on all cores.
+// The result is sorted by source path so that overlay.Write, which suffixes
+// clashing names in slice order, gives each file the same name every run.
 func (g *Generator) Overlays() []overlay.File {
-	var of []overlay.File
+	type pendingFile struct {
+		source   paths.FS
+		file     *File // nil for a rewrite, whose contents are already computed
+		contents []byte
+		err      error
+	}
 
-	var buf bytes.Buffer
+	// Add every file's declarations before rendering any of them, since
+	// Decl.Code() reaches shared state that is not safe to use concurrently.
+	pending := make([]pendingFile, 0, len(g.files)+len(g.rewrites))
 	for _, f := range g.files {
-		source := f.dir.Join(f.name())
+		f.AddDecls()
+		pending = append(pending, pendingFile{
+			source: f.dir.Join(f.name()),
+			file:   f,
+		})
+	}
 
-		buf.Reset()
-		if err := f.Render(&buf); err != nil {
-			g.Errs.Add(errRender.InFile(source.ToIO()).Wrapping(err))
+	// Jennifer panics on some invalid declarations. Callers recover those into build
+	// errors, but a panic on a worker goroutine would bypass them.
+	render := func(f *File) (contents []byte, err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic: %v\n%s", r, debug.Stack())
+			}
+		}()
+		var buf bytes.Buffer
+		if err := f.Jen.Render(&buf); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	}
+
+	// Render the files, one buffer each, on all cores.
+	work := make(chan int, len(pending))
+	for i := range pending {
+		work <- i
+	}
+	close(work)
+
+	var wg sync.WaitGroup
+	for range min(len(pending), runtime.GOMAXPROCS(0)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range work {
+				pending[i].contents, pending[i].err = render(pending[i].file)
+			}
+		}()
+	}
+	wg.Wait()
+
+	// Rewrites have nothing left to render, so they join once the workers are done.
+	for f, rw := range g.rewrites {
+		pending = append(pending, pendingFile{
+			source:   f.Pkg.FSPath.Join(f.Name),
+			contents: rw.Data(),
+		})
+	}
+
+	slices.SortStableFunc(pending, func(a, b pendingFile) int {
+		return strings.Compare(a.source.ToIO(), b.source.ToIO())
+	})
+
+	of := make([]overlay.File, 0, len(pending))
+	for _, p := range pending {
+		if p.err != nil {
+			g.Errs.Add(errRender.InFile(p.source.ToIO()).Wrapping(p.err))
 			continue
 		}
-
-		// Get a copy of the buffer since we reuse it across files.
-		contents := slices.Clone(buf.Bytes())
-
 		of = append(of, overlay.File{
-			Source:   source,
-			Contents: contents,
+			Source:   p.source,
+			Contents: p.contents,
 		})
 	}
-
-	for f, rw := range g.rewrites {
-		source := f.Pkg.FSPath.Join(f.Name)
-		of = append(of, overlay.File{
-			Source:   source,
-			Contents: rw.Data(),
-		})
-	}
-
 	return of
 }
 
