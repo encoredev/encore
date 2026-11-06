@@ -14,9 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
-	perrors "encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
@@ -34,10 +32,6 @@ type Database struct {
 	File         option.Option[*pkginfo.File]
 	MigrationDir paths.MainModuleRelSlash
 	Migrations   []MigrationFile
-
-	// Connection pool settings from sqldb.DatabaseConfig; zero means the default.
-	MaxConnLifetime       time.Duration
-	MaxConnLifetimeJitter time.Duration
 }
 
 func (d *Database) Kind() resource.Kind       { return resource.SQLDatabase }
@@ -99,19 +93,8 @@ func parseDatabase(d parseutil.ReferenceInfo) {
 	// Decode the config
 	type decodedConfig struct {
 		Migrations string `literal:",required"`
-
-		// Optional configuration
-		MaxConnLifetime       time.Duration `literal:",optional"`
-		MaxConnLifetimeJitter time.Duration `literal:",optional"`
 	}
 	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit, nil)
-
-	if config.MaxConnLifetime < 0 {
-		errs.Add(errNewDatabaseMaxConnLifetimeNegative.AtGoNode(cfgLit.Expr("MaxConnLifetime"), perrors.AsError(fmt.Sprintf("got %s", config.MaxConnLifetime))))
-	}
-	if config.MaxConnLifetimeJitter < 0 {
-		errs.Add(errNewDatabaseMaxConnLifetimeJitterNegative.AtGoNode(cfgLit.Expr("MaxConnLifetimeJitter"), perrors.AsError(fmt.Sprintf("got %s", config.MaxConnLifetimeJitter))))
-	}
 
 	if path.IsAbs(config.Migrations) {
 		errs.Add(errNewDatabaseAbsPath.AtGoNode(cfgLit.Expr("Migrations")))
@@ -152,9 +135,6 @@ func parseDatabase(d parseutil.ReferenceInfo) {
 		Doc:          d.Doc,
 		MigrationDir: paths.MainModuleRelSlash(filepath.ToSlash(relMigrationDir)),
 		Migrations:   migrations,
-
-		MaxConnLifetime:       config.MaxConnLifetime,
-		MaxConnLifetimeJitter: config.MaxConnLifetimeJitter,
 	}
 	d.Pass.RegisterResource(db)
 	d.Pass.AddBind(d.File, d.Ident, db)

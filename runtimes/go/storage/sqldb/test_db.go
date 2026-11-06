@@ -140,7 +140,6 @@ func (mgr *Manager) WithSuperuser(db *Database) *Database {
 	if err != nil {
 		panic("sqldb: " + err.Error())
 	}
-	applyStaticConf(cfg, mgr.staticConf(db.origName))
 	cfg.ConnConfig.User = superuserUser
 	cfg.ConnConfig.Tracer = &pgxTracer{mgr: mgr}
 	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {

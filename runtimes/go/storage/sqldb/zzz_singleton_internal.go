@@ -19,6 +19,6 @@ import (
 var Singleton *Manager
 
 func init() {
-	Singleton = NewManager(appconf.Static, appconf.Runtime, reqtrack.Singleton, testsupport.Singleton, logging.RootLogger)
+	Singleton = NewManager(appconf.Runtime, reqtrack.Singleton, testsupport.Singleton, logging.RootLogger)
 	shutdown.Singleton.RegisterShutdownHandler(Singleton.Shutdown)
 }
