@@ -5,7 +5,9 @@ package build
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"go/token"
@@ -444,6 +446,23 @@ func isGo118Plus(f *modfile.File) bool {
 	return major > 1 || (major == 1 && minor >= 18)
 }
 
+// persistentWorkDir returns the work directory for builds of the app whose
+// main module is in moduleDir. It persists between builds so they can reuse it.
+//
+// It is per mode since the generated files are different.
+// Otherwise concurrent build and test runs interfere and cause spurious compilation errors.
+//
+// It is per checkout for the same reason: two checkouts of an app (such as git
+// worktrees) share its app ID but not its code, so builds from both would
+// overwrite each other's generated files, overlay.json, go.mod and binary.
+// The go command doesn't key its build cache on where overlay files live,
+// so this doesn't cost any caching.
+func persistentWorkDir(cacheDir, appID string, moduleDir paths.FS, m mode) string {
+	sum := sha256.Sum256([]byte(filepath.Clean(moduleDir.ToIO())))
+	checkout := hex.EncodeToString(sum[:8])
+	return filepath.Join(cacheDir, "encore-build", appID, checkout, string(m))
+}
+
 func (b *builder) prepareWorkDir() (workdir paths.FS, temporary bool) {
 	work, isTemp := (func() (string, bool) {
 		// If we have an appID, use a persistent work dir.
@@ -452,10 +471,7 @@ func (b *builder) prepareWorkDir() (workdir paths.FS, temporary bool) {
 			if err != nil {
 				b.errs.Fatalf(token.NoPos, "unable to get user cache dir: %v", err)
 			}
-			// Use a per-mode work directory since the generated files are different.
-			// Otherwise concurrent build and test runs interfere and cause spurious compilation errors.
-			workdir := filepath.Join(baseDir, "encore-build", appID, string(b.mode))
-			return workdir, false
+			return persistentWorkDir(baseDir, appID, b.cfg.Ctx.MainModuleDir, b.mode), false
 		}
 
 		tmp, err := os.MkdirTemp("", "encore-build")
