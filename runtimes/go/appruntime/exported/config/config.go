@@ -350,9 +350,6 @@ type SQLDatabase struct {
 	User         string `json:"user"`
 	Password     string `json:"password"`
 
-	// AuthMethod is how User authenticates. The zero value is with Password.
-	AuthMethod SQLAuthMethod `json:"auth_method,omitempty"`
-
 	// MinConnections is the minimum number of open connections to use
 	// for this database. If zero it defaults to 2.
 	MinConnections int `json:"min_connections"`
@@ -361,20 +358,6 @@ type SQLDatabase struct {
 	// for this database. If zero it defaults to 30.
 	MaxConnections int `json:"max_connections"`
 }
-
-// SQLAuthMethod is how a database user authenticates to its server.
-type SQLAuthMethod string
-
-const (
-	// SQLAuthPassword authenticates with the user's password, if it has one.
-	SQLAuthPassword SQLAuthMethod = ""
-	// SQLAuthGCPIAM authenticates with an OAuth2 access token of the Google
-	// Cloud identity the process runs as, which Cloud SQL's IAM database
-	// authentication takes as the password. The user is that identity's IAM
-	// database user (a service account's email without ".gserviceaccount.com")
-	// and has no password of its own. Tokens are only sent over TLS.
-	SQLAuthGCPIAM SQLAuthMethod = "gcp_iam"
-)
 
 type RedisServer struct {
 	// Host is the host to connect to.

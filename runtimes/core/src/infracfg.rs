@@ -202,26 +202,8 @@ pub struct SQLDatabase {
     pub max_connections: Option<i32>,
     pub min_connections: Option<i32>,
     pub username: String,
-    /// Required unless `auth_method` is `gcp_iam`, which has none.
-    #[serde(default)]
-    pub password: Option<EnvString>,
+    pub password: EnvString,
     pub client_cert: Option<ClientCert>,
-    #[serde(default)]
-    pub auth_method: SQLAuthMethod,
-}
-
-/// How a database user authenticates to its server.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SQLAuthMethod {
-    /// With `password`.
-    #[default]
-    Password,
-    /// With an access token of the Google Cloud identity the process runs as,
-    /// through Cloud SQL's IAM database authentication. `username` is that
-    /// identity's IAM database user (for a service account, its email without
-    /// ".gserviceaccount.com"), and the server needs TLS.
-    GcpIam,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -684,19 +666,11 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                             })
                             .or_else(|| default_client_cert.clone());
                         let role_rid = get_next_rid();
-                        let (password, auth_method) = match db.auth_method {
-                            SQLAuthMethod::Password => (
-                                db.password.as_ref().map(map_env_string_to_secret_data),
-                                pbruntime::SqlAuthMethod::Password,
-                            ),
-                            SQLAuthMethod::GcpIam => (None, pbruntime::SqlAuthMethod::GcpIam),
-                        };
                         let role = SqlRole {
                             rid: role_rid.clone(),
                             client_cert_rid: client_cert,
                             username: db.username,
-                            password,
-                            auth_method: auth_method as i32,
+                            password: Some(map_env_string_to_secret_data(&db.password)),
                         };
                         credentials.sql_roles.push(role);
                         SqlDatabase {
@@ -1108,45 +1082,5 @@ mod tests {
             runtime, expected_runtime,
             "Converted runtime does not match expected runtime"
         );
-    }
-
-    #[test]
-    fn a_gcp_iam_database_has_a_role_without_a_password() {
-        let infra_config: InfraConfig = serde_json::from_value(serde_json::json!({
-            "sql_servers": [{
-                "host": "10.0.0.3:5432",
-                "tls_config": {"ca": "test"},
-                "databases": {
-                    "mydb": {
-                        "username": "my-sa@my-project.iam",
-                        "auth_method": "gcp_iam",
-                    },
-                    "otherdb": {
-                        "username": "owner",
-                        "password": "secret",
-                    },
-                },
-            }],
-        }))
-        .expect("parse infra config");
-
-        let runtime = map_infra_to_runtime(infra_config);
-        let infra = runtime.infra.expect("infra");
-        let creds = infra.credentials.expect("credentials");
-        let role = |user: &str| {
-            creds
-                .sql_roles
-                .iter()
-                .find(|r| r.username == user)
-                .unwrap_or_else(|| panic!("no role for {user}"))
-        };
-
-        let iam = role("my-sa@my-project.iam");
-        assert_eq!(iam.auth_method(), pbruntime::SqlAuthMethod::GcpIam);
-        assert_eq!(iam.password, None);
-
-        let owner = role("owner");
-        assert_eq!(owner.auth_method(), pbruntime::SqlAuthMethod::Password);
-        assert!(owner.password.is_some());
     }
 }

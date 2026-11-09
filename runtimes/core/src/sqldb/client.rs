@@ -5,6 +5,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex, OnceLock, Weak};
 
 use bb8::{ErrorSink, PooledConnection, RunError};
+use bb8_postgres::PostgresConnectionManager;
 use futures_util::StreamExt;
 
 use tokio_postgres::config::Host;
@@ -14,42 +15,10 @@ use crate::sqldb::val::RowValue;
 use crate::trace::{protocol, Tracer};
 use crate::{model, sqldb};
 
-use super::auth::Auth;
 use super::manager::PoolConfig;
 use super::transaction::Transaction;
 
-/// Opens a database's connections, like `bb8_postgres`'s manager, with the
-/// credentials its [`Auth`] gives each one.
-pub(crate) struct Mgr {
-    config: Arc<tokio_postgres::Config>,
-    tls: postgres_native_tls::MakeTlsConnector,
-    auth: Auth,
-}
-
-impl bb8::ManageConnection for Mgr {
-    type Connection = tokio_postgres::Client;
-    type Error = Error;
-
-    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        let config = self
-            .auth
-            .connect_config(&self.config)
-            .await
-            .map_err(Error::Credentials)?;
-        let (client, connection) = config.connect(self.tls.clone()).await?;
-        tokio::spawn(async move { connection.await.map(|_| ()) });
-        Ok(client)
-    }
-
-    async fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
-        conn.simple_query("").await?;
-        Ok(())
-    }
-
-    fn has_broken(&self, conn: &mut Self::Connection) -> bool {
-        conn.is_closed()
-    }
-}
+type Mgr = PostgresConnectionManager<postgres_native_tls::MakeTlsConnector>;
 
 /// Identifies a set of interchangeable connections.
 ///
@@ -69,7 +38,6 @@ struct PoolKey {
     dbname: Option<String>,
     user: Option<String>,
     password: Option<Vec<u8>>,
-    gcp_iam: bool,
     min_conns: u32,
     max_conns: u32,
 }
@@ -84,7 +52,6 @@ impl std::fmt::Debug for PoolKey {
             .field("dbname", &self.dbname)
             .field("user", &self.user)
             .field("password", &self.password.as_ref().map(|_| "_"))
-            .field("gcp_iam", &self.gcp_iam)
             .field("min_conns", &self.min_conns)
             .field("max_conns", &self.max_conns)
             .finish()
@@ -92,7 +59,7 @@ impl std::fmt::Debug for PoolKey {
 }
 
 impl PoolKey {
-    fn new(config: &tokio_postgres::Config, auth: &Auth, pool_cfg: &PoolConfig) -> Self {
+    fn new(config: &tokio_postgres::Config, pool_cfg: &PoolConfig) -> Self {
         Self {
             hosts: config
                 .get_hosts()
@@ -107,7 +74,6 @@ impl PoolKey {
             dbname: config.get_dbname().map(str::to_owned),
             user: config.get_user().map(str::to_owned),
             password: config.get_password().map(<[u8]>::to_vec),
-            gcp_iam: auth.is_gcp_iam(),
             min_conns: pool_cfg.min_conns,
             max_conns: pool_cfg.max_conns,
         }
@@ -137,7 +103,7 @@ pub struct Pool {
 impl Pool {
     pub fn new<DB: sqldb::Database>(db: &DB, tracer: Tracer) -> anyhow::Result<Self> {
         let pool_cfg = db.pool_config()?;
-        let key = PoolKey::new(db.config()?, db.auth()?, &pool_cfg);
+        let key = PoolKey::new(db.config()?, &pool_cfg);
 
         let mut pools = POOLS
             .get_or_init(Default::default)
@@ -163,11 +129,8 @@ impl Pool {
         db: &DB,
         pool_cfg: &PoolConfig,
     ) -> anyhow::Result<bb8::Pool<Mgr>> {
-        let mgr = Mgr {
-            config: db.config()?.clone(),
-            tls: db.tls()?.clone(),
-            auth: db.auth()?.clone(),
-        };
+        let tls = db.tls()?.clone();
+        let mgr = Mgr::new(db.config()?.clone(), tls);
 
         let mut pool = bb8::Pool::builder()
             .error_sink(Box::new(RustLoggerSink {
@@ -198,12 +161,8 @@ struct RustLoggerSink {
     db_name: String,
 }
 
-impl ErrorSink<Error> for RustLoggerSink {
-    fn sink(&self, err: Error) {
-        let Error::DB(err) = err else {
-            log::error!("database {}: connection pool error: {}", self.db_name, err);
-            return;
-        };
+impl ErrorSink<tokio_postgres::Error> for RustLoggerSink {
+    fn sink(&self, err: tokio_postgres::Error) {
         let mut msg = format!(
             "database {}: connection pool error: {:?}",
             self.db_name, err
@@ -216,7 +175,7 @@ impl ErrorSink<Error> for RustLoggerSink {
         log::error!("{msg}");
     }
 
-    fn boxed_clone(&self) -> Box<dyn ErrorSink<Error>> {
+    fn boxed_clone(&self) -> Box<dyn ErrorSink<tokio_postgres::Error>> {
         Box::new(self.clone())
     }
 }
@@ -236,7 +195,7 @@ impl Pool {
         self.tracer
             .trace(source, query, || async {
                 let conn = self.pool.get().await.map_err(|e| match e {
-                    RunError::User(err) => err,
+                    RunError::User(err) => Error::DB(err),
                     RunError::TimedOut => Error::ConnectTimeout,
                 })?;
                 conn.query_raw(query, params).await.map_err(Error::from)
@@ -244,10 +203,10 @@ impl Pool {
             .await
     }
 
-    pub async fn acquire(&self) -> Result<Connection, Error> {
+    pub async fn acquire(&self) -> Result<Connection, tokio_postgres::Error> {
         let conn = self.pool.get_owned().await.map_err(|e| match e {
             RunError::User(err) => err,
-            RunError::TimedOut => Error::ConnectTimeout,
+            RunError::TimedOut => tokio_postgres::Error::__private_api_timeout(),
         })?;
         Ok(Connection {
             conn: tokio::sync::RwLock::new(Some(conn)),
@@ -258,7 +217,7 @@ impl Pool {
     pub async fn begin(&self, source: Option<&model::Request>) -> Result<Transaction, Error> {
         let conn = self.pool.get_owned().await.map_err(|e| match e {
             RunError::User(err) => err,
-            RunError::TimedOut => Error::ConnectTimeout,
+            RunError::TimedOut => tokio_postgres::Error::__private_api_timeout(),
         })?;
         Transaction::begin(conn, self.tracer.clone(), source).await
     }
@@ -298,7 +257,8 @@ impl Row {
     }
 }
 
-pub(crate) type PooledConn = PooledConnection<'static, Mgr>;
+pub(crate) type PooledConn =
+    PooledConnection<'static, PostgresConnectionManager<postgres_native_tls::MakeTlsConnector>>;
 
 pub struct Connection {
     conn: tokio::sync::RwLock<Option<PooledConn>>,
@@ -341,8 +301,6 @@ pub enum Error {
     DB(tokio_postgres::Error),
     Closed,
     ConnectTimeout,
-    /// The credentials to open a connection with could not be had.
-    Credentials(anyhow::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -351,7 +309,6 @@ impl std::fmt::Display for Error {
             Error::DB(err) => <tokio_postgres::Error as std::fmt::Display>::fmt(err, f),
             Error::Closed => f.write_str("connection_closed"),
             Error::ConnectTimeout => f.write_str("timeout establishing connection"),
-            Error::Credentials(err) => write!(f, "failed to get database credentials: {err:#}"),
         }
     }
 }
@@ -439,7 +396,6 @@ mod key_test {
         config.host("localhost").user("encore").password("hunter2");
         let key = PoolKey::new(
             &config,
-            &Auth::Password,
             &PoolConfig {
                 min_conns: 0,
                 max_conns: 30,

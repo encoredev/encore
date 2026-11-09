@@ -112,21 +112,6 @@ message SQLRole {
 
   // The client cert to use to authenticate, if any.
   optional string client_cert_rid = 4;
-
-  // How the role authenticates to the server.
-  SQLAuthMethod auth_method = 5;
-}
-
-enum SQLAuthMethod {
-  // With the role's password, if it has one. A runtime that predates the
-  // field reads every role as this.
-  SQL_AUTH_METHOD_PASSWORD = 0;
-  // With an OAuth2 access token of the Google Cloud service account the
-  // workload runs as, which Cloud SQL's IAM database authentication takes as
-  // the password; the role has none of its own. Its username is the service
-  // account's IAM database user: its email without ".gserviceaccount.com".
-  // Tokens are only accepted over TLS.
-  SQL_AUTH_METHOD_GCP_IAM = 1;
 }
 
 message SQLDatabase {
