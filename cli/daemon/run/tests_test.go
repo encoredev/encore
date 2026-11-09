@@ -219,23 +219,17 @@ func TestTestBinaryPreparationFailure(t *testing.T) {
 
 func TestTestBinaryResourceLifetime(t *testing.T) {
 	for _, tc := range []struct {
-		name    string
-		args    []string
-		environ []string
-		fail    bool
+		name string
+		args []string
+		fail bool
 	}{
 		{name: "compile", args: []string{"-c"}},
-		{name: "compile equals", args: []string{"--c=true"}},
-		{name: "args as regex value", args: []string{"-run", "-args", "-c"}},
-		{name: "output", args: []string{"-o", "tests.bin"}},
-		{name: "GOFLAGS", environ: []string{"GOFLAGS='-o=tests with spaces.bin'"}},
+		{name: "compile with output", args: []string{"./svc", "-c", "-o", "tests.bin"}},
 		{name: "compile error retains existing lifetime", args: []string{"-c"}, fail: true},
-		{name: "tests fail after binary output", args: []string{"-o=tests.bin"}, fail: true},
-		{name: "profile binary", args: []string{"-cpuprofile=cpu.prof"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			mgr, params, rm, bld := testResourceFixture(t)
-			params.Args, params.Environ = tc.args, tc.environ
+			params.Args = tc.args
 			commandErr := errors.New("compile failed")
 			bld.run = func(context.Context, builder.RunTestsParams) error {
 				if tc.fail {
@@ -261,42 +255,16 @@ func TestTestBinaryResourceLifetime(t *testing.T) {
 	}
 }
 
-func TestTestExportsBinary(t *testing.T) {
-	for _, tc := range []struct {
-		name    string
-		args    []string
-		environ []string
-		want    bool
-	}{
-		{name: "ordinary", args: []string{"./...", "-count=1"}},
-		{name: "compile", args: []string{"./svc", "-c"}, want: true},
-		{name: "double dash", args: []string{"--c"}, want: true},
-		{name: "equals true", args: []string{"-c=true"}, want: true},
-		{name: "equals one", args: []string{"-c=1"}, want: true},
-		{name: "equals false", args: []string{"--c=false"}},
-		{name: "equals zero", args: []string{"-c=0"}},
-		{name: "output", args: []string{"-o", "tests.bin"}, want: true},
-		{name: "output equals", args: []string{"--o=tests.bin"}, want: true},
-		{name: "profile", args: []string{"-cpuprofile=cpu.prof"}, want: true},
-		{name: "test profile alias", args: []string{"-test.memprofile", "mem.prof"}, want: true},
-		{name: "empty output", args: []string{"-o="}},
-		{name: "conservative terminator", args: []string{"--", "-c"}, want: true},
-		{name: "conservative test args", args: []string{"-args", "-o", "test-data"}, want: true},
-		{name: "conservative double dash args", args: []string{"--args", "-c"}, want: true},
-		{name: "args is a flag value", args: []string{"-run", "-args", "-c"}, want: true},
-		{name: "terminator is a flag value", args: []string{"-run", "--", "-c"}, want: true},
-		{name: "env compile", environ: []string{"GOFLAGS=-c"}, want: true},
-		{name: "env ordinary", environ: []string{"GOFLAGS=-race -count=1"}},
-		{name: "env quoted", environ: []string{"GOFLAGS=\"-o=test binary\""}, want: true},
-		{name: "env terminator inside a value", environ: []string{"GOFLAGS=\"-ldflags=-X p.value=--\" -c"}, want: true},
-		{name: "env last wins", environ: []string{"GOFLAGS=-c", "GOFLAGS="}},
-		{name: "conservative override", args: []string{"-c=false"}, environ: []string{"GOFLAGS=-c"}, want: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := testExportsBinary(tc.args, tc.environ); got != tc.want {
-				t.Errorf("testExportsBinary(%q, %q) = %v, want %v", tc.args, tc.environ, got, tc.want)
-			}
-		})
+func TestTestReleasesResourcesWithoutCompile(t *testing.T) {
+	// Only -c leaves a binary that embeds the infrastructure's config (see
+	// testEnvVarsToEmbed); other flags that keep files around don't.
+	for _, args := range [][]string{{"-o", "tests.bin"}, {"-cpuprofile=cpu.prof"}, {"-c=false"}} {
+		mgr, params, rm, bld := testResourceFixture(t)
+		params.Args = args
+		if err := mgr.testWithResources(context.Background(), bld, nil, params, rm); err != nil {
+			t.Fatal(err)
+		}
+		assertTestRedisStopped(t, rm)
 	}
 }
 

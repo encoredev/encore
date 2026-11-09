@@ -6,9 +6,7 @@ import (
 	"io"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/cockroachdb/errors"
 	"github.com/rs/xid"
@@ -59,10 +57,10 @@ func (mgr *Manager) testWithResources(ctx context.Context, bld builder.Impl, exp
 	if err != nil {
 		return err
 	}
-	// A nonzero command exit does not prove there is no exported binary: with
-	// -o, for example, compilation may succeed before the tests fail.
+	// A nonzero command exit does not prove there is no compiled binary:
+	// compilation can succeed before a later step fails.
 	retainResources := params.App.Lang() == appfile.LangGo &&
-		!experiments.TypeScript.Enabled(expSet) && testExportsBinary(params.Args, params.Environ)
+		!experiments.TypeScript.Enabled(expSet) && builder.TestCompilesBinary(params.Args)
 	defer func() {
 		if !retainResources {
 			rm.StopAll()
@@ -76,54 +74,6 @@ func (mgr *Manager) testWithResources(ctx context.Context, bld builder.Impl, exp
 		Stdout:     params.Stdout,
 		Stderr:     params.Stderr,
 	})
-}
-
-// testExportsBinary conservatively recognizes flags that can leave a test
-// binary for later use. This is an ownership check, not a replacement for Go's
-// flag parser: ambiguous arguments should retain resources rather than break a
-// later execution. Export-mode completion, including errors after preparation,
-// needs a separate artifact/session lifetime before it can safely be cleaned up.
-func testExportsBinary(args, environ []string) bool {
-	exports := func(args []string) bool {
-		for _, arg := range args {
-			// Do not stop at -args or --: either may be another flag's value
-			// (for example, go test -run -args -c still exports a binary).
-			// Forwarded flags with these names conservatively retain resources.
-			if !strings.HasPrefix(arg, "-") {
-				continue
-			}
-			name, value, hasValue := strings.Cut(strings.TrimPrefix(strings.TrimPrefix(arg, "-"), "-"), "=")
-			switch name {
-			case "c":
-				if !hasValue {
-					return true
-				}
-				if compile, err := strconv.ParseBool(value); err != nil || compile {
-					return true
-				}
-			case "o", "cpuprofile", "memprofile", "blockprofile", "mutexprofile",
-				"test.cpuprofile", "test.memprofile", "test.blockprofile", "test.mutexprofile":
-				// Go keeps the test binary for these profiling flags as well.
-				if !hasValue || value != "" {
-					return true
-				}
-			}
-		}
-		return false
-	}
-	if exports(args) {
-		return true
-	}
-	// GOFLAGS also configures go test. Splitting quoted contents conservatively
-	// may retain resources for a flag value, but must not miss a binary export.
-	for i := len(environ) - 1; i >= 0; i-- {
-		if value, ok := strings.CutPrefix(environ[i], "GOFLAGS="); ok {
-			return exports(strings.FieldsFunc(value, func(r rune) bool {
-				return unicode.IsSpace(r) || r == '\'' || r == '"'
-			}))
-		}
-	}
-	return false
 }
 
 // TestSpecParams are the parameters for computing a test spec.
