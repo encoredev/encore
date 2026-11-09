@@ -340,8 +340,6 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 	if cfg.Meta.Language == meta.Lang_TYPESCRIPT {
 		b.spec.FeatureFlags[NewRuntimeConfig] = true
 	}
-	// Both runtimes this release builds images with support it.
-	b.spec.FeatureFlags[SQLGCPIAMAuth] = true
 
 	// Compute bundled services and gateways.
 	{

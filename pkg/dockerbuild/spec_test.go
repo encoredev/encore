@@ -67,7 +67,7 @@ func TestBuild_Node(t *testing.T) {
 		BundledServices: []string{"bar", "foo"},
 		BundledGateways: []string{"baz", "qux"},
 		DockerBaseImage: "scratch",
-		FeatureFlags:    map[FeatureFlag]bool{NewRuntimeConfig: true, SQLGCPIAMAuth: true},
+		FeatureFlags:    map[FeatureFlag]bool{NewRuntimeConfig: true},
 		StargzPrioritizedFiles: []ImagePath{
 			"/image/artifacts/entrypoint",
 			"/encore/runtimes/js/encore-runtime.node",
@@ -111,7 +111,7 @@ func TestBuild_Go_SingleBinary(t *testing.T) {
 		BundleSource:    option.Option[BundleSourceSpec]{},
 		Supervisor:      option.None[SupervisorSpec](),
 		DockerBaseImage: "scratch",
-		FeatureFlags:    map[FeatureFlag]bool{SQLGCPIAMAuth: true},
+		FeatureFlags:    map[FeatureFlag]bool{},
 		StargzPrioritizedFiles: []ImagePath{
 			"/artifacts/0/build/entrypoint",
 		},
@@ -186,7 +186,7 @@ func TestBuild_Go_MultiProc(t *testing.T) {
 			},
 		}),
 		DockerBaseImage: "scratch",
-		FeatureFlags:    map[FeatureFlag]bool{NewRuntimeConfig: true, SQLGCPIAMAuth: true},
+		FeatureFlags:    map[FeatureFlag]bool{NewRuntimeConfig: true},
 		StargzPrioritizedFiles: []ImagePath{
 			"/encore/bin/supervisor",
 			"/artifacts/0/build/entrypoint",
