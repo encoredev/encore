@@ -14,13 +14,28 @@ import (
 // database password.
 const gcpIAMScope = "https://www.googleapis.com/auth/sqlservice.login"
 
-// gcpIAMTokens is the token source of the Google Cloud identity the process
-// runs as (on Cloud Run, its service account, through the metadata server). It
-// caches a token until shortly before it expires, so connections opened in the
-// meantime share it.
-var gcpIAMTokens = sync.OnceValues(func() (oauth2.TokenSource, error) {
-	return google.DefaultTokenSource(context.Background(), gcpIAMScope)
-})
+var (
+	gcpIAMTokensMu sync.Mutex
+	gcpIAMTokenSrc oauth2.TokenSource
+)
+
+// gcpIAMTokens returns the token source of the Google Cloud identity the
+// process runs as (on Cloud Run, its service account, through the metadata
+// server). It caches a token until shortly before it expires, so connections
+// opened in the meantime share it. Only a source that was found is kept: a
+// failure to find one is retried on the next connection.
+func gcpIAMTokens() (oauth2.TokenSource, error) {
+	gcpIAMTokensMu.Lock()
+	defer gcpIAMTokensMu.Unlock()
+	if gcpIAMTokenSrc == nil {
+		ts, err := google.DefaultTokenSource(context.Background(), gcpIAMScope)
+		if err != nil {
+			return nil, err
+		}
+		gcpIAMTokenSrc = ts
+	}
+	return gcpIAMTokenSrc, nil
+}
 
 // gcpIAMBeforeConnect sets the password of a connection about to be opened for
 // a user that logs in with Cloud SQL's IAM database authentication to a
