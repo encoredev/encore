@@ -76,6 +76,59 @@ func (ServerKind) EnumDescriptor() ([]byte, []int) {
 	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{0}
 }
 
+type SQLAuthMethod int32
+
+const (
+	// With the role's password, if it has one. A runtime that predates the
+	// field reads every role as this.
+	SQLAuthMethod_SQL_AUTH_METHOD_PASSWORD SQLAuthMethod = 0
+	// With an OAuth2 access token of the Google Cloud service account the
+	// workload runs as, which Cloud SQL's IAM database authentication takes as
+	// the password; the role has none of its own. Its username is the service
+	// account's IAM database user: its email without ".gserviceaccount.com".
+	// Tokens are only accepted over TLS.
+	SQLAuthMethod_SQL_AUTH_METHOD_GCP_IAM SQLAuthMethod = 1
+)
+
+// Enum value maps for SQLAuthMethod.
+var (
+	SQLAuthMethod_name = map[int32]string{
+		0: "SQL_AUTH_METHOD_PASSWORD",
+		1: "SQL_AUTH_METHOD_GCP_IAM",
+	}
+	SQLAuthMethod_value = map[string]int32{
+		"SQL_AUTH_METHOD_PASSWORD": 0,
+		"SQL_AUTH_METHOD_GCP_IAM":  1,
+	}
+)
+
+func (x SQLAuthMethod) Enum() *SQLAuthMethod {
+	p := new(SQLAuthMethod)
+	*p = x
+	return p
+}
+
+func (x SQLAuthMethod) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SQLAuthMethod) Descriptor() protoreflect.EnumDescriptor {
+	return file_encore_runtime_v1_infra_proto_enumTypes[1].Descriptor()
+}
+
+func (SQLAuthMethod) Type() protoreflect.EnumType {
+	return &file_encore_runtime_v1_infra_proto_enumTypes[1]
+}
+
+func (x SQLAuthMethod) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SQLAuthMethod.Descriptor instead.
+func (SQLAuthMethod) EnumDescriptor() ([]byte, []int) {
+	return file_encore_runtime_v1_infra_proto_rawDescGZIP(), []int{1}
+}
+
 type PubSubTopic_DeliveryGuarantee int32
 
 const (
@@ -109,11 +162,11 @@ func (x PubSubTopic_DeliveryGuarantee) String() string {
 }
 
 func (PubSubTopic_DeliveryGuarantee) Descriptor() protoreflect.EnumDescriptor {
-	return file_encore_runtime_v1_infra_proto_enumTypes[1].Descriptor()
+	return file_encore_runtime_v1_infra_proto_enumTypes[2].Descriptor()
 }
 
 func (PubSubTopic_DeliveryGuarantee) Type() protoreflect.EnumType {
-	return &file_encore_runtime_v1_infra_proto_enumTypes[1]
+	return &file_encore_runtime_v1_infra_proto_enumTypes[2]
 }
 
 func (x PubSubTopic_DeliveryGuarantee) Number() protoreflect.EnumNumber {
@@ -534,6 +587,8 @@ type SQLRole struct {
 	Password *SecretData `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
 	// The client cert to use to authenticate, if any.
 	ClientCertRid *string `protobuf:"bytes,4,opt,name=client_cert_rid,json=clientCertRid,proto3,oneof" json:"client_cert_rid,omitempty"`
+	// How the role authenticates to the server.
+	AuthMethod    SQLAuthMethod `protobuf:"varint,5,opt,name=auth_method,json=authMethod,proto3,enum=encore.runtime.v1.SQLAuthMethod" json:"auth_method,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -594,6 +649,13 @@ func (x *SQLRole) GetClientCertRid() string {
 		return *x.ClientCertRid
 	}
 	return ""
+}
+
+func (x *SQLRole) GetAuthMethod() SQLAuthMethod {
+	if x != nil {
+		return x.AuthMethod
+	}
+	return SQLAuthMethod_SQL_AUTH_METHOD_PASSWORD
 }
 
 type SQLDatabase struct {
@@ -2878,12 +2940,14 @@ const file_encore_runtime_v1_infra_proto_rawDesc = "" +
 	"ClientCert\x12\x10\n" +
 	"\x03rid\x18\x01 \x01(\tR\x03rid\x12\x12\n" +
 	"\x04cert\x18\x02 \x01(\tR\x04cert\x12/\n" +
-	"\x03key\x18\x03 \x01(\v2\x1d.encore.runtime.v1.SecretDataR\x03key\"\xb3\x01\n" +
+	"\x03key\x18\x03 \x01(\v2\x1d.encore.runtime.v1.SecretDataR\x03key\"\xf6\x01\n" +
 	"\aSQLRole\x12\x10\n" +
 	"\x03rid\x18\x01 \x01(\tR\x03rid\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x129\n" +
 	"\bpassword\x18\x03 \x01(\v2\x1d.encore.runtime.v1.SecretDataR\bpassword\x12+\n" +
-	"\x0fclient_cert_rid\x18\x04 \x01(\tH\x00R\rclientCertRid\x88\x01\x01B\x12\n" +
+	"\x0fclient_cert_rid\x18\x04 \x01(\tH\x00R\rclientCertRid\x88\x01\x01\x12A\n" +
+	"\vauth_method\x18\x05 \x01(\x0e2 .encore.runtime.v1.SQLAuthMethodR\n" +
+	"authMethodB\x12\n" +
 	"\x10_client_cert_rid\"\xa4\x01\n" +
 	"\vSQLDatabase\x12\x10\n" +
 	"\x03rid\x18\x01 \x01(\tR\x03rid\x12\x1f\n" +
@@ -3063,7 +3127,10 @@ const file_encore_runtime_v1_infra_proto_rawDesc = "" +
 	"\x17SERVER_KIND_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13SERVER_KIND_PRIMARY\x10\x01\x12\x1b\n" +
 	"\x17SERVER_KIND_HOT_STANDBY\x10\x02\x12\x1c\n" +
-	"\x18SERVER_KIND_READ_REPLICA\x10\x03B,Z*encr.dev/proto/encore/runtime/v1;runtimev1b\x06proto3"
+	"\x18SERVER_KIND_READ_REPLICA\x10\x03*J\n" +
+	"\rSQLAuthMethod\x12\x1c\n" +
+	"\x18SQL_AUTH_METHOD_PASSWORD\x10\x00\x12\x1b\n" +
+	"\x17SQL_AUTH_METHOD_GCP_IAM\x10\x01B,Z*encr.dev/proto/encore/runtime/v1;runtimev1b\x06proto3"
 
 var (
 	file_encore_runtime_v1_infra_proto_rawDescOnce sync.Once
@@ -3077,103 +3144,105 @@ func file_encore_runtime_v1_infra_proto_rawDescGZIP() []byte {
 	return file_encore_runtime_v1_infra_proto_rawDescData
 }
 
-var file_encore_runtime_v1_infra_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_encore_runtime_v1_infra_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_encore_runtime_v1_infra_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_encore_runtime_v1_infra_proto_goTypes = []any{
 	(ServerKind)(0),                            // 0: encore.runtime.v1.ServerKind
-	(PubSubTopic_DeliveryGuarantee)(0),         // 1: encore.runtime.v1.PubSubTopic.DeliveryGuarantee
-	(*Infrastructure)(nil),                     // 2: encore.runtime.v1.Infrastructure
-	(*SecretProvider)(nil),                     // 3: encore.runtime.v1.SecretProvider
-	(*SQLCluster)(nil),                         // 4: encore.runtime.v1.SQLCluster
-	(*TLSConfig)(nil),                          // 5: encore.runtime.v1.TLSConfig
-	(*SQLServer)(nil),                          // 6: encore.runtime.v1.SQLServer
-	(*ClientCert)(nil),                         // 7: encore.runtime.v1.ClientCert
-	(*SQLRole)(nil),                            // 8: encore.runtime.v1.SQLRole
-	(*SQLDatabase)(nil),                        // 9: encore.runtime.v1.SQLDatabase
-	(*SQLConnectionPool)(nil),                  // 10: encore.runtime.v1.SQLConnectionPool
-	(*RedisCluster)(nil),                       // 11: encore.runtime.v1.RedisCluster
-	(*RedisServer)(nil),                        // 12: encore.runtime.v1.RedisServer
-	(*RedisConnectionPool)(nil),                // 13: encore.runtime.v1.RedisConnectionPool
-	(*RedisRole)(nil),                          // 14: encore.runtime.v1.RedisRole
-	(*RedisDatabase)(nil),                      // 15: encore.runtime.v1.RedisDatabase
-	(*AppSecret)(nil),                          // 16: encore.runtime.v1.AppSecret
-	(*PubSubCluster)(nil),                      // 17: encore.runtime.v1.PubSubCluster
-	(*PubSubTopic)(nil),                        // 18: encore.runtime.v1.PubSubTopic
-	(*PubSubSubscription)(nil),                 // 19: encore.runtime.v1.PubSubSubscription
-	(*BucketCluster)(nil),                      // 20: encore.runtime.v1.BucketCluster
-	(*Bucket)(nil),                             // 21: encore.runtime.v1.Bucket
-	(*Gateway)(nil),                            // 22: encore.runtime.v1.Gateway
-	(*Infrastructure_Credentials)(nil),         // 23: encore.runtime.v1.Infrastructure.Credentials
-	(*Infrastructure_Resources)(nil),           // 24: encore.runtime.v1.Infrastructure.Resources
-	(*SecretProvider_GCPSecretManager)(nil),    // 25: encore.runtime.v1.SecretProvider.GCPSecretManager
-	(*RedisRole_AuthACL)(nil),                  // 26: encore.runtime.v1.RedisRole.AuthACL
-	(*PubSubCluster_EncoreCloud)(nil),          // 27: encore.runtime.v1.PubSubCluster.EncoreCloud
-	(*PubSubCluster_AWSSqsSns)(nil),            // 28: encore.runtime.v1.PubSubCluster.AWSSqsSns
-	(*PubSubCluster_GCPPubSub)(nil),            // 29: encore.runtime.v1.PubSubCluster.GCPPubSub
-	(*PubSubCluster_NSQ)(nil),                  // 30: encore.runtime.v1.PubSubCluster.NSQ
-	(*PubSubCluster_AzureServiceBus)(nil),      // 31: encore.runtime.v1.PubSubCluster.AzureServiceBus
-	(*PubSubTopic_GCPConfig)(nil),              // 32: encore.runtime.v1.PubSubTopic.GCPConfig
-	(*PubSubSubscription_GCPConfig)(nil),       // 33: encore.runtime.v1.PubSubSubscription.GCPConfig
-	(*BucketCluster_S3)(nil),                   // 34: encore.runtime.v1.BucketCluster.S3
-	(*BucketCluster_GCS)(nil),                  // 35: encore.runtime.v1.BucketCluster.GCS
-	(*BucketCluster_GCS_LocalSignOptions)(nil), // 36: encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
-	(*Gateway_CORS)(nil),                       // 37: encore.runtime.v1.Gateway.CORS
-	(*Gateway_CORSAllowedOrigins)(nil),         // 38: encore.runtime.v1.Gateway.CORSAllowedOrigins
-	(*SecretData)(nil),                         // 39: encore.runtime.v1.SecretData
+	(SQLAuthMethod)(0),                         // 1: encore.runtime.v1.SQLAuthMethod
+	(PubSubTopic_DeliveryGuarantee)(0),         // 2: encore.runtime.v1.PubSubTopic.DeliveryGuarantee
+	(*Infrastructure)(nil),                     // 3: encore.runtime.v1.Infrastructure
+	(*SecretProvider)(nil),                     // 4: encore.runtime.v1.SecretProvider
+	(*SQLCluster)(nil),                         // 5: encore.runtime.v1.SQLCluster
+	(*TLSConfig)(nil),                          // 6: encore.runtime.v1.TLSConfig
+	(*SQLServer)(nil),                          // 7: encore.runtime.v1.SQLServer
+	(*ClientCert)(nil),                         // 8: encore.runtime.v1.ClientCert
+	(*SQLRole)(nil),                            // 9: encore.runtime.v1.SQLRole
+	(*SQLDatabase)(nil),                        // 10: encore.runtime.v1.SQLDatabase
+	(*SQLConnectionPool)(nil),                  // 11: encore.runtime.v1.SQLConnectionPool
+	(*RedisCluster)(nil),                       // 12: encore.runtime.v1.RedisCluster
+	(*RedisServer)(nil),                        // 13: encore.runtime.v1.RedisServer
+	(*RedisConnectionPool)(nil),                // 14: encore.runtime.v1.RedisConnectionPool
+	(*RedisRole)(nil),                          // 15: encore.runtime.v1.RedisRole
+	(*RedisDatabase)(nil),                      // 16: encore.runtime.v1.RedisDatabase
+	(*AppSecret)(nil),                          // 17: encore.runtime.v1.AppSecret
+	(*PubSubCluster)(nil),                      // 18: encore.runtime.v1.PubSubCluster
+	(*PubSubTopic)(nil),                        // 19: encore.runtime.v1.PubSubTopic
+	(*PubSubSubscription)(nil),                 // 20: encore.runtime.v1.PubSubSubscription
+	(*BucketCluster)(nil),                      // 21: encore.runtime.v1.BucketCluster
+	(*Bucket)(nil),                             // 22: encore.runtime.v1.Bucket
+	(*Gateway)(nil),                            // 23: encore.runtime.v1.Gateway
+	(*Infrastructure_Credentials)(nil),         // 24: encore.runtime.v1.Infrastructure.Credentials
+	(*Infrastructure_Resources)(nil),           // 25: encore.runtime.v1.Infrastructure.Resources
+	(*SecretProvider_GCPSecretManager)(nil),    // 26: encore.runtime.v1.SecretProvider.GCPSecretManager
+	(*RedisRole_AuthACL)(nil),                  // 27: encore.runtime.v1.RedisRole.AuthACL
+	(*PubSubCluster_EncoreCloud)(nil),          // 28: encore.runtime.v1.PubSubCluster.EncoreCloud
+	(*PubSubCluster_AWSSqsSns)(nil),            // 29: encore.runtime.v1.PubSubCluster.AWSSqsSns
+	(*PubSubCluster_GCPPubSub)(nil),            // 30: encore.runtime.v1.PubSubCluster.GCPPubSub
+	(*PubSubCluster_NSQ)(nil),                  // 31: encore.runtime.v1.PubSubCluster.NSQ
+	(*PubSubCluster_AzureServiceBus)(nil),      // 32: encore.runtime.v1.PubSubCluster.AzureServiceBus
+	(*PubSubTopic_GCPConfig)(nil),              // 33: encore.runtime.v1.PubSubTopic.GCPConfig
+	(*PubSubSubscription_GCPConfig)(nil),       // 34: encore.runtime.v1.PubSubSubscription.GCPConfig
+	(*BucketCluster_S3)(nil),                   // 35: encore.runtime.v1.BucketCluster.S3
+	(*BucketCluster_GCS)(nil),                  // 36: encore.runtime.v1.BucketCluster.GCS
+	(*BucketCluster_GCS_LocalSignOptions)(nil), // 37: encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
+	(*Gateway_CORS)(nil),                       // 38: encore.runtime.v1.Gateway.CORS
+	(*Gateway_CORSAllowedOrigins)(nil),         // 39: encore.runtime.v1.Gateway.CORSAllowedOrigins
+	(*SecretData)(nil),                         // 40: encore.runtime.v1.SecretData
 }
 var file_encore_runtime_v1_infra_proto_depIdxs = []int32{
-	24, // 0: encore.runtime.v1.Infrastructure.resources:type_name -> encore.runtime.v1.Infrastructure.Resources
-	23, // 1: encore.runtime.v1.Infrastructure.credentials:type_name -> encore.runtime.v1.Infrastructure.Credentials
-	25, // 2: encore.runtime.v1.SecretProvider.gcp_sm:type_name -> encore.runtime.v1.SecretProvider.GCPSecretManager
-	6,  // 3: encore.runtime.v1.SQLCluster.servers:type_name -> encore.runtime.v1.SQLServer
-	9,  // 4: encore.runtime.v1.SQLCluster.databases:type_name -> encore.runtime.v1.SQLDatabase
+	25, // 0: encore.runtime.v1.Infrastructure.resources:type_name -> encore.runtime.v1.Infrastructure.Resources
+	24, // 1: encore.runtime.v1.Infrastructure.credentials:type_name -> encore.runtime.v1.Infrastructure.Credentials
+	26, // 2: encore.runtime.v1.SecretProvider.gcp_sm:type_name -> encore.runtime.v1.SecretProvider.GCPSecretManager
+	7,  // 3: encore.runtime.v1.SQLCluster.servers:type_name -> encore.runtime.v1.SQLServer
+	10, // 4: encore.runtime.v1.SQLCluster.databases:type_name -> encore.runtime.v1.SQLDatabase
 	0,  // 5: encore.runtime.v1.SQLServer.kind:type_name -> encore.runtime.v1.ServerKind
-	5,  // 6: encore.runtime.v1.SQLServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
-	39, // 7: encore.runtime.v1.ClientCert.key:type_name -> encore.runtime.v1.SecretData
-	39, // 8: encore.runtime.v1.SQLRole.password:type_name -> encore.runtime.v1.SecretData
-	10, // 9: encore.runtime.v1.SQLDatabase.conn_pools:type_name -> encore.runtime.v1.SQLConnectionPool
-	12, // 10: encore.runtime.v1.RedisCluster.servers:type_name -> encore.runtime.v1.RedisServer
-	15, // 11: encore.runtime.v1.RedisCluster.databases:type_name -> encore.runtime.v1.RedisDatabase
-	0,  // 12: encore.runtime.v1.RedisServer.kind:type_name -> encore.runtime.v1.ServerKind
-	5,  // 13: encore.runtime.v1.RedisServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
-	26, // 14: encore.runtime.v1.RedisRole.acl:type_name -> encore.runtime.v1.RedisRole.AuthACL
-	39, // 15: encore.runtime.v1.RedisRole.auth_string:type_name -> encore.runtime.v1.SecretData
-	13, // 16: encore.runtime.v1.RedisDatabase.conn_pools:type_name -> encore.runtime.v1.RedisConnectionPool
-	39, // 17: encore.runtime.v1.AppSecret.data:type_name -> encore.runtime.v1.SecretData
-	18, // 18: encore.runtime.v1.PubSubCluster.topics:type_name -> encore.runtime.v1.PubSubTopic
-	19, // 19: encore.runtime.v1.PubSubCluster.subscriptions:type_name -> encore.runtime.v1.PubSubSubscription
-	27, // 20: encore.runtime.v1.PubSubCluster.encore:type_name -> encore.runtime.v1.PubSubCluster.EncoreCloud
-	28, // 21: encore.runtime.v1.PubSubCluster.aws:type_name -> encore.runtime.v1.PubSubCluster.AWSSqsSns
-	29, // 22: encore.runtime.v1.PubSubCluster.gcp:type_name -> encore.runtime.v1.PubSubCluster.GCPPubSub
-	31, // 23: encore.runtime.v1.PubSubCluster.azure:type_name -> encore.runtime.v1.PubSubCluster.AzureServiceBus
-	30, // 24: encore.runtime.v1.PubSubCluster.nsq:type_name -> encore.runtime.v1.PubSubCluster.NSQ
-	1,  // 25: encore.runtime.v1.PubSubTopic.delivery_guarantee:type_name -> encore.runtime.v1.PubSubTopic.DeliveryGuarantee
-	32, // 26: encore.runtime.v1.PubSubTopic.gcp_config:type_name -> encore.runtime.v1.PubSubTopic.GCPConfig
-	33, // 27: encore.runtime.v1.PubSubSubscription.gcp_config:type_name -> encore.runtime.v1.PubSubSubscription.GCPConfig
-	21, // 28: encore.runtime.v1.BucketCluster.buckets:type_name -> encore.runtime.v1.Bucket
-	34, // 29: encore.runtime.v1.BucketCluster.s3:type_name -> encore.runtime.v1.BucketCluster.S3
-	35, // 30: encore.runtime.v1.BucketCluster.gcs:type_name -> encore.runtime.v1.BucketCluster.GCS
-	37, // 31: encore.runtime.v1.Gateway.cors:type_name -> encore.runtime.v1.Gateway.CORS
-	7,  // 32: encore.runtime.v1.Infrastructure.Credentials.client_certs:type_name -> encore.runtime.v1.ClientCert
-	8,  // 33: encore.runtime.v1.Infrastructure.Credentials.sql_roles:type_name -> encore.runtime.v1.SQLRole
-	14, // 34: encore.runtime.v1.Infrastructure.Credentials.redis_roles:type_name -> encore.runtime.v1.RedisRole
-	22, // 35: encore.runtime.v1.Infrastructure.Resources.gateways:type_name -> encore.runtime.v1.Gateway
-	4,  // 36: encore.runtime.v1.Infrastructure.Resources.sql_clusters:type_name -> encore.runtime.v1.SQLCluster
-	17, // 37: encore.runtime.v1.Infrastructure.Resources.pubsub_clusters:type_name -> encore.runtime.v1.PubSubCluster
-	11, // 38: encore.runtime.v1.Infrastructure.Resources.redis_clusters:type_name -> encore.runtime.v1.RedisCluster
-	16, // 39: encore.runtime.v1.Infrastructure.Resources.app_secrets:type_name -> encore.runtime.v1.AppSecret
-	20, // 40: encore.runtime.v1.Infrastructure.Resources.bucket_clusters:type_name -> encore.runtime.v1.BucketCluster
-	3,  // 41: encore.runtime.v1.Infrastructure.Resources.secret_providers:type_name -> encore.runtime.v1.SecretProvider
-	39, // 42: encore.runtime.v1.RedisRole.AuthACL.password:type_name -> encore.runtime.v1.SecretData
-	39, // 43: encore.runtime.v1.BucketCluster.S3.secret_access_key:type_name -> encore.runtime.v1.SecretData
-	36, // 44: encore.runtime.v1.BucketCluster.GCS.local_sign:type_name -> encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
-	38, // 45: encore.runtime.v1.Gateway.CORS.allowed_origins:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
-	38, // 46: encore.runtime.v1.Gateway.CORS.allowed_origins_without_credentials:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
-	47, // [47:47] is the sub-list for method output_type
-	47, // [47:47] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	6,  // 6: encore.runtime.v1.SQLServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
+	40, // 7: encore.runtime.v1.ClientCert.key:type_name -> encore.runtime.v1.SecretData
+	40, // 8: encore.runtime.v1.SQLRole.password:type_name -> encore.runtime.v1.SecretData
+	1,  // 9: encore.runtime.v1.SQLRole.auth_method:type_name -> encore.runtime.v1.SQLAuthMethod
+	11, // 10: encore.runtime.v1.SQLDatabase.conn_pools:type_name -> encore.runtime.v1.SQLConnectionPool
+	13, // 11: encore.runtime.v1.RedisCluster.servers:type_name -> encore.runtime.v1.RedisServer
+	16, // 12: encore.runtime.v1.RedisCluster.databases:type_name -> encore.runtime.v1.RedisDatabase
+	0,  // 13: encore.runtime.v1.RedisServer.kind:type_name -> encore.runtime.v1.ServerKind
+	6,  // 14: encore.runtime.v1.RedisServer.tls_config:type_name -> encore.runtime.v1.TLSConfig
+	27, // 15: encore.runtime.v1.RedisRole.acl:type_name -> encore.runtime.v1.RedisRole.AuthACL
+	40, // 16: encore.runtime.v1.RedisRole.auth_string:type_name -> encore.runtime.v1.SecretData
+	14, // 17: encore.runtime.v1.RedisDatabase.conn_pools:type_name -> encore.runtime.v1.RedisConnectionPool
+	40, // 18: encore.runtime.v1.AppSecret.data:type_name -> encore.runtime.v1.SecretData
+	19, // 19: encore.runtime.v1.PubSubCluster.topics:type_name -> encore.runtime.v1.PubSubTopic
+	20, // 20: encore.runtime.v1.PubSubCluster.subscriptions:type_name -> encore.runtime.v1.PubSubSubscription
+	28, // 21: encore.runtime.v1.PubSubCluster.encore:type_name -> encore.runtime.v1.PubSubCluster.EncoreCloud
+	29, // 22: encore.runtime.v1.PubSubCluster.aws:type_name -> encore.runtime.v1.PubSubCluster.AWSSqsSns
+	30, // 23: encore.runtime.v1.PubSubCluster.gcp:type_name -> encore.runtime.v1.PubSubCluster.GCPPubSub
+	32, // 24: encore.runtime.v1.PubSubCluster.azure:type_name -> encore.runtime.v1.PubSubCluster.AzureServiceBus
+	31, // 25: encore.runtime.v1.PubSubCluster.nsq:type_name -> encore.runtime.v1.PubSubCluster.NSQ
+	2,  // 26: encore.runtime.v1.PubSubTopic.delivery_guarantee:type_name -> encore.runtime.v1.PubSubTopic.DeliveryGuarantee
+	33, // 27: encore.runtime.v1.PubSubTopic.gcp_config:type_name -> encore.runtime.v1.PubSubTopic.GCPConfig
+	34, // 28: encore.runtime.v1.PubSubSubscription.gcp_config:type_name -> encore.runtime.v1.PubSubSubscription.GCPConfig
+	22, // 29: encore.runtime.v1.BucketCluster.buckets:type_name -> encore.runtime.v1.Bucket
+	35, // 30: encore.runtime.v1.BucketCluster.s3:type_name -> encore.runtime.v1.BucketCluster.S3
+	36, // 31: encore.runtime.v1.BucketCluster.gcs:type_name -> encore.runtime.v1.BucketCluster.GCS
+	38, // 32: encore.runtime.v1.Gateway.cors:type_name -> encore.runtime.v1.Gateway.CORS
+	8,  // 33: encore.runtime.v1.Infrastructure.Credentials.client_certs:type_name -> encore.runtime.v1.ClientCert
+	9,  // 34: encore.runtime.v1.Infrastructure.Credentials.sql_roles:type_name -> encore.runtime.v1.SQLRole
+	15, // 35: encore.runtime.v1.Infrastructure.Credentials.redis_roles:type_name -> encore.runtime.v1.RedisRole
+	23, // 36: encore.runtime.v1.Infrastructure.Resources.gateways:type_name -> encore.runtime.v1.Gateway
+	5,  // 37: encore.runtime.v1.Infrastructure.Resources.sql_clusters:type_name -> encore.runtime.v1.SQLCluster
+	18, // 38: encore.runtime.v1.Infrastructure.Resources.pubsub_clusters:type_name -> encore.runtime.v1.PubSubCluster
+	12, // 39: encore.runtime.v1.Infrastructure.Resources.redis_clusters:type_name -> encore.runtime.v1.RedisCluster
+	17, // 40: encore.runtime.v1.Infrastructure.Resources.app_secrets:type_name -> encore.runtime.v1.AppSecret
+	21, // 41: encore.runtime.v1.Infrastructure.Resources.bucket_clusters:type_name -> encore.runtime.v1.BucketCluster
+	4,  // 42: encore.runtime.v1.Infrastructure.Resources.secret_providers:type_name -> encore.runtime.v1.SecretProvider
+	40, // 43: encore.runtime.v1.RedisRole.AuthACL.password:type_name -> encore.runtime.v1.SecretData
+	40, // 44: encore.runtime.v1.BucketCluster.S3.secret_access_key:type_name -> encore.runtime.v1.SecretData
+	37, // 45: encore.runtime.v1.BucketCluster.GCS.local_sign:type_name -> encore.runtime.v1.BucketCluster.GCS.LocalSignOptions
+	39, // 46: encore.runtime.v1.Gateway.CORS.allowed_origins:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
+	39, // 47: encore.runtime.v1.Gateway.CORS.allowed_origins_without_credentials:type_name -> encore.runtime.v1.Gateway.CORSAllowedOrigins
+	48, // [48:48] is the sub-list for method output_type
+	48, // [48:48] is the sub-list for method input_type
+	48, // [48:48] is the sub-list for extension type_name
+	48, // [48:48] is the sub-list for extension extendee
+	0,  // [0:48] is the sub-list for field type_name
 }
 
 func init() { file_encore_runtime_v1_infra_proto_init() }
@@ -3224,7 +3293,7 @@ func file_encore_runtime_v1_infra_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_encore_runtime_v1_infra_proto_rawDesc), len(file_encore_runtime_v1_infra_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   0,
