@@ -1,11 +1,13 @@
 package sqlite
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/base32"
 	"encoding/binary"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -100,19 +102,16 @@ func (s *Store) DoClean(ctx context.Context, cfg CleanConfig) error {
 // keeping the newest MinTracesKept whatever their size. The budget is bytes
 // rather than traces because trace sizes vary hugely.
 func (s *Store) trimAppsOverBudget(ctx context.Context, cfg CleanConfig) error {
-	// octet_length, not length: on TEXT the latter counts characters, not bytes.
-	rows, err := s.db.QueryContext(ctx,
-		"SELECT app_id FROM trace_event GROUP BY app_id HAVING SUM(octet_length(event_data)) > ?",
-		cfg.MaxBytesPerApp)
+	usage, err := s.appUsage(ctx)
 	if err != nil {
-		return errors.Wrap(err, "query app ids")
-	}
-	appIDs, err := scanRows[string](rows)
-	if err != nil {
-		return errors.Wrap(err, "scan app ids")
+		return err
 	}
 
-	for _, appID := range appIDs {
+	for _, app := range usage {
+		if app.bytes <= cfg.MaxBytesPerApp {
+			continue
+		}
+		appID := app.id
 		// Accumulate bytes newest-first and take the traces past the budget.
 		// The rank guard keeps the newest MinTracesKept whatever their size.
 		rows, err := s.db.QueryContext(ctx, `
@@ -222,32 +221,13 @@ func (s *Store) enforceTotalBudget(ctx context.Context, maxBytesTotal int64) err
 		return nil
 	}
 
-	// Newest-first: an app's highest event id is when it last recorded a trace.
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT app_id, SUM(octet_length(event_data)) AS bytes
-		FROM trace_event GROUP BY app_id ORDER BY MAX(id) DESC
-	`)
+	apps, err := s.appUsage(ctx)
 	if err != nil {
-		return errors.Wrap(err, "query app sizes")
+		return err
 	}
-	defer fns.CloseIgnore(rows)
-
-	type appSize struct {
-		id    string
-		bytes int64
-	}
-	var apps []appSize
 	var total int64
-	for rows.Next() {
-		var a appSize
-		if err := rows.Scan(&a.id, &a.bytes); err != nil {
-			return errors.Wrap(err, "scan app size")
-		}
-		apps = append(apps, a)
+	for _, a := range apps {
 		total += a.bytes
-	}
-	if err := rows.Err(); err != nil {
-		return errors.Wrap(err, "iterate app sizes")
 	}
 
 	for i := len(apps) - 1; i > 0 && total > maxBytesTotal; i-- {
@@ -260,6 +240,63 @@ func (s *Store) enforceTotalBudget(ctx context.Context, maxBytesTotal int64) err
 			Msg("evicted traces of inactive app to stay within the total budget")
 	}
 	return nil
+}
+
+// appSize is one app's stored trace payload and its newest event id.
+type appSize struct {
+	id    string
+	bytes int64
+	maxID int64
+}
+
+// appUsage measures each app's trace payload, newest app first (an app's
+// highest event id is when it last recorded a trace).
+//
+// It sums in Go over a plain scan on purpose. With no index on app_id,
+// "GROUP BY app_id ... SUM(octet_length(event_data))" makes SQLite sort the
+// rows, payloads included, through a temp b-tree that spills to a temp file.
+// That wrote roughly the size of the trace data to disk on every sweep, once a
+// minute, even when nothing needed deleting. The scan reads the same rows and
+// writes nothing.
+//
+// octet_length, not length: on TEXT the latter counts characters, not bytes.
+const appUsageQuery = "SELECT app_id, id, octet_length(event_data) FROM trace_event"
+
+func (s *Store) appUsage(ctx context.Context) ([]appSize, error) {
+	rows, err := s.db.QueryContext(ctx, appUsageQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "query app sizes")
+	}
+	defer fns.CloseIgnore(rows)
+
+	byApp := make(map[string]*appSize)
+	for rows.Next() {
+		var (
+			appID string
+			id    int64
+			n     int64
+		)
+		if err := rows.Scan(&appID, &id, &n); err != nil {
+			return nil, errors.Wrap(err, "scan app size")
+		}
+		a := byApp[appID]
+		if a == nil {
+			a = &appSize{id: appID, maxID: id}
+			byApp[appID] = a
+		}
+		a.bytes += n
+		a.maxID = max(a.maxID, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "iterate app sizes")
+	}
+
+	apps := make([]appSize, 0, len(byApp))
+	for _, a := range byApp {
+		apps = append(apps, *a)
+	}
+	slices.SortFunc(apps, func(a, b appSize) int { return cmp.Compare(b.maxID, a.maxID) })
+	return apps, nil
 }
 
 func (s *Store) Listen(ch chan<- trace2.NewSpanEvent) {
