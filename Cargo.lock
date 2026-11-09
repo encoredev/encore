@@ -1074,6 +1074,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bb8-postgres"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e570e6557cd0f88d28d32afa76644873271a70dc22656df565b2021c4036aa9c"
+dependencies = [
+ "bb8",
+ "tokio",
+ "tokio-postgres",
+]
+
+[[package]]
 name = "bb8-redis"
 version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2117,6 +2128,7 @@ dependencies = [
  "base32",
  "base64 0.21.7",
  "bb8",
+ "bb8-postgres",
  "bb8-redis",
  "byteorder",
  "bytes",
@@ -2136,7 +2148,6 @@ dependencies = [
  "futures-util",
  "gjson",
  "google-cloud-api",
- "google-cloud-auth 1.11.0",
  "google-cloud-gax 0.17.0",
  "google-cloud-googleapis",
  "google-cloud-monitoring-v3",
