@@ -1,6 +1,7 @@
 package overlay
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -56,7 +57,7 @@ func Write(workdir paths.FS, files []File) (overlayFile paths.FS, err error) {
 
 		// Write the file.
 		overlay[src] = dst.ToIO()
-		if err := os.WriteFile(dst.ToIO(), f.Contents, 0644); err != nil {
+		if err := writeIfChanged(dst.ToIO(), f.Contents); err != nil {
 			return fmt.Errorf("write overlay file %s: %v", dst, err)
 		}
 		return nil
@@ -71,8 +72,21 @@ func Write(workdir paths.FS, files []File) (overlayFile paths.FS, err error) {
 	// Compute the overlay.json data.
 	data, _ := json.Marshal(map[string]any{"Replace": overlay})
 	overlayFile = workdir.Join("overlay.json")
-	if err := os.WriteFile(overlayFile.ToIO(), data, 0644); err != nil {
+	if err := writeIfChanged(overlayFile.ToIO(), data); err != nil {
 		return "", fmt.Errorf("write overlay file %s: %v", overlayFile, err)
 	}
 	return overlayFile, nil
+}
+
+// writeIfChanged writes data to path unless the file already holds exactly
+// that data. Apps with an app ID build into a persistent workdir, and every
+// build calls Write twice with the full generated code, so writing
+// unconditionally rewrites every generated file on each build even when
+// nothing changed. The go command keys its build cache on file contents, not
+// modification times, so skipping an identical write changes nothing it sees.
+func writeIfChanged(path string, data []byte) error {
+	if existing, err := os.ReadFile(path); err == nil && bytes.Equal(existing, data) {
+		return nil
+	}
+	return os.WriteFile(path, data, 0644)
 }
