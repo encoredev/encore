@@ -13,21 +13,20 @@ pub struct Exports {
 }
 
 impl Exports {
-    /// Resolves a relative path to a target file path.
-    pub fn resolve_import_path(
-        &self,
-        rel_path: &str,
-        conditions: &HashSet<&str>,
-    ) -> Option<PathBuf> {
+    /// Resolves a relative path to candidate target file paths, in priority order.
+    /// The caller should use the first candidate that exists.
+    pub fn resolve_import_path(&self, rel_path: &str, conditions: &HashSet<&str>) -> Vec<PathBuf> {
         let mut wildcard_match = None;
         for (candidate, subpath) in self.subpaths.iter() {
             match candidate_matches(candidate, rel_path) {
                 None => continue,
                 Some(Match::Exact) => {
-                    return subpath.matches(conditions).and_then(|m| match m {
-                        SubpathMatch::Target(path) => Some(path.into()),
-                        SubpathMatch::Exclude => None,
-                    });
+                    return match subpath.matches(conditions) {
+                        Some(SubpathMatch::Targets(paths)) => {
+                            paths.into_iter().map(PathBuf::from).collect()
+                        }
+                        Some(SubpathMatch::Exclude) | None => vec![],
+                    };
                 }
                 Some(Match::Wildcard { replacement }) => {
                     match subpath.matches(conditions) {
@@ -35,20 +34,26 @@ impl Exports {
 
                         // If we have a target, save it as a candidate.
                         // We have to keep looking as there may be an exclude directive later.
-                        Some(SubpathMatch::Target(path)) => {
+                        Some(SubpathMatch::Targets(paths)) => {
                             if wildcard_match.is_none() {
-                                wildcard_match = Some((path, replacement));
+                                wildcard_match = Some((paths, replacement));
                             }
                         }
 
                         // If we have an exclude, stop looking and immediately return none.
-                        Some(SubpathMatch::Exclude) => return None,
+                        Some(SubpathMatch::Exclude) => return vec![],
                     }
                 }
             }
         }
 
-        wildcard_match.map(|(path, replacement)| path.replace('*', replacement).into())
+        match wildcard_match {
+            None => vec![],
+            Some((paths, replacement)) => paths
+                .into_iter()
+                .map(|path| path.replace('*', replacement).into())
+                .collect(),
+        }
     }
 }
 
@@ -73,6 +78,8 @@ fn candidate_matches<'a>(candidate: &str, rel_path: &'a str) -> Option<Match<'a>
 
     if let Some(idx) = candidate.find('*') {
         let (prefix, suffix) = candidate.split_at(idx);
+        // Strip the "*" from the suffix.
+        let suffix = &suffix[1..];
         if rel_path.starts_with(prefix) && rel_path.ends_with(suffix) {
             // Get the middle part of the path, to be injected into the result.
             let replacement = &rel_path[prefix.len()..(rel_path.len() - suffix.len())];
@@ -91,22 +98,43 @@ enum Subpath {
 }
 
 enum SubpathMatch<'a> {
-    Target(&'a str),
+    /// Candidate targets, in priority order. The first one that exists wins.
+    Targets(Vec<&'a str>),
     Exclude,
 }
 
 impl Subpath {
+    /// Returns the targets this subpath maps to under the active conditions.
+    ///
+    /// Like TypeScript, a matching condition doesn't end the search: the targets of
+    /// later matching conditions are kept as fallbacks, in object order. So when a
+    /// "types" target doesn't exist, the "import" target is tried next.
+    /// A null target (exclude) ends the search.
     fn matches(&self, active_conditions: &HashSet<&str>) -> Option<SubpathMatch<'_>> {
         match self {
-            Subpath::Target(path) => Some(SubpathMatch::Target(path)),
+            Subpath::Target(path) => Some(SubpathMatch::Targets(vec![path])),
             Subpath::Exclude => Some(SubpathMatch::Exclude),
             Subpath::Conditions(conds) => {
+                let mut targets = Vec::new();
                 for (cond, subpath) in conds.iter() {
-                    if active_conditions.contains(cond.as_str()) {
-                        return subpath.matches(active_conditions);
+                    if !active_conditions.contains(cond.as_str()) {
+                        continue;
+                    }
+                    match subpath.matches(active_conditions) {
+                        // Nested conditions with no match: try the next condition.
+                        None => continue,
+                        Some(SubpathMatch::Targets(paths)) => targets.extend(paths),
+                        Some(SubpathMatch::Exclude) if targets.is_empty() => {
+                            return Some(SubpathMatch::Exclude)
+                        }
+                        Some(SubpathMatch::Exclude) => break,
                     }
                 }
-                None
+                if targets.is_empty() {
+                    None
+                } else {
+                    Some(SubpathMatch::Targets(targets))
+                }
             }
         }
     }
@@ -312,8 +340,106 @@ mod tests {
         .unwrap();
 
         let conditions: HashSet<&str> = ["types", "import", "default"].into_iter().collect();
-        let resolved = exports.resolve_import_path("", &conditions).unwrap();
+        let resolved = exports.resolve_import_path("", &conditions);
         // "types" must win because it appears first in the JSON.
-        assert_eq!(resolved, PathBuf::from("./dist/index.d.ts"));
+        assert_eq!(resolved.first(), Some(&PathBuf::from("./dist/index.d.ts")));
+    }
+
+    fn resolve(exports: &str, rel_path: &str, conditions: &[&str]) -> Vec<PathBuf> {
+        let exports: Exports = serde_json::from_str(exports).unwrap();
+        let conditions: HashSet<&str> = conditions.iter().copied().collect();
+        exports.resolve_import_path(rel_path, &conditions)
+    }
+
+    fn paths(paths: &[&str]) -> Vec<PathBuf> {
+        paths.iter().map(PathBuf::from).collect()
+    }
+
+    #[test]
+    fn condition_fallback_order() {
+        let exports = r#"{
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "default": "./dist/index.js"
+        }"#;
+
+        // Object order decides priority, not the order of the active conditions.
+        assert_eq!(
+            resolve(exports, "", &["default", "import", "types"]),
+            paths(&["./dist/index.d.ts", "./dist/index.mjs", "./dist/index.js"])
+        );
+        assert_eq!(
+            resolve(exports, "", &["import", "default"]),
+            paths(&["./dist/index.mjs", "./dist/index.js"])
+        );
+    }
+
+    #[test]
+    fn wildcard_types_falls_back_to_import() {
+        // The "./*" entry of @modelcontextprotocol/sdk >= 1.29.0. For "server/mcp.js" the
+        // "types" target is "dist/esm/server/mcp.js.d.ts", which doesn't exist, so the
+        // "import" target must remain a candidate.
+        let exports = r#"{
+            ".": {
+                "types": "./dist/esm/index.d.ts",
+                "import": "./dist/esm/index.js"
+            },
+            "./*": {
+                "types": "./dist/esm/*.d.ts",
+                "import": "./dist/esm/*",
+                "require": "./dist/cjs/*"
+            }
+        }"#;
+
+        assert_eq!(
+            resolve(exports, "server/mcp.js", &["types", "import", "default"]),
+            paths(&["./dist/esm/server/mcp.js.d.ts", "./dist/esm/server/mcp.js"])
+        );
+    }
+
+    #[test]
+    fn wildcard_with_suffix() {
+        let exports = r#"{"./lib/*.js": "./dist/*.mjs"}"#;
+        assert_eq!(
+            resolve(exports, "lib/a/b.js", &["default"]),
+            paths(&["./dist/a/b.mjs"])
+        );
+        assert_eq!(resolve(exports, "lib/a/b.ts", &["default"]), paths(&[]));
+    }
+
+    #[test]
+    fn nested_conditions_without_match_fall_through() {
+        let exports = r#"{
+            "node": {"import": "./index.node.mjs"},
+            "default": "./index.js"
+        }"#;
+
+        assert_eq!(
+            resolve(exports, "", &["node", "require", "default"]),
+            paths(&["./index.js"])
+        );
+    }
+
+    #[test]
+    fn null_target_ends_search() {
+        // A null target as the first match excludes the subpath.
+        assert_eq!(
+            resolve(
+                r#"{"./internal/*": {"node": null, "default": "./internal/*.js"}}"#,
+                "internal/foo",
+                &["node", "default"]
+            ),
+            paths(&[])
+        );
+
+        // A null target after a match drops the later fallbacks.
+        assert_eq!(
+            resolve(
+                r#"{"types": "./index.d.ts", "node": null, "default": "./index.js"}"#,
+                "",
+                &["types", "node", "default"]
+            ),
+            paths(&["./index.d.ts"])
+        );
     }
 }

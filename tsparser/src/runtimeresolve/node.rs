@@ -83,11 +83,19 @@ impl<R> EncoreRuntimeResolver<R> {
             HashSet::from_iter(self.extra_export_conditions.iter().map(|s| s.as_str()));
         conditions.extend(DEFAULT_CONDITIONS);
 
-        // The result is relative to the package directory, whereas we want to return an absolute path.
-        let result = exports
+        // The candidates are relative to the package directory, whereas we want to return an
+        // absolute path. Use the first one that exists; if none do, keep the first so the
+        // error names it.
+        let candidates: Vec<PathBuf> = exports
             .resolve_import_path(rel_target, &conditions)
-            .map(|p| p.to_path_buf());
-        Ok(result.map(|p| pkg_dir.join(p)))
+            .into_iter()
+            .map(|p| pkg_dir.join(p))
+            .collect();
+        let found = candidates
+            .iter()
+            .find(|p| p.exists())
+            .or(candidates.first());
+        Ok(found.cloned())
     }
 
     fn pkg_name_from_target<'b>(&self, target: &'b str) -> (&'b str, &'b str) {

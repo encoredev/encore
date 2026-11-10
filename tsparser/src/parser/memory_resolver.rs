@@ -85,7 +85,7 @@ impl InMemoryResolver {
             if let Some(exports_val) = pkg_json.get("exports") {
                 if let Ok(exports) = serde_json::from_value::<Exports>(exports_val.clone()) {
                     let conditions: HashSet<&str> = RESOLVE_CONDITIONS.iter().copied().collect();
-                    if let Some(resolved) = exports.resolve_import_path(subpath, &conditions) {
+                    for resolved in exports.resolve_import_path(subpath, &conditions) {
                         let full_path = pkg_dir.join(&resolved);
                         if let Some(found) = self.try_with_dts(&full_path) {
                             return Ok(FileName::Real(found));
@@ -373,6 +373,41 @@ mod tests {
         assert_eq!(
             result,
             FileName::Real("/app/node_modules/pkg/dist/index.d.ts".into())
+        );
+    }
+
+    #[test]
+    fn resolve_bare_exports_missing_types_falls_back() {
+        // The "./*" export of @modelcontextprotocol/sdk >= 1.29.0. For "server/mcp.js" the
+        // "types" target is "dist/esm/server/mcp.js.d.ts", which doesn't exist, so resolution
+        // falls back to the "import" target and then to its .d.ts counterpart.
+        let resolver = make_resolver(
+            &[
+                "node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.js",
+                "node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.d.ts",
+            ],
+            &[(
+                "node_modules/@modelcontextprotocol/sdk/package.json",
+                r#"{"name": "@modelcontextprotocol/sdk", "exports": {
+                    "./*": {
+                        "types": "./dist/esm/*.d.ts",
+                        "import": "./dist/esm/*",
+                        "require": "./dist/cjs/*"
+                    }
+                }}"#,
+            )],
+        );
+        let result = resolver
+            .resolve(
+                &FileName::Real("/app/src/main.ts".into()),
+                "@modelcontextprotocol/sdk/server/mcp.js",
+            )
+            .unwrap();
+        assert_eq!(
+            result,
+            FileName::Real(
+                "/app/node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.d.ts".into()
+            )
         );
     }
 
