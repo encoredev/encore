@@ -152,10 +152,16 @@ func dbConf(srv *config.SQLServer, db *config.SQLDatabase, dbNameOverride string
 	if dbName == "" {
 		dbName = db.DatabaseName
 	}
-	// The password is set on the parsed config rather than written here: an
-	// empty one ("password= dbname=x") would take the next setting as its
-	// value, as keyword/value strings allow spaces after the "=".
 	uri := fmt.Sprintf("user=%s dbname=%s", db.User, dbName)
+
+	// The password stays in the connection string, as apps read it back with
+	// ConnString to open connections of their own. It is quoted, and left out
+	// when empty: an unquoted empty one ("password= dbname=x") would take the
+	// next setting as its value, as keyword/value strings allow spaces after
+	// the "=".
+	if db.Password != "" {
+		uri += " password=" + quoteConnValue(db.Password)
+	}
 
 	// Handle different ways of expressing the host
 	if strings.HasPrefix(srv.Host, "/") {
@@ -181,7 +187,6 @@ func dbConf(srv *config.SQLServer, db *config.SQLDatabase, dbNameOverride string
 	if err != nil {
 		return nil, fmt.Errorf("invalid database uri: %v", err)
 	}
-	cfg.ConnConfig.Password = db.Password
 
 	// Set the pool size based on the config.
 	cfg.MaxConns = 30
@@ -221,6 +226,14 @@ func dbConf(srv *config.SQLServer, db *config.SQLDatabase, dbNameOverride string
 	}
 
 	return cfg, nil
+}
+
+// quoteConnValue quotes s as a value in a keyword/value connection string,
+// escaping the backslashes and single quotes in it.
+func quoteConnValue(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `'`, `\'`)
+	return "'" + s + "'"
 }
 
 // Exec executes a query without returning any rows.
