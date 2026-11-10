@@ -489,13 +489,31 @@ type SQLDatabase struct {
 	Username       EnvString   `json:"username,omitempty"`
 	Password       EnvString   `json:"password,omitempty"`
 	ClientCert     *ClientCert `json:"client_cert,omitempty"`
+
+	// AuthMethod is how Username authenticates: "password" (the default),
+	// or "gcp_iam" for Cloud SQL's IAM database authentication with an access
+	// token of the Google Cloud identity the process runs as. With "gcp_iam",
+	// Username is that identity's IAM database user (for a service account,
+	// its email without ".gserviceaccount.com"), there is no Password, and
+	// the server needs TLS.
+	AuthMethod string `json:"auth_method,omitempty"`
 }
 
 func (s *SQLDatabase) Validate(v *validator) {
 	v.ValidateField("max_connections", GreaterOrEqual(s.MinConnections)(s.MaxConnections))
 	v.ValidateField("min_connections", GreaterOrEqual(0)(s.MinConnections))
 	v.ValidateEnvString("username", s.Username, "Database Username", NotZero[string])
-	v.ValidateEnvString("password", s.Password, "Database Password", NotZero[string])
+	v.ValidateField("auth_method", OneOf(s.AuthMethod, "", "password", "gcp_iam"))
+	if s.AuthMethod == "gcp_iam" {
+		if s.Password != (EnvString{}) {
+			v.ValidateField("password", Err("Must be empty with auth_method gcp_iam"))
+		}
+		if srv := Ancestor[*SQLServer](v); srv != nil && srv.TLSConfig != nil && srv.TLSConfig.Disabled {
+			v.ValidateField("auth_method", Err("gcp_iam needs TLS, which the server's tls_config disables"))
+		}
+	} else {
+		v.ValidateEnvString("password", s.Password, "Database Password", NotZero[string])
+	}
 	v.ValidateChild("client_cert", s.ClientCert)
 }
 

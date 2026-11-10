@@ -201,3 +201,25 @@ func TestParseInfraConfigEnv_MultipleProviders(t *testing.T) {
 	c.Assert(cfg.Buckets["avatars"].ProviderID, qt.Equals, 0)
 	c.Assert(cfg.Buckets["uploads"].ProviderID, qt.Equals, 1)
 }
+
+func TestParseInfraConfigSQLAuthMethod(t *testing.T) {
+	c := qt.New(t)
+	path := filepath.Join(t.TempDir(), "infra.config.json")
+	err := os.WriteFile(path, []byte(`{
+		"sql_servers": [{
+			"host": "10.0.0.3:5432",
+			"tls_config": {"ca": "test"},
+			"databases": {
+				"iam": {"username": "my-sa@my-project.iam", "auth_method": "gcp_iam"},
+				"pw": {"username": "owner", "password": "secret", "auth_method": "password"}
+			}
+		}]
+	}`), 0o600)
+	c.Assert(err, qt.IsNil)
+
+	got := map[string]SQLAuthMethod{}
+	for _, db := range parseInfraConfigEnv(path).SQLDatabases {
+		got[db.EncoreName] = db.AuthMethod
+	}
+	c.Assert(got, qt.DeepEquals, map[string]SQLAuthMethod{"iam": SQLAuthGCPIAM, "pw": SQLAuthPassword})
+}
