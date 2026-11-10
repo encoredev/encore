@@ -229,6 +229,10 @@ message TestRequest {
   // temp_dir is a temp dir that will be cleaned up after tests have been executed
   // to write things like app meta and runtime config etc.
   string temp_dir = 8;
+
+  // namespace is the infrastructure namespace to use.
+  // If empty the active namespace is used.
+  optional string namespace = 9;
 }
 
 message TestSpecRequest {
@@ -243,6 +247,10 @@ message TestSpecRequest {
   // temp_dir is a temp dir that will be cleaned up after tests have been executed
   // to write things like app meta and runtime config etc.
   string temp_dir = 5;
+
+  // namespace is the infrastructure namespace to use.
+  // If empty the active namespace is used.
+  optional string namespace = 6;
 }
 
 message TestSpecResponse {

@@ -39,7 +39,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 		return nil
 	}
 
-	ns, err := s.namespaceOrActive(ctx, app, nil /* tests don't support different namespaces */)
+	ns, err := s.namespaceOrActive(ctx, app, req.Namespace)
 	if err != nil {
 		sendErr(err)
 		return nil
@@ -107,7 +107,7 @@ func (s *Server) TestSpec(ctx context.Context, req *daemonpb.TestSpecRequest) (r
 		return nil, errors.Wrap(err, "unable to track app")
 	}
 
-	ns, err := s.namespaceOrActive(ctx, app, nil /* tests don't support different namespaces */)
+	ns, err := s.namespaceOrActive(ctx, app, req.Namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get namespace")
 	}
