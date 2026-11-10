@@ -9,7 +9,7 @@ use tokio_postgres::proxy::{AcceptConn, AuthMethod, ClientBouncer, RejectConn};
 use crate::encore::runtime::v1 as pb;
 use crate::names::EncoreName;
 use crate::secrets;
-use crate::sqldb::Pool;
+use crate::sqldb::{Auth, Pool};
 use crate::trace::Tracer;
 
 pub struct Manager {
@@ -106,8 +106,10 @@ pub trait Database: Send + Sync {
     fn name(&self) -> &EncoreName;
 
     fn pool_config(&self) -> anyhow::Result<PoolConfig>;
-    fn config(&self) -> anyhow::Result<&tokio_postgres::Config>;
+    fn config(&self) -> anyhow::Result<&Arc<tokio_postgres::Config>>;
     fn tls(&self) -> anyhow::Result<&postgres_native_tls::MakeTlsConnector>;
+    /// How connections authenticate beyond [`Database::config`].
+    fn auth(&self) -> anyhow::Result<&Auth>;
 
     /// Returns the connection pool for this database, opening it on first use.
     ///
@@ -130,6 +132,7 @@ pub struct DatabaseImpl {
     name: EncoreName,
     config: Arc<tokio_postgres::Config>,
     tls: postgres_native_tls::MakeTlsConnector,
+    auth: Auth,
     proxy_conn_string: String,
     tracer: Tracer,
 
@@ -158,12 +161,16 @@ impl Database for DatabaseImpl {
         })
     }
 
-    fn config(&self) -> anyhow::Result<&tokio_postgres::Config> {
+    fn config(&self) -> anyhow::Result<&Arc<tokio_postgres::Config>> {
         Ok(&self.config)
     }
 
     fn tls(&self) -> anyhow::Result<&postgres_native_tls::MakeTlsConnector> {
         Ok(&self.tls)
+    }
+
+    fn auth(&self) -> anyhow::Result<&Auth> {
+        Ok(&self.auth)
     }
 
     fn pool(&self) -> Result<&Pool, Arc<anyhow::Error>> {
@@ -195,11 +202,15 @@ impl Database for NoopDatabase {
         anyhow::bail!("this database is not configured for use by this process")
     }
 
-    fn config(&self) -> anyhow::Result<&tokio_postgres::Config> {
+    fn config(&self) -> anyhow::Result<&Arc<tokio_postgres::Config>> {
         anyhow::bail!("this database is not configured for use by this process")
     }
 
     fn tls(&self) -> anyhow::Result<&postgres_native_tls::MakeTlsConnector> {
+        anyhow::bail!("this database is not configured for use by this process")
+    }
+
+    fn auth(&self) -> anyhow::Result<&Auth> {
         anyhow::bail!("this database is not configured for use by this process")
     }
 
@@ -225,7 +236,7 @@ struct Bouncer {
 impl ClientBouncer for Bouncer {
     // TODO support TLS
     type Tls = postgres_native_tls::MakeTlsConnector;
-    type Future = futures::future::Ready<Result<AcceptConn<Self::Tls>, RejectConn>>;
+    type Future = futures::future::BoxFuture<'static, Result<AcceptConn<Self::Tls>, RejectConn>>;
 
     fn handle_startup(
         &self,
@@ -238,18 +249,24 @@ impl ClientBouncer for Bouncer {
                 .ok_or(RejectConn::UnknownDatabase)?;
             let db_name =
                 String::from_utf8(db_name.to_vec()).map_err(|_| RejectConn::UnknownDatabase)?;
-            let db = self
-                .databases
+            self.databases
                 .get(&db_name)
-                .ok_or(RejectConn::UnknownDatabase)?;
-
+                .cloned()
+                .ok_or(RejectConn::UnknownDatabase)
+        };
+        let db = resolve();
+        Box::pin(async move {
+            let db = db?;
+            let backend_config = db.auth.connect_config(&db.config).await.map_err(|err| {
+                log::error!("database {}: {:#}", db.name, err);
+                RejectConn::InternalError
+            })?;
             Ok(AcceptConn {
                 auth_method: AuthMethod::Trust,
                 tls: db.tls.clone(),
-                backend_config: db.config.clone(),
+                backend_config,
             })
-        };
-        futures::future::ready(resolve())
+        })
     }
 }
 
@@ -316,6 +333,15 @@ fn databases_from_cfg(
             }
 
             config.user(&role.username);
+            let auth = pb::SqlAuthMethod::try_from(role.auth_method)
+                .map(Auth::from_pb)
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                        "unknown auth method {} for database {}",
+                        role.auth_method,
+                        db.encore_name
+                    )
+                })?;
             if let Some(password) = &role.password {
                 let sec = secrets.load(password.clone());
                 let password = sec.get().context("failed to resolve password")?;
@@ -332,6 +358,10 @@ fn databases_from_cfg(
                         .context("unable to parse server ca certificate")?;
                     tls_builder.add_root_certificate(cert);
                     config.ssl_mode(tokio_postgres::config::SslMode::Require);
+                } else if auth.is_gcp_iam() {
+                    // Never fall back to plaintext: the token is a credential
+                    // to more than this database.
+                    config.ssl_mode(tokio_postgres::config::SslMode::Require);
                 } else {
                     config.ssl_mode(tokio_postgres::config::SslMode::Prefer);
                 }
@@ -342,6 +372,11 @@ fn databases_from_cfg(
                 if tls_config.disable_ca_validation {
                     tls_builder.danger_accept_invalid_certs(true);
                 }
+            } else if auth.is_gcp_iam() {
+                anyhow::bail!(
+                    "database {} logs in with GCP IAM, which takes TLS, and its server has no TLS config",
+                    db.encore_name
+                );
             } else {
                 config.ssl_mode(tokio_postgres::config::SslMode::Disable);
             }
@@ -391,6 +426,7 @@ fn databases_from_cfg(
                     name,
                     config: Arc::new(config),
                     tls,
+                    auth,
                     proxy_conn_string,
                     tracer: tracer.clone(),
 
@@ -443,6 +479,7 @@ mod test {
             name: dbname.into(),
             config: Arc::new(config),
             tls: postgres_native_tls::MakeTlsConnector::new(tls),
+            auth: Auth::Password,
             proxy_conn_string: String::new(),
             tracer: Tracer::noop(),
             min_conns: 0,
@@ -491,6 +528,111 @@ mod test {
             .pool()
             .expect("first pool")
             .shares_connections_with(two.pool().expect("second pool")));
+    }
+
+    fn cluster(tls_config: Option<pb::TlsConfig>) -> pb::SqlCluster {
+        pb::SqlCluster {
+            rid: "cluster".into(),
+            servers: vec![pb::SqlServer {
+                rid: "server".into(),
+                host: "10.0.0.3:5432".into(),
+                kind: pb::ServerKind::Primary as i32,
+                tls_config,
+            }],
+            databases: vec![pb::SqlDatabase {
+                rid: "db".into(),
+                encore_name: "db".into(),
+                cloud_name: "db".into(),
+                conn_pools: vec![pb::SqlConnectionPool {
+                    role_rid: "role".into(),
+                    ..Default::default()
+                }],
+            }],
+        }
+    }
+
+    fn iam_creds(auth_method: i32) -> pb::infrastructure::Credentials {
+        pb::infrastructure::Credentials {
+            sql_roles: vec![pb::SqlRole {
+                rid: "role".into(),
+                username: "my-sa@my-project.iam".into(),
+                auth_method,
+                ..Default::default()
+            }],
+            ..Default::default()
+        }
+    }
+
+    async fn from_cfg(
+        cluster: pb::SqlCluster,
+        creds: &pb::infrastructure::Credentials,
+    ) -> anyhow::Result<HashMap<EncoreName, Arc<DatabaseImpl>>> {
+        let secrets = secrets::Manager::new(vec![], vec![]).await?;
+        databases_from_cfg(vec![cluster], creds, &secrets, 0, Tracer::noop())
+    }
+
+    /// Without a server CA the connection would otherwise prefer TLS but fall
+    /// back to plaintext, which would send the token in the clear.
+    #[tokio::test]
+    async fn a_gcp_iam_role_requires_tls() {
+        let dbs = from_cfg(
+            cluster(Some(pb::TlsConfig::default())),
+            &iam_creds(pb::SqlAuthMethod::GcpIam as i32),
+        )
+        .await
+        .unwrap();
+        let db = &dbs[&EncoreName::from("db")];
+        assert!(db.auth.is_gcp_iam());
+        assert_eq!(db.config.get_password(), None);
+        assert_eq!(
+            db.config.get_ssl_mode(),
+            tokio_postgres::config::SslMode::Require
+        );
+    }
+
+    #[tokio::test]
+    async fn a_gcp_iam_role_without_tls_is_refused() {
+        let err = from_cfg(cluster(None), &iam_creds(pb::SqlAuthMethod::GcpIam as i32))
+            .await
+            .err()
+            .expect("a GCP IAM role without TLS was accepted");
+        let err = format!("{err:#}");
+        assert!(err.contains("takes TLS"), "{err}");
+    }
+
+    /// A runtime that doesn't know how a role logs in must not try to log it
+    /// in without a password.
+    #[tokio::test]
+    async fn an_unknown_auth_method_is_refused() {
+        let err = from_cfg(cluster(Some(pb::TlsConfig::default())), &iam_creds(42))
+            .await
+            .err()
+            .expect("an unknown auth method was accepted");
+        let err = format!("{err:#}");
+        assert!(err.contains("unknown auth method 42"), "{err}");
+    }
+
+    /// The proxy opens its backend connection with the database's current
+    /// credentials, not the config it was built with.
+    #[tokio::test]
+    async fn the_proxy_connects_a_gcp_iam_role_with_a_token() {
+        let mut db = database("proxied", 30);
+        db.auth = crate::sqldb::auth::test::FakeTokens::auth(&["ya29.token"]);
+        let bouncer = Bouncer {
+            databases: Arc::new(HashMap::from([(db.name.clone(), Arc::new(db))])),
+        };
+        let startup = postgres_protocol::message::startup::StartupData {
+            parameters: HashMap::from([("database".to_owned(), "proxied".into())]),
+        };
+
+        let accepted = match bouncer.handle_startup(&startup).await {
+            Ok(accepted) => accepted,
+            Err(err) => panic!("rejected: {err}"),
+        };
+        assert_eq!(
+            accepted.backend_config.get_password(),
+            Some(&b"ya29.token"[..])
+        );
     }
 
     /// Pool sizing is part of what makes connections interchangeable: a handle
