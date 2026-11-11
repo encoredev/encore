@@ -680,31 +680,37 @@ func (d *Desc[Req, Resp]) runCall(c CallContext, req Req, mocked bool, executor 
 			},
 		})
 
+		if beginErr != nil {
+			respErr = errs.B().Cause(beginErr).Code(errs.Internal).Msg("internal error").Err()
+			return
+		}
+
+		// Request begun; must finish or op and trace leak.
+		failBeforeExec := func(err error) {
+			respErr = err
+			c.server.finishRequest(newErrResp(err, 0))
+		}
+
 		// Now round-trip any auth data that was set on the request
 		// to emulate what happens in the HTTP case.
 		if experiments.AuthDataRoundTrip.Enabled(c.server.experiments) && reqModel.RPCData.AuthData != nil {
 			jsonBytes, err := jsonapi.Default.Marshal(reqModel.RPCData.AuthData)
 			if err != nil {
 				c.server.rootLogger.Err(err).Msg("unable to marshal auth data")
-				respErr = errs.B().Cause(err).Code(errs.Internal).Msg("internal error").Err()
+				failBeforeExec(errs.B().Cause(err).Code(errs.Internal).Msg("internal error").Err())
 				return
 			}
 
 			reqModel.RPCData.AuthData = newAuthDataObj()
 			if err := jsonapi.Default.Unmarshal(jsonBytes, reqModel.RPCData.AuthData); err != nil {
 				c.server.rootLogger.Err(err).Msg("unable to unmarshal auth data")
-				respErr = errs.B().Cause(err).Code(errs.Internal).Msg("internal error").Err()
+				failBeforeExec(errs.B().Cause(err).Code(errs.Internal).Msg("internal error").Err())
 				return
 			}
 		}
 
-		if beginErr != nil {
-			respErr = errs.B().Cause(beginErr).Code(errs.Internal).Msg("internal error").Err()
-			return
-		}
-
 		if err := d.validate(req); err != nil {
-			respErr = err
+			failBeforeExec(err)
 			return
 		}
 

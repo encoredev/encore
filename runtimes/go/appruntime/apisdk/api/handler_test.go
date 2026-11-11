@@ -667,3 +667,55 @@ func TestMiddlewareHeadersOnError(t *testing.T) {
 		}
 	}
 }
+
+type validatingReq struct {
+	Valid bool
+}
+
+func (r *validatingReq) Validate() error {
+	if !r.Valid {
+		return errs.B().Code(errs.InvalidArgument).Msg("not valid").Err()
+	}
+	return nil
+}
+
+// Validation failure on an internal call must still finish the request.
+func TestInternalCallValidationErrorFinishesRequest(t *testing.T) {
+	model.EnableTestMode(t)
+	server, traceMock, _ := testServer(t, clock.New(), true)
+
+	desc := &api.Desc[*validatingReq, *mockResp]{
+		Service:  "service",
+		Endpoint: "validating",
+		Path:     "/validating",
+		Access:   api.Private,
+		CloneReq: func(req *validatingReq) (*validatingReq, error) {
+			clone := *req
+			return &clone, nil
+		},
+		ReqPath: func(req *validatingReq) (string, api.UnnamedParams, error) {
+			return "/validating", nil, nil
+		},
+		ReqUserPayload: func(req *validatingReq) any {
+			return req
+		},
+		AppHandler: func(ctx context.Context, req *validatingReq) (*mockResp, error) {
+			t.Error("handler must not run when validation fails")
+			return &mockResp{}, nil
+		},
+		CloneResp: func(resp *mockResp) (*mockResp, error) {
+			clone := *resp
+			return &clone, nil
+		},
+	}
+
+	traceMock.EXPECT().RequestSpanStart(gomock.Any(), gomock.Any()).Times(1)
+	traceMock.EXPECT().RequestSpanEnd(gomock.Any()).Times(1)
+	traceMock.EXPECT().MarkDone().Times(1)
+	traceMock.EXPECT().WaitAndClear().Return(nil, true).AnyTimes()
+
+	_, err := desc.Call(server.NewCallContext(context.Background()), &validatingReq{Valid: false})
+	if errs.Code(err) != errs.InvalidArgument {
+		t.Fatalf("got error %v, want invalid_argument", err)
+	}
+}
