@@ -58,11 +58,10 @@ class BaseQueryExecutor {
    * It returns an async generator, that allows iterating over the results
    * in a streaming fashion using `for await`.
    *
-   * To stop before the last row, leave the loop with `break`, `return` or a
-   * thrown error, or call `return()` on the generator. Each of these closes
-   * the query. A generator left open with rows unread keeps its connection
-   * busy, and any other query on that connection (such as the next statement
-   * in a transaction) waits until the generator is garbage collected.
+   * A `for await` loop closes the query however it ends. If you call `next()`
+   * yourself, call `return()` when you stop before the last row: until then the
+   * query keeps its connection busy, and any other query on that connection
+   * (such as the next statement in a transaction) waits for it.
    *
    * @example
    *
@@ -98,11 +97,10 @@ class BaseQueryExecutor {
    * It returns an async generator, that allows iterating over the results
    * in a streaming fashion using `for await`.
    *
-   * To stop before the last row, leave the loop with `break`, `return` or a
-   * thrown error, or call `return()` on the generator. Each of these closes
-   * the query. A generator left open with rows unread keeps its connection
-   * busy, and any other query on that connection (such as the next statement
-   * in a transaction) waits until the generator is garbage collected.
+   * A `for await` loop closes the query however it ends. If you call `next()`
+   * yourself, call `return()` when you stop before the last row: until then the
+   * query keeps its connection busy, and any other query on that connection
+   * (such as the next statement in a transaction) waits for it.
    *
    * @example
    * const query = "SELECT id FROM users WHERE email=$1";
