@@ -222,6 +222,13 @@ impl Cursor {
 
         Ok(row.map(|row| Row { row }))
     }
+
+    /// Discards the rows not yet read, so the connection can move on to the
+    /// next query without waiting for this cursor to be garbage collected.
+    #[napi]
+    pub async fn close(&self) {
+        self.stream.lock().await.close();
+    }
 }
 
 #[napi]
