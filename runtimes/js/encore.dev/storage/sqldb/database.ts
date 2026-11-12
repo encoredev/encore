@@ -58,6 +58,11 @@ class BaseQueryExecutor {
    * It returns an async generator, that allows iterating over the results
    * in a streaming fashion using `for await`.
    *
+   * A `for await` loop closes the query however it ends. If you call `next()`
+   * yourself, call `return()` when you stop before the last row: until then the
+   * query keeps its connection busy, and any other query on that connection
+   * (such as the next statement in a transaction) waits for it.
+   *
    * @example
    *
    * const email = "foo@example.com";
@@ -74,10 +79,15 @@ class BaseQueryExecutor {
     const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const cursor = await this.impl.query(query, args, source);
-    while (true) {
-      const row = await cursor.next();
-      if (row === null) break;
-      yield row.values() as T;
+    try {
+      while (true) {
+        const row = await cursor.next();
+        if (row === null) break;
+        yield row.values() as T;
+      }
+    } finally {
+      // Runs when the caller stops iterating early, too.
+      await cursor.close();
     }
   }
 
@@ -86,6 +96,11 @@ class BaseQueryExecutor {
    *
    * It returns an async generator, that allows iterating over the results
    * in a streaming fashion using `for await`.
+   *
+   * A `for await` loop closes the query however it ends. If you call `next()`
+   * yourself, call `return()` when you stop before the last row: until then the
+   * query keeps its connection busy, and any other query on that connection
+   * (such as the next statement in a transaction) waits for it.
    *
    * @example
    * const query = "SELECT id FROM users WHERE email=$1";
@@ -104,11 +119,16 @@ class BaseQueryExecutor {
   ): AsyncGenerator<T> {
     const args = buildQueryArgs(params);
     const source = getCurrentRequest();
-    const result = await this.impl.query(query, args, source);
-    while (true) {
-      const row = await result.next();
-      if (row === null) break;
-      yield row.values() as T;
+    const cursor = await this.impl.query(query, args, source);
+    try {
+      while (true) {
+        const row = await cursor.next();
+        if (row === null) break;
+        yield row.values() as T;
+      }
+    } finally {
+      // Runs when the caller stops iterating early, too.
+      await cursor.close();
     }
   }
 
@@ -134,13 +154,17 @@ class BaseQueryExecutor {
     const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const cursor = await this.impl.query(query, args, source);
-    const result: T[] = [];
-    while (true) {
-      const row = await cursor.next();
-      if (row === null) break;
-      result.push(row.values() as T);
+    try {
+      const result: T[] = [];
+      while (true) {
+        const row = await cursor.next();
+        if (row === null) break;
+        result.push(row.values() as T);
+      }
+      return result;
+    } finally {
+      await cursor.close();
     }
-    return result;
   }
 
   /**
@@ -162,13 +186,17 @@ class BaseQueryExecutor {
     const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const cursor = await this.impl.query(query, args, source);
-    const result: T[] = [];
-    while (true) {
-      const row = await cursor.next();
-      if (row === null) break;
-      result.push(row.values() as T);
+    try {
+      const result: T[] = [];
+      while (true) {
+        const row = await cursor.next();
+        if (row === null) break;
+        result.push(row.values() as T);
+      }
+      return result;
+    } finally {
+      await cursor.close();
     }
-    return result;
   }
 
   /**
@@ -188,9 +216,13 @@ class BaseQueryExecutor {
     const query = buildQuery(strings, params);
     const args = buildQueryArgs(params);
     const source = getCurrentRequest();
-    const result = await this.impl.query(query, args, source);
-    const row = await result.next();
-    return row ? (row.values() as T) : null;
+    const cursor = await this.impl.query(query, args, source);
+    try {
+      const row = await cursor.next();
+      return row ? (row.values() as T) : null;
+    } finally {
+      await cursor.close();
+    }
   }
 
   /**
@@ -214,9 +246,13 @@ class BaseQueryExecutor {
   ): Promise<T | null> {
     const args = buildQueryArgs(params);
     const source = getCurrentRequest();
-    const result = await this.impl.query(query, args, source);
-    const row = await result.next();
-    return row ? (row.values() as T) : null;
+    const cursor = await this.impl.query(query, args, source);
+    try {
+      const row = await cursor.next();
+      return row ? (row.values() as T) : null;
+    } finally {
+      await cursor.close();
+    }
   }
 
   /**
@@ -236,8 +272,12 @@ class BaseQueryExecutor {
 
     // Need to await the cursor to process any errors from things like
     // unique constraint violations.
-    const cur = await this.impl.query(query, args, source);
-    await cur.next();
+    const cursor = await this.impl.query(query, args, source);
+    try {
+      await cursor.next();
+    } finally {
+      await cursor.close();
+    }
   }
 
   /**
@@ -258,8 +298,12 @@ class BaseQueryExecutor {
 
     // Need to await the cursor to process any errors from things like
     // unique constraint violations.
-    const cur = await this.impl.query(query, args, source);
-    await cur.next();
+    const cursor = await this.impl.query(query, args, source);
+    try {
+      await cursor.next();
+    } finally {
+      await cursor.close();
+    }
   }
 }
 

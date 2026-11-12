@@ -265,16 +265,29 @@ impl Pool {
 }
 
 pub struct Cursor {
-    stream: Pin<Box<tokio_postgres::RowStream>>,
+    /// `None` once the cursor is closed.
+    stream: Option<Pin<Box<tokio_postgres::RowStream>>>,
 }
 
 impl Cursor {
     pub async fn next(&mut self) -> Option<Result<Row, tokio_postgres::Error>> {
-        match self.stream.next().await {
+        match self.stream.as_mut()?.next().await {
             Some(Ok(row)) => Some(Ok(Row { row })),
             Some(Err(err)) => Some(Err(err)),
             None => None,
         }
+    }
+
+    /// Discards the rows not yet read.
+    ///
+    /// A connection hands each query's result to its caller in order, a few
+    /// messages at a time, and reads nothing further from the server until that
+    /// caller takes them. A cursor left open with rows unread therefore stalls
+    /// every later query on its connection, for as long as the cursor lives —
+    /// which, for one held by JavaScript, is until it is garbage collected.
+    /// Closing it lets the connection skip past the rest of the result.
+    pub fn close(&mut self) {
+        self.stream = None;
     }
 }
 
@@ -393,7 +406,7 @@ impl QueryTracer {
 
         let stream = result?;
         Ok(Cursor {
-            stream: Box::pin(stream),
+            stream: Some(Box::pin(stream)),
         })
     }
 
@@ -450,5 +463,180 @@ mod key_test {
         assert!(!rendered.contains("hunter2"), "{rendered}");
         // The bytes must not leak in numeric form either.
         assert!(!rendered.contains("104"), "{rendered}");
+    }
+}
+
+#[cfg(test)]
+mod cursor_test {
+    use std::collections::HashMap;
+    use std::time::Duration;
+
+    use bytes::{Buf, BufMut, BytesMut};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::{TcpListener, TcpStream};
+
+    use super::*;
+
+    /// Rows in the result that is left unread. Each is sent on its own, so the
+    /// client reads them one at a time, as it would a large result.
+    const MANY: i32 = 20;
+
+    /// A cursor left open with rows unread used to hang every later query on
+    /// its connection until the cursor was garbage collected — in a
+    /// transaction, the very next statement. Closing it must free the
+    /// connection.
+    #[tokio::test]
+    async fn closing_a_cursor_frees_its_connection() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.unwrap();
+            serve(socket).await;
+        });
+
+        let mut config = tokio_postgres::Config::new();
+        config
+            .host("127.0.0.1")
+            .port(port)
+            .user("encore")
+            .dbname("db");
+        let (client, connection) = config.connect(tokio_postgres::NoTls).await.unwrap();
+        tokio::spawn(connection);
+        let client = Arc::new(client);
+
+        let tracer = QueryTracer(crate::trace::Tracer::noop());
+        let query = |sql: &'static str| {
+            let client = client.as_ref();
+            tracer.trace(None, sql, move || async move {
+                client
+                    .query_raw(sql, Vec::<i32>::new())
+                    .await
+                    .map_err(Error::from)
+            })
+        };
+
+        // Like `queryRow`: read the first row and leave the rest.
+        let mut cursor = query("SELECT many").await.unwrap();
+        let first = cursor.next().await.unwrap().unwrap();
+        assert_eq!(first.row.get::<_, i32>(0), 1);
+
+        let next = tokio::spawn({
+            let client = client.clone();
+            async move { client.query_one("SELECT one", &[]).await }
+        });
+
+        // The hazard being guarded against: while the cursor is open, the
+        // connection delivers nothing else.
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        assert!(
+            !next.is_finished(),
+            "the next query completed while the cursor was open; \
+             this test no longer exercises the stall"
+        );
+
+        cursor.close();
+        assert!(cursor.next().await.is_none(), "a closed cursor yields rows");
+
+        let row = tokio::time::timeout(Duration::from_secs(5), next)
+            .await
+            .expect("the next query hung after the cursor was closed")
+            .unwrap()
+            .unwrap();
+        assert_eq!(row.get::<_, i32>(0), 1);
+    }
+
+    /// Plays a Postgres server well enough for `prepare` and `query`: every
+    /// statement returns one int4 column, counting up from 1, with [`MANY`]
+    /// rows if its text contains "many" and one row otherwise.
+    async fn serve(mut socket: TcpStream) {
+        let len = socket.read_i32().await.unwrap();
+        let mut startup = vec![0; len as usize - 4];
+        socket.read_exact(&mut startup).await.unwrap();
+
+        let mut out = BytesMut::new();
+        message(&mut out, b'R', |b| b.put_i32(0)); // AuthenticationOk
+        ready_for_query(&mut out);
+        socket.write_all(&out).await.unwrap();
+
+        let mut rows_by_statement = HashMap::new();
+        let mut rows = 0;
+        loop {
+            let Ok(tag) = socket.read_u8().await else {
+                return;
+            };
+            let len = socket.read_i32().await.unwrap();
+            let mut body = vec![0; len as usize - 4];
+            socket.read_exact(&mut body).await.unwrap();
+            let mut body = &body[..];
+
+            let mut out = BytesMut::new();
+            match tag {
+                b'P' => {
+                    let name = cstr(&mut body);
+                    let sql = cstr(&mut body);
+                    let n = if sql.contains("many") { MANY } else { 1 };
+                    rows_by_statement.insert(name, n);
+                    message(&mut out, b'1', |_| {}); // ParseComplete
+                }
+                b'D' => {
+                    message(&mut out, b't', |b| b.put_i16(0)); // ParameterDescription
+                    message(&mut out, b'T', |b| {
+                        // RowDescription: one int4 column.
+                        b.put_i16(1);
+                        b.put_slice(b"n\0");
+                        b.put_i32(0);
+                        b.put_i16(0);
+                        b.put_i32(23);
+                        b.put_i16(4);
+                        b.put_i32(-1);
+                        b.put_i16(0);
+                    });
+                }
+                b'B' => {
+                    let _portal = cstr(&mut body);
+                    rows = rows_by_statement[&cstr(&mut body)];
+                    message(&mut out, b'2', |_| {}); // BindComplete
+                }
+                b'E' => {
+                    for i in 1..=rows {
+                        message(&mut out, b'D', |b| {
+                            b.put_i16(1);
+                            b.put_i32(4);
+                            b.put_i32(i);
+                        });
+                        // Send each row on its own, so the client reads it
+                        // as its own chunk.
+                        socket.write_all(&out).await.unwrap();
+                        out.clear();
+                        tokio::time::sleep(Duration::from_millis(5)).await;
+                    }
+                    message(&mut out, b'C', |b| b.put_slice(b"SELECT\0"));
+                }
+                b'C' => message(&mut out, b'3', |_| {}), // CloseComplete
+                b'S' => ready_for_query(&mut out),
+                b'X' => return,
+                other => panic!("unexpected message {:?}", other as char),
+            }
+            socket.write_all(&out).await.unwrap();
+        }
+    }
+
+    fn message(out: &mut BytesMut, tag: u8, body: impl FnOnce(&mut BytesMut)) {
+        let mut b = BytesMut::new();
+        body(&mut b);
+        out.put_u8(tag);
+        out.put_i32(b.len() as i32 + 4);
+        out.put_slice(&b);
+    }
+
+    fn ready_for_query(out: &mut BytesMut) {
+        message(out, b'Z', |b| b.put_u8(b'I'));
+    }
+
+    fn cstr(body: &mut &[u8]) -> String {
+        let end = body.iter().position(|&b| b == 0).unwrap();
+        let s = String::from_utf8(body[..end].to_vec()).unwrap();
+        body.advance(end + 1);
+        s
     }
 }

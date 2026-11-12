@@ -7,7 +7,7 @@ toc: true
 ## Classes
 
 <!-- symbol-start: Connection -->
-### Connection <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L384" />
+### Connection <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L428" />
 
 Represents a dedicated connection to a database.
 
@@ -17,7 +17,7 @@ Represents a dedicated connection to a database.
 
 #### Constructors
 
-##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L387" />
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L431" />
 
 `new Connection(impl): Connection`
 
@@ -47,7 +47,7 @@ Represents a dedicated connection to a database.
 
 #### Methods
 
-##### close() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L394" />
+##### close() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L438" />
 
 `close(): Promise<void>`
 
@@ -57,7 +57,7 @@ Returns the connection to the database pool.
 
 `Promise`\<`void`\>
 
-##### exec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L229" />
+##### exec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L265" />
 
 `exec(strings, ...params): Promise<void>`
 
@@ -88,7 +88,7 @@ const result = database.exec`DELETE FROM users WHERE email=${email}`
 
 `BaseQueryExecutor.exec`
 
-##### query() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L69" />
+##### query() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L74" />
 
 `query<T>(strings, ...params): AsyncGenerator<T>`
 
@@ -97,6 +97,11 @@ with parametrised values without risking SQL injections.
 
 It returns an async generator, that allows iterating over the results
 in a streaming fashion using `for await`.
+
+A `for await` loop closes the query however it ends. If you call `next()`
+yourself, call `return()` when you stop before the last row: until then the
+query keeps its connection busy, and any other query on that connection
+(such as the next statement in a transaction) waits for it.
 
 ###### Type Parameters
 
@@ -131,7 +136,7 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 `BaseQueryExecutor.query`
 
-##### queryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L129" />
+##### queryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L149" />
 
 `queryAll<T>(strings, ...params): Promise<T[]>`
 
@@ -173,7 +178,7 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 `BaseQueryExecutor.queryAll`
 
-##### queryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L184" />
+##### queryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L212" />
 
 `queryRow<T>(strings, ...params): Promise<T | null>`
 
@@ -212,7 +217,7 @@ const result = database.queryRow`SELECT id FROM users WHERE email=${email}`
 
 `BaseQueryExecutor.queryRow`
 
-##### rawExec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L255" />
+##### rawExec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L295" />
 
 `rawExec(query, ...params): Promise<void>`
 
@@ -250,7 +255,7 @@ await database.rawExec(query, email);
 
 `BaseQueryExecutor.rawExec`
 
-##### rawQuery() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L101" />
+##### rawQuery() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L116" />
 
 `rawQuery<T>(query, ...params): AsyncGenerator<T>`
 
@@ -258,6 +263,11 @@ rawQuery queries the database using a raw parametrised SQL query and parameters.
 
 It returns an async generator, that allows iterating over the results
 in a streaming fashion using `for await`.
+
+A `for await` loop closes the query however it ends. If you call `next()`
+yourself, call `return()` when you stop before the last row: until then the
+query keeps its connection busy, and any other query on that connection
+(such as the next statement in a transaction) waits for it.
 
 ###### Type Parameters
 
@@ -299,7 +309,7 @@ for await (const row of database.rawQuery(query, email)) {
 
 `BaseQueryExecutor.rawQuery`
 
-##### rawQueryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L158" />
+##### rawQueryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L182" />
 
 `rawQueryAll<T>(query, ...params): Promise<T[]>`
 
@@ -339,7 +349,7 @@ const rows = await database.rawQueryAll(query, email);
 
 `BaseQueryExecutor.rawQueryAll`
 
-##### rawQueryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L211" />
+##### rawQueryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L243" />
 
 `rawQueryRow<T>(query, ...params): Promise<T | null>`
 
@@ -391,7 +401,7 @@ console.log(result);
 <!-- symbol-end -->
 
 <!-- symbol-start: SQLDatabase -->
-### SQLDatabase <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L273" />
+### SQLDatabase <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L317" />
 
 Constructing a new database object will result in Encore provisioning a database with
 that name and returning this object to represent it.
@@ -405,7 +415,7 @@ compile error to create duplicate databases.
 
 #### Constructors
 
-##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L276" />
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L320" />
 
 `new SQLDatabase(name, cfg?): SQLDatabase`
 
@@ -453,7 +463,7 @@ Returns the connection string for the database
 
 #### Methods
 
-##### acquire() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L301" />
+##### acquire() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L345" />
 
 `acquire(): Promise<Connection>`
 
@@ -467,7 +477,7 @@ When the connection is closed or is garbage-collected, it is returned to the poo
 
 a new connection to the database
 
-##### begin() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L324" />
+##### begin() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L368" />
 
 `begin(): Promise<Transaction>`
 
@@ -492,7 +502,7 @@ or `rollback` yourself to prevent hanging transactions.
 
 a transaction object that implements `AsyncDisposable`
 
-##### exec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L229" />
+##### exec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L265" />
 
 `exec(strings, ...params): Promise<void>`
 
@@ -523,7 +533,7 @@ const result = database.exec`DELETE FROM users WHERE email=${email}`
 
 `BaseQueryExecutor.exec`
 
-##### query() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L69" />
+##### query() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L74" />
 
 `query<T>(strings, ...params): AsyncGenerator<T>`
 
@@ -532,6 +542,11 @@ with parametrised values without risking SQL injections.
 
 It returns an async generator, that allows iterating over the results
 in a streaming fashion using `for await`.
+
+A `for await` loop closes the query however it ends. If you call `next()`
+yourself, call `return()` when you stop before the last row: until then the
+query keeps its connection busy, and any other query on that connection
+(such as the next statement in a transaction) waits for it.
 
 ###### Type Parameters
 
@@ -566,7 +581,7 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 `BaseQueryExecutor.query`
 
-##### queryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L129" />
+##### queryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L149" />
 
 `queryAll<T>(strings, ...params): Promise<T[]>`
 
@@ -608,7 +623,7 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 `BaseQueryExecutor.queryAll`
 
-##### queryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L184" />
+##### queryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L212" />
 
 `queryRow<T>(strings, ...params): Promise<T | null>`
 
@@ -647,7 +662,7 @@ const result = database.queryRow`SELECT id FROM users WHERE email=${email}`
 
 `BaseQueryExecutor.queryRow`
 
-##### rawExec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L255" />
+##### rawExec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L295" />
 
 `rawExec(query, ...params): Promise<void>`
 
@@ -685,7 +700,7 @@ await database.rawExec(query, email);
 
 `BaseQueryExecutor.rawExec`
 
-##### rawQuery() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L101" />
+##### rawQuery() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L116" />
 
 `rawQuery<T>(query, ...params): AsyncGenerator<T>`
 
@@ -693,6 +708,11 @@ rawQuery queries the database using a raw parametrised SQL query and parameters.
 
 It returns an async generator, that allows iterating over the results
 in a streaming fashion using `for await`.
+
+A `for await` loop closes the query however it ends. If you call `next()`
+yourself, call `return()` when you stop before the last row: until then the
+query keeps its connection busy, and any other query on that connection
+(such as the next statement in a transaction) waits for it.
 
 ###### Type Parameters
 
@@ -734,7 +754,7 @@ for await (const row of database.rawQuery(query, email)) {
 
 `BaseQueryExecutor.rawQuery`
 
-##### rawQueryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L158" />
+##### rawQueryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L182" />
 
 `rawQueryAll<T>(query, ...params): Promise<T[]>`
 
@@ -774,7 +794,7 @@ const rows = await database.rawQueryAll(query, email);
 
 `BaseQueryExecutor.rawQueryAll`
 
-##### rawQueryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L211" />
+##### rawQueryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L243" />
 
 `rawQueryRow<T>(query, ...params): Promise<T | null>`
 
@@ -821,7 +841,7 @@ console.log(result);
 
 `BaseQueryExecutor.rawQueryRow`
 
-##### named() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L284" />
+##### named() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L328" />
 
 `static named<name>(name): SQLDatabase`
 
@@ -849,7 +869,7 @@ exist yet, use `new Database(name)` instead.
 <!-- symbol-end -->
 
 <!-- symbol-start: Transaction -->
-### Transaction <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L348" />
+### Transaction <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L392" />
 
 Represents a database transaction.
 
@@ -877,7 +897,7 @@ If you can't use `await using`, make sure to always call `commit` or
 
 #### Constructors
 
-##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L352" />
+##### Constructor <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L396" />
 
 `new Transaction(impl): Transaction`
 
@@ -907,7 +927,7 @@ If you can't use `await using`, make sure to always call `commit` or
 
 #### Methods
 
-##### \[asyncDispose\]() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L374" />
+##### \[asyncDispose\]() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L418" />
 
 `asyncDispose: Promise<void>`
 
@@ -919,7 +939,7 @@ If you can't use `await using`, make sure to always call `commit` or
 
 `AsyncDisposable.[asyncDispose]`
 
-##### commit() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L359" />
+##### commit() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L403" />
 
 `commit(): Promise<void>`
 
@@ -929,7 +949,7 @@ Commit the transaction.
 
 `Promise`\<`void`\>
 
-##### exec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L229" />
+##### exec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L265" />
 
 `exec(strings, ...params): Promise<void>`
 
@@ -960,7 +980,7 @@ const result = database.exec`DELETE FROM users WHERE email=${email}`
 
 `BaseQueryExecutor.exec`
 
-##### query() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L69" />
+##### query() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L74" />
 
 `query<T>(strings, ...params): AsyncGenerator<T>`
 
@@ -969,6 +989,11 @@ with parametrised values without risking SQL injections.
 
 It returns an async generator, that allows iterating over the results
 in a streaming fashion using `for await`.
+
+A `for await` loop closes the query however it ends. If you call `next()`
+yourself, call `return()` when you stop before the last row: until then the
+query keeps its connection busy, and any other query on that connection
+(such as the next statement in a transaction) waits for it.
 
 ###### Type Parameters
 
@@ -1003,7 +1028,7 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 `BaseQueryExecutor.query`
 
-##### queryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L129" />
+##### queryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L149" />
 
 `queryAll<T>(strings, ...params): Promise<T[]>`
 
@@ -1045,7 +1070,7 @@ This produces the query: "SELECT id FROM users WHERE email=$1".
 
 `BaseQueryExecutor.queryAll`
 
-##### queryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L184" />
+##### queryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L212" />
 
 `queryRow<T>(strings, ...params): Promise<T | null>`
 
@@ -1084,7 +1109,7 @@ const result = database.queryRow`SELECT id FROM users WHERE email=${email}`
 
 `BaseQueryExecutor.queryRow`
 
-##### rawExec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L255" />
+##### rawExec() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L295" />
 
 `rawExec(query, ...params): Promise<void>`
 
@@ -1122,7 +1147,7 @@ await database.rawExec(query, email);
 
 `BaseQueryExecutor.rawExec`
 
-##### rawQuery() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L101" />
+##### rawQuery() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L116" />
 
 `rawQuery<T>(query, ...params): AsyncGenerator<T>`
 
@@ -1130,6 +1155,11 @@ rawQuery queries the database using a raw parametrised SQL query and parameters.
 
 It returns an async generator, that allows iterating over the results
 in a streaming fashion using `for await`.
+
+A `for await` loop closes the query however it ends. If you call `next()`
+yourself, call `return()` when you stop before the last row: until then the
+query keeps its connection busy, and any other query on that connection
+(such as the next statement in a transaction) waits for it.
 
 ###### Type Parameters
 
@@ -1171,7 +1201,7 @@ for await (const row of database.rawQuery(query, email)) {
 
 `BaseQueryExecutor.rawQuery`
 
-##### rawQueryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L158" />
+##### rawQueryAll() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L182" />
 
 `rawQueryAll<T>(query, ...params): Promise<T[]>`
 
@@ -1211,7 +1241,7 @@ const rows = await database.rawQueryAll(query, email);
 
 `BaseQueryExecutor.rawQueryAll`
 
-##### rawQueryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L211" />
+##### rawQueryRow() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L243" />
 
 `rawQueryRow<T>(query, ...params): Promise<T | null>`
 
@@ -1258,7 +1288,7 @@ console.log(result);
 
 `BaseQueryExecutor.rawQueryRow`
 
-##### rollback() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L368" />
+##### rollback() <SymbolSource href="https://github.com/encoredev/encore/blob/main/runtimes/js/encore.dev/storage/sqldb/database.ts#L412" />
 
 `rollback(): Promise<void>`
 
