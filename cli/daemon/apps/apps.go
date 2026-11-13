@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -454,10 +455,20 @@ func (i *Instance) Watch(fn WatchFunc) (WatchSubscriptionID, error) {
 	if started && i.mgr != nil {
 		// Now that this app is being watched, notify listeners so they can
 		// e.g. regenerate user-facing codegen and keep it fresh as files
-		// change. Done outside the lock: listeners parse the app and write
-		// generated files into the watched tree, which is slow and produces
-		// events whose delivery needs the lock.
-		i.mgr.notifyAppListeners(i)
+		// change. Listeners parse the app, which is slow, and nothing depends
+		// on them finishing, so they run in the background.
+		go func() {
+			defer func() {
+				recovered := recover()
+				if recovered == nil {
+					return
+				}
+				log.Error().
+					Str("app", i.PlatformOrLocalID()).
+					Msgf("panic in app listener: %v\n%s", recovered, debug.Stack())
+			}()
+			i.mgr.notifyAppListeners(i)
+		}()
 	}
 	return id, nil
 }

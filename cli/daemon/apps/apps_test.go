@@ -3,6 +3,7 @@ package apps
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"encr.dev/internal/conf"
 	"encr.dev/pkg/watcher"
@@ -68,6 +69,45 @@ func TestWatcherRestarts(t *testing.T) {
 		if i.isWatching() {
 			t.Fatalf("cycle %d: watcher still running after Unwatch", n)
 		}
+	}
+}
+
+// TestWatchDoesNotWaitForAppListeners verifies the first Watch returns while an
+// app listener is still running.
+func TestWatchDoesNotWaitForAppListeners(t *testing.T) {
+	i := newTestInstance(t)
+
+	// Listeners only read the registered listener list, so the manager needs
+	// no app store.
+	mgr := NewManager(nil)
+	i.mgr = mgr
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	mgr.RegisterAppListener(func(*Instance) {
+		close(started)
+		<-release
+	})
+
+	watched := make(chan error, 1)
+	go func() {
+		_, err := i.Watch(noopWatch)
+		watched <- err
+	}()
+
+	select {
+	case err := <-watched:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("first Watch did not return while the app listener was still running")
+	}
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("app listener never ran")
 	}
 }
 
