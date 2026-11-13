@@ -451,7 +451,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, []dbMigrationHistory{}, nil)
 		}
 
-		status := buildDbMigrationStatus(ctx, appMeta, cluster)
+		status := buildDbMigrationStatus(ctx, app.Root(), appMeta, cluster)
 
 		return reply(ctx, status, nil)
 	case "api-call":
@@ -769,7 +769,7 @@ func buildAppStatus(app *apps.Instance, runInstance *run.Run) (s appStatus, err 
 	return resp, nil
 }
 
-func buildDbMigrationStatus(ctx context.Context, appMeta *meta.Data, cluster *sqldb.Cluster) []dbMigrationHistory {
+func buildDbMigrationStatus(ctx context.Context, appRoot string, appMeta *meta.Data, cluster *sqldb.Cluster) []dbMigrationHistory {
 	var statuses []dbMigrationHistory
 	for _, dbMeta := range appMeta.SqlDatabases {
 		db, ok := cluster.GetDB(dbMeta.Name)
@@ -777,17 +777,19 @@ func buildDbMigrationStatus(ctx context.Context, appMeta *meta.Data, cluster *sq
 			// Remote database migration status are not supported yet
 			continue
 		}
-		appliedVersions, err := db.ListAppliedMigrations(ctx)
+		appliedVersions, err := db.ListAppliedMigrations(ctx, appRoot, dbMeta)
 		if err != nil {
 			log.Error().Msgf("failed to list applied migrations for database %s: %v", dbMeta.Name, err)
 			continue
 		}
-		statuses = append(statuses, buildMigrationHistory(dbMeta, appliedVersions))
+		statuses = append(statuses, buildMigrationHistory(dbMeta, appliedVersions, sqldb.AppliedMigrationsAreASet(appRoot, dbMeta)))
 	}
 	return statuses
 }
 
-func buildMigrationHistory(dbMeta *meta.SQLDatabase, appliedVersions map[uint64]bool) dbMigrationHistory {
+// appliedIsSet reports whether appliedVersions lists every applied migration,
+// rather than only the latest one; see sqldb.AppliedMigrationsAreASet.
+func buildMigrationHistory(dbMeta *meta.SQLDatabase, appliedVersions map[uint64]bool, appliedIsSet bool) dbMigrationHistory {
 	history := dbMigrationHistory{
 		DatabaseName: dbMeta.Name,
 		Migrations:   []dbMigration{},
@@ -802,10 +804,11 @@ func buildMigrationHistory(dbMeta *meta.SQLDatabase, appliedVersions map[uint64]
 	for _, migration := range sortedMigrations {
 		dirty, attempted := appliedVersions[migration.Number]
 		applied := attempted && !dirty
-		// If the database doesn't allow non-sequential migrations,
-		// then any migrations before the last applied will also have
-		// been applied even if we don't see them in the database.
-		if !dbMeta.AllowNonSequentialMigrations && applied {
+		// If the database tracks only the latest applied version
+		// (sequential migrations tracked by number), then any migrations
+		// before the last applied will also have been applied even if
+		// we don't see them in the database.
+		if !appliedIsSet && applied {
 			implicitlyApplied = true
 		}
 
