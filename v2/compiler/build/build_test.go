@@ -168,3 +168,22 @@ func processOverlays(workdir paths.FS) ([]overlay.File, error) {
 
 	return overlays, nil
 }
+
+func TestPersistentWorkDirIsPerCheckoutAndMode(t *testing.T) {
+	cache := t.TempDir()
+	a := paths.FS("/src/app")
+	b := paths.FS("/src/app-worktree")
+
+	if got, want := persistentWorkDir(cache, "app-id", a, buildMode), persistentWorkDir(cache, "app-id", a, buildMode); got != want {
+		t.Errorf("same checkout and mode got different dirs: %s, %s", got, want)
+	}
+	if persistentWorkDir(cache, "app-id", a, buildMode) == persistentWorkDir(cache, "app-id", b, buildMode) {
+		t.Error("two checkouts of the same app share a work dir")
+	}
+	if persistentWorkDir(cache, "app-id", a, buildMode) == persistentWorkDir(cache, "app-id", a, testMode) {
+		t.Error("build and test modes share a work dir")
+	}
+	if dir := persistentWorkDir(cache, "app-id", a, testMode); !strings.HasPrefix(dir, filepath.Join(cache, "encore-build", "app-id")+string(filepath.Separator)) {
+		t.Errorf("work dir %s is not under the app's encore-build dir", dir)
+	}
+}
