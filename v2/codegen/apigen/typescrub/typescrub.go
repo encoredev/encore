@@ -9,14 +9,17 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/scrub"
+	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schemautil"
 )
 
 // New constructs a new Computer.
-func NewComputer(log zerolog.Logger) *Computer {
+func NewComputer(log zerolog.Logger, errs *perr.List) *Computer {
 	return &Computer{
 		log:       log.With().Str("component", "typescrub").Logger(),
+		errs:      errs,
 		declCache: make(map[declCacheKey]declResult),
 	}
 }
@@ -25,7 +28,8 @@ func NewComputer(log zerolog.Logger) *Computer {
 // It can safely be reused across multiple types.
 // It is not safe for concurrent use.
 type Computer struct {
-	log zerolog.Logger
+	log  zerolog.Logger
+	errs *perr.List
 
 	// declCache caches the scrub paths for encountered declarations
 	declCache map[declCacheKey]declResult
@@ -198,7 +202,8 @@ func (p *typeParser) typ(typ schema.Type) declResult {
 
 	case schema.StructType:
 		var out declResult
-		for _, f := range t.Fields {
+		for _, flat := range schemautil.FlattenStruct(p.c.errs, t) {
+			f := flat.Field
 			sensitive, fieldName, caseSensitive := isSensitive(f)
 
 			// For Auth Handlers everything is sensitive.
