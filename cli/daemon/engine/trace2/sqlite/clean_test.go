@@ -182,3 +182,50 @@ func TestDoCleanDropsUnknownApps(t *testing.T) {
 		}
 	}
 }
+
+func TestAppUsageCountsBytesNewestAppFirst(t *testing.T) {
+	s := newTestStore(t)
+	seedTraces(t, s, "older", 3, 100)
+	// "é" is two bytes in UTF-8: the budget is bytes, not characters.
+	if _, err := s.db.Exec(
+		`INSERT INTO trace_event (app_id, trace_id, span_id, event_data) VALUES (?, ?, ?, ?)`,
+		"newer", "t", "span", strings.Repeat("é", 50)); err != nil {
+		t.Fatalf("insert event: %v", err)
+	}
+
+	got, err := s.appUsage(context.Background())
+	if err != nil {
+		t.Fatalf("app usage: %v", err)
+	}
+	if len(got) != 2 || got[0].id != "newer" || got[1].id != "older" {
+		t.Fatalf("got %+v, want newer then older", got)
+	}
+	if got[0].bytes != 100 || got[1].bytes != 300 {
+		t.Errorf("got bytes newer=%d older=%d, want 100 and 300", got[0].bytes, got[1].bytes)
+	}
+}
+
+// The sweep runs every minute. Any query in it that makes SQLite sort trace
+// rows spills the payloads to a temp file, rewriting the trace data on disk
+// each time; measuring usage must stay a plain scan.
+func TestAppUsageQueryDoesNotSort(t *testing.T) {
+	s := newTestStore(t)
+	rows, err := s.db.Query("EXPLAIN QUERY PLAN " + appUsageQuery)
+	if err != nil {
+		t.Fatalf("explain: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, parent, notused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &notused, &detail); err != nil {
+			t.Fatalf("scan plan: %v", err)
+		}
+		if strings.Contains(detail, "TEMP B-TREE") {
+			t.Errorf("usage query sorts through a temp b-tree: %s", detail)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("plan rows: %v", err)
+	}
+}
