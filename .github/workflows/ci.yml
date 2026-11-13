@@ -27,7 +27,7 @@ jobs:
           path: encr.dev
 
       - name: Set up Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
 
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -54,7 +54,7 @@ jobs:
           path: encr.dev
 
       - name: Set up Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
 
       - name: Set up Go
         uses: actions/setup-go@v4
