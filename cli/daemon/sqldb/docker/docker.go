@@ -141,6 +141,9 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 			"-e", "AUTO_PG_UPGRADE=1",
 			"--name", cnames[0],
 		}
+		if net := os.Getenv("ENCORE_DOCKER_NETWORK"); net != "" {
+			args = append(args, "--network", net)
+		}
 		if p.Memfs {
 			args = append(args,
 				"--mount", "type=tmpfs,destination="+defaultDataDir,
