@@ -30,6 +30,7 @@ var testCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
 			traceFile    string
+			nsName       string
 			codegenDebug bool
 			prepareOnly  bool
 			noColor      bool
@@ -57,6 +58,17 @@ var testCmd = &cobra.Command{
 						i--
 					}
 				}
+			} else if arg == "--namespace" || strings.HasPrefix(arg, "--namespace=") {
+				args = slices.Delete(args, i, i+1)
+				i--
+
+				// We either have '--namespace=name' or '--namespace name'.
+				if _, value, ok := strings.Cut(arg, "="); ok {
+					nsName = value
+				} else if i+1 < len(args) {
+					nsName = args[i+1]
+					args = slices.Delete(args, i+1, i+2)
+				}
 			} else if arg == "--codegen-debug" {
 				codegenDebug = true
 				args = slices.Delete(args, i, i+1)
@@ -73,7 +85,7 @@ var testCmd = &cobra.Command{
 		}
 
 		appRoot, relPath := determineAppRoot()
-		exitCode, err := runTests(appRoot, relPath, args, traceFile, codegenDebug, prepareOnly, noColor)
+		exitCode, err := runTests(appRoot, relPath, args, traceFile, nsName, codegenDebug, prepareOnly, noColor)
 		if err != nil {
 			fatal(err)
 		}
@@ -81,7 +93,7 @@ var testCmd = &cobra.Command{
 	},
 }
 
-func runTests(appRoot, testDir string, args []string, traceFile string, codegenDebug, prepareOnly, noColor bool) (int, error) {
+func runTests(appRoot, testDir string, args []string, traceFile, nsName string, codegenDebug, prepareOnly, noColor bool) (int, error) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -120,6 +132,7 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 			Args:       args,
 			Environ:    os.Environ(),
 			TempDir:    tempDir,
+			Namespace:  nonZeroPtr(nsName),
 		})
 		if status.Code(err) == codes.NotFound {
 			return 1, errors.New("application does not define any tests.\nNote: Add a 'test' script command to package.json to run tests.")
@@ -159,6 +172,7 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 		TraceFile:    nonZeroPtr(traceFile),
 		CodegenDebug: codegenDebug,
 		TempDir:      tempDir,
+		Namespace:    nonZeroPtr(nsName),
 	})
 	if err != nil {
 		return 1, err
@@ -176,6 +190,7 @@ func init() {
 	testCmd.Flags().Bool("prepare", false, "Prepare for running tests (without running them)")
 	testCmd.Flags().String("trace", "", "Specifies a trace file to write trace information about the parse and compilation process to.")
 	testCmd.Flags().Bool("no-color", false, "Disable colorized output")
+	testCmd.Flags().String("namespace", "", "Namespace to use (defaults to active namespace)")
 
 }
 

@@ -1249,7 +1249,10 @@ type TestRequest struct {
 	CodegenDebug bool `protobuf:"varint,7,opt,name=codegen_debug,json=codegenDebug,proto3" json:"codegen_debug,omitempty"`
 	// temp_dir is a temp dir that will be cleaned up after tests have been executed
 	// to write things like app meta and runtime config etc.
-	TempDir       string `protobuf:"bytes,8,opt,name=temp_dir,json=tempDir,proto3" json:"temp_dir,omitempty"`
+	TempDir string `protobuf:"bytes,8,opt,name=temp_dir,json=tempDir,proto3" json:"temp_dir,omitempty"`
+	// namespace is the infrastructure namespace to use.
+	// If empty the active namespace is used.
+	Namespace     *string `protobuf:"bytes,9,opt,name=namespace,proto3,oneof" json:"namespace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1333,6 +1336,13 @@ func (x *TestRequest) GetTempDir() string {
 	return ""
 }
 
+func (x *TestRequest) GetNamespace() string {
+	if x != nil && x.Namespace != nil {
+		return *x.Namespace
+	}
+	return ""
+}
+
 type TestSpecRequest struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	AppRoot    string                 `protobuf:"bytes,1,opt,name=app_root,json=appRoot,proto3" json:"app_root,omitempty"`
@@ -1343,7 +1353,10 @@ type TestSpecRequest struct {
 	Environ []string `protobuf:"bytes,4,rep,name=environ,proto3" json:"environ,omitempty"`
 	// temp_dir is a temp dir that will be cleaned up after tests have been executed
 	// to write things like app meta and runtime config etc.
-	TempDir       string `protobuf:"bytes,5,opt,name=temp_dir,json=tempDir,proto3" json:"temp_dir,omitempty"`
+	TempDir string `protobuf:"bytes,5,opt,name=temp_dir,json=tempDir,proto3" json:"temp_dir,omitempty"`
+	// namespace is the infrastructure namespace to use.
+	// If empty the active namespace is used.
+	Namespace     *string `protobuf:"bytes,6,opt,name=namespace,proto3,oneof" json:"namespace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1409,6 +1422,13 @@ func (x *TestSpecRequest) GetEnviron() []string {
 func (x *TestSpecRequest) GetTempDir() string {
 	if x != nil {
 		return x.TempDir
+	}
+	return ""
+}
+
+func (x *TestSpecRequest) GetNamespace() string {
+	if x != nil && x.Namespace != nil {
+		return *x.Namespace
 	}
 	return ""
 }
@@ -4602,7 +4622,7 @@ const file_encore_daemon_daemon_proto_rawDesc = "" +
 	"\fSpecComplete\x12\x1c\n" +
 	"\tsucceeded\x18\x01 \x01(\x05R\tsucceeded\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x05R\x05total\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error\"\xf0\x01\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"\xa1\x02\n" +
 	"\vTestRequest\x12\x19\n" +
 	"\bapp_root\x18\x01 \x01(\tR\aappRoot\x12\x1f\n" +
 	"\vworking_dir\x18\x02 \x01(\tR\n" +
@@ -4612,15 +4632,21 @@ const file_encore_daemon_daemon_proto_rawDesc = "" +
 	"\n" +
 	"trace_file\x18\x06 \x01(\tH\x00R\ttraceFile\x88\x01\x01\x12#\n" +
 	"\rcodegen_debug\x18\a \x01(\bR\fcodegenDebug\x12\x19\n" +
-	"\btemp_dir\x18\b \x01(\tR\atempDirB\r\n" +
-	"\v_trace_fileJ\x04\b\x05\x10\x06\"\x96\x01\n" +
+	"\btemp_dir\x18\b \x01(\tR\atempDir\x12!\n" +
+	"\tnamespace\x18\t \x01(\tH\x01R\tnamespace\x88\x01\x01B\r\n" +
+	"\v_trace_fileB\f\n" +
+	"\n" +
+	"_namespaceJ\x04\b\x05\x10\x06\"\xc7\x01\n" +
 	"\x0fTestSpecRequest\x12\x19\n" +
 	"\bapp_root\x18\x01 \x01(\tR\aappRoot\x12\x1f\n" +
 	"\vworking_dir\x18\x02 \x01(\tR\n" +
 	"workingDir\x12\x12\n" +
 	"\x04args\x18\x03 \x03(\tR\x04args\x12\x18\n" +
 	"\aenviron\x18\x04 \x03(\tR\aenviron\x12\x19\n" +
-	"\btemp_dir\x18\x05 \x01(\tR\atempDir\"Z\n" +
+	"\btemp_dir\x18\x05 \x01(\tR\atempDir\x12!\n" +
+	"\tnamespace\x18\x06 \x01(\tH\x00R\tnamespace\x88\x01\x01B\f\n" +
+	"\n" +
+	"_namespace\"Z\n" +
 	"\x10TestSpecResponse\x12\x18\n" +
 	"\acommand\x18\x01 \x01(\tR\acommand\x12\x12\n" +
 	"\x04args\x18\x02 \x03(\tR\x04args\x12\x18\n" +
@@ -5115,6 +5141,7 @@ func file_encore_daemon_daemon_proto_init() {
 		(*RunSpecMessage_Complete)(nil),
 	}
 	file_encore_daemon_daemon_proto_msgTypes[13].OneofWrappers = []any{}
+	file_encore_daemon_daemon_proto_msgTypes[14].OneofWrappers = []any{}
 	file_encore_daemon_daemon_proto_msgTypes[16].OneofWrappers = []any{}
 	file_encore_daemon_daemon_proto_msgTypes[17].OneofWrappers = []any{}
 	file_encore_daemon_daemon_proto_msgTypes[18].OneofWrappers = []any{
