@@ -447,6 +447,14 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			}
 		}
 
+		if ts.sharedTypes && !isRaw && (isStream || rpc.ResponseSchema != nil) {
+			wroteParam := inlinePathParams || (!isStream && rpc.RequestSchema != nil) || (isStream && hasHandshake)
+			if wroteParam {
+				ts.WriteString(", ")
+			}
+			ts.WriteString("callOptions?: CallOptions")
+		}
+
 		ts.WriteString("): Promise<")
 
 		if isStream {
@@ -599,6 +607,12 @@ func (ts *typescript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 		}
 
 		createStream += "}"
+	} else if ts.sharedTypes {
+		createStream += ", undefined"
+	}
+
+	if ts.sharedTypes {
+		createStream += ", callOptions?.dateReviver"
 	}
 	createStream += ")"
 
@@ -764,12 +778,16 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 	w.WriteStringf("// Now make the actual call to the API\nconst resp = await %s\n", callAPI)
 
+	if ts.sharedTypes {
+		w.WriteString("const reviver = callOptions?.dateReviver !== undefined ? (callOptions.dateReviver || undefined) : this.baseClient.reviver\n")
+	}
+
 	respEnc := rpcEncoding.ResponseEncoding
 
 	// If we don't need to do anything with the body, we can just return the response
 	if len(respEnc.HeaderParameters) == 0 {
 		if ts.sharedTypes {
-			w.WriteString("return JSON.parse(await resp.text(), dateReviver) as ")
+			w.WriteString("return JSON.parse(await resp.text(), reviver) as ")
 			fmt.Fprintf(ts, "ResponseType<typeof %s>", rpcImportName(rpc))
 		} else {
 			w.WriteString("return await resp.json() as ")
@@ -783,7 +801,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	w.WriteString("\n//Populate the return object from the JSON body and received headers\n")
 
 	if ts.sharedTypes {
-		w.WriteStringf("const rtn = JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof %s>", rpcImportName(rpc))
+		w.WriteStringf("const rtn = JSON.parse(await resp.text(), reviver) as ResponseType<typeof %s>", rpcImportName(rpc))
 	} else {
 		w.WriteString("const rtn = await resp.json() as ")
 		ts.writeTyp(ns, rpc.ResponseSchema, 0)
@@ -934,8 +952,10 @@ type StreamResponse<Type> = Type extends
 	}
 
 	parse := "JSON.parse(event.data)"
+	ctorParams := "url: string, headers?: Record<string, string>"
 	if ts.sharedTypes {
-		parse = "JSON.parse(event.data, dateReviver)"
+		parse = "JSON.parse(event.data, reviver)"
+		ctorParams = "url: string, headers?: Record<string, string>, reviver?: (key: string, value: any) => any"
 	}
 
 	send := `
@@ -1032,7 +1052,7 @@ export class StreamInOut<Request, Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(` + ctorParams + `) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
             this.buffer.push(` + parse + `);
@@ -1051,7 +1071,7 @@ export class StreamIn<Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(` + ctorParams + `) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
             this.buffer.push(` + parse + `);
@@ -1069,7 +1089,7 @@ export class StreamOut<Request, Response> {
     public socket: WebSocketConnection;
     private responseValue: Promise<Response>;
 
-    constructor(url: string, headers?: Record<string, string>) {
+    constructor(` + ctorParams + `) {
         let responseResolver: (_: any) => void;
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
 
@@ -1268,9 +1288,33 @@ export interface ClientOptions {
 		w.WriteString(" | AuthDataGenerator\n")
 	}
 
+	if ts.sharedTypes {
+		w.WriteString(`    /**
+     * Overrides or disables the built-in date reviver for all API calls.
+     * Pass a custom function to use instead, or false to disable date parsing entirely.
+     */
+    dateReviver?: ((key: string, value: any) => any) | false
+`)
+	}
+
 	w.WriteString(`}
 
 `)
+
+	if ts.sharedTypes {
+		w.WriteString(`/**
+ * CallOptions allows you to override per-call behaviour within the generated Encore client.
+ */
+export interface CallOptions {
+    /**
+     * Overrides the date reviver for this specific call.
+     * Pass a custom function to transform date strings, or false to disable date parsing.
+     */
+    dateReviver?: ((key: string, value: any) => any) | false
+}
+
+`)
+	}
 }
 
 func (ts *typescript) writeBaseClient(appSlug string) error {
@@ -1321,6 +1365,10 @@ class BaseClient {
 		ts.WriteString("\n    readonly authGenerator?: AuthDataGenerator")
 	}
 
+	if ts.sharedTypes {
+		ts.WriteString("\n    readonly reviver: ((key: string, value: any) => any) | undefined")
+	}
+
 	ts.WriteString(`
 
     constructor(baseURL: string, options: ClientOptions) {
@@ -1354,6 +1402,11 @@ class BaseClient {
                 this.authGenerator = () => auth
             }
         }`)
+	}
+
+	if ts.sharedTypes {
+		ts.WriteString(`
+        this.reviver = options.dateReviver === false ? undefined : (options.dateReviver ?? dateReviver)`)
 	}
 
 	ts.WriteString(`
@@ -1448,9 +1501,16 @@ class BaseClient {
     }
 `)
 
-	ts.WriteString(`
+	streamParamSuffix := ""
+	streamReturnReviver := "headers"
+	if ts.sharedTypes {
+		streamParamSuffix = ", reviver?: ((key: string, value: any) => any) | false"
+		streamReturnReviver = "headers, reviver === false ? undefined : (reviver ?? this.reviver)"
+	}
+
+	fmt.Fprintf(ts, `
     // createStreamInOut sets up a stream to a streaming API endpoint.
-    async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
+    async createStreamInOut<Request, Response>(path: string, params?: CallParameters%s): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -1467,11 +1527,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamInOut(this.baseURL + path + queryString, headers);
+        return new StreamInOut(this.baseURL + path + queryString, %s);
     }
 
     // createStreamIn sets up a stream to a streaming API endpoint.
-    async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
+    async createStreamIn<Response>(path: string, params?: CallParameters%s): Promise<StreamIn<Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -1488,11 +1548,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamIn(this.baseURL + path + queryString, headers);
+        return new StreamIn(this.baseURL + path + queryString, %s);
     }
 
     // createStreamOut sets up a stream to a streaming API endpoint.
-    async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
+    async createStreamOut<Request, Response>(path: string, params?: CallParameters%s): Promise<StreamOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -1509,9 +1569,9 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamOut(this.baseURL + path + queryString, headers);
+        return new StreamOut(this.baseURL + path + queryString, %s);
     }
-`)
+`, streamParamSuffix, streamReturnReviver, streamParamSuffix, streamReturnReviver, streamParamSuffix, streamReturnReviver)
 
 	callParams := "method: string, path: string, body?: RequestInit[\"body\"], params?: CallParameters"
 	callAPIParams := "method, path, body"
