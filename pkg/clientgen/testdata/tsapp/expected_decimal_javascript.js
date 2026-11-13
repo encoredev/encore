@@ -57,7 +57,11 @@ class SvcServiceClient {
 
         // Now make the actual call to the API
         const resp = await this.baseClient.callTypedAPI("GET", `/dummy`, undefined, {query})
-        return await resp.json()
+
+        //Populate the return object from the JSON body and received headers
+        const rtn = await resp.json()
+        rtn.amount = mustBeSet("Header `x-amount`", resp.headers.get("x-amount"))
+        return rtn
     }
 }
 
@@ -86,6 +90,20 @@ function makeRecord(record) {
         }
     }
     return record
+}
+
+// mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
+function mustBeSet(field, value) {
+    if (value === null || value === undefined) {
+        throw new APIError(
+            500,
+            {
+                code: ErrCode.DataLoss,
+                message: `${field} was unexpectedly ${value}`, // ${value} will create the string "null" or "undefined"
+            },
+        )
+    }
+    return value
 }
 
 
