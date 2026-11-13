@@ -31,7 +31,7 @@ impl AppMeta {
     pub fn new(rt: &rt::RuntimeConfig, md: &meta::Data) -> AppMeta {
         let env = rt.environment.as_ref();
 
-        let app_id = env.map(|e| e.app_id.clone()).unwrap_or_default();
+        let app_id = env.map(|e| e.app_slug.clone()).unwrap_or_default();
 
         let api_base_url = rt
             .infra
