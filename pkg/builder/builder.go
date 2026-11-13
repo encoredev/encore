@@ -320,3 +320,11 @@ type Impl interface {
 	NeedsMeta() bool
 	Close() error
 }
+
+// TestCompilesBinary reports whether go test args ask for a test binary to be
+// compiled for later execution (-c) rather than run. The binary embeds the
+// ENCORE_* environment it needs, so the infrastructure it points at has to
+// outlive the test command.
+func TestCompilesBinary(args []string) bool {
+	return slices.Contains(args, "-c")
+}
