@@ -31,6 +31,19 @@ const (
 	defaultDataDir           = "/var/lib/postgresql/data"
 )
 
+// memfsPostgresArgs configure a cluster whose data lives in RAM and is lost
+// when it stops, so nothing needs durability. Postgres otherwise keeps up to
+// max_wal_size (1 GB) of WAL, and CREATE DATABASE logs every copied template:
+// about 400 MB of a test cluster's 1.1 GB was WAL. These cap it near 64 MB.
+var memfsPostgresArgs = []string{
+	"-c", "fsync=off",
+	"-c", "full_page_writes=off",
+	"-c", "wal_level=minimal",
+	"-c", "max_wal_senders=0",
+	"-c", "max_wal_size=64MB",
+	"-c", "min_wal_size=32MB",
+}
+
 func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log zerolog.Logger) (status *sqldb.ClusterStatus, err error) {
 	// Ensure the docker image exists first.
 	{
@@ -120,6 +133,15 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 		return status, nil
 
 	case sqldb.Stopped:
+		// A stopped in-memory cluster holds no data, so one created with
+		// older arguments is replaced rather than restarted with them.
+		if p.Memfs && !containerHasArgs(ctx, existingContainerName, memfsPostgresArgs) {
+			log.Debug().Msg("in-memory cluster has outdated arguments, recreating")
+			if out, err := exec.CommandContext(ctx, "docker", "rm", existingContainerName).CombinedOutput(); err != nil {
+				return nil, errors.Wrapf(err, "could not remove outdated sqldb container: %s", string(out))
+			}
+			return d.createContainer(ctx, p, cnames, log, waitForPort)
+		}
 		log.Debug().Msg("cluster stopped, restarting")
 
 		if out, err := exec.CommandContext(ctx, "docker", "start", existingContainerName).CombinedOutput(); err != nil {
@@ -128,46 +150,72 @@ func (d *Driver) CreateCluster(ctx context.Context, p *sqldb.CreateParams, log z
 		return waitForPort()
 
 	case sqldb.NotFound:
-		log.Debug().Msg("cluster not found, creating")
-		args := []string{
-			"run",
-			"-d",
-			"-p", "5432",
-			"--shm-size=1gb",
-			"-e", "POSTGRES_USER=" + DefaultSuperuserUsername,
-			"-e", "POSTGRES_PASSWORD=" + DefaultSuperuserPassword,
-			"-e", "POSTGRES_DB=" + DefaultRootDatabase,
-			"-e", "PGDATA=" + defaultDataDir,
-			"-e", "AUTO_PG_UPGRADE=1",
-			"--name", cnames[0],
-		}
-		if p.Memfs {
-			args = append(args,
-				"--mount", "type=tmpfs,destination="+defaultDataDir,
-				Image,
-				"-c", "fsync=off",
-			)
-		} else {
-			volumeName := clusterVolumeNames(p.ClusterID.NS)[0] // guaranteed to be non-empty
-			if err := d.createVolumeIfNeeded(ctx, volumeName); err != nil {
-				return nil, errors.Wrap(err, "create data volume")
-			}
-			args = append(args,
-				"-v", fmt.Sprintf("%s:%s", volumeName, defaultDataDir),
-				Image)
-		}
-
-		cmd := exec.CommandContext(ctx, "docker", args...)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return nil, errors.Wrapf(err, "could not start sql database as docker container: %s", out)
-		}
-
-		log.Debug().Msg("cluster created")
-		return waitForPort()
+		return d.createContainer(ctx, p, cnames, log, waitForPort)
 
 	default:
 		return nil, errors.Newf("unknown cluster status %q", status.Status)
 	}
+}
+
+// containerHasArgs reports whether the container's command is exactly args.
+// An inspection failure counts as a match, so it never causes a removal.
+func containerHasArgs(ctx context.Context, name string, args []string) bool {
+	out, err := exec.CommandContext(ctx, "docker", "inspect", "-f", "{{json .Config.Cmd}}", name).Output()
+	if err != nil {
+		return true
+	}
+	var cmd []string
+	if err := json.Unmarshal(bytes.TrimSpace(out), &cmd); err != nil {
+		return true
+	}
+	if len(cmd) != len(args) {
+		return false
+	}
+	for i := range cmd {
+		if cmd[i] != args[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (d *Driver) createContainer(ctx context.Context, p *sqldb.CreateParams, cnames []string, log zerolog.Logger, waitForPort func() (*sqldb.ClusterStatus, error)) (*sqldb.ClusterStatus, error) {
+	log.Debug().Msg("cluster not found, creating")
+	args := []string{
+		"run",
+		"-d",
+		"-p", "5432",
+		"--shm-size=1gb",
+		"-e", "POSTGRES_USER=" + DefaultSuperuserUsername,
+		"-e", "POSTGRES_PASSWORD=" + DefaultSuperuserPassword,
+		"-e", "POSTGRES_DB=" + DefaultRootDatabase,
+		"-e", "PGDATA=" + defaultDataDir,
+		"-e", "AUTO_PG_UPGRADE=1",
+		"--name", cnames[0],
+	}
+	if p.Memfs {
+		args = append(args,
+			"--mount", "type=tmpfs,destination="+defaultDataDir,
+			Image,
+		)
+		args = append(args, memfsPostgresArgs...)
+	} else {
+		volumeName := clusterVolumeNames(p.ClusterID.NS)[0] // guaranteed to be non-empty
+		if err := d.createVolumeIfNeeded(ctx, volumeName); err != nil {
+			return nil, errors.Wrap(err, "create data volume")
+		}
+		args = append(args,
+			"-v", fmt.Sprintf("%s:%s", volumeName, defaultDataDir),
+			Image)
+	}
+
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return nil, errors.Wrapf(err, "could not start sql database as docker container: %s", out)
+	}
+
+	log.Debug().Msg("cluster created")
+	return waitForPort()
 }
 
 func (d *Driver) ClusterStatus(ctx context.Context, id sqldb.ClusterID) (*sqldb.ClusterStatus, error) {
