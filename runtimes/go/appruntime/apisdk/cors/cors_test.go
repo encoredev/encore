@@ -10,6 +10,7 @@ import (
 	_ "unsafe"
 
 	"github.com/rs/cors"
+	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
 )
@@ -226,5 +227,94 @@ func TestOptions(t *testing.T) {
 				checkHeaders(t, c, headers, false)
 			}
 		})
+	}
+}
+
+func TestWrapWildcardWithoutCredentials(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.CORS{
+		AllowOriginsWithCredentials: []string{"https://trusted.example.com"},
+	}
+	// Inner handler explicitly writes status and body to commit headers on the wire,
+	// verifying that CORS headers are set BEFORE the response is committed.
+	handler := Wrap(cfg, nil, nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}), zerolog.Nop())
+
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+	client := srv.Client()
+
+	// 1. Non-credentialed GET & OPTIONS preflight from unlisted origins match default wildcard:
+	// Expect Access-Control-Allow-Origin: * and NO Access-Control-Allow-Credentials header on real wire response.
+	for _, origin := range []string{"https://evil.example", "null"} {
+		for _, method := range []string{http.MethodGet, http.MethodOptions} {
+			req, err := http.NewRequest(method, srv.URL+"/public", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Origin", origin)
+			if method == http.MethodOptions {
+				req.Header.Set("Access-Control-Request-Method", "POST")
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = resp.Body.Close()
+
+			if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+				t.Fatalf("method=%s origin=%q without creds: got Access-Control-Allow-Origin=%q, want %q", method, origin, got, "*")
+			}
+			if got := resp.Header.Get("Access-Control-Allow-Credentials"); got != "" {
+				t.Fatalf("method=%s origin=%q without creds: got Access-Control-Allow-Credentials=%q, want empty", method, origin, got)
+			}
+		}
+	}
+
+	// 2. Credentialed request from unlisted origin is rejected (no CORS headers).
+	{
+		req, err := http.NewRequest(http.MethodGet, srv.URL+"/public", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Origin", "https://evil.example")
+		req.Header.Set("Authorization", "Bearer secret")
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+
+		if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "" {
+			t.Fatalf("unlisted origin with creds: got Access-Control-Allow-Origin=%q, want empty", got)
+		}
+		if got := resp.Header.Get("Access-Control-Allow-Credentials"); got != "" {
+			t.Fatalf("unlisted origin with creds: got Access-Control-Allow-Credentials=%q, want empty", got)
+		}
+	}
+
+	// 3. Credentialed request from trusted origin reflects Origin and includes credentials header.
+	{
+		req, err := http.NewRequest(http.MethodGet, srv.URL+"/public", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Origin", "https://trusted.example.com")
+		req.Header.Set("Authorization", "Bearer secret")
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+
+		if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "https://trusted.example.com" {
+			t.Fatalf("trusted origin with creds: got Access-Control-Allow-Origin=%q, want %q", got, "https://trusted.example.com")
+		}
+		if got := resp.Header.Get("Access-Control-Allow-Credentials"); got != "true" {
+			t.Fatalf("trusted origin with creds: got Access-Control-Allow-Credentials=%q, want %q", got, "true")
+		}
 	}
 }

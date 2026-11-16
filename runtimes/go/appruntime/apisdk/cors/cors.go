@@ -13,14 +13,83 @@ import (
 	"encore.dev/appruntime/exported/config"
 )
 
+// Wrap applies Encore's CORS configuration using two distinct rs/cors instances:
+// 1. credsCors handles requests carrying credentials (or preflights requesting credentialed headers).
+// 2. noCredsWildcardCors / noCredsExplicitCors handles non-credentialed requests before headers are committed.
 func Wrap(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []string, handler http.Handler, logger zerolog.Logger) http.Handler {
-	c := cors.New(Options(cfg, staticAllowedHeaders, staticExposedHeaders))
+	credsOpts := Options(cfg, staticAllowedHeaders, staticExposedHeaders)
+	credsCors := cors.New(credsOpts)
+
+	originsWithoutCreds := sortedSliceCopy(cfg.AllowOriginsWithoutCredentials)
+	globWithoutCreds := getGlobOrigins(cfg.AllowOriginsWithoutCredentials)
+	hasWildcardOriginWithoutCreds := cfg.AllowOriginsWithoutCredentials == nil || sortedSliceContains(originsWithoutCreds, "*")
+
+	// Build an instance for non-credentialed requests that matched an explicit origin/glob
+	// in AllowOriginsWithoutCredentials (reflects Origin, but sets AllowCredentials: false).
+	noCredsExplicitOpts := Options(cfg, staticAllowedHeaders, staticExposedHeaders)
+	noCredsExplicitOpts.AllowCredentials = false
+	noCredsExplicitCors := cors.New(noCredsExplicitOpts)
+
+	// Build an instance for non-credentialed requests that match via the wildcard "*" policy.
+	// With AllowedOrigins: []string{"*"} and AllowCredentials: false, rs/cors natively emits
+	// Access-Control-Allow-Origin: * and never emits Access-Control-Allow-Credentials before calling handler.
+	noCredsWildcardOpts := Options(cfg, staticAllowedHeaders, staticExposedHeaders)
+	noCredsWildcardOpts.AllowCredentials = false
+	noCredsWildcardOpts.AllowOriginFunc = nil
+	noCredsWildcardOpts.AllowOriginRequestFunc = nil
+	noCredsWildcardOpts.AllowedOrigins = []string{"*"}
+	noCredsWildcardCors := cors.New(noCredsWildcardOpts)
+
 	if cfg.Debug {
 		logger := logger.With().Str("subsystem", "cors").Logger()
 		logger.Debug().Msg("CORS system running in debug mode. All requests will be logged.")
-		c.Log = &logger
+		credsCors.Log = &logger
+		noCredsExplicitCors.Log = &logger
+		noCredsWildcardCors.Log = &logger
 	}
-	return c.Handler(handler)
+
+	credsHandler := credsCors.Handler(handler)
+	noCredsExplicitHandler := noCredsExplicitCors.Handler(handler)
+	noCredsWildcardHandler := noCredsWildcardCors.Handler(handler)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hasRequestCredentials(r) {
+			credsHandler.ServeHTTP(w, r)
+			return
+		}
+
+		origin := r.Header.Get("Origin")
+		explicitlyAllowedWithoutCreds := sortedSliceContains(originsWithoutCreds, origin) || globWithoutCreds.Matches(origin)
+		if hasWildcardOriginWithoutCreds && !explicitlyAllowedWithoutCreds {
+			noCredsWildcardHandler.ServeHTTP(w, r)
+			return
+		}
+
+		noCredsExplicitHandler.ServeHTTP(w, r)
+	})
+}
+
+func hasRequestCredentials(r *http.Request) bool {
+	if len(r.Cookies()) > 0 || len(r.Header.Values("Authorization")) > 0 || (r.TLS != nil && len(r.TLS.PeerCertificates) > 0) {
+		return true
+	}
+
+	if r.Method == http.MethodOptions {
+		return slices.ContainsFunc(
+			r.Header.Values("Access-Control-Request-Headers"),
+			func(val string) bool {
+				return slices.ContainsFunc(
+					strings.Split(val, ","),
+					func(val string) bool {
+						val = strings.ToLower(strings.TrimSpace(val))
+						return val == "authorization" || val == "cookie"
+					},
+				)
+			},
+		)
+	}
+
+	return false
 }
 
 func Options(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []string) cors.Options {
@@ -67,29 +136,7 @@ func Options(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []stri
 		AllowOriginRequestFunc: func(r *http.Request, origin string) bool {
 			// If the request has credentials, look up origins in AllowOriginsWithCredentials.
 			// Credentials are cookies, authorization headers, or TLS client certificates.
-			hasCreds := func(r *http.Request) bool {
-				if len(r.Cookies()) > 0 || len(r.Header.Values("Authorization")) > 0 || (r.TLS != nil && len(r.TLS.PeerCertificates) > 0) {
-					return true
-				}
-
-				if r.Method == http.MethodOptions {
-					return slices.ContainsFunc(
-						r.Header.Values("Access-Control-Request-Headers"),
-						func(val string) bool {
-							return slices.ContainsFunc(
-								strings.Split(val, ","),
-								func(val string) bool {
-									val = strings.TrimSpace(val)
-									return val == "authorization" || val == "cookie"
-								},
-							)
-						},
-					)
-				}
-
-				return false
-			}
-			if hasCreds(r) {
+			if hasRequestCredentials(r) {
 				ok := hasUnsafeWildcardOriginWithCreds || sortedSliceContains(originsCreds, origin)
 				if !ok {
 					// Not an exact match. Check any glob origins.
