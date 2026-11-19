@@ -505,6 +505,24 @@ func FinalizeInitialHandshake(client *pgproto3.Backend, server *pgproto3.Fronten
 	}
 }
 
+// maxHeldMessages bounds how many extended query messages
+// CopySteadyState buffers before it writes them to the server.
+const maxHeldMessages = 100
+
+// holdUntilSync reports whether msg is an extended query message that
+// the server does not answer until the client sends Sync or Flush.
+// Writing such messages one by one splits a statement (Parse, Bind,
+// Describe, Execute, Sync) into separate TCP segments, which can add a
+// delayed ACK (about 40 ms) to every statement.
+func holdUntilSync(msg pgproto3.FrontendMessage) bool {
+	switch msg.(type) {
+	case *pgproto3.Parse, *pgproto3.Bind, *pgproto3.Describe, *pgproto3.Execute, *pgproto3.Close:
+		return true
+	default:
+		return false
+	}
+}
+
 // CopySteadyState copies messages back and forth after the initial handshake.
 func CopySteadyState(client *pgproto3.Backend, server *pgproto3.Frontend) error {
 	errChan := make(chan error, 2)
@@ -529,8 +547,13 @@ func CopySteadyState(client *pgproto3.Backend, server *pgproto3.Frontend) error 
 				return err
 			}
 			client.Send(msg)
-			if err := client.Flush(); err != nil {
-				return err
+			// Postgres writes a whole response (for example ParseComplete
+			// through ReadyForQuery) at once. Forward it the same way, flushing
+			// only once the messages already read from the server are sent.
+			if server.ReadBufferLen() == 0 {
+				if err := client.Flush(); err != nil {
+					return err
+				}
 			}
 			select {
 			case <-done:
@@ -560,16 +583,20 @@ func CopySteadyState(client *pgproto3.Backend, server *pgproto3.Frontend) error 
 	})
 
 	// Copy from client to server.
+	held := 0
 	for {
 		select {
 		case err := <-errChan:
 			return err
 		case msg := <-clientMsgs:
 			server.Send(msg)
-			err := server.Flush()
-
-			if err != nil {
-				return err
+			if holdUntilSync(msg) && held < maxHeldMessages {
+				held++
+			} else {
+				held = 0
+				if err := server.Flush(); err != nil {
+					return err
+				}
 			}
 			if _, ok := msg.(*pgproto3.Terminate); ok {
 				log.Trace().Msg("received terminate from client, closing connection")

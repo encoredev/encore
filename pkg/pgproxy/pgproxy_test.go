@@ -3,6 +3,7 @@ package pgproxy
 import (
 	"fmt"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -189,4 +190,118 @@ func TestSendCancelRequest(t *testing.T) {
 
 	c.Assert(SendCancelRequest(clientConn, req), qt.IsNil)
 	c.Assert(<-received, qt.DeepEquals, req)
+}
+
+// writeCounter counts the writes made to a net.Conn.
+type writeCounter struct {
+	net.Conn
+	writes atomic.Int32
+}
+
+func (w *writeCounter) Write(b []byte) (int, error) {
+	w.writes.Add(1)
+	return w.Conn.Write(b)
+}
+
+// TestCopySteadyStateBatchesWrites checks that an extended query
+// statement goes through the proxy as one write in each direction,
+// as the client and the server sent it.
+func TestCopySteadyStateBatchesWrites(t *testing.T) {
+	c := qt.New(t)
+	clientConn, proxyClientConn := pipe(c)
+	proxyServerConn, serverConn := pipe(c)
+	toClient := &writeCounter{Conn: proxyClientConn}
+	toServer := &writeCounter{Conn: proxyServerConn}
+
+	proxyErr := make(chan error, 1)
+	go func() {
+		proxyErr <- CopySteadyState(pgproto3.NewBackend(toClient, toClient), pgproto3.NewFrontend(toServer, toServer))
+	}()
+
+	// The fake server.
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- func() error {
+			be := pgproto3.NewBackend(serverConn, serverConn)
+			for _, want := range []string{"*pgproto3.Parse", "*pgproto3.Bind", "*pgproto3.Describe", "*pgproto3.Execute", "*pgproto3.Sync"} {
+				msg, err := be.Receive()
+				if err != nil {
+					return err
+				} else if got := fmt.Sprintf("%T", msg); got != want {
+					return fmt.Errorf("got %s, want %s", got, want)
+				}
+			}
+			be.Send(&pgproto3.ParseComplete{})
+			be.Send(&pgproto3.BindComplete{})
+			be.Send(&pgproto3.RowDescription{Fields: []pgproto3.FieldDescription{{Name: []byte("int4"), DataTypeOID: 23, DataTypeSize: 4, Format: 0}}})
+			be.Send(&pgproto3.DataRow{Values: [][]byte{[]byte("1")}})
+			be.Send(&pgproto3.CommandComplete{CommandTag: []byte("SELECT 1")})
+			be.Send(&pgproto3.ReadyForQuery{TxStatus: 'I'})
+			if err := be.Flush(); err != nil {
+				return err
+			}
+
+			msg, err := be.Receive()
+			if err != nil {
+				return err
+			} else if _, ok := msg.(*pgproto3.Terminate); !ok {
+				return fmt.Errorf("expected Terminate, got %T", msg)
+			}
+			return nil
+		}()
+	}()
+
+	// The client sends one statement in a single write, as pgx and
+	// node-postgres do.
+	fe := pgproto3.NewFrontend(clientConn, clientConn)
+	fe.Send(&pgproto3.Parse{Query: "SELECT $1::int"})
+	fe.Send(&pgproto3.Bind{Parameters: [][]byte{[]byte("1")}})
+	fe.Send(&pgproto3.Describe{ObjectType: 'P'})
+	fe.Send(&pgproto3.Execute{})
+	fe.Send(&pgproto3.Sync{})
+	c.Assert(fe.Flush(), qt.IsNil)
+
+	for _, want := range []string{"*pgproto3.ParseComplete", "*pgproto3.BindComplete", "*pgproto3.RowDescription", "*pgproto3.DataRow", "*pgproto3.CommandComplete", "*pgproto3.ReadyForQuery"} {
+		msg, err := fe.Receive()
+		c.Assert(err, qt.IsNil)
+		c.Assert(fmt.Sprintf("%T", msg), qt.Equals, want)
+	}
+	c.Assert(toServer.writes.Load(), qt.Equals, int32(1))
+	c.Assert(toClient.writes.Load(), qt.Equals, int32(1))
+
+	fe.Send(&pgproto3.Terminate{})
+	c.Assert(fe.Flush(), qt.IsNil)
+	c.Assert(<-serverErr, qt.IsNil)
+	c.Assert(<-proxyErr, qt.IsNil)
+}
+
+// TestCopySteadyStateFlushesHeldMessages checks that the proxy still
+// forwards a long run of extended query messages without a Sync.
+func TestCopySteadyStateFlushesHeldMessages(t *testing.T) {
+	c := qt.New(t)
+	clientConn, proxyClientConn := pipe(c)
+	proxyServerConn, serverConn := pipe(c)
+
+	go func() {
+		_ = CopySteadyState(pgproto3.NewBackend(proxyClientConn, proxyClientConn), pgproto3.NewFrontend(proxyServerConn, proxyServerConn))
+	}()
+
+	received := make(chan error, 1)
+	go func() {
+		be := pgproto3.NewBackend(serverConn, serverConn)
+		for range maxHeldMessages + 1 {
+			if _, err := be.Receive(); err != nil {
+				received <- err
+				return
+			}
+		}
+		received <- nil
+	}()
+
+	fe := pgproto3.NewFrontend(clientConn, clientConn)
+	for range maxHeldMessages + 1 {
+		fe.Send(&pgproto3.Bind{})
+	}
+	c.Assert(fe.Flush(), qt.IsNil)
+	c.Assert(<-received, qt.IsNil)
 }
