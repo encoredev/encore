@@ -3,7 +3,7 @@ import type {
   OutgoingHttpHeader,
   OutgoingHttpHeaders
 } from "node:http";
-import type { AddressInfo, Socket, SocketReadyState } from "node:net";
+import type { AddressInfo, Server, Socket, SocketReadyState } from "node:net";
 import * as stream from "node:stream";
 import * as runtime from "../internal/runtime/mod";
 
@@ -323,7 +323,7 @@ class DummySocket extends stream.Duplex {
   resume(): this { return this; }
   setTimeout(_timeout: number, _callback?: () => void): this { return this; }
   setNoDelay(_noDelay?: boolean): this { return this; }
-  setKeepAlive(_enable?: boolean, _initialDelay?: number): this { return this; }
+  setKeepAlive(_enable?: boolean | object, _initialDelay?: number, _interval?: number, _count?: number): this { return this; }
   getTypeOfService(): number { return 0; }
   setTypeOfService(_tos: number): this { return this; }
   address(): AddressInfo | {} { return {}; }
@@ -343,6 +343,7 @@ class DummySocket extends stream.Duplex {
   readonly remoteAddress?: string | undefined = undefined;
   readonly remoteFamily?: string | undefined = undefined;
   readonly remotePort?: number | undefined = undefined;
+  readonly server: Server | null = null;
   readonly timeout?: number | undefined = undefined;
   end(): this { return this; }
   addListener(_event: string, _listener: (...args: any[]) => void): this { return this; }
