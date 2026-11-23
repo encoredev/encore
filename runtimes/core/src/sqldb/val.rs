@@ -29,17 +29,17 @@ impl ToSql for RowValue {
             Self::Bytes(val) => val.to_sql(ty, out),
             Self::Uuid(val) => match *ty {
                 Type::UUID => val.to_sql(ty, out),
-                Type::TEXT | Type::VARCHAR => val.to_string().to_sql(ty, out),
+                Type::TEXT | Type::VARCHAR | Type::BPCHAR => val.to_string().to_sql(ty, out),
                 _ => Err(format!("uuid not supported for column of type {ty}").into()),
             },
             Self::Cidr(val) => match *ty {
                 Type::CIDR => val.to_sql(ty, out),
-                Type::TEXT | Type::VARCHAR => val.to_string().to_sql(ty, out),
+                Type::TEXT | Type::VARCHAR | Type::BPCHAR => val.to_string().to_sql(ty, out),
                 _ => Err(format!("cidr not supported for column of type {ty}").into()),
             },
             Self::Inet(val) => match *ty {
                 Type::INET => val.to_sql(ty, out),
-                Type::TEXT | Type::VARCHAR => val.to_string().to_sql(ty, out),
+                Type::TEXT | Type::VARCHAR | Type::BPCHAR => val.to_string().to_sql(ty, out),
                 _ => Err(format!("inet not supported for column of type {ty}").into()),
             },
 
@@ -50,7 +50,13 @@ impl ToSql for RowValue {
     fn accepts(ty: &Type) -> bool {
         matches!(
             *ty,
-            Type::BYTEA | Type::UUID | Type::TEXT | Type::VARCHAR | Type::CIDR | Type::INET
+            Type::BYTEA
+                | Type::UUID
+                | Type::TEXT
+                | Type::VARCHAR
+                | Type::BPCHAR
+                | Type::CIDR
+                | Type::INET
         ) || matches!(ty.kind(), Kind::Array(ty) if <RowValue as ToSql>::accepts(ty))
             || <PValue as ToSql>::accepts(ty)
     }
@@ -79,12 +85,12 @@ impl ToSql for PValue {
                 PValue::Null => Ok(IsNull::Yes),
                 PValue::Bool(bool) => match *ty {
                     Type::BOOL => bool.to_sql(ty, out),
-                    Type::TEXT | Type::VARCHAR => bool.to_string().to_sql(ty, out),
+                    Type::TEXT | Type::VARCHAR | Type::BPCHAR => bool.to_string().to_sql(ty, out),
                     _ => Err(format!("bool not supported for column of type {ty}").into()),
                 },
 
                 PValue::String(str) => match *ty {
-                    Type::TEXT | Type::VARCHAR | Type::NAME => str.to_sql(ty, out),
+                    Type::TEXT | Type::VARCHAR | Type::BPCHAR | Type::NAME => str.to_sql(ty, out),
                     Type::BYTEA => {
                         let val = str.as_bytes();
                         val.to_sql(ty, out)
@@ -238,7 +244,7 @@ impl ToSql for PValue {
                         let d = Decimal::from_str(&num_str)?;
                         d.to_sql(ty, out)
                     }
-                    Type::TEXT | Type::VARCHAR => self.to_string().to_sql(ty, out),
+                    Type::TEXT | Type::VARCHAR | Type::BPCHAR => self.to_string().to_sql(ty, out),
                     _ => {
                         if num.is_i64() {
                             num.as_i64().unwrap().to_sql(ty, out)
@@ -275,7 +281,7 @@ impl ToSql for PValue {
                         let val = i64::try_from(d).map_err(|_| "Cannot convert decimal to INT8")?;
                         val.to_sql(ty, out)
                     }
-                    Type::TEXT | Type::VARCHAR => {
+                    Type::TEXT | Type::VARCHAR | Type::BPCHAR => {
                         let decimal_str = d.to_string();
                         decimal_str.to_sql(ty, out)
                     }
@@ -286,7 +292,7 @@ impl ToSql for PValue {
                     Type::DATE => dt.naive_utc().date().to_sql(ty, out),
                     Type::TIMESTAMP => dt.naive_utc().to_sql(ty, out),
                     Type::TIMESTAMPTZ => dt.to_sql(ty, out),
-                    Type::TEXT | Type::VARCHAR => dt.to_rfc3339().to_sql(ty, out),
+                    Type::TEXT | Type::VARCHAR | Type::BPCHAR => dt.to_rfc3339().to_sql(ty, out),
                     _ => Err(format!("unsupported type for DateTime: {ty}").into()),
                 },
                 PValue::Array(arr) => {
@@ -325,6 +331,7 @@ impl ToSql for PValue {
                 | Type::BYTEA
                 | Type::TEXT
                 | Type::VARCHAR
+                | Type::BPCHAR
                 | Type::INT2
                 | Type::INT4
                 | Type::INT8
@@ -396,7 +403,7 @@ impl<'a> FromSql<'a> for PValue {
                 let val: bool = FromSql::from_sql(ty, raw)?;
                 PValue::Bool(val)
             }
-            Type::TEXT | Type::VARCHAR | Type::NAME => {
+            Type::TEXT | Type::VARCHAR | Type::BPCHAR | Type::NAME => {
                 let val: String = FromSql::from_sql(ty, raw)?;
                 PValue::String(val)
             }
@@ -498,6 +505,7 @@ impl<'a> FromSql<'a> for PValue {
             Type::BOOL
                 | Type::TEXT
                 | Type::VARCHAR
+                | Type::BPCHAR
                 | Type::INT2
                 | Type::INT4
                 | Type::INT8
@@ -983,6 +991,61 @@ mod tests {
             assert!(matches!(&arr[0], PValue::Null)); // Negative infinity becomes Null
         } else {
             panic!("Expected PValue::Array");
+        }
+    }
+
+    #[test]
+    fn test_rowvalue_bpchar() {
+        // Insert into a CHAR(2) column
+        let value = RowValue::PVal(PValue::String("ab".to_string()));
+        let mut buf = BytesMut::new();
+        let result = value.to_sql_checked(&Type::BPCHAR, &mut buf);
+        assert!(result.is_ok());
+        assert_eq!(&buf[..], b"ab");
+
+        // Select from it. Postgres pads CHAR(n) values with spaces.
+        assert!(<RowValue as FromSql>::accepts(&Type::BPCHAR));
+        let result = RowValue::from_sql(&Type::BPCHAR, b"a ");
+        if let RowValue::PVal(PValue::String(val)) = result.unwrap() {
+            assert_eq!(val, "a ");
+        } else {
+            panic!("Expected RowValue::PVal(PValue::String)");
+        }
+    }
+
+    #[test]
+    fn test_rowvalue_bpchar_array() {
+        // Insert into a CHAR(2)[] column
+        let value = RowValue::PVal(PValue::Array(vec![
+            PValue::String("ab".to_string()),
+            PValue::String("c".to_string()),
+        ]));
+        let mut buf = BytesMut::new();
+        let result = value.to_sql_checked(&Type::BPCHAR_ARRAY, &mut buf);
+        assert!(result.is_ok());
+        let mut expected = BytesMut::new();
+        vec!["ab", "c"]
+            .to_sql(&Type::BPCHAR_ARRAY, &mut expected)
+            .unwrap();
+        assert_eq!(buf, expected);
+
+        // Select from it. Postgres pads CHAR(n) values with spaces.
+        let mut raw = BytesMut::new();
+        vec!["ab", "c "]
+            .to_sql(&Type::BPCHAR_ARRAY, &mut raw)
+            .unwrap();
+        assert!(<RowValue as FromSql>::accepts(&Type::BPCHAR_ARRAY));
+        let result = RowValue::from_sql(&Type::BPCHAR_ARRAY, &raw);
+        if let RowValue::PVal(PValue::Array(val)) = result.unwrap() {
+            assert_eq!(
+                val,
+                vec![
+                    PValue::String("ab".to_string()),
+                    PValue::String("c ".to_string())
+                ]
+            );
+        } else {
+            panic!("Expected RowValue::PVal(PValue::Array)");
         }
     }
 }
