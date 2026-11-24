@@ -2,10 +2,13 @@ package sqldb
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +21,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encr.dev/cli/daemon/internal/debugflags"
+	"encr.dev/internal/version"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -77,7 +81,24 @@ func (db *DB) Ready() <-chan struct{} {
 }
 
 // Setup sets up the database, (re)creating it if necessary and running schema migrations.
-func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabase, migrate, recreate bool) (err error) {
+func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabase, migrate, recreate bool) error {
+	return db.setup(ctx, appRoot, dbMeta, setupOptions{migrate: migrate, recreate: recreate})
+}
+
+// RecreateFromTemplate recreates the database like Setup with recreate set, except that it only copies
+// the template database when the template already holds the current migrations.
+func (db *DB) RecreateFromTemplate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabase) error {
+	return db.setup(ctx, appRoot, dbMeta, setupOptions{migrate: true, recreate: true, reuseTemplate: true})
+}
+
+type setupOptions struct {
+	migrate       bool
+	recreate      bool
+	reuseTemplate bool // with recreate, copy a template that already holds the current migrations
+}
+
+func (db *DB) setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabase, opts setupOptions) (err error) {
+	migrate, recreate := opts.migrate, opts.recreate
 	db.log.Debug().Msg("setting up database")
 	db.setupMu.Lock()
 	defer db.setupMu.Unlock()
@@ -92,6 +113,29 @@ func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabas
 			db.log.Error().Err(err).Msg("failed to set up database")
 		}
 	}()
+
+	tmplName, useTemplate := db.TemplateCloudName().Get()
+	var tmplKey string
+	if recreate && useTemplate {
+		var keyErr error
+		tmplKey, keyErr = templateKey(appRoot, dbMeta)
+		if keyErr != nil {
+			// doMigrate reports an unreadable migration below; here it only means the template is rebuilt.
+			db.log.Debug().Err(keyErr).Msg("could not hash the migrations")
+		}
+		if opts.reuseTemplate && templateReuseEnabled() && tmplKey != "" && db.storedTemplateKey(ctx, tmplName) == tmplKey {
+			if err := db.copyTemplate(ctx, tmplName); err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				db.log.Warn().Err(err).Msg("could not copy the template database, rebuilding it")
+			} else {
+				db.migrated = true
+				db.log.Debug().Msg("copied the database from its template")
+				return nil
+			}
+		}
+	}
 
 	if recreate {
 		if err := db.drop(ctx); err != nil {
@@ -126,7 +170,7 @@ func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabas
 		return err
 	}
 
-	if tmplName, ok := db.TemplateCloudName().Get(); ok {
+	if useTemplate {
 		// If we want a template database, rename the application database to the template name.
 		// We do it this way in case the migrations assume the database is named according to the application name.
 
@@ -140,18 +184,108 @@ func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabas
 			return fmt.Errorf("rename db %s to %s: %v", db.ApplicationCloudName(), tmplName, err)
 		}
 
-		// Then create the application database based on the template
-		if err := db.doCreate(ctx, db.ApplicationCloudName(), option.Some(tmplName)); err != nil {
-			return errors.Wrapf(err, "create db %s: %v", db.ApplicationCloudName(), err)
+		// Record what the template was built from, so a later recreate can copy it. Only a recreate
+		// starts from an empty database and fails on a migration error, so only then does the template
+		// hold exactly these migrations and no rows from earlier runs.
+		// A migration edited while it was applied would leave the template out of step with the key.
+		if after, _ := templateKey(appRoot, dbMeta); tmplKey != "" && after == tmplKey {
+			db.setTemplateKey(ctx, tmplName, tmplKey)
 		}
 
-		// Ensure the application database has the right roles, too.
-		if err := db.ensureRoles(ctx, db.ApplicationCloudName(), db.Cluster.Roles...); err != nil {
-			return fmt.Errorf("ensure db roles %s: %v", db.ApplicationCloudName(), err)
-		}
+		return db.createFromTemplate(ctx, tmplName)
 	}
 
 	return nil
+}
+
+// copyTemplate replaces the application database with a copy of the template.
+func (db *DB) copyTemplate(ctx context.Context, tmplName string) error {
+	if err := db.doDrop(ctx, db.ApplicationCloudName()); err != nil {
+		return fmt.Errorf("drop db %s: %v", db.ApplicationCloudName(), err)
+	}
+	// A connection to the template makes copying it fail with "database is being accessed by other users".
+	_ = db.terminateConnectionsToDB(ctx, tmplName)
+	return db.createFromTemplate(ctx, tmplName)
+}
+
+// createFromTemplate creates the application database as a copy of the template.
+func (db *DB) createFromTemplate(ctx context.Context, tmplName string) error {
+	if err := db.doCreate(ctx, db.ApplicationCloudName(), option.Some(tmplName)); err != nil {
+		return errors.Wrapf(err, "create db %s: %v", db.ApplicationCloudName(), err)
+	}
+
+	// Ensure the application database has the right roles, too.
+	if err := db.ensureRoles(ctx, db.ApplicationCloudName(), db.Cluster.Roles...); err != nil {
+		return fmt.Errorf("ensure db roles %s: %v", db.ApplicationCloudName(), err)
+	}
+	return nil
+}
+
+// templateKeyPrefix marks the comment on a template database that holds its key.
+const templateKeyPrefix = "encore-template:"
+
+// templateFormat is part of every template key. Bump it when a change to how databases are
+// migrated or set up should make every existing template stale.
+const templateFormat = 1
+
+// templateReuseEnabled reports whether encore test may copy a template instead of migrating again.
+// ENCOREDEBUG=sqldbtemplate=rebuild turns it off, for example for tests that need seed rows from a fresh migration.
+func templateReuseEnabled() bool {
+	return debugflags.Get("sqldbtemplate") != debugflags.SQLDBTemplateRebuild
+}
+
+// templateKey identifies what a template database is built from: the migration files, and the Encore
+// version, template format and settings that change how they are applied. It is "" without migrations.
+func templateKey(appRoot string, dbMeta *meta.SQLDatabase) (string, error) {
+	migrations, err := HashMigrations(appRoot, dbMeta)
+	if err != nil || migrations == "" {
+		return "", err
+	}
+	h := sha256.New()
+	_, _ = fmt.Fprintf(h, "%d\x00%s\x00%s\x00%v\x00%t", templateFormat, version.Version, migrations, migratorRoles(), dbMeta.AllowNonSequentialMigrations)
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// storedTemplateKey returns the key recorded on the template database, or "" if there is none.
+func (db *DB) storedTemplateKey(ctx context.Context, tmplName string) string {
+	adm, err := db.connectSuperuser(ctx)
+	if err != nil {
+		db.log.Debug().Err(err).Msg("could not read the template key")
+		return ""
+	}
+	defer func() { _ = adm.Close(context.Background()) }()
+
+	// CREATE DATABASE ... TEMPLATE does not copy comments, so a template replaced any other way has none.
+	var comment *string
+	err = adm.QueryRow(ctx, "SELECT shobj_description(oid, 'pg_database') FROM pg_database WHERE datname = $1", tmplName).Scan(&comment)
+	if err != nil {
+		db.log.Debug().Err(err).Msg("could not read the template key")
+		return ""
+	}
+	if comment == nil {
+		return ""
+	}
+	key, ok := strings.CutPrefix(*comment, templateKeyPrefix)
+	if !ok {
+		return ""
+	}
+	return key
+}
+
+// setTemplateKey records key on the template database. Failing only costs the next reuse.
+func (db *DB) setTemplateKey(ctx context.Context, tmplName, key string) {
+	adm, err := db.connectSuperuser(ctx)
+	if err != nil {
+		db.log.Warn().Err(err).Msg("could not record the template key")
+		return
+	}
+	defer func() { _ = adm.Close(context.Background()) }()
+
+	// COMMENT takes no parameters. The key is hex, so quoting it is enough.
+	stmt := fmt.Sprintf("COMMENT ON DATABASE %s IS %s", (pgx.Identifier{tmplName}).Sanitize(), quoteString(templateKeyPrefix+key))
+	if _, err := adm.Exec(ctx, stmt); err != nil {
+		db.log.Warn().Err(err).Msg("could not record the template key")
+	}
 }
 
 func (db *DB) doCreate(ctx context.Context, cloudName string, template option.Option[string]) error {
