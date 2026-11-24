@@ -56,6 +56,9 @@ type Config struct {
 
 	// StaticConfig is the static config to embed into the binary.
 	StaticConfig *config.Static
+
+	// OmitDebugInfo links with -s -w unless it is a debug build.
+	OmitDebugInfo bool
 }
 
 type Result struct {
@@ -272,9 +275,15 @@ func (b *builder) buildMain() {
 
 			ldflags.WriteString(` -extldflags "-static"`)
 		}
+		debug := b.cfg.Ctx.Build.Debug
+		debugging := debug == builderpkg.DebugModeEnabled || debug == builderpkg.DebugModeBreak
+		if b.cfg.OmitDebugInfo && !debugging {
+			// Only debuggers read these. Stack traces and panics use Go's line table, which stays.
+			ldflags.WriteString(" -s -w")
+		}
 		args = append(args, "-ldflags", ldflags.String())
 
-		if debug := b.cfg.Ctx.Build.Debug; debug == builderpkg.DebugModeEnabled || debug == builderpkg.DebugModeBreak {
+		if debugging {
 			// Disable inlining for better debugging.
 			args = append(args, "-gcflags", "all=-N -l")
 		}

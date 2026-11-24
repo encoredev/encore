@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -64,18 +65,26 @@ func TestBuild(t *testing.T) {
 
 func TestBuildDebugFlags(t *testing.T) {
 	tests := []struct {
+		name        string
 		debug       builderpkg.DebugMode
+		omit        bool
 		wantGCFlags string
+		wantStrip   bool
 	}{
-		{debug: builderpkg.DebugModeDisabled},
-		{debug: builderpkg.DebugModeEnabled, wantGCFlags: "all=-N -l"},
-		{debug: builderpkg.DebugModeBreak, wantGCFlags: "all=-N -l"},
+		{name: "disabled", debug: builderpkg.DebugModeDisabled},
+		{name: "disabled_omit", debug: builderpkg.DebugModeDisabled, omit: true, wantStrip: true},
+		{name: "enabled_omit", debug: builderpkg.DebugModeEnabled, omit: true, wantGCFlags: "all=-N -l"},
+		{name: "break_omit", debug: builderpkg.DebugModeBreak, omit: true, wantGCFlags: "all=-N -l"},
 	}
 	for _, tt := range tests {
-		t.Run(string(tt.debug), func(t *testing.T) {
-			settings := buildEmptyMain(t, &Config{StaticConfig: &config.Static{}}, tt.debug)
+		t.Run(tt.name, func(t *testing.T) {
+			settings := buildEmptyMain(t, &Config{StaticConfig: &config.Static{}, OmitDebugInfo: tt.omit}, tt.debug)
 			if got := settings["-gcflags"]; got != tt.wantGCFlags {
 				t.Errorf("-gcflags = %q, want %q", got, tt.wantGCFlags)
+			}
+			ldflags := strings.Fields(settings["-ldflags"])
+			if got := slices.Contains(ldflags, "-s") && slices.Contains(ldflags, "-w"); got != tt.wantStrip {
+				t.Errorf("-ldflags %q has -s -w: %v, want %v", settings["-ldflags"], got, tt.wantStrip)
 			}
 		})
 	}
