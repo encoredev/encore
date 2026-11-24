@@ -15,7 +15,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/internal/platform"
@@ -210,9 +210,9 @@ func (s secretEnvSelector) ParseSelector(ctx context.Context, appSlug string) []
 func readSecretValue() string {
 	var value string
 	fd := syscall.Stdin
-	if terminal.IsTerminal(int(fd)) {
+	if term.IsTerminal(int(fd)) {
 		fmt.Fprint(os.Stderr, "Enter secret value: ")
-		data, err := terminal.ReadPassword(int(fd))
+		data, err := term.ReadPassword(int(fd))
 		if err != nil {
 			cmdutil.Fatal(err)
 		}
