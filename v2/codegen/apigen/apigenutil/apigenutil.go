@@ -93,7 +93,7 @@ func DecodeBody(g *Group, ioReaderExpr *Statement, paramsExpr *Statement, dec *g
 			Switch(Qual("strings", "ToLower").Call(Id("key"))).BlockFunc(func(g *Group) {
 				for _, f := range params {
 					g.Case(Lit(strings.ToLower(f.WireName))).Block(
-						dec.ParseJSON(f.SrcName, Id("iter"), Op("&").Add(paramsExpr.Clone()).Dot(f.SrcName)),
+						dec.ParseJSON(f.WireName, Id("iter"), Op("&").Add(paramsExpr.Clone()).Dot(f.SrcName)),
 					)
 				}
 				g.Default().Block(Id("_").Op("=").Id("iter").Dot("SkipAndReturnBytes").Call())
