@@ -119,6 +119,67 @@ func Raw(w http.ResponseWriter, req *http.Request) {}
 				HTTPMethods: []string{"*"},
 			},
 		},
+		{
+			name: "embedded_pointer_in_request",
+			def: `
+//encore:api public method=POST
+func Foo(ctx context.Context, p *Params) error {}
+
+type Params struct {
+	*Inner
+	Name string
+}
+
+type Inner struct{ X string }
+`,
+			wantErrs: []string{`(?s).*Embedded struct pointers in top-level request/response types are not supported.*`},
+		},
+		{
+			name: "embedded_same_json_name",
+			def: `
+//encore:api public method=GET
+func Foo(ctx context.Context, p *Params) error {}
+
+type Params struct {
+	Inner
+	ID string ` + "`query:\"outer_id\"`" + `
+}
+
+type Inner struct{ ID string ` + "`query:\"inner_id\"`" + ` }
+`,
+			wantErrs: []string{`(?s).*The fields Inner.ID and ID have the same JSON name "ID".*`},
+		},
+		{
+			name: "embedded_same_json_name_same_depth",
+			def: `
+//encore:api public method=GET
+func Foo(ctx context.Context, p *Params) error {}
+
+type Params struct {
+	A
+	B
+}
+
+type A struct{ X string ` + "`query:\"a\"`" + ` }
+type B struct{ X string ` + "`query:\"b\"`" + ` }
+`,
+			wantErrs: []string{`(?s).*The fields A.X and B.X have the same JSON name "X".*`},
+		},
+		{
+			name: "embedded_same_query_name",
+			def: `
+//encore:api public method=GET
+func Foo(ctx context.Context, p *Params) error {}
+
+type Params struct {
+	Inner
+	ID string
+}
+
+type Inner struct{ ID string ` + "`json:\"inner\"`" + ` }
+`,
+			wantErrs: []string{`(?s).*The fields Inner.ID and ID have the same query name "id".*`},
+		},
 	}
 
 	// testArchive renders the txtar archive to use for a given test.

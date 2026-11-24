@@ -85,12 +85,12 @@ func (b *builder) schemaType(typ schemav2.Type) *schema.Type {
 
 	case schemav2.StructType:
 		var fields []*schema.Field
-		for _, f := range typ.Fields {
-			if f.IsAnonymous() {
-				continue // not supported by meta
+		for _, f := range schemautil.FlattenStruct(b.errs, typ) {
+			field := b.structField(f.Field)
+			if f.ThroughPointer() {
+				field.Optional = true // absent when the embedded pointer is nil
 			}
-			field := b.structField(f)
-			if f.IsExported() { // to match legacy meta behavior
+			if f.Field.IsExported() { // to match legacy meta behavior
 				fields = append(fields, field)
 			}
 		}

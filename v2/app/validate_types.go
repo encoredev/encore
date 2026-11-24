@@ -21,19 +21,6 @@ func (d *Desc) validateType(pc *parsectx.Context, usedAt ast.Node, typ schema.Ty
 	// Walk the type recursively
 	schemautil.Walk(typ, func(t schema.Type) bool {
 		switch t := t.(type) {
-		case schema.StructType:
-			for _, field := range t.Fields {
-				if field.IsAnonymous() {
-					// We don't support anonymous fields anywhere within
-					// Encore types that we need to marshal.
-					pc.Errs.Add(
-						apienc.ErrAnonymousFieldsNotSupported.
-							AtGoNode(field.AST, errors.AsError("defined here")).
-							AtGoNode(usedAt, errors.AsHelp("used here")),
-					)
-				}
-			}
-
 		case schema.FuncType:
 			pc.Errs.Add(
 				apienc.ErrFuncNotSupported.

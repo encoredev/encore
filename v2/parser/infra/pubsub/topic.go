@@ -105,6 +105,10 @@ func parsePubSubTopic(d parseutil.ReferenceInfo) {
 		// Make sure the OrderingAttribute value exists in the struct.
 		str := messageType.Decl.Type.(schema.StructType)
 		for _, field := range str.Fields {
+			// Embedded fields have no names, and cannot be attributes.
+			if field.IsAnonymous() {
+				continue
+			}
 			if attr, err := field.Tag.Get("pubsub-attr"); err == nil && attr.Name == config.OrderingAttribute {
 				foundField = field.AST
 				break

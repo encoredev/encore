@@ -441,3 +441,47 @@ func fileForPkg(pkgName string, pkgPath paths.Pkg) *pkginfo.File {
 		ImportPath: pkgPath,
 	}}
 }
+
+func TestParser_EmbeddedField(t *testing.T) {
+	c := qt.New(t)
+	a := testutil.ParseTxtar(`
+-- go.mod --
+module example.com
+require encore.dev v1.52.0
+-- code.go --
+package foo
+
+type Outer struct {
+	Inner ` + "`json:\"inner,omitempty\"`" + `
+	*Other
+	Name string
+}
+
+type Inner struct{ X string }
+type Other struct{ Y string }
+`)
+	tc := testutil.NewContext(c, false, a)
+	tc.FailTestOnErrors()
+	defer tc.FailTestOnBailout()
+	tc.GoModDownload()
+
+	l := pkginfo.New(tc.Context)
+	p := NewParser(tc.Context, l)
+	pkg := l.MustLoadPkg(token.NoPos, "example.com")
+	decl := p.ParseTypeDecl(pkg.Names().PkgDecls["Outer"])
+	fields := decl.Type.(StructType).Fields
+
+	// Embedded fields are kept as anonymous fields, with their type and tags.
+	c.Assert(fields, qt.HasLen, 3)
+
+	c.Assert(fields[0].IsAnonymous(), qt.IsTrue)
+	c.Assert(fields[0].Type.(NamedType).DeclInfo.Name, qt.Equals, "Inner")
+	tag, err := fields[0].Tag.Get("json")
+	c.Assert(err, qt.IsNil)
+	c.Assert(tag.Name, qt.Equals, "inner")
+
+	c.Assert(fields[1].IsAnonymous(), qt.IsTrue)
+	c.Assert(fields[1].Type.(PointerType).Elem.(NamedType).DeclInfo.Name, qt.Equals, "Other")
+
+	c.Assert(fields[2].Name, qt.Equals, option.Some("Name"))
+}

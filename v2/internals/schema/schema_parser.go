@@ -161,10 +161,6 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 
 			for _, field := range expr.Fields.List {
 				typ := r.parseType(file, field.Type)
-				if len(field.Names) == 0 {
-					// r.errs.AddPos(field.Pos(), "cannot use anonymous fields in Encore struct types")
-					continue
-				}
 
 				// Parse the struct tags, if any.
 				var tags structtag.Tags
@@ -181,6 +177,18 @@ func (r *typeResolver) parseType(file *pkginfo.File, expr ast.Expr) Type {
 				docs := field.Doc.Text()
 				if docs == "" {
 					docs = field.Comment.Text()
+				}
+
+				// Embedded field; see schemautil.FlattenStruct.
+				if len(field.Names) == 0 {
+					st.Fields = append(st.Fields, StructField{
+						AST:  field,
+						Name: option.None[string](),
+						Type: typ,
+						Tag:  tags,
+						Doc:  docs,
+					})
+					continue
 				}
 
 				for _, name := range field.Names {
