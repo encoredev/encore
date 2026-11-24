@@ -60,6 +60,10 @@ type BuildInfo struct {
 	Revision           string
 	UncommittedChanges bool
 
+	// OmitDebugInfo links a Go app with -s -w, as go run does, leaving out DWARF
+	// and the symbol table. Debug builds keep both whatever this is set to.
+	OmitDebugInfo bool
+
 	// MainPkg is the path to the existing main package to use, if any.
 	MainPkg option.Option[paths.Pkg]
 

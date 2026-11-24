@@ -159,12 +159,13 @@ func (*BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*buil
 
 		compileOp := p.OpTracker.Add("Compiling application source code", time.Now())
 		buildResult := build.Build(ctx, &build.Config{
-			Ctx:          pd.pc,
-			Overlays:     gg.Overlays(),
-			MainPkg:      paths.Pkg(p.Build.MainPkg.GetOrElse("./encore_internal/main")),
-			KeepOutput:   p.Build.KeepOutput,
-			StaticConfig: staticConfig,
-			Env:          p.Environ,
+			Ctx:           pd.pc,
+			Overlays:      gg.Overlays(),
+			MainPkg:       paths.Pkg(p.Build.MainPkg.GetOrElse("./encore_internal/main")),
+			KeepOutput:    p.Build.KeepOutput,
+			StaticConfig:  staticConfig,
+			Env:           p.Environ,
+			OmitDebugInfo: p.Build.OmitDebugInfo,
 		})
 
 		output := &builder.GoBuildOutput{ArtifactDir: buildResult.Dir}
