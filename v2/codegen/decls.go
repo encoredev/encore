@@ -88,8 +88,13 @@ func (f *File) Add(code jen.Code) {
 	}
 }
 
-// Render renders the file to the given writer.
-func (f *File) Render(w io.Writer) error {
+// AddDecls adds the file's declarations to its jen.File.
+//
+// It must not run concurrently with other code generation: Decl.Code() reaches
+// shared state, such as the type scrubber's cache, that is not known to be safe
+// for concurrent use. Once every file's declarations are added, the jen.Files
+// can be rendered concurrently.
+func (f *File) AddDecls() {
 	for i, d := range f.decls {
 		if i > 0 {
 			f.Jen.Line()
@@ -104,6 +109,13 @@ func (f *File) Render(w io.Writer) error {
 			panic(fmt.Sprintf("internal error: unknown decl type: %T", d))
 		}
 	}
+}
+
+// Render renders the file to the given writer.
+//
+// It adds the declarations first, so a file must not be rendered more than once.
+func (f *File) Render(w io.Writer) error {
+	f.AddDecls()
 	return f.Jen.Render(w)
 }
 
