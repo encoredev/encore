@@ -165,6 +165,7 @@ func (*BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*buil
 			KeepOutput:   p.Build.KeepOutput,
 			StaticConfig: staticConfig,
 			Env:          p.Environ,
+			CommitInEnv:  p.Build.CommitInEnv,
 		})
 
 		output := &builder.GoBuildOutput{ArtifactDir: buildResult.Dir}
@@ -194,6 +195,7 @@ func (*BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*buil
 
 		spec := builder.CmdSpec{
 			Command:          cmd,
+			Env:              fns.Map(buildResult.Env, func(e string) builder.ArtifactString { return builder.ArtifactString(e) }),
 			PrioritizedFiles: builder.ArtifactStrings{exeFile},
 		}
 		output.Entrypoints = []builder.Entrypoint{{

@@ -57,6 +57,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 		KeepOutput:         p.CodegenDebug,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
+		CommitInEnv:        true,
 
 		// Use the local JS runtime if this is a development build.
 		UseLocalJSRuntime: version.Channel == version.DevBuild,

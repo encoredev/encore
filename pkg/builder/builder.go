@@ -60,6 +60,10 @@ type BuildInfo struct {
 	Revision           string
 	UncommittedChanges bool
 
+	// CommitInEnv leaves the commit out of a Go app's binary and passes it in the
+	// entrypoint's environment instead. Set it when the daemon starts the binary.
+	CommitInEnv bool
+
 	// MainPkg is the path to the existing main package to use, if any.
 	MainPkg option.Option[paths.Pkg]
 
