@@ -1,6 +1,8 @@
 package genutil
 
 import (
+	"strings"
+
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/v2/internals/perr"
@@ -29,6 +31,14 @@ func MarshalBuiltinList(kind schema.BuiltinKind, value *Statement) Code {
 // MarshalQueryOrHeader generates the code to marshal a supported query value.
 // The resulting code is an expression of type []string.
 func MarshalQueryOrHeader(typ schema.Type, value *Statement) (code Code, ok bool) {
+	if named, ok := typ.(schema.NamedType); ok {
+		decl := named.Decl()
+		if decl != nil && decl.Type != nil {
+			return MarshalQueryOrHeader(decl.Type, castToUnderlying(decl.Type, value))
+		}
+		return nil, false
+	}
+
 	if list, ok := typ.(schema.ListType); ok {
 		marshaller, ok := getQueryOrHeaderMarshaller(list.Elem)
 		if !ok {
@@ -52,6 +62,31 @@ func MarshalQueryOrHeader(typ schema.Type, value *Statement) (code Code, ok bool
 	), true
 }
 
+// castToUnderlying casts a value to its underlying builtin type if needed.
+func castToUnderlying(underlying schema.Type, value *Statement) *Statement {
+	if b, ok := underlying.(schema.BuiltinType); ok {
+		return builtinTypeExpr(b.Kind).Call(value.Clone())
+	}
+	return value.Clone()
+}
+
+func builtinTypeExpr(kind schema.BuiltinKind) *Statement {
+	switch kind {
+	case schema.Bytes:
+		return Index().Byte()
+	case schema.Time:
+		return Qual("time", "Time")
+	case schema.JSON:
+		return Qual("encoding/json", "RawMessage")
+	case schema.UUID:
+		return Qual("encore.dev/types/uuid", "UUID")
+	case schema.UserID:
+		return Qual("encore.dev/beta/auth", "UID")
+	default:
+		return Id(strings.ToLower(kind.String()))
+	}
+}
+
 func getQueryOrHeaderMarshaller(typ schema.Type) (s *Statement, ok bool) {
 	switch typ := typ.(type) {
 	case schema.BuiltinType:
@@ -61,6 +96,11 @@ func getQueryOrHeaderMarshaller(typ schema.Type) (s *Statement, ok bool) {
 		return Qual("encore.dev/appruntime/shared/etype", "OptionMarshaller").Call(
 			inner,
 		), ok
+	case schema.NamedType:
+		if decl := typ.Decl(); decl != nil && decl.Type != nil {
+			return getQueryOrHeaderMarshaller(decl.Type)
+		}
+		return Nil(), false
 	default:
 		return Nil(), false
 	}
@@ -126,6 +166,18 @@ func (u *TypeUnmarshaller) UnmarshalQueryOrHeader(typ schema.Type, fieldName str
 		return Null()
 	}
 
+	if named, ok := typ.(schema.NamedType); ok {
+		decl := named.Decl()
+		if decl != nil && decl.Type != nil {
+			innerExpr := u.UnmarshalQueryOrHeader(decl.Type, fieldName, singleValue, listOfValues)
+			if innerExpr == nil || innerExpr == Null() {
+				return Null()
+			}
+			return Q(named.DeclInfo).Call(innerExpr)
+		}
+		return Null()
+	}
+
 	if list, ok := typ.(schema.ListType); ok {
 		return Qual("encore.dev/appruntime/shared/etype", "UnmarshalList").Call(
 			u.unmarshallerExpr.Clone(),
@@ -153,6 +205,12 @@ func (u *TypeUnmarshaller) getQueryOrHeaderUnmarshaller(typ schema.Type) *Statem
 		return Qual("encore.dev/appruntime/shared/etype", "OptionUnmarshaller").Call(
 			u.getQueryOrHeaderUnmarshaller(typ.Value),
 		)
+	case schema.NamedType:
+		if decl := typ.Decl(); decl != nil && decl.Type != nil {
+			return u.getQueryOrHeaderUnmarshaller(decl.Type)
+		}
+		u.errs.Addf(typ.ASTExpr().Pos(), "cannot unmarshal string to type %s", typ)
+		return Null()
 	default:
 		u.errs.Addf(typ.ASTExpr().Pos(), "cannot unmarshal string to type %s", typ)
 		return Null()

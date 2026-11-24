@@ -78,6 +78,11 @@ func isValidHeaderTypeValue(t schema.Type) bool {
 		return true
 	case schema.OptionType:
 		return isValidHeaderTypeValue(t.Value)
+	case schema.NamedType:
+		if decl := t.Decl(); decl != nil && decl.Type != nil {
+			return isValidHeaderTypeValue(decl.Type)
+		}
+		return false
 	default:
 		return false
 	}
@@ -97,6 +102,11 @@ func isValidQueryTypeValue(t schema.Type) bool {
 		return true
 	case schema.OptionType:
 		return isValidHeaderTypeValue(t.Value)
+	case schema.NamedType:
+		if decl := t.Decl(); decl != nil && decl.Type != nil {
+			return isValidQueryTypeValue(decl.Type)
+		}
+		return false
 	default:
 		return false
 	}
