@@ -194,7 +194,7 @@ func ExpireIn(dur time.Duration) ExpiryFunc {
 // ExpireDailyAt panics if loc is nil.
 func ExpireDailyAt(hour, minute, second int, loc *time.Location) ExpiryFunc {
 	return func(now time.Time) time.Time {
-		year, month, day := now.Date()
+		year, month, day := now.In(loc).Date()
 		next := time.Date(year, month, day, hour, minute, second, 0, loc)
 		// If next has already passed today, move it to tomorrow.
 		if next.Before(now) {
