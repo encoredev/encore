@@ -524,3 +524,7 @@ type TokenBucketLimiter struct {
 	PerSecondRate float64 `json:"rate"` // The rate at which to allow requests to pass through.
 	BucketSize    int     `json:"size"` // The size of the token bucket (starts full)
 }
+
+// TestInputsEnvVar holds a hash of the secrets, configs and migrations a test gets from the daemon.
+// Tests read it once they run, so go test keys its cached results on it.
+const TestInputsEnvVar = "ENCORE_TEST_INPUTS"
