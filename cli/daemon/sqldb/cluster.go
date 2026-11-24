@@ -325,6 +325,16 @@ func (c *Cluster) IsExternalDB(name string) bool {
 // Recreate recreates the databases for the given database names.
 // If databaseNames is the nil slice it recreates all databases.
 func (c *Cluster) Recreate(ctx context.Context, appRoot string, databaseNames []string, md *meta.Data) error {
+	return c.recreate(ctx, appRoot, databaseNames, md, false)
+}
+
+// RecreateFromTemplates recreates every database like Recreate, except that a database whose template
+// already holds its current migrations is copied from it instead of migrated again.
+func (c *Cluster) RecreateFromTemplates(ctx context.Context, appRoot string, md *meta.Data) error {
+	return c.recreate(ctx, appRoot, nil, md, true)
+}
+
+func (c *Cluster) recreate(ctx context.Context, appRoot string, databaseNames []string, md *meta.Data, reuseTemplates bool) error {
 	c.log.Debug().Msg("recreating cluster")
 	var filter map[string]bool
 	if databaseNames != nil {
@@ -351,7 +361,12 @@ func (c *Cluster) Recreate(ctx context.Context, appRoot string, databaseNames []
 			if !ok {
 				db = c.initDB(dbMeta.Name)
 			}
-			g.Go(func() error { return db.Setup(ctx, appRoot, dbMeta, true, true) })
+			g.Go(func() error {
+				if reuseTemplates {
+					return db.RecreateFromTemplate(ctx, appRoot, dbMeta)
+				}
+				return db.Setup(ctx, appRoot, dbMeta, true, true)
+			})
 		}
 	}
 	c.mu.Unlock()

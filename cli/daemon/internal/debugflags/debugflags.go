@@ -13,6 +13,10 @@ import (
 // pre-encore_services SQL role behavior.
 const SQLDBRoleLegacy = "legacy"
 
+// SQLDBTemplateRebuild is the value of the "sqldbtemplate" flag that makes encore test
+// migrate every test database again instead of copying an up-to-date template.
+const SQLDBTemplateRebuild = "rebuild"
+
 // Get returns the value of the named debug flag, or "" if it is not set.
 func Get(name string) string {
 	flagsOnce.Do(func() {

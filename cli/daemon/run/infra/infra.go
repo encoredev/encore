@@ -237,7 +237,7 @@ func (rm *ResourceManager) StartSQLCluster(a *optracker.AsyncBuildJobs, md *meta
 		// Set up the database asynchronously since it can take a while.
 		if rm.forTests {
 			a.Go("Recreating databases", true, 250*time.Millisecond, func(ctx context.Context) error {
-				err := cluster.Recreate(ctx, rm.app.Root(), nil, md)
+				err := cluster.RecreateFromTemplates(ctx, rm.app.Root(), md)
 				if err != nil {
 					rm.log.Error().Err(err).Msg("failed to recreate db")
 					return err
