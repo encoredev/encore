@@ -262,7 +262,7 @@ func (b *builder) buildMain() {
 		}
 
 		var ldflags strings.Builder
-		b.writeStaticConfig(&ldflags)
+		b.writeStaticConfig(&ldflags, b.cfg.StaticConfig)
 
 		if b.cfg.Ctx.Build.StaticLink {
 			// Enable external linking if we use cgo.
@@ -319,15 +319,27 @@ func (b *builder) buildMain() {
 	})
 }
 
-func (b *builder) writeStaticConfig(ldflags *strings.Builder) {
+func (b *builder) writeStaticConfig(ldflags *strings.Builder, static *config.Static) {
 	// Marshal the static config and add it as a linker flag.
 	ldflags.WriteString("-X 'encore.dev/appruntime/shared/appconf.static=")
-	data, err := json.Marshal(b.cfg.StaticConfig)
+	data, err := json.Marshal(static)
 	if err != nil {
 		b.errs.Fatalf(token.NoPos, "unable to marshal static config: %v", err)
 	}
 	ldflags.WriteString(base64.StdEncoding.EncodeToString(data))
 	ldflags.WriteByte('\'')
+}
+
+// moveCommitToEnv returns a copy of static without the app's commit,
+// and the environment variable the runtime reads it from instead.
+func (b *builder) moveCommitToEnv(static *config.Static) (*config.Static, string) {
+	commit, err := json.Marshal(static.AppCommit)
+	if err != nil {
+		b.errs.Fatalf(token.NoPos, "unable to marshal app commit: %v", err)
+	}
+	withoutCommit := *static
+	withoutCommit.AppCommit = config.CommitInfo{}
+	return &withoutCommit, config.AppCommitEnvVar + "=" + string(commit)
 }
 
 const BinaryName = "encore_app_out"
