@@ -25,24 +25,31 @@ import (
 	"encr.dev/pkg/fns"
 )
 
-// LoadFromFS takes a given filesystem object and the app-relative path to the service's root package
-// and loads the full configuration needed for that service.
-func LoadFromFS(filesys fs.FS, serviceRelPath string, meta *Meta) (cue.Value, error) {
-	// Work out of a temporary directory
+// WriteToDisk writes the contents of the given filesystem to a new temporary directory,
+// so that multiple services can be loaded from a single copy of the file tree.
+//
+// It returns the directory along with a function that removes it again, which the
+// caller must call once every service has been loaded. If an error is returned the
+// directory has already been removed.
+func WriteToDisk(filesys fs.FS) (dir string, cleanup func(), err error) {
 	tmpPath, err := os.MkdirTemp("", "encr-cfg-")
 	if err != nil {
-		return cue.Value{}, eerror.Wrap(err, "config", "unable to create temporary directory", nil)
-	}
-	defer func() { _ = os.RemoveAll(tmpPath) }()
-
-	// Write the FS to the file system
-	err = writeFSToPath(filesys, tmpPath)
-	if err != nil {
-		return cue.Value{}, err
+		return "", nil, eerror.Wrap(err, "config", "unable to create temporary directory", nil)
 	}
 
+	if err = writeFSToPath(filesys, tmpPath); err != nil {
+		_ = os.RemoveAll(tmpPath)
+		return "", nil, err
+	}
+
+	return tmpPath, func() { _ = os.RemoveAll(tmpPath) }, nil
+}
+
+// LoadFromDir takes the app-relative path to the service's root package and a directory
+// written by WriteToDisk, and loads the full configuration needed for that service.
+func LoadFromDir(dir string, serviceRelPath string, meta *Meta) (cue.Value, error) {
 	// Find all config files for the service
-	configFilesForService, err := allFilesUnder(filesys, serviceRelPath)
+	configFilesForService, err := allFilesUnder(os.DirFS(dir), serviceRelPath)
 	if err != nil {
 		return cue.Value{}, eerror.Wrap(err, "config", "unable to list all config files for service", map[string]any{"path": serviceRelPath})
 	}
@@ -54,19 +61,19 @@ func LoadFromFS(filesys fs.FS, serviceRelPath string, meta *Meta) (cue.Value, er
 
 	// Tell CUE to load all the files
 	loaderCfg := &load.Config{
-		Dir:   tmpPath,
+		Dir:   dir,
 		Tools: true,
 		Tags:  meta.ToTags(),
 	}
 	pkgs := load.Instances(configFilesForService, loaderCfg)
 	for _, pkg := range pkgs {
 		if pkg.Err != nil {
-			return cue.Value{}, srcerrors.UnableToLoadCUEInstances(pkg.Err, tmpPath)
+			return cue.Value{}, srcerrors.UnableToLoadCUEInstances(pkg.Err, dir)
 		}
 
 		// Non CUE files may be orphaned (JSON/YAML), so need to be parsed into the CUE AST and added to the package.
 		if err := addOrphanedFiles(pkg); err != nil {
-			return cue.Value{}, srcerrors.UnableToAddOrphanedCUEFiles(err, tmpPath)
+			return cue.Value{}, srcerrors.UnableToAddOrphanedCUEFiles(err, dir)
 		}
 	}
 
@@ -74,7 +81,7 @@ func LoadFromFS(filesys fs.FS, serviceRelPath string, meta *Meta) (cue.Value, er
 	ctx := cuecontext.New()
 	values, err := ctx.BuildInstances(pkgs)
 	if err != nil {
-		return cue.Value{}, srcerrors.UnableToLoadCUEInstances(err, tmpPath)
+		return cue.Value{}, srcerrors.UnableToLoadCUEInstances(err, dir)
 	}
 	if len(values) == 0 {
 		return cue.Value{}, eerror.New("config", "no values generated from config", nil)
@@ -90,7 +97,7 @@ func LoadFromFS(filesys fs.FS, serviceRelPath string, meta *Meta) (cue.Value, er
 
 	// Validate the unified value is concrete
 	if err := rtnValue.Validate(cue.Concrete(true)); err != nil {
-		return cue.Value{}, srcerrors.CUEEvaluationFailed(err, tmpPath)
+		return cue.Value{}, srcerrors.CUEEvaluationFailed(err, dir)
 	}
 
 	return rtnValue, nil
