@@ -518,15 +518,20 @@ func (i *BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacing
 }
 
 // writeOrDeleteFile writes the given data to dst. If data is empty, it will
-// instead delete the file at dst.
+// instead delete the file at dst. A file that already holds exactly data is left alone.
 func (i *BuilderImpl) writeOrDeleteFile(errs *perr.List, data []byte, dst paths.FS) {
 	if len(data) == 0 {
 		// No need for any generated code. Try to remove the existing file
 		// if it's there as it's no longer needed.
 		_ = os.Remove(dst.ToIO())
-	} else {
-		if err := os.WriteFile(dst.ToIO(), data, 0644); err != nil {
-			errs.AddStd(err)
-		}
+		return
+	}
+
+	// Skip unchanged files so editors and file watchers don't see every service's generated code change.
+	if existing, err := os.ReadFile(dst.ToIO()); err == nil && bytes.Equal(existing, data) {
+		return
+	}
+	if err := os.WriteFile(dst.ToIO(), data, 0644); err != nil {
+		errs.AddStd(err)
 	}
 }

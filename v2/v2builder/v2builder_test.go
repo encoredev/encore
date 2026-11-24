@@ -1,13 +1,19 @@
 package v2builder
 
 import (
+	"context"
+	"go/token"
+	"os"
 	"testing"
+	"time"
 
 	qt "github.com/frankban/quicktest"
 	"github.com/rogpeppe/go-internal/txtar"
 
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
+	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/testutil"
 	"encr.dev/v2/parser"
 )
@@ -91,4 +97,45 @@ func TestComputeConfigs_GeneratedCUE(t *testing.T) {
 			})
 		})
 	}
+}
+
+// TestWriteOrDeleteFile verifies that a generated file that already holds the
+// data is not rewritten, so its modification time does not change.
+func TestWriteOrDeleteFile(t *testing.T) {
+	c := qt.New(t)
+	dir := t.TempDir()
+	dst := paths.RootedFSPath(dir, ".").Join("encore.gen.go")
+	errs := perr.NewList(context.Background(), token.NewFileSet())
+	b := &BuilderImpl{}
+
+	// modTimeAfterWrite backdates the file, writes data and returns the file's
+	// modification time, so a rewrite shows up whatever the clock's resolution.
+	old := time.Now().Add(-time.Hour).Truncate(time.Second)
+	modTimeAfterWrite := func(data string) time.Time {
+		c.Assert(os.Chtimes(dst.ToIO(), old, old), qt.IsNil)
+		b.writeOrDeleteFile(errs, []byte(data), dst)
+		c.Assert(errs.Len(), qt.Equals, 0)
+		fi, err := os.Stat(dst.ToIO())
+		c.Assert(err, qt.IsNil)
+		return fi.ModTime()
+	}
+
+	// A missing file is written.
+	b.writeOrDeleteFile(errs, []byte("package svc\n"), dst)
+	c.Assert(errs.Len(), qt.Equals, 0)
+
+	// The same contents leave the file alone.
+	c.Assert(modTimeAfterWrite("package svc\n").Equal(old), qt.IsTrue)
+
+	// New contents are written.
+	c.Assert(modTimeAfterWrite("package svc\n\n// changed\n").Equal(old), qt.IsFalse)
+	got, err := os.ReadFile(dst.ToIO())
+	c.Assert(err, qt.IsNil)
+	c.Assert(string(got), qt.Equals, "package svc\n\n// changed\n")
+
+	// No contents remove the file.
+	b.writeOrDeleteFile(errs, nil, dst)
+	c.Assert(errs.Len(), qt.Equals, 0)
+	_, err = os.Stat(dst.ToIO())
+	c.Assert(os.IsNotExist(err), qt.IsTrue)
 }
