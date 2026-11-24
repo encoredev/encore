@@ -107,6 +107,8 @@ func TestPendingMigrations(t *testing.T) {
 		"nonseq_all_applied":  {nonSeq: true, applied: map[uint64]bool{1: false, 2: false, 3: false}, expected: nil},
 		"nonseq_none_applied": {nonSeq: true, applied: map[uint64]bool{}, expected: []string{"1_a.up.sql", "2_b.up.sql", "3_c.up.sql"}},
 	}
+	// These cases cover upstream number-based tracking.
+	setTrackByName(t, false)
 	for name, tc := range testCases {
 		c.Run(name, func(c *qt.C) {
 			dbMeta := &meta.SQLDatabase{Migrations: migrations, AllowNonSequentialMigrations: tc.nonSeq}
@@ -114,10 +116,30 @@ func TestPendingMigrations(t *testing.T) {
 				dbMeta.Migrations = tc.migrations
 			}
 			var got []string
-			for _, m := range PendingMigrations(dbMeta, tc.applied) {
+			for _, m := range PendingMigrations("", dbMeta, tc.applied) {
 				got = append(got, m.Filename)
 			}
 			c.Assert(got, qt.DeepEquals, tc.expected)
 		})
 	}
+}
+
+func TestPendingMigrationsByName(t *testing.T) {
+	c := qt.New(t)
+	setTrackByName(t, true)
+	// alice, bob and carol were applied while carol was 1002; then joe landed
+	// on main as 1002 and carol was renumbered to 1003. The applied versions are
+	// reported in the current numbering, so only joe is pending.
+	dbMeta := &meta.SQLDatabase{Migrations: []*meta.DBMigration{
+		{Filename: "1000_alice.up.sql", Number: 1000},
+		{Filename: "1001_bob.up.sql", Number: 1001},
+		{Filename: "1002_joe.up.sql", Number: 1002},
+		{Filename: "1003_carol.up.sql", Number: 1003},
+	}}
+	applied := map[uint64]bool{1000: false, 1001: false, 1003: false}
+	var got []string
+	for _, m := range PendingMigrations("", dbMeta, applied) {
+		got = append(got, m.Filename)
+	}
+	c.Assert(got, qt.DeepEquals, []string{"1002_joe.up.sql"})
 }
