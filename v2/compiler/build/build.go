@@ -274,7 +274,7 @@ func (b *builder) buildMain() {
 		}
 		args = append(args, "-ldflags", ldflags.String())
 
-		if b.cfg.Ctx.Build.Debug > builderpkg.DebugModeDisabled {
+		if debug := b.cfg.Ctx.Build.Debug; debug == builderpkg.DebugModeEnabled || debug == builderpkg.DebugModeBreak {
 			// Disable inlining for better debugging.
 			args = append(args, "-gcflags", "all=-N -l")
 		}

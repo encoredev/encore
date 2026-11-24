@@ -3,6 +3,7 @@ package build
 import (
 	"bytes"
 	"context"
+	"debug/buildinfo"
 	"encoding/json"
 	"fmt"
 	"go/token"
@@ -18,6 +19,7 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
+	"encore.dev/appruntime/exported/config"
 	builderpkg "encr.dev/pkg/builder"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/overlay"
@@ -58,6 +60,68 @@ func TestBuild(t *testing.T) {
 			return nil
 		},
 	})
+}
+
+func TestBuildDebugFlags(t *testing.T) {
+	tests := []struct {
+		debug       builderpkg.DebugMode
+		wantGCFlags string
+	}{
+		{debug: builderpkg.DebugModeDisabled},
+		{debug: builderpkg.DebugModeEnabled, wantGCFlags: "all=-N -l"},
+		{debug: builderpkg.DebugModeBreak, wantGCFlags: "all=-N -l"},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.debug), func(t *testing.T) {
+			settings := buildEmptyMain(t, &Config{StaticConfig: &config.Static{}}, tt.debug)
+			if got := settings["-gcflags"]; got != tt.wantGCFlags {
+				t.Errorf("-gcflags = %q, want %q", got, tt.wantGCFlags)
+			}
+		})
+	}
+}
+
+// buildEmptyMain builds a one-file main package with cfg and returns the binary's build settings.
+func buildEmptyMain(t *testing.T, cfg *Config, debug builderpkg.DebugMode) map[string]string {
+	t.Helper()
+	dir := t.TempDir()
+	ar := testutil.ParseTxtar("-- go.mod --\nmodule example.com\n\ngo 1.22\n-- main.go --\npackage main\n\nfunc main() {}\n" + dummyEncoreRuntime)
+	if err := txtar.Write(ar, dir); err != nil {
+		t.Fatal(err)
+	}
+	wd := paths.RootedFSPath(dir, ".")
+	ctx := context.Background()
+	fs := token.NewFileSet()
+	errs := perr.NewList(ctx, fs)
+	cfg.Ctx = &parsectx.Context{
+		Ctx: ctx,
+		Log: zerolog.Nop(),
+		Build: parsectx.BuildInfo{
+			GOARCH:        runtime.GOARCH,
+			GOOS:          runtime.GOOS,
+			GOROOT:        paths.RootedFSPath(runtime.GOROOT(), "."),
+			EncoreRuntime: wd.Join("encore-runtime"),
+			Debug:         debug,
+		},
+		FS:            fs,
+		Errs:          errs,
+		MainModuleDir: wd,
+	}
+	cfg.MainPkg = "example.com"
+	res := Build(ctx, cfg)
+	if errs.Len() > 0 {
+		t.Fatalf("build failed: %s", errs.FormatErrors())
+	}
+
+	info, err := buildinfo.ReadFile(res.Exe.ToIO())
+	if err != nil {
+		t.Fatalf("read build info: %v", err)
+	}
+	settings := make(map[string]string)
+	for _, s := range info.Settings {
+		settings[s.Key] = s.Value
+	}
+	return settings
 }
 
 func run() int {
