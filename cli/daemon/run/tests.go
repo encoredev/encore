@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/rs/xid"
 
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/namespace"
@@ -18,6 +20,7 @@ import (
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/internal/optracker"
 	"encr.dev/internal/version"
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
@@ -244,6 +247,24 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		return nil, err
 	}
 	env = append(env, encodeServiceConfigs(cfg.Configs)...)
+	// TypeScript tests do not run under go test, so its result cache does not apply to them.
+	if params.App.Lang() == appfile.LangGo {
+		appFile, err := os.ReadFile(filepath.Join(params.App.Root(), appfile.Name))
+		if err != nil {
+			return nil, errors.Wrap(err, "read app file")
+		}
+		inputs, err := testInputsHash(testInputsParams{
+			AppRoot:        params.App.Root(),
+			AppFile:        appFile,
+			Secrets:        secrets,
+			ServiceConfigs: cfg.Configs,
+			Databases:      parse.Meta.SqlDatabases,
+		})
+		if err != nil {
+			return nil, err
+		}
+		env = append(env, config.TestInputsEnvVar+"="+inputs)
+	}
 
 	return bld.TestSpec(ctx, builder.TestSpecParams{
 		Compile: builder.CompileParams{

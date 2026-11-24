@@ -3,10 +3,13 @@
 package testsupport
 
 import (
+	"os"
 	"strings"
+	"sync"
 	"testing"
 	_ "unsafe" // for go:linkname
 
+	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
 	"encore.dev/appruntime/exported/trace2"
@@ -28,8 +31,14 @@ func encoreStartTest(t *testing.T, fn func(t *testing.T)) {
 	if isGeneratedWrapperTest(t) {
 		return
 	}
+	// go test adds every variable a test looks up to its cache key, hashing the value from its own
+	// environment. encoreenv has already unset this one, so the lookup returns "", which is fine.
+	// That keys cached results on the daemon's configs, secrets and migrations. Examples skip this hook.
+	readTestInputs.Do(func() { _ = os.Getenv(config.TestInputsEnvVar) })
 	Singleton.StartTest(t, fn)
 }
+
+var readTestInputs sync.Once
 
 //go:linkname encorePauseTest testing.encorePauseTest
 func encorePauseTest(t *testing.T) {
