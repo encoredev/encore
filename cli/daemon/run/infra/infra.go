@@ -3,6 +3,7 @@ package infra
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"sync"
 	"time"
@@ -343,7 +344,7 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 
 	if cluster := rm.GetSQLCluster(); cluster != nil {
 		srv := &config.SQLServer{
-			Host: "localhost:" + strconv.Itoa(dbProxyPort),
+			Host: localDBProxyHost(dbProxyPort),
 		}
 		serverID := len(cfg.SQLServers)
 		cfg.SQLServers = append(cfg.SQLServers, srv)
@@ -434,6 +435,14 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 	return nil
 }
 
+// localDBProxyHost is the address apps should use for the daemon's database
+// proxy. The proxy listens on 127.0.0.1. Advertising "localhost" makes Windows
+// resolve ::1 first; that attempt is refused and adds about two seconds to
+// every new SQL connection.
+func localDBProxyHost(port int) string {
+	return net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
+}
+
 // SQLServerConfig returns the SQL server configuration.
 func (rm *ResourceManager) SQLServerConfig() (config.SQLServer, error) {
 	cluster := rm.GetSQLCluster()
@@ -442,7 +451,7 @@ func (rm *ResourceManager) SQLServerConfig() (config.SQLServer, error) {
 	}
 
 	srvCfg := config.SQLServer{
-		Host: "localhost:" + strconv.Itoa(rm.dbProxyPort),
+		Host: localDBProxyHost(rm.dbProxyPort),
 	}
 
 	return srvCfg, nil
