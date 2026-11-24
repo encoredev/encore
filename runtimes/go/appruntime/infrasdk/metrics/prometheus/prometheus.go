@@ -75,11 +75,20 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMetric) []*prompb.TimeSeries {
 	data := make([]*prompb.TimeSeries, 0, len(collected))
 
+	// svcLabels is set per-metric in the loop below and captured by doAdd.
+	var svcLabels map[string][]metrics.KeyValue
+
 	doAdd := func(val float64, metricName string, baseLabels []*prompb.Label, svcIdx uint16) {
+		svcName := x.svcs[svcIdx]
 		labels := make([]*prompb.Label, len(baseLabels)+2)
 		copy(labels, baseLabels)
 		labels[len(baseLabels)] = &prompb.Label{Name: "__name__", Value: metricName}
-		labels[len(baseLabels)+1] = &prompb.Label{Name: "service", Value: x.svcs[svcIdx]}
+		labels[len(baseLabels)+1] = &prompb.Label{Name: "service", Value: svcName}
+		if extra, ok := svcLabels[svcName]; ok {
+			for _, kv := range extra {
+				labels = append(labels, &prompb.Label{Name: kv.Key, Value: kv.Value})
+			}
+		}
 		// Sort labels lexicographically by name, as required by some Prometheus implementations.
 		slices.SortFunc(labels, func(a, b *prompb.Label) int {
 			return strings.Compare(a.Name, b.Name)
@@ -96,6 +105,7 @@ func (x *Exporter) getMetricData(now time.Time, collected []metrics.CollectedMet
 	}
 
 	for _, m := range collected {
+		svcLabels = m.ServiceLabels
 		labels := make([]*prompb.Label, len(x.containerMetadataLabels))
 		copy(labels, x.containerMetadataLabels)
 		for _, label := range m.Labels {
