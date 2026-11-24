@@ -48,7 +48,7 @@ func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, nsMgr *namespace.Mana
 		tr:       tr,
 		dashPort: dashPort,
 		traceCh:  make(chan trace2.NewSpanEvent, 10),
-		clients:  make(map[chan<- *notification]struct{}),
+		clients:  make(map[chan<- []byte]struct{}),
 		objects:  &bucketBrowser{apps: appsMgr, run: runMgr, ns: nsMgr},
 	}
 
@@ -71,7 +71,7 @@ type Server struct {
 	objects  *bucketBrowser
 
 	mu      sync.Mutex
-	clients map[chan<- *notification]struct{}
+	clients map[chan<- []byte]struct{}
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -102,12 +102,12 @@ func (s *Server) WebSocket(w http.ResponseWriter, req *http.Request) {
 	handler := &handler{rpc: conn, apps: s.apps, run: s.run, ns: s.ns, tr: s.tr, objects: s.objects}
 	conn.Go(req.Context(), handler.Handle)
 
-	ch := make(chan *notification, 20)
+	ch := make(chan []byte, 20)
 	s.addClient(ch)
 	defer s.removeClient(ch)
 
 	// nosemgrep: tools.semgrep-rules.semgrep-go.http-request-go-context
-	go handler.listenNotify(req.Context(), ch)
+	go stream.writeNotifications(req.Context(), ch)
 
 	<-conn.Done()
 	if err := conn.Err(); err != nil {
@@ -119,13 +119,13 @@ func (s *Server) WebSocket(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *Server) addClient(ch chan *notification) {
+func (s *Server) addClient(ch chan []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.clients[ch] = struct{}{}
 }
 
-func (s *Server) removeClient(ch chan *notification) {
+func (s *Server) removeClient(ch chan []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.clients, ch)
@@ -143,18 +143,26 @@ type notification struct {
 	Params interface{}
 }
 
-// notify notifies any active clients.
+// notify notifies any active clients, encoding n once for all of them.
 func (s *Server) notify(n *notification) {
-	var clients []chan<- *notification
+	var clients []chan<- []byte
 	s.mu.Lock()
 	for c := range s.clients {
 		clients = append(clients, c)
 	}
 	s.mu.Unlock()
+	if len(clients) == 0 {
+		return
+	}
 
+	data, err := jsonrpc2.EncodeNotification(n.Method, n.Params)
+	if err != nil {
+		log.Error().Err(err).Str("method", n.Method).Msg("dash: could not encode notification")
+		return
+	}
 	for _, c := range clients {
 		select {
-		case c <- n:
+		case c <- data:
 		default:
 		}
 	}
@@ -185,6 +193,23 @@ func (s *wsStream) Read(context.Context) (jsonrpc2.Message, int64, error) {
 		return nil, 0, err
 	}
 	return msg, int64(len(data)), nil
+}
+
+// writeNotifications writes each encoded notification from ch until ctx is done or a write fails.
+func (s *wsStream) writeNotifications(ctx context.Context, ch <-chan []byte) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case data := <-ch:
+			s.writeMu.Lock()
+			err := s.c.WriteMessage(websocket.TextMessage, data)
+			s.writeMu.Unlock()
+			if err != nil {
+				return
+			}
+		}
+	}
 }
 
 func (s *wsStream) Write(ctx context.Context, msg jsonrpc2.Message) (int64, error) {

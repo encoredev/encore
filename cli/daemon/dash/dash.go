@@ -527,19 +527,6 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 	return jsonrpc2.MethodNotFound(ctx, reply, r)
 }
 
-func (h *handler) listenNotify(ctx context.Context, ch <-chan *notification) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case r := <-ch:
-			if err := h.rpc.Notify(ctx, r.Method, r.Params); err != nil {
-				return
-			}
-		}
-	}
-}
-
 func (s *Server) listenTraces() {
 	for sp := range s.traceCh {
 		// Only marshal the trace if someone's listening.
@@ -665,15 +652,13 @@ func (s *Server) OnError(r *run.Run, err *errlist.List) {
 }
 
 func (s *Server) onOutput(r *run.Run, out []byte) {
-	// Copy to a new slice since we cannot retain it after the call ends, and notify is async.
-	out2 := make([]byte, len(out))
-	copy(out2, out)
+	// notify encodes out before it returns, so it needs no copy.
 	s.notify(&notification{
 		Method: "process/output",
 		Params: map[string]interface{}{
 			"appID":  r.App.PlatformOrLocalID(),
 			"pid":    r.ID,
-			"output": out2,
+			"output": out,
 		},
 	})
 }
