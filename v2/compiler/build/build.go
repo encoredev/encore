@@ -56,11 +56,18 @@ type Config struct {
 
 	// StaticConfig is the static config to embed into the binary.
 	StaticConfig *config.Static
+
+	// CommitInEnv leaves the app's commit and Go's VCS stamp out of the binary,
+	// and puts the commit in Result.Env, so a new commit alone does not relink it.
+	CommitInEnv bool
 }
 
 type Result struct {
 	Dir paths.FS
 	Exe paths.FS
+
+	// Env holds environment variables the binary must be started with.
+	Env []string
 }
 
 func Build(ctx context.Context, cfg *Config) *Result {
@@ -99,6 +106,9 @@ type builder struct {
 	// deleteWorkDir reports whether the workdir should be deleted.
 	// It's true for temporarily generated workdirs.
 	tempWorkDir bool
+
+	// exeEnv holds environment variables the binary must be started with.
+	exeEnv []string
 }
 
 func (b *builder) Build() *Result {
@@ -131,6 +141,7 @@ func (b *builder) Build() *Result {
 			break
 		}
 	}
+	res.Env = b.exeEnv
 	return res
 }
 
@@ -261,8 +272,17 @@ func (b *builder) buildMain() {
 			args = append(args, "-o="+b.binaryPath().ToIO())
 		}
 
+		static := b.cfg.StaticConfig
+		if b.cfg.CommitInEnv {
+			var commitEnv string
+			static, commitEnv = b.moveCommitToEnv(static)
+			b.exeEnv = append(b.exeEnv, commitEnv)
+			// Go's VCS stamp would also change the binary on each commit.
+			args = append(args, "-buildvcs=false")
+		}
+
 		var ldflags strings.Builder
-		b.writeStaticConfig(&ldflags)
+		b.writeStaticConfig(&ldflags, static)
 
 		if b.cfg.Ctx.Build.StaticLink {
 			// Enable external linking if we use cgo.
@@ -319,15 +339,27 @@ func (b *builder) buildMain() {
 	})
 }
 
-func (b *builder) writeStaticConfig(ldflags *strings.Builder) {
+func (b *builder) writeStaticConfig(ldflags *strings.Builder, static *config.Static) {
 	// Marshal the static config and add it as a linker flag.
 	ldflags.WriteString("-X 'encore.dev/appruntime/shared/appconf.static=")
-	data, err := json.Marshal(b.cfg.StaticConfig)
+	data, err := json.Marshal(static)
 	if err != nil {
 		b.errs.Fatalf(token.NoPos, "unable to marshal static config: %v", err)
 	}
 	ldflags.WriteString(base64.StdEncoding.EncodeToString(data))
 	ldflags.WriteByte('\'')
+}
+
+// moveCommitToEnv returns a copy of static without the app's commit,
+// and the environment variable the runtime reads it from instead.
+func (b *builder) moveCommitToEnv(static *config.Static) (*config.Static, string) {
+	commit, err := json.Marshal(static.AppCommit)
+	if err != nil {
+		b.errs.Fatalf(token.NoPos, "unable to marshal app commit: %v", err)
+	}
+	withoutCommit := *static
+	withoutCommit.AppCommit = config.CommitInfo{}
+	return &withoutCommit, config.AppCommitEnvVar + "=" + string(commit)
 }
 
 const BinaryName = "encore_app_out"

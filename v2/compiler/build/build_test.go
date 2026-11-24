@@ -3,6 +3,7 @@ package build
 import (
 	"bytes"
 	"context"
+	"debug/buildinfo"
 	"encoding/json"
 	"fmt"
 	"go/token"
@@ -11,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -18,6 +20,7 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
+	"encore.dev/appruntime/exported/config"
 	builderpkg "encr.dev/pkg/builder"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/overlay"
@@ -58,6 +61,89 @@ func TestBuild(t *testing.T) {
 			return nil
 		},
 	})
+}
+
+func TestBuildCommitInEnv(t *testing.T) {
+	commit := config.CommitInfo{Revision: "abc123", Uncommitted: true}
+	tests := []struct {
+		name        string
+		commitInEnv bool
+		wantLinked  bool
+		wantEnv     []string
+	}{
+		{name: "commit_in_env", commitInEnv: true, wantEnv: []string{`ENCORE_APP_COMMIT={"revision":"abc123","uncommitted":true}`}},
+		{name: "commit_linked", wantLinked: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			ar := testutil.ParseTxtar("-- go.mod --\nmodule example.com\n\ngo 1.22\n-- main.go --\npackage main\n\nfunc main() {}\n" + dummyEncoreRuntime)
+			if err := txtar.Write(ar, dir); err != nil {
+				t.Fatal(err)
+			}
+			// Go stamps a binary with VCS details only when its module is in a repository.
+			git(t, dir, "init", "-q")
+			git(t, dir, "add", ".")
+			git(t, dir, "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "--no-verify", "--no-gpg-sign", "-m", "init")
+			wd := paths.RootedFSPath(dir, ".")
+			ctx := context.Background()
+			fs := token.NewFileSet()
+			errs := perr.NewList(ctx, fs)
+			res := Build(ctx, &Config{
+				Ctx: &parsectx.Context{
+					Ctx: ctx,
+					Log: zerolog.Nop(),
+					Build: parsectx.BuildInfo{
+						GOARCH:        runtime.GOARCH,
+						GOOS:          runtime.GOOS,
+						GOROOT:        paths.RootedFSPath(runtime.GOROOT(), "."),
+						EncoreRuntime: wd.Join("encore-runtime"),
+						Debug:         builderpkg.DebugModeDisabled,
+					},
+					FS:            fs,
+					Errs:          errs,
+					MainModuleDir: wd,
+				},
+				MainPkg:      "example.com",
+				StaticConfig: &config.Static{AppCommit: commit},
+				CommitInEnv:  tt.commitInEnv,
+			})
+			if errs.Len() > 0 {
+				t.Fatalf("build failed: %s", errs.FormatErrors())
+			}
+
+			info, err := buildinfo.ReadFile(res.Exe.ToIO())
+			if err != nil {
+				t.Fatalf("read build info: %v", err)
+			}
+			var ldflags string
+			var stamped bool
+			for _, s := range info.Settings {
+				switch {
+				case s.Key == "-ldflags":
+					ldflags = s.Value
+				case strings.HasPrefix(s.Key, "vcs"):
+					stamped = true
+				}
+			}
+			if linked := linkedStaticConfig(t, []string{"-ldflags", ldflags}).AppCommit == commit; linked != tt.wantLinked {
+				t.Errorf("commit linked = %v, want %v", linked, tt.wantLinked)
+			}
+			if stamped != tt.wantLinked {
+				t.Errorf("Go's VCS stamp present = %v, want %v", stamped, tt.wantLinked)
+			}
+			if !slices.Equal(res.Env, tt.wantEnv) {
+				t.Errorf("env = %q, want %q", res.Env, tt.wantEnv)
+			}
+		})
+	}
+}
+
+func git(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v: %s", args, err, out)
+	}
 }
 
 func run() int {

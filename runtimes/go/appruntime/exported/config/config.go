@@ -210,6 +210,9 @@ type CommitInfo struct {
 	Uncommitted bool   `json:"uncommitted"`
 }
 
+// AppCommitEnvVar holds the app's CommitInfo as JSON, for a binary linked without it.
+const AppCommitEnvVar = "ENCORE_APP_COMMIT"
+
 func (ci CommitInfo) AsRevisionString() string {
 	if ci.Uncommitted {
 		return fmt.Sprintf("%s-modified", ci.Revision)

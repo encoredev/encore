@@ -408,6 +408,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		KeepOutput:         false,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
+		CommitInEnv:        true,
 
 		// Use the local JS runtime if this is a development build.
 		UseLocalJSRuntime: version.Channel == version.DevBuild,

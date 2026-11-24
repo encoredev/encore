@@ -147,8 +147,12 @@ func (b *builder) generateTestSpec(testCfg *GenerateTestSpecConfig) *TestSpec {
 		"-vet=off",
 	}
 
+	// Pass the commit in the environment: linked in, it would change every
+	// test binary on each commit, and go test's cached results would all miss.
+	static, commitEnv := b.moveCommitToEnv(b.cfg.StaticConfig)
+
 	var ldflags strings.Builder
-	b.writeStaticConfig(&ldflags)
+	b.writeStaticConfig(&ldflags, static)
 
 	if b.cfg.Ctx.Build.StaticLink {
 		// Enable external linking if we use cgo.
@@ -179,6 +183,7 @@ func (b *builder) generateTestSpec(testCfg *GenerateTestSpecConfig) *TestSpec {
 		"GOROOT="+goroot.ToIO(),
 		"GOTOOLCHAIN=local",
 	)
+	env = append(env, commitEnv)
 	if goos := build.GOOS; goos != "" {
 		env = append(env, "GOOS="+goos)
 	}
